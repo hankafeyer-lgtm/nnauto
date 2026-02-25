@@ -1262,6 +1262,61 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="phone">{t("profile.phone")}</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder={t("profile.phonePlaceholder")}
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      disabled={!isEditing}
+                      className="pl-10"
+                      data-testid="input-phone"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  {!isEditing ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsEditing(true);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-primary-foreground"
+                    >
+                      <User className="h-4 w-4" />
+                      {t("profile.editProfile")}
+                    </button>
+                  ) : (
+                    <>
+                      <Button
+                        type="submit"
+                        disabled={updateMutation.isPending}
+                        data-testid="button-save-profile"
+                      >
+                        {updateMutation.isPending
+                          ? t("profile.saving")
+                          : t("profile.saveChanges")}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancel}
+                        disabled={updateMutation.isPending}
+                        data-testid="button-cancel-edit"
+                      >
+                        {t("profile.cancel")}
+                      </Button>
+                    </>
+                  )}
+                </div>
+
                 {/* Change password (placed directly under email) */}
                 <div className="space-y-4">
                   <div className="space-y-1">
@@ -1329,66 +1384,11 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone">{t("profile.phone")}</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder={t("profile.phonePlaceholder")}
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      disabled={!isEditing}
-                      className="pl-10"
-                      data-testid="input-phone"
-                    />
-                  </div>
-                </div>
-
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-4 w-4" />
                   <span>
                     {t("profile.memberSince")} {formatDate(user.createdAt)}
                   </span>
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  {!isEditing ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setIsEditing(true);
-                      }}
-                      className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-primary-foreground"
-                    >
-                      <User className="h-4 w-4" />
-                      {t("profile.editProfile")}
-                    </button>
-                  ) : (
-                    <>
-                      <Button
-                        type="submit"
-                        disabled={updateMutation.isPending}
-                        data-testid="button-save-profile"
-                      >
-                        {updateMutation.isPending
-                          ? t("profile.saving")
-                          : t("profile.saveChanges")}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={handleCancel}
-                        disabled={updateMutation.isPending}
-                        data-testid="button-cancel-edit"
-                      >
-                        {t("profile.cancel")}
-                      </Button>
-                    </>
-                  )}
                 </div>
               </form>
             </CardContent>
