@@ -1651,8 +1651,6 @@ export function MediaLightbox({
           </span>
         </div>
       )}
-
-      {!isZoomed && thumbnails}
     </div>
   );
 }
