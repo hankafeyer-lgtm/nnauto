@@ -37,7 +37,6 @@ export default function LoginModal({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [registerEmail, setRegisterEmail] = useState("");
-  const [registerUsername, setRegisterUsername] = useState("");
   const [registerPassword, setRegisterPassword] = useState("");
   const [registerFirstName, setRegisterFirstName] = useState("");
   const [registerLastName, setRegisterLastName] = useState("");
@@ -169,7 +168,6 @@ export default function LoginModal({
   const registerMutation = useMutation({
     mutationFn: async (data: {
       email: string;
-      username: string;
       password: string;
       firstName?: string;
       lastName?: string;
@@ -213,7 +211,6 @@ export default function LoginModal({
       });
       onOpenChange(false);
       setRegisterEmail("");
-      setRegisterUsername("");
       setRegisterPassword("");
       setRegisterFirstName("");
       setRegisterLastName("");
@@ -288,7 +285,6 @@ export default function LoginModal({
     }
     registerMutation.mutate({
       email: registerEmail,
-      username: registerUsername,
       password: registerPassword,
       firstName: registerFirstName || undefined,
       lastName: registerLastName || undefined,
@@ -498,21 +494,6 @@ export default function LoginModal({
                       data-testid="input-register-last-name"
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-username">
-                    {t("auth.username")}
-                  </Label>
-                  <Input
-                    id="register-username"
-                    type="text"
-                    placeholder={t("auth.usernamePlaceholder")}
-                    value={registerUsername}
-                    onChange={(e) => setRegisterUsername(e.target.value)}
-                    required
-                    className="text-black dark:text-white"
-                    data-testid="input-register-username"
-                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="register-email">{t("auth.email")}</Label>

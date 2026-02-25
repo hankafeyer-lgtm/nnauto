@@ -791,9 +791,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email already registered" });
       }
 
-      const existingUserByUsername = await storage.getUserByUsername(username);
-      if (existingUserByUsername) {
-        return res.status(400).json({ error: "Username already taken" });
+      const requestedUsername = typeof username === "string" ? username.trim() : "";
+
+      // If username not provided, generate a unique one (DB requires NOT NULL + UNIQUE).
+      const makeBaseUsername = (emailValue: string) => {
+        const local = (emailValue.split("@")[0] || "user").toLowerCase();
+        const cleaned = local.replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+        return cleaned || "user";
+      };
+
+      const generateUniqueUsername = async (base: string) => {
+        // Try base, then base + random suffix until free
+        const { randomBytes } = await import("crypto");
+        const suffix = () => randomBytes(3).toString("hex"); // 6 chars
+
+        const candidates = [base, `${base}_${suffix()}`, `${base}_${suffix()}`, `${base}_${suffix()}`];
+        for (const c of candidates) {
+          const exists = await storage.getUserByUsername(c);
+          if (!exists) return c;
+        }
+
+        // Very low probability fallback
+        return `${base}_${Date.now().toString(36)}_${suffix()}`;
+      };
+
+      let finalUsername = requestedUsername;
+      if (!finalUsername) {
+        finalUsername = await generateUniqueUsername(makeBaseUsername(email));
+      } else {
+        const existingUserByUsername = await storage.getUserByUsername(finalUsername);
+        if (existingUserByUsername) {
+          return res.status(400).json({ error: "Username already taken" });
+        }
       }
 
       // Hash password
@@ -802,7 +831,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create user
       const user = await storage.createUser({
         email,
-        username,
+        username: finalUsername,
         password: hashedPassword,
         firstName,
         lastName,

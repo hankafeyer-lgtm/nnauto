@@ -39,6 +39,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
   lastName: true,
   phone: true,
 }).extend({
+  // Allow registration without providing a username (server will generate one).
+  username: z.string().min(1).optional(),
   firstName: z.string().nullable().optional(),
   lastName: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
