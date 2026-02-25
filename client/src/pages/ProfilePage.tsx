@@ -690,7 +690,7 @@ import { AvatarUploader } from "@/components/AvatarUploader";
 import { Badge } from "@/components/ui/badge";
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const t = useTranslation();
   const { toast } = useToast();
   const [, navigate] = useLocation();
@@ -701,6 +701,11 @@ export default function ProfilePage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+
+  // Change password states
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   // Email verification states
   const [verificationCode, setVerificationCode] = useState("");
@@ -974,6 +979,52 @@ export default function ProfilePage() {
     },
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: async (data: {
+      currentPassword: string;
+      newPassword: string;
+      confirmNewPassword: string;
+    }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      const res = await apiRequest(
+        "POST",
+        `/api/users/${user.id}/change-password`,
+        data,
+      );
+      return await res.json();
+    },
+    onSuccess: async () => {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      toast({
+        title: t("settings.passwordChangeSuccess"),
+        description: t("settings.passwordChangeSuccessDescription"),
+      });
+      await logout();
+      navigate("/");
+    },
+    onError: (error: any) => {
+      let errorMsg = t("settings.passwordChangeErrorDescription");
+      if (error.message) {
+        try {
+          const match = error.message.match(/:\s*(.+)$/);
+          if (match) {
+            const parsed = JSON.parse(match[1]);
+            errorMsg = parsed.error || errorMsg;
+          }
+        } catch {
+          errorMsg = error.message;
+        }
+      }
+      toast({
+        variant: "destructive",
+        title: t("settings.passwordChangeError"),
+        description: errorMsg,
+      });
+    },
+  });
+
   if (isLoading || !user) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -1044,6 +1095,39 @@ export default function ProfilePage() {
       setPhone(user.phone || "");
     }
     setIsEditing(false);
+  };
+
+  const handleChangePassword = async () => {
+    if (!currentPassword.trim()) {
+      toast({
+        variant: "destructive",
+        title: t("settings.passwordChangeError"),
+        description: t("settings.currentPasswordPlaceholder"),
+      });
+      return;
+    }
+    if ((newPassword || "").length < 6) {
+      toast({
+        variant: "destructive",
+        title: t("settings.passwordChangeError"),
+        description: t("settings.passwordTooShort"),
+      });
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      toast({
+        variant: "destructive",
+        title: t("settings.passwordChangeError"),
+        description: t("settings.passwordsDoNotMatch"),
+      });
+      return;
+    }
+
+    changePasswordMutation.mutate({
+      currentPassword,
+      newPassword,
+      confirmNewPassword,
+    });
   };
 
   const getInitials = () => {
@@ -1175,6 +1259,73 @@ export default function ProfilePage() {
                       className="pl-10"
                       data-testid="input-email"
                     />
+                  </div>
+                </div>
+
+                {/* Change password (placed directly under email) */}
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-medium">
+                      {t("settings.changePassword")}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {t("settings.changePasswordDescription")}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="currentPassword">
+                        {t("settings.currentPassword")}
+                      </Label>
+                      <Input
+                        id="currentPassword"
+                        type="password"
+                        placeholder={t("settings.currentPasswordPlaceholder")}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        data-testid="input-current-password"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">
+                        {t("settings.newPassword")}
+                      </Label>
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        placeholder={t("settings.newPasswordPlaceholder")}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        data-testid="input-new-password"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmNewPassword">
+                        {t("settings.confirmNewPassword")}
+                      </Label>
+                      <Input
+                        id="confirmNewPassword"
+                        type="password"
+                        placeholder={t("settings.confirmNewPasswordPlaceholder")}
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        data-testid="input-confirm-new-password"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Button
+                      type="button"
+                      onClick={handleChangePassword}
+                      disabled={changePasswordMutation.isPending}
+                      data-testid="button-change-password"
+                    >
+                      {changePasswordMutation.isPending
+                        ? t("profile.saving")
+                        : t("settings.changePassword")}
+                    </Button>
                   </div>
                 </div>
 
