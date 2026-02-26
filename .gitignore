@@ -27,3 +27,5 @@ pnpm-debug.log*
 # misc
 cookies.txt
 
+# Cursor / local assets
+attached_assets/
