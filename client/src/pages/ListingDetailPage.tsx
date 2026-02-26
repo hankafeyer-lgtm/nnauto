@@ -3110,7 +3110,7 @@ import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import { MediaLightbox } from "@/components/MediaLightbox";
@@ -3167,93 +3167,35 @@ export default function ListingDetailPage() {
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  // ✅ CEBIA (always test VIN + auto preview on open)
-  const TEST_VIN_DEFAULT = "WAUZZZ4L57D034022";
+  const [cebiaDialogOpen, setCebiaDialogOpen] = useState(false);
+  const [cebiaVinInput, setCebiaVinInput] = useState("");
+  const [cebiaGuest, setCebiaGuest] = useState<{ reportId: string; token: string } | null>(
+    null,
+  );
+  const [cebiaGuestStatus, setCebiaGuestStatus] = useState<string | null>(null);
+  const [cebiaGuestHasPdf, setCebiaGuestHasPdf] = useState(false);
 
-  const [cebiaOpen, setCebiaOpen] = useState(false);
-  const [cebiaVin] = useState(TEST_VIN_DEFAULT); // fixed
-  const [cebiaPreview, setCebiaPreview] = useState<any>(null);
-  const [cebiaCoupon, setCebiaCoupon] = useState<any>(null);
+  const handleCebiaClick = useCallback(() => {
+    setCebiaDialogOpen(true);
+  }, []);
 
-  const cebiaPreviewMutation = useMutation({
-    mutationFn: async () => {
-      console.log("listing?.vin", listing?.vin);
-
-      const res = await apiRequest("POST", "/api/cebia/preview", {
-        vin: listing?.vin,
-      });
-      return await res.json();
-    },
-    onSuccess: (data) => {
-      console.log("CEBIA PREVIEW RESP:", data);
-
-      setCebiaPreview(data);
-      setCebiaCoupon(null);
-    },
-    onError: (err: any) => {
-      // щоб UI не крутився вічно
-      setCebiaPreview({
-        queueStatus: 4,
-        error: err?.message || "Preview failed",
-      });
-    },
-  });
-
-  const cebiaCreateMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/cebia/create", {
-        queue: cebiaPreview?.queue,
-      });
-      return await res.json();
-    },
-    onSuccess: (data) => setCebiaCoupon(data),
-  });
-
-  // ✅ when dialog opens -> auto preview immediately with TEST VIN
   useEffect(() => {
-    if (!cebiaOpen) return;
-
-    setCebiaPreview(null);
-    setCebiaCoupon(null);
-
-    cebiaPreviewMutation.mutate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cebiaOpen]);
-
-  // ✅ poll queue until done
-  useEffect(() => {
-    if (!cebiaOpen) return;
-
-    const queue = cebiaPreview?.queue;
-    if (!queue) return;
-
-    const status = Number(cebiaPreview?.queueStatus ?? 0);
-    if (status === 3 || status === 4) return;
-
-    const id = window.setInterval(async () => {
-      try {
-        const res = await apiRequest(
-          "GET",
-          `/api/cebia/poll?queue=${encodeURIComponent(queue)}`,
-        );
-        const data = await res.json();
-        console.log("CEBIA POLL RESP:", data);
-        setCebiaPreview(data);
-
-        const s = Number(data?.queueStatus ?? 0);
-        if (s === 3 || s === 4) window.clearInterval(id);
-      } catch (e: any) {
-        setCebiaPreview((prev: any) => ({
-          ...(prev || {}),
-          queueStatus: 4,
-          error: e?.message || "Poll failed",
-        }));
-        window.clearInterval(id);
+    if (!listingId) return;
+    try {
+      const raw = localStorage.getItem(`cebia:guest:${listingId}`);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (
+        parsed &&
+        typeof parsed.reportId === "string" &&
+        typeof parsed.token === "string"
+      ) {
+        setCebiaGuest({ reportId: parsed.reportId, token: parsed.token });
       }
-    }, 1000);
-
-    return () => window.clearInterval(id);
-  }, [cebiaOpen, cebiaPreview?.queue, cebiaPreview?.queueStatus]);
+    } catch {
+      // ignore
+    }
+  }, [listingId]);
 
   const {
     data: listing,
@@ -3268,6 +3210,26 @@ export default function ListingDetailPage() {
     queryKey: [`/api/users/${listing?.userId}`],
     enabled: !!listing?.userId,
   });
+
+  const { data: cebiaConfig } = useQuery<{
+    enabled: boolean;
+    paymentsFrozen: boolean;
+    autoRequestOnPaid?: boolean;
+    priceCents?: number;
+    currency?: string;
+  }>({
+    queryKey: ["/api/cebia/config"],
+  });
+
+  const cebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen !== false; // default: frozen
+
+  // Prefill VIN input once listing loads (do not overwrite user's edits)
+  useEffect(() => {
+    const vin = (listing?.vin || "").trim();
+    if (vin && !cebiaVinInput) {
+      setCebiaVinInput(vin.toUpperCase());
+    }
+  }, [listing?.vin, cebiaVinInput]);
 
   // Stripe redirect: promoted=success/cancelled
   useEffect(() => {
@@ -3298,49 +3260,6 @@ export default function ListingDetailPage() {
       });
       const newUrl = new URL(window.location.href);
       newUrl.searchParams.delete("promoted");
-      window.history.replaceState({}, "", newUrl.toString());
-    }
-  }, [listingId, t, toast]);
-  useEffect(() => {
-    if (!listingId) return;
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const cebiaParam = urlParams.get("cebia");
-    const sessionId = urlParams.get("session_id");
-
-    // success → підтверджуємо оплату і отримуємо coupon
-    if (cebiaParam === "success" && sessionId) {
-      (async () => {
-        try {
-          toast({ title: t("cebia.paySuccess") });
-
-          const res = await apiRequest(
-            "GET",
-            `/api/cebia/confirm?session_id=${encodeURIComponent(sessionId)}`,
-          );
-          const data = await res.json();
-
-          if (data?.couponNumber) {
-            setCebiaCoupon({ couponNumber: data.couponNumber });
-            setCebiaOpen(true); // відкриємо попап одразу
-          }
-
-          const newUrl = new URL(window.location.href);
-          newUrl.searchParams.delete("cebia");
-          newUrl.searchParams.delete("session_id");
-          window.history.replaceState({}, "", newUrl.toString());
-        } catch {
-          toast({ variant: "destructive", title: t("cebia.payError") });
-        }
-      })();
-    }
-
-    // cancel
-    if (cebiaParam === "cancel") {
-      toast({ variant: "destructive", title: t("cebia.payCancelled") });
-
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete("cebia");
       window.history.replaceState({}, "", newUrl.toString());
     }
   }, [listingId, t, toast]);
@@ -3381,6 +3300,27 @@ export default function ListingDetailPage() {
     };
   }, [carouselApi]);
 
+  // Preload neighbor images to reduce swipe stutter
+  useEffect(() => {
+    const len = photoKeys.length;
+    if (!len) return;
+
+    const idx = Math.max(0, Math.min(currentCarouselIndex, len - 1));
+    const neighbors = new Set<string>();
+    neighbors.add(photoKeys[(idx + 1) % len]);
+    neighbors.add(photoKeys[(idx - 1 + len) % len]);
+
+    for (const key of neighbors) {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = getOptimizedImageUrl(key, {
+        width: 1200,
+        quality: 80,
+        format: "webp",
+      });
+    }
+  }, [currentCarouselIndex, photoKeys]);
+
   const scrollToCarouselItem = useCallback(
     (index: number) => {
       carouselApi?.scrollTo(index);
@@ -3413,6 +3353,147 @@ export default function ListingDetailPage() {
 
   const isOwner = !!user && !!listing && user.id === listing.userId;
   const canPromote = isOwner && !listing?.isTopListing;
+
+  const cebiaCheckoutMutation = useMutation({
+    mutationFn: async () => {
+      if (cebiaPaymentsFrozen) {
+        throw new Error("503: {\"error\":\"Payments are temporarily disabled\"}");
+      }
+      const vin = (cebiaVinInput || "").trim().toUpperCase();
+      const endpoint = user ? "/api/cebia/checkout" : "/api/cebia/guest/checkout";
+      const res = await apiRequest("POST", endpoint, {
+        vin,
+        listingId,
+      });
+      return (await res.json()) as { url?: string; reportId?: string; guestToken?: string };
+    },
+    onSuccess: (data) => {
+      if (data?.url) {
+        if (!user && data?.reportId && data?.guestToken && listingId) {
+          try {
+            localStorage.setItem(
+              `cebia:guest:${listingId}`,
+              JSON.stringify({ reportId: data.reportId, token: data.guestToken }),
+            );
+            setCebiaGuest({ reportId: data.reportId, token: data.guestToken });
+
+            localStorage.setItem(
+              "cebia:last",
+              JSON.stringify({
+                listingId,
+                reportId: data.reportId,
+                token: data.guestToken,
+                ts: Date.now(),
+              }),
+            );
+          } catch {
+            // ignore
+          }
+        }
+        window.location.href = data.url;
+        return;
+      }
+      toast({
+        variant: "destructive",
+        title: "Chyba platby",
+        description: "Stripe URL nebyla vrácena serverem.",
+      });
+    },
+    onError: (err: any) => {
+      const parsed = parseApiError(err);
+      toast({
+        variant: "destructive",
+        title: "Nepodařilo se vytvořit platbu",
+        description: parsed.message,
+      });
+    },
+  });
+
+  const cebiaRefreshMutation = useMutation({
+    mutationFn: async () => {
+      if (!cebiaGuest) throw new Error("Missing guest report");
+      const res = await apiRequest(
+        "GET",
+        `/api/cebia/guest/reports/${encodeURIComponent(
+          cebiaGuest.reportId,
+        )}?token=${encodeURIComponent(cebiaGuest.token)}`,
+      );
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      const status = data?.status;
+      setCebiaGuestStatus(typeof status === "string" ? status : null);
+      setCebiaGuestHasPdf(!!data?.hasPdf);
+      if (status === "paid") {
+        toast({ title: "Platba potvrzena", description: "Můžete vygenerovat PDF report." });
+      } else if (status === "ready") {
+        toast({ title: "Report je připraven", description: "PDF je dostupné ke stažení." });
+      } else {
+        toast({ title: "Stav reportu", description: String(status || "unknown") });
+      }
+    },
+    onError: (err: any) => {
+      const parsed = parseApiError(err);
+      toast({
+        variant: "destructive",
+        title: "Nelze načíst stav",
+        description: parsed.message,
+      });
+    },
+  });
+
+  const cebiaGuestRequestMutation = useMutation({
+    mutationFn: async () => {
+      if (!cebiaGuest) throw new Error("Missing guest report");
+      const res = await apiRequest(
+        "POST",
+        `/api/cebia/guest/reports/${encodeURIComponent(cebiaGuest.reportId)}/request`,
+        { token: cebiaGuest.token },
+      );
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Žádost o report odeslána", description: "Za chvíli zkuste zkontrolovat stav." });
+      cebiaRefreshMutation.mutate();
+    },
+    onError: (err: any) => {
+      const parsed = parseApiError(err);
+      toast({ variant: "destructive", title: "Nelze vytvořit report", description: parsed.message });
+    },
+  });
+
+  const cebiaGuestPollMutation = useMutation({
+    mutationFn: async () => {
+      if (!cebiaGuest) throw new Error("Missing guest report");
+      const res = await apiRequest(
+        "POST",
+        `/api/cebia/guest/reports/${encodeURIComponent(cebiaGuest.reportId)}/poll`,
+        { token: cebiaGuest.token },
+      );
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      const status = data?.status;
+      if (status === "ready") {
+        toast({ title: "Report je připraven", description: "Otevírám PDF…" });
+        if (cebiaGuest) {
+          window.open(
+            `/api/cebia/guest/reports/${encodeURIComponent(
+              cebiaGuest.reportId,
+            )}/pdf?token=${encodeURIComponent(cebiaGuest.token)}`,
+            "_blank",
+          );
+        }
+      } else {
+        toast({ title: "Report se připravuje", description: "Zkuste to prosím znovu za chvíli." });
+      }
+      cebiaRefreshMutation.mutate();
+    },
+    onError: (err: any) => {
+      const parsed = parseApiError(err);
+      toast({ variant: "destructive", title: "Nelze zkontrolovat report", description: parsed.message });
+    },
+  });
 
   // --- локалізаційні мапи (швидше за find на кожен рендер)
   const bodyTypeMap = useMemo(() => {
@@ -3588,26 +3669,6 @@ export default function ListingDetailPage() {
     ],
     [t],
   );
-  const cebiaCheckoutMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/cebia/checkout", {
-        listingId: listing?.id,
-        vin: listing?.vin, // або listing.vin якщо хочеш
-        queue: cebiaPreview?.queue,
-      });
-      return await res.json();
-    },
-    onSuccess: (data: { url: string }) => {
-      if (data?.url) window.location.href = data.url;
-    },
-    onError: (err: any) => {
-      toast({
-        variant: "destructive",
-        title: t("cebia.error"),
-        description: err?.message || "Checkout failed",
-      });
-    },
-  });
 
   const handleToggleFavorite = useCallback(() => {
     if (!listing) return;
@@ -3665,66 +3726,7 @@ export default function ListingDetailPage() {
       });
     }
   }, [listing, toast, t]);
-  useEffect(() => {
-    if (!listingId) return;
-
-    const p = new URLSearchParams(window.location.search);
-    const cebia = p.get("cebia");
-    const sessionId = p.get("session_id");
-    const state = p.get("state");
-
-    if (cebia === "success" && sessionId && state) {
-      (async () => {
-        try {
-          const res = await apiRequest(
-            "GET",
-            `/api/cebia/confirm?session_id=${encodeURIComponent(sessionId)}&state=${encodeURIComponent(state)}`,
-          );
-          const data = await res.json();
-
-          if (data?.couponNumber) {
-            setCebiaCoupon({ couponNumber: data.couponNumber });
-            setCebiaOpen(true);
-            toast({
-              title: t("cebia.paidTitle"),
-              description: t("cebia.paidText"),
-            });
-          } else {
-            toast({
-              variant: "destructive",
-              title: t("cebia.error"),
-              description: "No couponNumber returned",
-            });
-          }
-        } catch (e: any) {
-          toast({
-            variant: "destructive",
-            title: t("cebia.error"),
-            description: e?.message || "Confirm failed",
-          });
-        }
-      })();
-
-      // прибрати параметри
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete("cebia");
-      newUrl.searchParams.delete("session_id");
-      newUrl.searchParams.delete("state");
-      window.history.replaceState({}, "", newUrl.toString());
-    }
-
-    if (cebia === "cancel") {
-      toast({
-        variant: "destructive",
-        title: t("cebia.cancelTitle"),
-        description: t("cebia.cancelText"),
-      });
-
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete("cebia");
-      window.history.replaceState({}, "", newUrl.toString());
-    }
-  }, [listingId, toast, t]);
+  // (Cebia UI placeholder only for now)
 
   // --- SEO (memoized)
   const listingUrl = useMemo(
@@ -4613,6 +4615,21 @@ export default function ListingDetailPage() {
                           >
                             {listing.vin}
                           </p>
+                          <div className="pt-2 space-y-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full sm:w-auto"
+                              onClick={handleCebiaClick}
+                              data-testid="button-cebia-placeholder"
+                            >
+                              Cebia Autotracer (PDF) – koupit report
+                            </Button>
+                            <p className="text-xs text-muted-foreground">
+                              Dočasně uzamčeno. Aktivujeme platbu přes Stripe a
+                              potom půjde report koupit přímo na této stránce.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -4791,6 +4808,61 @@ export default function ListingDetailPage() {
                         toastFn={toast}
                       />
                     ) : null}
+
+                    {/* Cebia widget (placeholder, Stripe lock) */}
+                    <div
+                      className="rounded-2xl border border-[#B8860B]/30 bg-[#B8860B]/5 p-4 space-y-3"
+                      data-testid="cebia-widget"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-white/70 dark:bg-black/20 border border-[#B8860B]/20">
+                          <Shield className="w-5 h-5 text-[#B8860B]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-black dark:text-white">
+                            Cebia Autotracer
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Prověření historie vozidla podle VIN (PDF report)
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">VIN</p>
+                        <input
+                          value={cebiaVinInput}
+                          onChange={(e) =>
+                            setCebiaVinInput(e.target.value.toUpperCase())
+                          }
+                          placeholder="Zadejte VIN (17 znaků)"
+                          className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono uppercase outline-none focus:ring-2 focus:ring-[#B8860B]/40"
+                          inputMode="text"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Cena</span>
+                        <span className="font-semibold text-black dark:text-white">
+                          {new Intl.NumberFormat("cs-CZ").format(549)} Kč
+                        </span>
+                      </div>
+
+                      <Button
+                        className="w-full"
+                        onClick={handleCebiaClick}
+                        data-testid="button-cebia-open"
+                        disabled={cebiaPaymentsFrozen}
+                      >
+                        {cebiaPaymentsFrozen ? "Platby dočasně vypnuté" : "Koupit report (Stripe)"}
+                      </Button>
+
+                      <p className="text-xs text-muted-foreground">
+                        {cebiaPaymentsFrozen
+                          ? "Platby jsou dočasně vypnuté."
+                          : "Nejprve proběhne platba přes Stripe. Přístup k VIN reportu se zpřístupní až po úspěšné platbě."}
+                      </p>
+                    </div>
                   </div>
 
                   <Separator />
@@ -4884,195 +4956,122 @@ export default function ListingDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
-      {/* ✅ Cebia dialog — ВСТАВИТИ ТУТ */}
-      <Dialog open={cebiaOpen} onOpenChange={setCebiaOpen}>
-        <DialogContent data-testid="dialog-cebia">
+
+      {/* Cebia dialog (placeholder) */}
+      <Dialog open={cebiaDialogOpen} onOpenChange={setCebiaDialogOpen}>
+        <DialogContent data-testid="dialog-cebia-placeholder">
           <DialogHeader>
-            <DialogTitle>{t("cebia.title")}</DialogTitle>
-            <DialogDescription>{t("cebia.description")}</DialogDescription>
+            <DialogTitle>Cebia Autotracer — prověření VIN</DialogTitle>
+            <DialogDescription>
+              Platba proběhne přes Stripe. Report se zpřístupní až po úspěšné
+              platbě.
+            </DialogDescription>
           </DialogHeader>
 
-          {/*          
-          {(!cebiaPreview || Number(cebiaPreview?.queueStatus ?? 0) !== 3) && (
-            <div className="flex items-center gap-3 py-2">
-              <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary" />
-              <p className="text-sm text-muted-foreground">
-                {t("cebia.loading")}
+          <div className="space-y-4">
+            <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">VIN</span>
+                <span className="text-sm font-mono uppercase break-all">
+                  {cebiaVinInput?.trim() ? cebiaVinInput.trim() : "—"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">Cena</span>
+                <span className="text-sm font-semibold">549 Kč</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Po zaplacení se VIN report zpřístupní pro tento účet. Poté půjde
+                vygenerovat a stáhnout PDF.
               </p>
             </div>
-          )}
 
-          {cebiaPreview && Number(cebiaPreview?.queueStatus ?? 0) === 3 && (
-            <>
-              {(() => {
-                const availability = cebiaPreview?.availability || {};
-                const hasAnyReport = Object.values(availability).some(Boolean);
+            {!user ? (
+              <p className="text-sm text-muted-foreground">
+                Není potřeba registrace. Po zaplacení se report zpřístupní v tomto prohlížeči.
+              </p>
+            ) : null}
 
-                if (!hasAnyReport && !cebiaCoupon?.couponNumber) {
-                  return (
-                    <p className="text-sm text-muted-foreground">
-                      {t("cebia.unavailable")}
-                    </p>
-                  );
+            <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setCebiaDialogOpen(false)}
+              >
+                Zavřít
+              </Button>
+              <Button
+                disabled={
+                  (cebiaVinInput || "").trim().length !== 17 ||
+                  cebiaCheckoutMutation.isPending ||
+                  cebiaPaymentsFrozen
                 }
+                onClick={() => cebiaCheckoutMutation.mutate()}
+                data-testid="button-cebia-stripe-pay"
+              >
+                {cebiaPaymentsFrozen
+                  ? "Platby dočasně vypnuté"
+                  : cebiaCheckoutMutation.isPending
+                    ? "Přesměrování…"
+                    : "Zaplatit přes Stripe"}
+              </Button>
+            </div>
 
-                if (!cebiaCoupon?.couponNumber) {
-                  return (
+            {!user && cebiaGuest ? (
+              <div className="pt-2">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => cebiaRefreshMutation.mutate()}
+                  disabled={cebiaRefreshMutation.isPending}
+                  data-testid="button-cebia-guest-refresh"
+                >
+                  {cebiaRefreshMutation.isPending ? "Kontroluji…" : "Zkontrolovat stav po platbě"}
+                </Button>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
+                  <Button
+                    variant="secondary"
+                    onClick={() => cebiaGuestRequestMutation.mutate()}
+                    disabled={
+                      cebiaGuestRequestMutation.isPending ||
+                      !(cebiaGuestStatus === "paid" || cebiaGuestStatus === "requested")
+                    }
+                    data-testid="button-cebia-guest-request"
+                  >
+                    {cebiaGuestRequestMutation.isPending ? "Odesílám…" : "Vygenerovat PDF"}
+                  </Button>
+                  <Button
+                    onClick={() => cebiaGuestPollMutation.mutate()}
+                    disabled={cebiaGuestPollMutation.isPending || cebiaGuestStatus !== "requested"}
+                    data-testid="button-cebia-guest-poll"
+                  >
+                    {cebiaGuestPollMutation.isPending ? "Kontroluji…" : "Získat PDF"}
+                  </Button>
+                </div>
+
+                {cebiaGuestHasPdf ? (
+                  <div className="pt-3">
                     <Button
                       className="w-full"
-                      onClick={() => cebiaCheckoutMutation.mutate()}
-                      disabled={cebiaCheckoutMutation.isPending}
-                      data-testid="button-cebia-order"
+                      onClick={() => {
+                        window.open(
+                          `/api/cebia/guest/reports/${encodeURIComponent(
+                            cebiaGuest.reportId,
+                          )}/pdf?token=${encodeURIComponent(cebiaGuest.token)}`,
+                          "_blank",
+                        );
+                      }}
+                      data-testid="button-cebia-guest-open-pdf"
                     >
-                      {cebiaCheckoutMutation.isPending
-                        ? t("cebia.redirecting")
-                        : t("cebia.orderCheck")}
+                      Otevřít PDF report
                     </Button>
-                  );
-                }
-
-                return (
-                  <Button
-                    asChild
-                    className="w-full"
-                    data-testid="button-cebia-open-pdf"
-                  >
-                    <a
-                      href={`/api/cebia/pdf?coupon=${encodeURIComponent(cebiaCoupon.couponNumber)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {t("cebia.openPdf")}
-                    </a>
-                  </Button>
-                );
-              })()}
-            </>
-          )} */}
-          {(() => {
-            const statusRaw = cebiaPreview?.queueStatus;
-
-            // якщо бек повернув queueStatus null і queue null, але raw.status = 400 — трактуємо як error
-            const status =
-              statusRaw === null || statusRaw === undefined
-                ? cebiaPreview?.raw?.status === 400
-                  ? 4
-                  : 0
-                : Number(statusRaw);
-
-            const hasQueue = !!cebiaPreview?.queue;
-
-            const isLoading =
-              !cebiaPreview || status === 0 || status === 1 || status === 2;
-            const isReady = status === 3;
-            const isError = status === 4;
-
-            if (isLoading) {
-              return (
-                <div className="flex items-center gap-3 py-2">
-                  <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary" />
-                  <p className="text-sm text-muted-foreground">
-                    {t("cebia.loading")}
-                  </p>
-                </div>
-              );
-            }
-
-            if (isError) {
-              return (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    {t("cebia.unavailable")}
-                  </p>
-
-                  {/* показати причину, якщо є */}
-                  {cebiaPreview?.error ? (
-                    <p className="text-xs text-muted-foreground break-words">
-                      {String(cebiaPreview.error)}
-                    </p>
-                  ) : null}
-
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => cebiaPreviewMutation.mutate()}
-                  >
-                    {t("cebia.tryAgain") ?? "Zkusit znovu"}
-                  </Button>
-                </div>
-              );
-            }
-
-            if (isReady) {
-              const availability = cebiaPreview?.availability || {};
-              const hasAnyReport = Object.values(availability).some(Boolean);
-
-              // якщо нічого нема
-              if (!hasAnyReport && !cebiaCoupon?.couponNumber) {
-                return (
-                  <p className="text-sm text-muted-foreground">
-                    {t("cebia.unavailable")}
-                  </p>
-                );
-              }
-
-              // якщо ще не купили → кнопка checkout
-              if (!cebiaCoupon?.couponNumber) {
-                return (
-                  <Button
-                    className="w-full"
-                    onClick={() => cebiaCheckoutMutation.mutate()}
-                    disabled={cebiaCheckoutMutation.isPending}
-                    data-testid="button-cebia-order"
-                  >
-                    {cebiaCheckoutMutation.isPending
-                      ? t("cebia.redirecting")
-                      : t("cebia.orderCheck")}
-                  </Button>
-                );
-              }
-
-              // якщо вже є coupon → open PDF
-              return (
-                <Button
-                  asChild
-                  className="w-full"
-                  data-testid="button-cebia-open-pdf"
-                >
-                  <a
-                    href={`/api/cebia/pdf?coupon=${encodeURIComponent(
-                      cebiaCoupon.couponNumber,
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {t("cebia.openPdf")}
-                  </a>
-                </Button>
-              );
-            }
-
-            // fallback якщо бек прислав якийсь інший статус
-            return (
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  {t("cebia.unavailable")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Unknown status: {String(status)}
-                </p>
+                  </div>
+                ) : null}
               </div>
-            );
-          })()}
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
-      {/* <Button
-        variant="outline"
-        onClick={() => setCebiaOpen(true)}
-        data-testid="button-cebia-open"
-      >
-        {t("cebia.title")}
-      </Button> */}
       {/* Lightbox */}
       <MediaLightbox
         photos={photoKeys}

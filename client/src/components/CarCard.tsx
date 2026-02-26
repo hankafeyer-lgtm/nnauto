@@ -539,27 +539,27 @@ function CarCard({
             )}
           </div>
           <CardContent className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 flex-1 flex flex-col">
-            <div>
-              <div className="flex items-start justify-between gap-2 sm:gap-3 mb-2">
-                <h3
-                  className="font-semibold text-base sm:text-lg lg:text-xl leading-tight tracking-tight line-clamp-2 min-h-[2.5rem] sm:min-h-[3rem]"
-                  data-testid="text-car-title"
+            <div className="space-y-2">
+              <h3
+                className="font-semibold text-base sm:text-lg lg:text-xl leading-tight tracking-tight line-clamp-2 min-h-[2.5rem] sm:min-h-[3rem] text-black dark:text-white"
+                data-testid="text-car-title"
+              >
+                {title}
+              </h3>
+
+              <div className="flex items-end justify-between gap-2">
+                <span
+                  className="text-xl sm:text-2xl lg:text-3xl font-semibold text-primary whitespace-nowrap tracking-tight"
+                  data-testid="text-car-price"
                 >
-                  {title}
-                </h3>
-                <div className="text-right">
-                  <span
-                    className="text-xl sm:text-2xl lg:text-3xl font-semibold text-primary whitespace-nowrap tracking-tight"
-                    data-testid="text-car-price"
-                  >
-                    {price.toLocaleString()} Kč
+                  {price.toLocaleString()} Kč
+                </span>
+
+                {vatDeductible && (
+                  <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                    možnost odpočtu DPH
                   </span>
-                  {vatDeductible && (
-                    <div className="text-xs text-green-600 dark:text-green-400 font-medium mt-0.5">
-                      možnost odpočtu DPH
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
 

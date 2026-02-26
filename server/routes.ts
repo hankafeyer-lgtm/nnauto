@@ -1,9 +1,11 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import fs from "fs";
 import path from "path";
 import {
+  listings as listingsTable,
   insertListingSchema,
   updateListingSchema,
   insertUserSchema,
@@ -13,6 +15,7 @@ import {
   verifyEmailSchema,
   changeEmailSchema,
 } from "@shared/schema";
+import { asc, desc, sql } from "drizzle-orm";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import "./types";
 import bcrypt from "bcrypt";
@@ -28,6 +31,11 @@ import {
   getStripePublishableKey,
 } from "./stripeClient";
 import { signToken, verifyToken, extractTokenFromHeader } from "./jwt";
+import {
+  cebiaCreatePdfQueue,
+  cebiaGetPdfData,
+  cebiaVinCheck,
+} from "./cebiaClient";
 import multer from "multer";
 import sharp from "sharp";
 
@@ -56,6 +64,41 @@ const videoUpload = multer({
 
 // TOP listing promotion price in CZK (haléře)
 const TOP_LISTING_PRICE = 9900; // 99 CZK
+
+// Cebia Autotracer PDF report price (in haléře). Must be configured.
+const CEBIA_REPORT_PRICE_CENTS = Number.parseInt(
+  (process.env.CEBIA_REPORT_PRICE_CENTS || "").trim() || "0",
+  10,
+);
+const CEBIA_ENABLED = process.env.CEBIA_ENABLED === "true";
+const CEBIA_PAYMENTS_FROZEN = process.env.CEBIA_PAYMENTS_FROZEN === "true";
+const CEBIA_AUTO_REQUEST_ON_PAID = process.env.CEBIA_AUTO_REQUEST_ON_PAID !== "false";
+const CEBIA_EMAIL_ON_READY = process.env.CEBIA_EMAIL_ON_READY === "true";
+const CEBIA_STRIPE_PAYMENT_LINK_URL = (
+  process.env.CEBIA_STRIPE_PAYMENT_LINK_URL ||
+  "https://buy.stripe.com/5kQdR857b0jVaZf8SsdZ600"
+).trim();
+
+const mergeRawResponse = (existing: unknown, patch: Record<string, unknown>) => {
+  if (existing && typeof existing === "object" && !Array.isArray(existing)) {
+    return { ...(existing as any), ...patch };
+  }
+  return { ...patch };
+};
+
+const getCebiaGuestToken = (report: any): string | null => {
+  const rr = report?.rawResponse;
+  if (!rr || typeof rr !== "object" || Array.isArray(rr)) return null;
+  const token = (rr as any).guestToken;
+  return typeof token === "string" && token.trim() ? token.trim() : null;
+};
+
+const assertValidGuestAccess = (report: any, token: string | undefined): boolean => {
+  const expected = getCebiaGuestToken(report);
+  if (!expected) return false;
+  if (!token || typeof token !== "string") return false;
+  return token.trim() === expected;
+};
 
 // Cloudflare Turnstile verification
 async function verifyTurnstileToken(token: string): Promise<boolean> {
@@ -336,6 +379,50 @@ async function sendTopPaymentConfirmationEmail(
       error?.message || error,
     );
     console.error("[EMAIL] Error details:", JSON.stringify(error, null, 2));
+  }
+}
+
+async function sendCebiaReportReadyEmail(args: {
+  email: string;
+  vin: string;
+  pdfUrl: string;
+}): Promise<void> {
+  const apiKey = process.env.MAILERSEND_API_KEY;
+  if (!apiKey) return;
+
+  const { email, vin, pdfUrl } = args;
+
+  const mailerSend = new MailerSend({ apiKey });
+  const senderEmail = process.env.MAILERSEND_FROM_EMAIL || "info@nnauto.cz";
+  const sentFrom = new Sender(senderEmail, "NNAuto");
+  const recipients = [new Recipient(email, email)];
+
+  const emailParams = new EmailParams()
+    .setFrom(sentFrom)
+    .setTo(recipients)
+    .setReplyTo(sentFrom)
+    .setSubject("VIN report připraven (Cebia) — NNAuto")
+    .setHtml(
+      `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="https://nnauto.cz/logo.png" alt="NNAuto" style="width: 80px; height: auto;" />
+        </div>
+        <h2 style="color: #B8860B; text-align: center;">VIN report je připraven</h2>
+        <p style="color:#333; font-size: 14px;">VIN: <b style="font-family: monospace;">${vin}</b></p>
+        <p style="text-align: center; margin: 24px 0;">
+          <a href="${pdfUrl}" style="display: inline-block; background: #B8860B; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Otevřít PDF report</a>
+        </p>
+        <p style="color:#666; font-size: 12px;">Pokud se tlačítko neotevře, zkopírujte tento odkaz: ${pdfUrl}</p>
+      </div>
+    `,
+    )
+    .setText(`VIN report je připraven.\nVIN: ${vin}\nPDF: ${pdfUrl}`);
+
+  try {
+    await mailerSend.email.send(emailParams);
+  } catch (error: any) {
+    console.error("[EMAIL] Error sending Cebia report email:", error?.message || error);
   }
 }
 
@@ -714,23 +801,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       (replitDeployment && replitDeployment.length > 0);
     const hasSessionFallback =
       process.env.ENABLE_SESSION_HEADER_FALLBACK === "true";
-    const hasDbUrl = !!process.env.DATABASE_URL;
+    const hasDbUrl = !!(process.env.DATABASE_URL_POOLED || process.env.PRODUCTION_DATABASE_URL || process.env.DATABASE_URL);
 
     // Test database connection
     let dbConnected = false;
     let sessionCount = 0;
     try {
+      const { pool } = await import("./db");
       dbConnected = true;
 
-      // Check session table
-      const { Pool } = await import("pg");
-      const pool = new Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false },
-      });
+      // Check session table (re-use shared pool config)
       const sessResult = await pool.query("SELECT COUNT(*) FROM session");
       sessionCount = parseInt(sessResult.rows[0].count);
-      await pool.end();
     } catch (err: any) {
       console.error("[Health] DB check error:", err.message);
     }
@@ -2304,6 +2386,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const listingId = session.metadata?.listingId;
       const userId = session.metadata?.userId;
 
+      // 1) Cebia payment (Payment Link or Checkout Session)
+      try {
+        if (session.payment_status === "paid") {
+          const reportId =
+            (session.client_reference_id as string | null) ||
+            (session.metadata?.reportId as string | undefined) ||
+            undefined;
+
+          if (reportId) {
+            const report = await storage.getCebiaReportById(reportId);
+            if (report) {
+              const paid = await storage.updateCebiaReport(report.id, {
+                status: "paid",
+                stripeSessionId: session.id,
+                stripePaymentIntentId:
+                  (session.payment_intent as string) || report.stripePaymentIntentId,
+                priceCents: typeof session.amount_total === "number" ? session.amount_total : report.priceCents,
+                currency: (session.currency || report.currency || "CZK").toUpperCase(),
+                rawResponse: mergeRawResponse(report.rawResponse, {
+                  stripeSession: session as any,
+                  customerEmail: (session.customer_details?.email as string | undefined) || "",
+                }),
+              });
+              console.log(
+                `[CEBIA] Report ${report.id} marked as paid (session ${session.id})`,
+              );
+
+              // Auto-start Cebia generation after payment (do not block webhook response)
+              const current = paid || report;
+              if (
+                CEBIA_ENABLED &&
+                CEBIA_AUTO_REQUEST_ON_PAID &&
+                current.status === "paid" &&
+                !current.cebiaQueueId
+              ) {
+                (async () => {
+                  try {
+                    const createResp = await cebiaCreatePdfQueue(current.vin);
+                    if (!createResp?.queueId || createResp.queueStatus === 6) return;
+                    await storage.updateCebiaReport(current.id, {
+                      status: "requested",
+                      cebiaQueueId: createResp.queueId,
+                      cebiaQueueStatus: createResp.queueStatus ?? null,
+                      rawResponse: mergeRawResponse(current.rawResponse, {
+                        cebiaCreatePdfQueue: createResp as any,
+                      }),
+                    });
+                    console.log(`[CEBIA] Auto-request started for ${current.id}`);
+                  } catch (e) {
+                    console.error("[CEBIA] Auto-request failed:", e);
+                  }
+                })();
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[CEBIA] Failed to mark report paid from webhook:", e);
+      }
+
       if (listingId) {
         try {
           // Get the listing before promotion
@@ -2369,6 +2511,613 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error getting Stripe config:", error);
       res.status(503).json({ error: "Payment system not configured" });
+    }
+  });
+
+  // Public Cebia config for frontend gating
+  app.get("/api/cebia/config", async (_req, res) => {
+    res.json({
+      enabled: CEBIA_ENABLED,
+      paymentsFrozen: CEBIA_PAYMENTS_FROZEN,
+      autoRequestOnPaid: CEBIA_AUTO_REQUEST_ON_PAID,
+      priceCents: CEBIA_REPORT_PRICE_CENTS,
+      currency: "CZK",
+    });
+  });
+
+  // ---------------- CEBIA (Autotracer) - paid VIN report ----------------
+  app.post("/api/cebia/checkout", isAuthenticated, async (req, res) => {
+    try {
+      if (CEBIA_PAYMENTS_FROZEN) {
+        return res.status(503).json({ error: "Payments are temporarily disabled" });
+      }
+      if (!CEBIA_REPORT_PRICE_CENTS || !Number.isFinite(CEBIA_REPORT_PRICE_CENTS)) {
+        return res.status(503).json({ error: "Cebia pricing not configured" });
+      }
+
+      const vinRaw = typeof req.body?.vin === "string" ? req.body.vin : "";
+      const vin = vinRaw.trim().toUpperCase();
+      const listingId = typeof req.body?.listingId === "string" ? req.body.listingId : undefined;
+
+      if (!vin || vin.length !== 17) {
+        return res.status(400).json({ error: "VIN must be 17 characters" });
+      }
+
+      // Optional: quick VIN validation via Cebia before charging (only when enabled)
+      if (CEBIA_ENABLED) {
+        try {
+          await cebiaVinCheck(vin);
+        } catch (e) {
+          console.warn("[CEBIA] VIN check failed (continuing to checkout):", e);
+        }
+      }
+
+      let stripe: Stripe;
+      try {
+        stripe = await getUncachableStripeClient();
+      } catch (error) {
+        console.error("Stripe not configured:", error);
+        return res.status(503).json({ error: "Payment system not configured" });
+      }
+
+      const getBaseUrl = (req: Request): string => {
+        if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
+        const origin = req.get("origin");
+        if (origin) return origin;
+        const host = req.get("host");
+        if (host) {
+          const protocol =
+            req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+          return `${protocol}://${host}`;
+        }
+        return "http://localhost:5000";
+      };
+      const baseUrl = getBaseUrl(req);
+
+      const successPath = listingId ? `/listing/${listingId}` : `/profile`;
+      const cancelPath = listingId ? `/listing/${listingId}` : `/profile`;
+
+      const report = await storage.createCebiaReport({
+        userId: req.session.userId!,
+        listingId: listingId || null,
+        vin,
+        product: "pdf_autotracer",
+        status: "created",
+        priceCents: CEBIA_REPORT_PRICE_CENTS,
+        currency: "CZK",
+        stripeSessionId: null,
+        stripePaymentIntentId: null,
+        cebiaQueueId: null,
+        cebiaQueueStatus: null,
+        cebiaCouponNumber: null,
+        cebiaReportUrl: null,
+        pdfBase64: null,
+        rawResponse: null,
+      });
+
+      // Prefer Stripe Payment Link if configured
+      if (CEBIA_STRIPE_PAYMENT_LINK_URL) {
+        const u = new URL(CEBIA_STRIPE_PAYMENT_LINK_URL);
+        u.searchParams.set("client_reference_id", report.id);
+        // Optional, helps customer autofill email in Checkout
+        const user = await storage.getUser(req.session.userId!);
+        if (user?.email) u.searchParams.set("prefilled_email", user.email);
+        // When you configure the Payment Link's success redirect in Stripe,
+        // keep this param so we can show a nicer "payment received" screen later.
+        u.searchParams.set("nnauto_report_id", report.id);
+        return res.json({ url: u.toString(), reportId: report.id });
+      }
+
+      // Fallback to dynamic Checkout Session (kept for compatibility)
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "czk",
+              product_data: {
+                name: "Cebia Autotracer (PDF) — prověření VIN",
+                description: `VIN: ${vin}`,
+              },
+              unit_amount: CEBIA_REPORT_PRICE_CENTS,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${baseUrl}${successPath}?cebia=success&session_id={CHECKOUT_SESSION_ID}&report_id=${encodeURIComponent(
+          report.id,
+        )}`,
+        cancel_url: `${baseUrl}${cancelPath}?cebia=cancelled`,
+        metadata: {
+          type: "cebia_pdf_autotracer",
+          userId: req.session.userId!,
+          vin,
+          listingId: listingId || "",
+          reportId: report.id,
+        },
+      });
+
+      await storage.updateCebiaReport(report.id, {
+        stripeSessionId: session.id,
+        stripePaymentIntentId: (session.payment_intent as string) || null,
+      });
+
+      res.json({ url: session.url, sessionId: session.id, reportId: report.id });
+    } catch (error: any) {
+      console.error("Cebia checkout error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Guest checkout (no registration required)
+  app.post("/api/cebia/guest/checkout", async (req, res) => {
+    try {
+      if (CEBIA_PAYMENTS_FROZEN) {
+        return res.status(503).json({ error: "Payments are temporarily disabled" });
+      }
+      if (!CEBIA_REPORT_PRICE_CENTS || !Number.isFinite(CEBIA_REPORT_PRICE_CENTS)) {
+        return res.status(503).json({ error: "Cebia pricing not configured" });
+      }
+
+      const vinRaw = typeof req.body?.vin === "string" ? req.body.vin : "";
+      const vin = vinRaw.trim().toUpperCase();
+      const listingId = typeof req.body?.listingId === "string" ? req.body.listingId : undefined;
+
+      if (!vin || vin.length !== 17) {
+        return res.status(400).json({ error: "VIN must be 17 characters" });
+      }
+
+      // Optional: quick VIN validation via Cebia before charging (only when enabled)
+      if (CEBIA_ENABLED) {
+        try {
+          await cebiaVinCheck(vin);
+        } catch (e) {
+          console.warn("[CEBIA] VIN check failed (continuing to checkout):", e);
+        }
+      }
+
+      let stripe: Stripe;
+      try {
+        stripe = await getUncachableStripeClient();
+      } catch (error) {
+        console.error("Stripe not configured:", error);
+        return res.status(503).json({ error: "Payment system not configured" });
+      }
+
+      const { randomBytes } = await import("crypto");
+      const guestToken = randomBytes(24).toString("base64url");
+
+      const report = await storage.createCebiaReport({
+        userId: `guest:${guestToken}`,
+        listingId: listingId || null,
+        vin,
+        product: "pdf_autotracer",
+        status: "created",
+        priceCents: CEBIA_REPORT_PRICE_CENTS,
+        currency: "CZK",
+        stripeSessionId: null,
+        stripePaymentIntentId: null,
+        cebiaQueueId: null,
+        cebiaQueueStatus: null,
+        cebiaCouponNumber: null,
+        cebiaReportUrl: null,
+        pdfBase64: null,
+        rawResponse: { guestToken },
+      });
+
+      if (CEBIA_STRIPE_PAYMENT_LINK_URL) {
+        const u = new URL(CEBIA_STRIPE_PAYMENT_LINK_URL);
+        u.searchParams.set("client_reference_id", report.id);
+        u.searchParams.set("nnauto_report_id", report.id);
+        return res.json({ url: u.toString(), reportId: report.id, guestToken });
+      }
+
+      // Fallback to dynamic Checkout Session
+      const getBaseUrl = (req: Request): string => {
+        if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
+        const origin = req.get("origin");
+        if (origin) return origin;
+        const host = req.get("host");
+        if (host) {
+          const protocol =
+            req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+          return `${protocol}://${host}`;
+        }
+        return "http://localhost:5000";
+      };
+      const baseUrl = getBaseUrl(req);
+      const successPath = listingId ? `/listing/${listingId}` : `/`;
+      const cancelPath = listingId ? `/listing/${listingId}` : `/`;
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "czk",
+              product_data: {
+                name: "Cebia Autotracer (PDF) — prověření VIN",
+                description: `VIN: ${vin}`,
+              },
+              unit_amount: CEBIA_REPORT_PRICE_CENTS,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${baseUrl}${successPath}?cebia=success&session_id={CHECKOUT_SESSION_ID}&report_id=${encodeURIComponent(
+          report.id,
+        )}`,
+        cancel_url: `${baseUrl}${cancelPath}?cebia=cancelled`,
+        client_reference_id: report.id,
+        metadata: {
+          type: "cebia_pdf_autotracer",
+          vin,
+          listingId: listingId || "",
+          reportId: report.id,
+        },
+      });
+
+      await storage.updateCebiaReport(report.id, {
+        stripeSessionId: session.id,
+        stripePaymentIntentId: (session.payment_intent as string) || null,
+        rawResponse: mergeRawResponse(report.rawResponse, { stripeSessionId: session.id }),
+      });
+
+      res.json({
+        url: session.url,
+        sessionId: session.id,
+        reportId: report.id,
+        guestToken,
+      });
+    } catch (error: any) {
+      console.error("Cebia guest checkout error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/cebia/complete", isAuthenticated, async (req, res) => {
+    try {
+      const stripeSessionId =
+        typeof req.body?.stripeSessionId === "string" ? req.body.stripeSessionId : "";
+      if (!stripeSessionId) return res.status(400).json({ error: "stripeSessionId required" });
+
+      const report = await storage.getCebiaReportByStripeSessionId(stripeSessionId);
+      if (!report) return res.status(404).json({ error: "Cebia order not found" });
+      if (report.userId !== req.session.userId) return res.status(403).json({ error: "Forbidden" });
+
+      let stripe: Stripe;
+      try {
+        stripe = await getUncachableStripeClient();
+      } catch (error) {
+        console.error("Stripe not configured:", error);
+        return res.status(503).json({ error: "Payment system not configured" });
+      }
+
+      const session = await stripe.checkout.sessions.retrieve(stripeSessionId);
+      if (session.payment_status !== "paid") {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+
+      if (session.metadata?.userId && session.metadata.userId !== req.session.userId) {
+        return res.status(403).json({ error: "Session user mismatch" });
+      }
+
+      const updated = await storage.updateCebiaReport(report.id, {
+        status: "paid",
+        stripePaymentIntentId: (session.payment_intent as string) || report.stripePaymentIntentId,
+      });
+
+      res.json({ report: updated || report });
+    } catch (error: any) {
+      console.error("Cebia complete error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/cebia/reports", isAuthenticated, async (req, res) => {
+    try {
+      const reports = await storage.getCebiaReportsByUserId(req.session.userId!);
+      // Do not send PDF payloads in list endpoint
+      const slim = reports.map(({ pdfBase64, rawResponse, ...rest }) => rest);
+      res.json(slim);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/cebia/reports/:id", isAuthenticated, async (req, res) => {
+    try {
+      const report = await storage.getCebiaReportById(req.params.id);
+      if (!report) return res.status(404).json({ error: "Not found" });
+      if (report.userId !== req.session.userId) return res.status(403).json({ error: "Forbidden" });
+
+      const { pdfBase64, ...rest } = report;
+      res.json({ ...rest, hasPdf: !!pdfBase64 });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/cebia/reports/:id/request", isAuthenticated, async (req, res) => {
+    try {
+      if (!CEBIA_ENABLED) {
+        return res.status(503).json({ error: "Cebia is temporarily disabled" });
+      }
+      const report = await storage.getCebiaReportById(req.params.id);
+      if (!report) return res.status(404).json({ error: "Not found" });
+      if (report.userId !== req.session.userId) return res.status(403).json({ error: "Forbidden" });
+      if (report.status !== "paid" && report.status !== "requested" && report.status !== "ready") {
+        return res.status(400).json({ error: "Report not paid" });
+      }
+      if (report.status === "ready" && report.pdfBase64) {
+        return res.json({ status: "ready" });
+      }
+
+      const createResp = await cebiaCreatePdfQueue(report.vin);
+      if (!createResp?.queueId || createResp.queueStatus === 6) {
+        await storage.updateCebiaReport(report.id, {
+          status: "failed",
+          rawResponse: mergeRawResponse(report.rawResponse, { cebiaCreatePdfQueue: createResp as any }),
+        });
+        return res.status(400).json({ error: createResp?.message || "Cebia request failed" });
+      }
+
+      const updated = await storage.updateCebiaReport(report.id, {
+        status: "requested",
+        cebiaQueueId: createResp.queueId,
+        cebiaQueueStatus: createResp.queueStatus ?? null,
+        rawResponse: mergeRawResponse(report.rawResponse, { cebiaCreatePdfQueue: createResp as any }),
+      });
+
+      res.json({ report: updated || report });
+    } catch (error: any) {
+      console.error("Cebia request error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/cebia/reports/:id/poll", isAuthenticated, async (req, res) => {
+    try {
+      if (!CEBIA_ENABLED) {
+        return res.status(503).json({ error: "Cebia is temporarily disabled" });
+      }
+      const report = await storage.getCebiaReportById(req.params.id);
+      if (!report) return res.status(404).json({ error: "Not found" });
+      if (report.userId !== req.session.userId) return res.status(403).json({ error: "Forbidden" });
+      if (!report.cebiaQueueId) return res.status(400).json({ error: "No queueId yet" });
+      if (report.status === "ready" && report.pdfBase64) {
+        return res.json({ status: "ready" });
+      }
+
+      const pdfResp = await cebiaGetPdfData(report.cebiaQueueId);
+      const queueStatus = pdfResp.queueStatus;
+
+      if (queueStatus === 3 && pdfResp.pdfData) {
+        const updated = await storage.updateCebiaReport(report.id, {
+          status: "ready",
+          cebiaQueueStatus: queueStatus,
+          cebiaCouponNumber: pdfResp.couponNumber ?? null,
+          cebiaReportUrl: pdfResp.reportUrl ?? null,
+          pdfBase64: pdfResp.pdfData,
+          rawResponse: mergeRawResponse(report.rawResponse, { cebiaPdfData: pdfResp as any }),
+        });
+
+        // Optional: send email (guest uses Stripe customer email)
+        if (CEBIA_EMAIL_ON_READY) {
+          try {
+            const rr: any = report.rawResponse && typeof report.rawResponse === "object" ? report.rawResponse : {};
+            const email = typeof rr.customerEmail === "string" ? rr.customerEmail.trim() : "";
+            const already = !!rr.emailSent;
+            if (email && !already) {
+              const token = getCebiaGuestToken(report);
+              if (token) {
+                const pdfUrl = `https://nnauto.cz/api/cebia/guest/reports/${encodeURIComponent(
+                  report.id,
+                )}/pdf?token=${encodeURIComponent(token)}`;
+                await sendCebiaReportReadyEmail({ email, vin: report.vin, pdfUrl });
+                await storage.updateCebiaReport(report.id, {
+                  rawResponse: mergeRawResponse(updated?.rawResponse || report.rawResponse, { emailSent: true }),
+                });
+              }
+            }
+          } catch (e) {
+            console.error("[CEBIA] Email on ready failed:", e);
+          }
+        }
+
+        return res.json({ status: "ready", report: updated });
+      }
+
+      if (queueStatus === 6 || queueStatus === 4) {
+        await storage.updateCebiaReport(report.id, {
+          status: "failed",
+          cebiaQueueStatus: queueStatus ?? null,
+          rawResponse: mergeRawResponse(report.rawResponse, { cebiaPdfData: pdfResp as any }),
+        });
+        return res.status(400).json({ error: pdfResp.message || "Cebia failed", status: "failed" });
+      }
+
+      await storage.updateCebiaReport(report.id, {
+        status: "requested",
+        cebiaQueueStatus: queueStatus ?? null,
+        rawResponse: mergeRawResponse(report.rawResponse, { cebiaPdfData: pdfResp as any }),
+      });
+      res.json({ status: "requested", queueStatus });
+    } catch (error: any) {
+      console.error("Cebia poll error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/cebia/reports/:id/pdf", isAuthenticated, async (req, res) => {
+    try {
+      if (!CEBIA_ENABLED) {
+        return res.status(503).json({ error: "Cebia is temporarily disabled" });
+      }
+      const report = await storage.getCebiaReportById(req.params.id);
+      if (!report) return res.status(404).json({ error: "Not found" });
+      if (report.userId !== req.session.userId) return res.status(403).json({ error: "Forbidden" });
+      if (!report.pdfBase64) return res.status(409).json({ error: "PDF not ready yet" });
+
+      const pdfBuffer = Buffer.from(report.pdfBase64, "base64");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="cebia-${report.vin}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Guest endpoints (no registration required) — secured by guestToken
+  app.get("/api/cebia/guest/reports/:id", async (req, res) => {
+    try {
+      const token = typeof req.query?.token === "string" ? req.query.token : "";
+      const report = await storage.getCebiaReportById(req.params.id);
+      if (!report) return res.status(404).json({ error: "Not found" });
+      if (!assertValidGuestAccess(report, token)) return res.status(403).json({ error: "Forbidden" });
+
+      const { pdfBase64, ...rest } = report as any;
+      res.json({ ...rest, hasPdf: !!pdfBase64 });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/cebia/guest/reports/:id/request", async (req, res) => {
+    try {
+      if (!CEBIA_ENABLED) {
+        return res.status(503).json({ error: "Cebia is temporarily disabled" });
+      }
+
+      const token = typeof req.body?.token === "string" ? req.body.token : "";
+      const report = await storage.getCebiaReportById(req.params.id);
+      if (!report) return res.status(404).json({ error: "Not found" });
+      if (!assertValidGuestAccess(report, token)) return res.status(403).json({ error: "Forbidden" });
+
+      if (report.status !== "paid" && report.status !== "requested" && report.status !== "ready") {
+        return res.status(400).json({ error: "Report not paid" });
+      }
+      if (report.status === "ready" && report.pdfBase64) {
+        return res.json({ status: "ready" });
+      }
+
+      const createResp = await cebiaCreatePdfQueue(report.vin);
+      if (!createResp?.queueId || createResp.queueStatus === 6) {
+        await storage.updateCebiaReport(report.id, {
+          status: "failed",
+          rawResponse: mergeRawResponse(report.rawResponse, { cebiaCreatePdfQueue: createResp as any }),
+        });
+        return res.status(400).json({ error: createResp?.message || "Cebia request failed" });
+      }
+
+      const updated = await storage.updateCebiaReport(report.id, {
+        status: "requested",
+        cebiaQueueId: createResp.queueId,
+        cebiaQueueStatus: createResp.queueStatus ?? null,
+        rawResponse: mergeRawResponse(report.rawResponse, { cebiaCreatePdfQueue: createResp as any }),
+      });
+
+      res.json({ report: updated || report });
+    } catch (error: any) {
+      console.error("Cebia guest request error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/cebia/guest/reports/:id/poll", async (req, res) => {
+    try {
+      if (!CEBIA_ENABLED) {
+        return res.status(503).json({ error: "Cebia is temporarily disabled" });
+      }
+
+      const token = typeof req.body?.token === "string" ? req.body.token : "";
+      const report = await storage.getCebiaReportById(req.params.id);
+      if (!report) return res.status(404).json({ error: "Not found" });
+      if (!assertValidGuestAccess(report, token)) return res.status(403).json({ error: "Forbidden" });
+      if (!report.cebiaQueueId) return res.status(400).json({ error: "No queueId yet" });
+      if (report.status === "ready" && report.pdfBase64) {
+        return res.json({ status: "ready" });
+      }
+
+      const pdfResp = await cebiaGetPdfData(report.cebiaQueueId);
+      const queueStatus = pdfResp.queueStatus;
+
+      if (queueStatus === 3 && pdfResp.pdfData) {
+        const updated = await storage.updateCebiaReport(report.id, {
+          status: "ready",
+          cebiaQueueStatus: queueStatus,
+          cebiaCouponNumber: pdfResp.couponNumber ?? null,
+          cebiaReportUrl: pdfResp.reportUrl ?? null,
+          pdfBase64: pdfResp.pdfData,
+          rawResponse: mergeRawResponse(report.rawResponse, { cebiaPdfData: pdfResp as any }),
+        });
+
+        if (CEBIA_EMAIL_ON_READY) {
+          try {
+            const rr: any = report.rawResponse && typeof report.rawResponse === "object" ? report.rawResponse : {};
+            const email = typeof rr.customerEmail === "string" ? rr.customerEmail.trim() : "";
+            const already = !!rr.emailSent;
+            if (email && !already) {
+              const guestToken = getCebiaGuestToken(report);
+              if (guestToken) {
+                const pdfUrl = `https://nnauto.cz/api/cebia/guest/reports/${encodeURIComponent(
+                  report.id,
+                )}/pdf?token=${encodeURIComponent(guestToken)}`;
+                await sendCebiaReportReadyEmail({ email, vin: report.vin, pdfUrl });
+                await storage.updateCebiaReport(report.id, {
+                  rawResponse: mergeRawResponse(updated?.rawResponse || report.rawResponse, { emailSent: true }),
+                });
+              }
+            }
+          } catch (e) {
+            console.error("[CEBIA] Guest email on ready failed:", e);
+          }
+        }
+
+        return res.json({ status: "ready", report: updated });
+      }
+
+      if (queueStatus === 6 || queueStatus === 4) {
+        await storage.updateCebiaReport(report.id, {
+          status: "failed",
+          cebiaQueueStatus: queueStatus ?? null,
+          rawResponse: mergeRawResponse(report.rawResponse, { cebiaPdfData: pdfResp as any }),
+        });
+        return res.status(400).json({ error: pdfResp.message || "Cebia failed", status: "failed" });
+      }
+
+      await storage.updateCebiaReport(report.id, {
+        status: "requested",
+        cebiaQueueStatus: queueStatus ?? null,
+        rawResponse: mergeRawResponse(report.rawResponse, { cebiaPdfData: pdfResp as any }),
+      });
+      res.json({ status: "requested", queueStatus });
+    } catch (error: any) {
+      console.error("Cebia guest poll error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/cebia/guest/reports/:id/pdf", async (req, res) => {
+    try {
+      if (!CEBIA_ENABLED) {
+        return res.status(503).json({ error: "Cebia is temporarily disabled" });
+      }
+
+      const token = typeof req.query?.token === "string" ? req.query.token : "";
+      const report = await storage.getCebiaReportById(req.params.id);
+      if (!report) return res.status(404).json({ error: "Not found" });
+      if (!assertValidGuestAccess(report, token)) return res.status(403).json({ error: "Forbidden" });
+      if (!report.pdfBase64) return res.status(409).json({ error: "PDF not ready yet" });
+
+      const pdfBuffer = Buffer.from(report.pdfBase64, "base64");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename=\"cebia-${report.vin}.pdf\"`);
+      res.send(pdfBuffer);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
@@ -2863,7 +3612,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      let listings = [...(await storage.getListings())];
       const q = req.query;
 
       const sort = normalizeSort(q.sort);
@@ -2871,15 +3619,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pageNum = Math.max(1, toInt(q.page) ?? 1);
       const limitNum = Math.min(100, Math.max(1, toInt(q.limit) ?? 20));
 
+      // ✅ Fast path: no filters => DB pagination/sort (avoids loading ALL listings into memory)
+      const allowedNonFilterKeys = new Set(["page", "limit", "sort"]);
+      const hasAnyFilters = Object.keys(q).some((k) => !allowedNonFilterKeys.has(k));
+
+      if (!hasAnyFilters) {
+        const totalRow = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(listingsTable);
+        const total = Number(totalRow?.[0]?.count ?? 0);
+
+        const totalPages = Math.max(1, Math.ceil(total / limitNum));
+        const safePage = Math.min(pageNum, totalPages);
+        const start = (safePage - 1) * limitNum;
+
+        const orderBy = [desc(listingsTable.isTopListing)];
+        switch (sort) {
+          case "oldest":
+            orderBy.push(asc(listingsTable.createdAt));
+            break;
+          case "price-asc":
+            orderBy.push(asc(listingsTable.price));
+            break;
+          case "price-desc":
+            orderBy.push(desc(listingsTable.price));
+            break;
+          case "year-asc":
+            orderBy.push(asc(listingsTable.year));
+            break;
+          case "year-desc":
+            orderBy.push(desc(listingsTable.year));
+            break;
+          case "mileage-asc":
+            orderBy.push(asc(listingsTable.mileage));
+            break;
+          case "mileage-desc":
+            orderBy.push(desc(listingsTable.mileage));
+            break;
+          case "newest":
+          default:
+            orderBy.push(desc(listingsTable.createdAt));
+            break;
+        }
+        // Stable tiebreaker
+        orderBy.push(desc(listingsTable.createdAt));
+
+        const paginated = await db
+          .select()
+          .from(listingsTable)
+          .orderBy(...orderBy)
+          .limit(limitNum)
+          .offset(start);
+
+        return res.json({
+          listings: paginated,
+          pagination: {
+            total,
+            page: safePage,
+            limit: limitNum,
+            totalPages,
+            hasMore: safePage * limitNum < total,
+          },
+        });
+      }
+
+      // Fallback (filters supported): current in-memory implementation
+      let allListings = [...(await storage.getListings())];
+
       // --- filters ---
       const userId = typeof q.userId === "string" ? q.userId.trim() : "";
       if (userId)
-        listings = listings.filter((l) => String(l.userId || "") === userId);
+        allListings = allListings.filter((l) => String(l.userId || "") === userId);
 
       const search = typeof q.search === "string" ? q.search.trim() : "";
       if (search) {
         const s = normalizeText(search);
-        listings = listings.filter((l) => {
+        allListings = allListings.filter((l) => {
           const b = normalizeText(l.brand || "");
           const m = normalizeText(l.model || "");
           const t = normalizeText(l.title || "");
@@ -2892,43 +3707,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (typeof q.brand === "string" && q.brand.trim()) {
         const b = normalizeText(q.brand);
-        listings = listings.filter((l) => normalizeText(l.brand || "") === b);
+        allListings = allListings.filter((l) => normalizeText(l.brand || "") === b);
       }
 
       if (typeof q.model === "string" && q.model.trim()) {
         const wanted = slugify(q.model);
-        listings = listings.filter((l) => slugify(l.model || "") === wanted);
+        allListings = allListings.filter((l) => slugify(l.model || "") === wanted);
       }
 
       const priceMin = toNumber(q.priceMin);
       const priceMax = toNumber(q.priceMax);
       if (priceMin !== undefined)
-        listings = listings.filter((l) => (toNumber(l.price) ?? 0) >= priceMin);
+        allListings = allListings.filter((l) => (toNumber(l.price) ?? 0) >= priceMin);
       if (priceMax !== undefined)
-        listings = listings.filter((l) => (toNumber(l.price) ?? 0) <= priceMax);
+        allListings = allListings.filter((l) => (toNumber(l.price) ?? 0) <= priceMax);
 
       const yearMin = toInt(q.yearMin);
       const yearMax = toInt(q.yearMax);
       if (yearMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.year) ?? 0) >= yearMin);
+        allListings = allListings.filter((l) => (toInt(l.year) ?? 0) >= yearMin);
       if (yearMax !== undefined)
-        listings = listings.filter((l) => (toInt(l.year) ?? 0) <= yearMax);
+        allListings = allListings.filter((l) => (toInt(l.year) ?? 0) <= yearMax);
 
       const mileageMin = toInt(q.mileageMin);
       const mileageMax = toInt(q.mileageMax);
       if (mileageMin !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.mileage) ?? 0) >= mileageMin,
         );
       if (mileageMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.mileage) ?? 0) <= mileageMax,
         );
 
       // fuel -> listing.fuelType[]
       if (typeof q.fuel === "string" && q.fuel.trim()) {
         const wanted = parseCsv(q.fuel).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           (Array.isArray(l.fuelType) ? l.fuelType : []).some((v: any) =>
             wanted.includes(normalizeText(v)),
           ),
@@ -2938,7 +3753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // bodyType -> listing.bodyType (string)
       if (typeof q.bodyType === "string" && q.bodyType.trim()) {
         const wanted = parseCsv(q.bodyType).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           wanted.includes(normalizeText(l.bodyType || "")),
         );
       }
@@ -2946,7 +3761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // transmission -> listing.transmission[]
       if (typeof q.transmission === "string" && q.transmission.trim()) {
         const wanted = parseCsv(q.transmission).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           (Array.isArray(l.transmission) ? l.transmission : []).some((v: any) =>
             wanted.includes(normalizeText(v)),
           ),
@@ -2954,19 +3769,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (typeof q.color === "string" && q.color.trim()) {
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => normalizeText(l.color || "") === normalizeText(q.color),
         );
       }
 
       if (typeof q.trim === "string" && q.trim.trim()) {
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           normalizeText(l.trim || "").includes(normalizeText(q.trim)),
         );
       }
 
       if (typeof q.region === "string" && q.region.trim()) {
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => normalizeText(l.region || "") === normalizeText(q.region),
         );
       }
@@ -2974,7 +3789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // driveType -> listing.driveType[]
       if (typeof q.driveType === "string" && q.driveType.trim()) {
         const wanted = parseCsv(q.driveType).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           (Array.isArray(l.driveType) ? l.driveType : []).some((v: any) =>
             wanted.includes(normalizeText(v)),
           ),
@@ -2982,14 +3797,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (typeof q.category === "string" && q.category.trim()) {
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => normalizeText(l.category || "") === normalizeText(q.category),
         );
       }
 
       if (typeof q.vehicleType === "string" && q.vehicleType.trim()) {
         const wanted = parseCsv(q.vehicleType).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           wanted.includes(normalizeText(l.vehicleType || "")),
         );
       }
@@ -2997,11 +3812,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const engineMin = toNumber(q.engineMin);
       const engineMax = toNumber(q.engineMax);
       if (engineMin !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toNumber(l.engineVolume) ?? -1) >= engineMin,
         );
       if (engineMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) =>
             (toNumber(l.engineVolume) ?? Number.MAX_SAFE_INTEGER) <= engineMax,
         );
@@ -3009,52 +3824,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const powerMin = toInt(q.powerMin);
       const powerMax = toInt(q.powerMax);
       if (powerMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.power) ?? -1) >= powerMin);
+        allListings = allListings.filter((l) => (toInt(l.power) ?? -1) >= powerMin);
       if (powerMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.power) ?? Number.MAX_SAFE_INTEGER) <= powerMax,
         );
 
       const doorsMin = toInt(q.doorsMin);
       const doorsMax = toInt(q.doorsMax);
       if (doorsMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.doors) ?? -1) >= doorsMin);
+        allListings = allListings.filter((l) => (toInt(l.doors) ?? -1) >= doorsMin);
       if (doorsMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.doors) ?? Number.MAX_SAFE_INTEGER) <= doorsMax,
         );
 
       const seatsMin = toInt(q.seatsMin);
       const seatsMax = toInt(q.seatsMax);
       if (seatsMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.seats) ?? -1) >= seatsMin);
+        allListings = allListings.filter((l) => (toInt(l.seats) ?? -1) >= seatsMin);
       if (seatsMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.seats) ?? Number.MAX_SAFE_INTEGER) <= seatsMax,
         );
 
       const ownersMin = toInt(q.ownersMin);
       const ownersMax = toInt(q.ownersMax);
       if (ownersMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.owners) ?? -1) >= ownersMin);
+        allListings = allListings.filter((l) => (toInt(l.owners) ?? -1) >= ownersMin);
       if (ownersMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.owners) ?? Number.MAX_SAFE_INTEGER) <= ownersMax,
         );
 
       const airbagsMin = toInt(q.airbagsMin);
       const airbagsMax = toInt(q.airbagsMax);
       if (airbagsMin !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.airbags) ?? -1) >= airbagsMin,
         );
       if (airbagsMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.airbags) ?? Number.MAX_SAFE_INTEGER) <= airbagsMax,
         );
 
       if (typeof q.sellerType === "string" && q.sellerType.trim()) {
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) =>
             normalizeText(l.sellerType || "") === normalizeText(q.sellerType),
         );
@@ -3066,18 +3881,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const maxDate = new Date();
         maxDate.setDate(maxDate.getDate() - listingAgeMin);
         const maxMs = maxDate.getTime();
-        listings = listings.filter((l) => dateMs(l.createdAt) <= maxMs);
+        allListings = allListings.filter((l) => dateMs(l.createdAt) <= maxMs);
       }
       if (listingAgeMax !== undefined) {
         const minDate = new Date();
         minDate.setDate(minDate.getDate() - listingAgeMax);
         const minMs = minDate.getTime();
-        listings = listings.filter((l) => dateMs(l.createdAt) >= minMs);
+        allListings = allListings.filter((l) => dateMs(l.createdAt) >= minMs);
       }
 
       if (typeof q.equipment === "string" && q.equipment.trim()) {
         const needed = parseCsv(q.equipment).map(normalizeText);
-        listings = listings.filter((l) => {
+        allListings = allListings.filter((l) => {
           const arr = Array.isArray(l.equipment) ? l.equipment : [];
           if (!arr.length) return false;
           const norm = arr.map((x: any) => normalizeText(x));
@@ -3087,14 +3902,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (typeof q.condition === "string" && q.condition.trim()) {
         const wanted = parseCsv(q.condition).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           wanted.includes(normalizeText(l.condition || "")),
         );
       }
 
       if (typeof q.extras === "string" && q.extras.trim()) {
         const wanted = parseCsv(q.extras).map(normalizeText);
-        listings = listings.filter((l) => {
+        allListings = allListings.filter((l) => {
           const arr = Array.isArray(l.extras) ? l.extras : [];
           if (!arr.length) return false;
           const norm = arr.map((x: any) => normalizeText(x));
@@ -3103,11 +3918,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (toBool(q.hasServiceBook)) {
-        listings = listings.filter((l) => l.hasServiceBook === true);
+        allListings = allListings.filter((l) => l.hasServiceBook === true);
       }
 
       // --- sort: TOP first, потім сортування усередині ---
-      listings.sort((a, b) => {
+      allListings.sort((a, b) => {
         const aTop = !!a.isTopListing;
         const bTop = !!b.isTopListing;
         if (aTop && !bTop) return -1;
@@ -3121,13 +3936,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // --- pagination ---
-      const total = listings.length;
+      const total = allListings.length;
       const totalPages = Math.max(1, Math.ceil(total / limitNum));
       const safePage = Math.min(pageNum, totalPages);
 
       const start = (safePage - 1) * limitNum;
       const end = start + limitNum;
-      const paginated = listings.slice(start, end);
+      const paginated = allListings.slice(start, end);
 
       return res.json({
         listings: paginated,

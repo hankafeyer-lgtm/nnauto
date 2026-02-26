@@ -2,21 +2,20 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
-import { Pool } from "pg";
+import { pool } from "./db";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
 
 // Store reference for diagnostics
 let sessionStoreRef: any = null;
-let poolRef: Pool | null = null;
 
 export function getSessionStore() {
   return sessionStoreRef;
 }
 
 export function getPool() {
-  return poolRef;
+  return pool;
 }
 
 export function getSession() {
@@ -33,21 +32,15 @@ export function getSession() {
   
   let sessionStore;
   
-  if (isProduction && process.env.DATABASE_URL) {
+  const hasDbUrl = !!(process.env.DATABASE_URL_POOLED || process.env.PRODUCTION_DATABASE_URL || process.env.DATABASE_URL);
+  if (isProduction && hasDbUrl) {
     console.log("[Session] Initializing PostgreSQL session store...");
-    
-    // Use pg Pool with SSL for Neon compatibility
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
-    });
-    poolRef = pool;
-    
-    // Test connection synchronously before continuing
-    pool.query('SELECT 1').then(() => {
+
+    // Test connection asynchronously (do not block startup)
+    pool.query("SELECT 1").then(() => {
       console.log("[Session] PostgreSQL pool connected successfully");
       // Also test session table
-      return pool.query('SELECT COUNT(*) FROM session');
+      return pool.query("SELECT COUNT(*) FROM session");
     }).then((result) => {
       console.log("[Session] Session table accessible, current count:", result.rows[0].count);
     }).catch((err) => {
@@ -78,7 +71,7 @@ export function getSession() {
     });
     sessionStoreRef = sessionStore;
     console.log("[Session] Using MemoryStore for development");
-    console.log("[Session] Reason: isProduction=", isProduction, "hasDbUrl=", !!process.env.DATABASE_URL);
+    console.log("[Session] Reason: isProduction=", isProduction, "hasDbUrl=", hasDbUrl);
   }
   
   const sessionSecret = process.env.SESSION_SECRET || "zlateauto-dev-secret-change-in-production";

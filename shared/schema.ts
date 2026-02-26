@@ -215,3 +215,54 @@ export type EnrichedPayment = Payment & {
   listingModel?: string;
   listingPrice?: string;
 };
+
+export const cebiaReports = pgTable(
+  "cebia_reports",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull(),
+    listingId: varchar("listing_id"),
+    vin: varchar("vin", { length: 17 }).notNull(),
+
+    // What was purchased / requested
+    product: varchar("product", { length: 40 }).default("pdf_autotracer").notNull(),
+    status: varchar("status", { length: 30 }).default("created").notNull(),
+
+    // Stripe
+    priceCents: integer("price_cents").notNull(),
+    currency: varchar("currency", { length: 3 }).default("CZK").notNull(),
+    stripeSessionId: text("stripe_session_id"),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+
+    // Cebia workflow (PDF queue)
+    cebiaQueueId: text("cebia_queue_id"),
+    cebiaQueueStatus: integer("cebia_queue_status"),
+    cebiaCouponNumber: text("cebia_coupon_number"),
+    cebiaReportUrl: text("cebia_report_url"),
+
+    // Store the PDF data (base64) + raw JSON for audit/debug
+    pdfBase64: text("pdf_base64"),
+    rawResponse: jsonb("raw_response"),
+
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    index("cebia_reports_user_id_idx").on(t.userId),
+    index("cebia_reports_vin_idx").on(t.vin),
+    index("cebia_reports_stripe_session_id_idx").on(t.stripeSessionId),
+    index("cebia_reports_created_at_idx").on(t.createdAt),
+  ],
+);
+
+export const insertCebiaReportSchema = createInsertSchema(cebiaReports).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateCebiaReportSchema = insertCebiaReportSchema.partial().strict();
+
+export type InsertCebiaReport = z.infer<typeof insertCebiaReportSchema>;
+export type UpdateCebiaReport = z.infer<typeof updateCebiaReportSchema>;
+export type CebiaReport = typeof cebiaReports.$inferSelect;

@@ -2944,6 +2944,7 @@ import { SEO, generateListingsSchema } from "@/components/SEO";
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -3396,6 +3397,29 @@ export default function ListingsPage() {
     [queryString],
   );
 
+  // Prefetch next page for faster pagination
+  useEffect(() => {
+    const nextPage = currentPage + 1;
+    const p = new URLSearchParams(queryString);
+    p.set("page", String(nextPage));
+    p.set("limit", String(ITEMS_PER_PAGE));
+    const nextQueryString = p.toString();
+    if (!nextQueryString) return;
+    queryClient.prefetchQuery({
+      queryKey: ["/api/listings", nextQueryString],
+      queryFn: async () => {
+        const res = await fetch(`/api/listings?${nextQueryString}`, {
+          method: "GET",
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        return (await res.json()) as ListingsResponse;
+      },
+      staleTime: 30_000,
+    });
+  }, [currentPage, queryString]);
+
   /**
    * ✅ ВАЖЛИВО:
    * тут ми НЕ використовуємо HTTP cache, щоб не ловити 304 + старі дані
@@ -3439,12 +3463,8 @@ export default function ListingsPage() {
       const res = await fetch(apiUrl, {
         method: "GET",
         credentials: "same-origin",
-        cache: "no-store",
-        headers: {
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
+        cache: "default",
+        headers: { Accept: "application/json" },
       });
 
       if (!res.ok) {
@@ -3458,7 +3478,9 @@ export default function ListingsPage() {
 
       return (await res.json()) as ListingsResponse;
     },
-    staleTime: 0,
+    // Keep previous page visible while fetching next page
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 

@@ -1,4 +1,20 @@
-import { users, listings, payments, type User, type InsertUser, type UpdateUser, type Listing, type InsertListing, type Payment, type InsertPayment, type UpdatePayment } from "@shared/schema";
+import {
+  users,
+  listings,
+  payments,
+  cebiaReports,
+  type User,
+  type InsertUser,
+  type UpdateUser,
+  type Listing,
+  type InsertListing,
+  type Payment,
+  type InsertPayment,
+  type UpdatePayment,
+  type CebiaReport,
+  type InsertCebiaReport,
+  type UpdateCebiaReport,
+} from "@shared/schema";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
 
@@ -25,6 +41,13 @@ export interface IStorage {
   getPaymentsByUserId(userId: string): Promise<Payment[]>;
   getPaymentByListingId(listingId: string): Promise<Payment | undefined>;
   updatePayment(id: string, payment: UpdatePayment): Promise<Payment | undefined>;
+
+  // Cebia reports (Stripe-gated paid API)
+  createCebiaReport(report: InsertCebiaReport): Promise<CebiaReport>;
+  getCebiaReportById(id: string): Promise<CebiaReport | undefined>;
+  getCebiaReportsByUserId(userId: string): Promise<CebiaReport[]>;
+  getCebiaReportByStripeSessionId(stripeSessionId: string): Promise<CebiaReport | undefined>;
+  updateCebiaReport(id: string, report: UpdateCebiaReport): Promise<CebiaReport | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -206,6 +229,45 @@ export class DatabaseStorage implements IStorage {
       .where(eq(payments.id, id))
       .returning();
     return payment || undefined;
+  }
+
+  async createCebiaReport(insertReport: InsertCebiaReport): Promise<CebiaReport> {
+    const [report] = await db.insert(cebiaReports).values(insertReport).returning();
+    return report;
+  }
+
+  async getCebiaReportById(id: string): Promise<CebiaReport | undefined> {
+    const [report] = await db.select().from(cebiaReports).where(eq(cebiaReports.id, id));
+    return report || undefined;
+  }
+
+  async getCebiaReportsByUserId(userId: string): Promise<CebiaReport[]> {
+    return await db.select().from(cebiaReports).where(eq(cebiaReports.userId, userId));
+  }
+
+  async getCebiaReportByStripeSessionId(
+    stripeSessionId: string,
+  ): Promise<CebiaReport | undefined> {
+    const [report] = await db
+      .select()
+      .from(cebiaReports)
+      .where(eq(cebiaReports.stripeSessionId, stripeSessionId));
+    return report || undefined;
+  }
+
+  async updateCebiaReport(
+    id: string,
+    updateData: UpdateCebiaReport,
+  ): Promise<CebiaReport | undefined> {
+    const [report] = await db
+      .update(cebiaReports)
+      .set({
+        ...updateData,
+        updatedAt: new Date(),
+      })
+      .where(eq(cebiaReports.id, id))
+      .returning();
+    return report || undefined;
   }
 }
 
