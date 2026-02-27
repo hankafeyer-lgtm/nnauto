@@ -3111,6 +3111,7 @@ import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
+import { getListingMainTitle } from "@/lib/listingTitle";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import { MediaLightbox } from "@/components/MediaLightbox";
@@ -3690,8 +3691,9 @@ export default function ListingDetailPage() {
     if (!listing) return;
 
     const shareUrl = window.location.href;
+    const mainTitle = getListingMainTitle(listing);
     const shareData = {
-      title: listing.title,
+      title: mainTitle,
       text: `${listing.brand} ${
         listing.model
       } - ${listing.price.toLocaleString()} Kč`,
@@ -3954,7 +3956,7 @@ export default function ListingDetailPage() {
                                 })}
                                 desktopMinWidth={1024}
                                 upgrade={index === currentCarouselIndex}
-                                alt={`${listing.title} - ${index + 1}`}
+                                alt={`${getListingMainTitle(listing)} - ${index + 1}`}
                                 loading={index === 0 ? "eager" : "lazy"}
                                 decoding="async"
                                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 800px"
@@ -4070,7 +4072,7 @@ export default function ListingDetailPage() {
                     <div className="aspect-[3/2] relative bg-muted">
                       <img
                         src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1200&h=675&fit=crop"
-                        alt={listing.title}
+                        alt={getListingMainTitle(listing)}
                         loading="eager"
                         decoding="async"
                         className="w-full h-full object-cover object-center bg-muted"
@@ -4184,11 +4186,13 @@ export default function ListingDetailPage() {
                     className="text-3xl md:text-4xl font-bold tracking-tight mb-2"
                     data-testid="text-listing-title"
                   >
-                    {listing.title}
+                    {getListingMainTitle(listing)}
                   </h1>
-                  <p className="text-lg text-black dark:text-white">
-                    {listing.brand} {listing.model}
-                  </p>
+                  {listing.title ? (
+                    <p className="text-sm text-muted-foreground">
+                      {listing.title}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap gap-6">

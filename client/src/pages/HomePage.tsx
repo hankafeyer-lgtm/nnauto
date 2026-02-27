@@ -2044,6 +2044,7 @@ import type { Listing } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { getListingMainTitle } from "@/lib/listingTitle";
 
 import {
   AlertDialog,
@@ -2342,7 +2343,7 @@ export default function HomePage() {
           id: listing.id,
           image,
           photos,
-          title: listing.title,
+          title: getListingMainTitle(listing),
           price: Number(listing.price),
           year: listing.year,
           mileage: listing.mileage,

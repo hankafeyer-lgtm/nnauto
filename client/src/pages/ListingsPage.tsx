@@ -2993,6 +2993,7 @@ import suvImage from "@assets/generated_images/Featured_car_SUV_65e6ecf7.png";
 import sportsImage from "@assets/generated_images/Featured_car_sports_0787b41f.png";
 import hatchbackImage from "@assets/generated_images/Featured_car_hatchback_89d0679c.png";
 import truckImage from "@assets/generated_images/Featured_car_truck_55bea7bf.png";
+import { getListingMainTitle } from "@/lib/listingTitle";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
@@ -3696,7 +3697,7 @@ export default function ListingsPage() {
         id: listing.id,
         image,
         photos,
-        title: listing.title,
+        title: getListingMainTitle(listing),
         price: Number.parseFloat(listing.price),
         year: listing.year,
         mileage: listing.mileage,
