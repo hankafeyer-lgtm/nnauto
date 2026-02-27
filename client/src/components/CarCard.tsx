@@ -542,7 +542,7 @@ function CarCard({
             <div className="min-w-0">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3 mb-1 min-w-0">
                 <h3
-                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 lg:line-clamp-none lg:truncate min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-[1.75rem] min-w-0 lg:min-w-[10rem] text-black dark:text-white"
+                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 lg:line-clamp-1 min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-[1.75rem] min-w-0 text-black dark:text-white"
                   data-testid="text-car-title"
                 >
                   {title}
