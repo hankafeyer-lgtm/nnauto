@@ -540,15 +540,15 @@ function CarCard({
           </div>
           <CardContent className="p-4 sm:p-6 lg:p-6 space-y-4 sm:space-y-6 flex-1 flex flex-col">
             <div className="min-w-0">
-              <div className="flex items-start justify-between gap-2 sm:gap-3 mb-1 min-w-0">
+              <div className="flex flex-wrap items-start gap-2 sm:gap-3 mb-1 min-w-0">
                 <h3
-                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-[2.5rem] flex-1 min-w-0 lg:min-w-[10rem] text-black dark:text-white"
+                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-[2.5rem] flex-1 min-w-0 text-black dark:text-white"
                   data-testid="text-car-title"
                 >
                   {title}
                 </h3>
 
-                <div className="text-right shrink-0">
+                <div className="ml-auto text-right shrink-0">
                   <span
                     className="text-2xl sm:text-3xl lg:text-2xl font-semibold text-primary whitespace-nowrap tracking-tight"
                     data-testid="text-car-price"

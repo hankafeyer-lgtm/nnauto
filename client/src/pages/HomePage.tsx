@@ -2503,7 +2503,7 @@ export default function HomePage() {
                         "grid gap-8 sm:gap-10 lg:gap-10",
                         "grid-cols-1 md:grid-cols-2",
                         sidebarCollapsed
-                          ? "lg:grid-cols-2 xl:grid-cols-3"
+                          ? "lg:grid-cols-3"
                           : "lg:grid-cols-2",
                       ].join(" ")}
                     >
