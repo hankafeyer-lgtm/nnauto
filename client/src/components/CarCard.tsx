@@ -398,7 +398,7 @@ function CarCard({
           data-testid={`card-car-${title.toLowerCase().replace(/\s+/g, "-")}`}
         >
           <div
-            className="relative bg-muted group/photo touch-pan-y min-w-0 shrink-0 h-[240px] sm:h-[260px] lg:h-[250px] overflow-hidden"
+            className="relative bg-muted group/photo touch-pan-y min-w-0 shrink-0 h-[240px] sm:h-[260px] lg:h-[230px] overflow-hidden"
             onTouchStart={hasMultiplePhotos ? handleTouchStart : undefined}
             onTouchMove={hasMultiplePhotos ? handleTouchMove : undefined}
             onTouchEnd={hasMultiplePhotos ? handleTouchEnd : undefined}
@@ -538,19 +538,19 @@ function CarCard({
               </button>
             )}
           </div>
-          <CardContent className="p-4 sm:p-6 lg:p-6 space-y-4 sm:space-y-6 flex-1 flex flex-col">
+          <CardContent className="p-4 sm:p-6 lg:p-5 space-y-4 sm:space-y-6 lg:space-y-4 flex-1 flex flex-col">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-start gap-2 sm:gap-3 mb-1 min-w-0">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3 mb-1 min-w-0">
                 <h3
-                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-[2.5rem] flex-1 min-w-0 lg:min-w-[10rem] text-black dark:text-white"
+                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-[2.5rem] min-w-0 text-black dark:text-white"
                   data-testid="text-car-title"
                 >
                   {title}
                 </h3>
 
-                <div className="ml-auto text-right shrink-0">
+                <div className="text-right shrink-0">
                   <span
-                    className="text-2xl sm:text-3xl lg:text-2xl font-semibold text-primary whitespace-nowrap tracking-tight"
+                    className="text-2xl sm:text-3xl lg:text-xl font-semibold text-primary whitespace-nowrap tracking-tight"
                     data-testid="text-car-price"
                   >
                     {price.toLocaleString()} Kč
