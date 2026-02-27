@@ -394,7 +394,7 @@ function CarCard({
         onClick={saveScrollPosition}
       >
         <Card
-          className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl h-full flex flex-col"
+          className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col"
           data-testid={`card-car-${title.toLowerCase().replace(/\s+/g, "-")}`}
         >
           <div
@@ -542,7 +542,7 @@ function CarCard({
             <div className="min-w-0">
               <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3 mb-1 min-w-0">
                 <h3
-                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-[2.5rem] min-w-0 lg:min-w-[10rem] text-black dark:text-white"
+                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 lg:line-clamp-1 min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-[1.75rem] min-w-0 lg:min-w-[10rem] text-black dark:text-white"
                   data-testid="text-car-title"
                 >
                   {title}

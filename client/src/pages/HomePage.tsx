@@ -2502,7 +2502,7 @@ export default function HomePage() {
                       className={[
                         "grid gap-8 sm:gap-10 lg:gap-10",
                         "grid-cols-1 md:grid-cols-2",
-                        "lg:grid-cols-2",
+                        sidebarCollapsed ? "lg:grid-cols-3" : "lg:grid-cols-2",
                       ].join(" ")}
                     >
                       {cards.length === 0 ? (
