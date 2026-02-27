@@ -2944,6 +2944,7 @@ import { SEO, generateListingsSchema } from "@/components/SEO";
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
 import { useAuth } from "@/hooks/useAuth";
