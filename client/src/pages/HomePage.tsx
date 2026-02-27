@@ -2448,7 +2448,7 @@ export default function HomePage() {
               style={{
                 gridTemplateColumns: sidebarCollapsed
                   ? "0px 36px 1fr"
-                  : "minmax(320px, 384px) 36px 1fr",
+                  : "minmax(300px, 360px) 36px 1fr",
               }}
             >
               {/* Filters (фон тягнеться донизу: self-stretch + h-full) */}
@@ -2502,9 +2502,7 @@ export default function HomePage() {
                       className={[
                         "grid gap-8 sm:gap-10 lg:gap-10",
                         "grid-cols-1 md:grid-cols-2",
-                        sidebarCollapsed
-                          ? "lg:grid-cols-2 2xl:grid-cols-3"
-                          : "lg:grid-cols-2",
+                        "lg:grid-cols-2",
                       ].join(" ")}
                     >
                       {cards.length === 0 ? (
