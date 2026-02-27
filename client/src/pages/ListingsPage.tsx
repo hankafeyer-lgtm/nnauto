@@ -3839,7 +3839,7 @@ export default function ListingsPage() {
           <aside
             className={[
               "hidden lg:block shrink-0 transition-[width] duration-300",
-              sidebarCollapsed ? "w-0 overflow-hidden" : "w-80",
+              sidebarCollapsed ? "w-0 overflow-hidden" : "w-72",
             ].join(" ")}
           >
             <div
@@ -3914,7 +3914,7 @@ export default function ListingsPage() {
                 <div
                   className={
                     viewMode === "grid"
-                      ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8"
+                      ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8 xl:gap-6"
                       : "flex flex-col gap-8"
                   }
                 >

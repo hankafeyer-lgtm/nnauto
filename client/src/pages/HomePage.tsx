@@ -2444,11 +2444,11 @@ export default function HomePage() {
           {/* ✅ Desktop (кнопка як у першому варіанті: між aside і картками, sticky по центру) */}
           <div className="relative hidden lg:block">
             <div
-              className="grid gap-8 xl:gap-12 transition-[grid-template-columns] duration-300"
+              className="grid gap-6 xl:gap-8 transition-[grid-template-columns] duration-300"
               style={{
                 gridTemplateColumns: sidebarCollapsed
                   ? "0px 36px 1fr"
-                  : "minmax(300px, 360px) 36px 1fr",
+                  : "minmax(280px, 340px) 36px 1fr",
               }}
             >
               {/* Filters (фон тягнеться донизу: self-stretch + h-full) */}
@@ -2500,7 +2500,7 @@ export default function HomePage() {
                   <>
                     <div
                       className={[
-                        "grid gap-8 sm:gap-10 lg:gap-10",
+                        "grid gap-8 sm:gap-10 lg:gap-8",
                         "grid-cols-1 md:grid-cols-2",
                         sidebarCollapsed ? "lg:grid-cols-3" : "lg:grid-cols-2",
                       ].join(" ")}
