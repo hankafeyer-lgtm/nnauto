@@ -2592,7 +2592,6 @@ function FilterSidebar() {
   const [openSections, setOpenSections] = useState({
     vehicleType: true,
     basic: true,
-    price: true,
     technical: true,
     appearance: true,
     condition: true,
@@ -2640,8 +2639,8 @@ function FilterSidebar() {
     [t],
   );
 
-  const priceMin = filters.priceMin ?? 10000;
-  const priceMax = filters.priceMax ?? 20000000;
+  const priceMin = filters.priceMin;
+  const priceMax = filters.priceMax;
   const yearMin = filters.yearMin ?? 1980;
   const yearMax = filters.yearMax ?? new Date().getFullYear();
   const mileageMin = filters.mileageMin ?? 0;
@@ -3042,34 +3041,21 @@ function FilterSidebar() {
           </CollapsibleContent>
         </Collapsible>
 
-        {/* PRICE + YEAR */}
-        <Collapsible
-          open={openSections.price}
-          onOpenChange={() => toggleSection("price")}
-        >
-          <CollapsibleTrigger className="flex items-center justify-between gap-2 w-full py-2 hover-elevate rounded-xl px-3">
+        {/* PRICE + YEAR (always expanded; no toggle) */}
+        <div className="pt-2">
+          <div className="flex items-center justify-between gap-2 w-full py-2 rounded-xl px-3">
             <h3 className="text-lg font-semibold truncate">
               {t("filters.priceAndYear")}
             </h3>
-            <ChevronDown
-              className={`h-5 w-5 shrink-0 transition-transform ${
-                openSections.price ? "rotate-180" : ""
-              }`}
-            />
-          </CollapsibleTrigger>
+          </div>
 
-          <CollapsibleContent className="space-y-6 pt-4">
+          <div className="space-y-6 pt-4">
             <div className="space-y-4">
-              <Label className="text-base font-medium">
-                {t("filters.price")}
-              </Label>
               <PriceRangeInput
                 minValue={priceMin}
                 maxValue={priceMax}
-                onMinChange={(value) => setPriceRange(value || 10000, priceMax)}
-                onMaxChange={(value) =>
-                  setPriceRange(priceMin, value || 20000000)
-                }
+                onMinChange={(value) => setPriceRange(value, priceMax)}
+                onMaxChange={(value) => setPriceRange(priceMin, value)}
                 variant="sidebar"
                 testIdPrefix="sidebar-price"
               />
@@ -3122,8 +3108,8 @@ function FilterSidebar() {
                 testIdPrefix="sidebar-year"
               />
             </div>
-          </CollapsibleContent>
-        </Collapsible>
+          </div>
+        </div>
 
         {/* TECHNICAL */}
         <Collapsible

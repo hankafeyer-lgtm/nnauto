@@ -9,6 +9,7 @@ import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 import { useQuery } from "@tanstack/react-query";
 import { Listing } from "@shared/schema";
 import CarCard from "./CarCard";
+import { getListingMainTitle } from "@/lib/listingTitle";
 import { formatDistanceToNow } from "date-fns";
 import { cs, uk, enUS } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -158,7 +159,7 @@ export function FavoritesModal({ isOpen, onClose }: FavoritesModalProps) {
                   <CarCard
                     id={listing.id}
                     image={image}
-                    title={listing.title}
+                    title={getListingMainTitle(listing)}
                     price={Number(listing.price)}
                     year={listing.year}
                     mileage={listing.mileage}

@@ -2992,6 +2992,7 @@ import suvImage from "@assets/generated_images/Featured_car_SUV_65e6ecf7.png";
 import sportsImage from "@assets/generated_images/Featured_car_sports_0787b41f.png";
 import hatchbackImage from "@assets/generated_images/Featured_car_hatchback_89d0679c.png";
 import truckImage from "@assets/generated_images/Featured_car_truck_55bea7bf.png";
+import { getListingMainTitle } from "@/lib/listingTitle";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
@@ -3396,6 +3397,29 @@ export default function ListingsPage() {
     [queryString],
   );
 
+  // Prefetch next page for faster pagination
+  useEffect(() => {
+    const nextPage = currentPage + 1;
+    const p = new URLSearchParams(queryString);
+    p.set("page", String(nextPage));
+    p.set("limit", String(ITEMS_PER_PAGE));
+    const nextQueryString = p.toString();
+    if (!nextQueryString) return;
+    queryClient.prefetchQuery({
+      queryKey: ["/api/listings", nextQueryString],
+      queryFn: async () => {
+        const res = await fetch(`/api/listings?${nextQueryString}`, {
+          method: "GET",
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        return (await res.json()) as ListingsResponse;
+      },
+      staleTime: 30_000,
+    });
+  }, [currentPage, queryString]);
+
   /**
    * ✅ ВАЖЛИВО:
    * тут ми НЕ використовуємо HTTP cache, щоб не ловити 304 + старі дані
@@ -3439,12 +3463,8 @@ export default function ListingsPage() {
       const res = await fetch(apiUrl, {
         method: "GET",
         credentials: "same-origin",
-        cache: "no-store",
-        headers: {
-          Accept: "application/json",
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
+        cache: "default",
+        headers: { Accept: "application/json" },
       });
 
       if (!res.ok) {
@@ -3458,7 +3478,9 @@ export default function ListingsPage() {
 
       return (await res.json()) as ListingsResponse;
     },
-    staleTime: 0,
+    // Keep previous page visible while fetching next page
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
     refetchOnWindowFocus: false,
   });
 
@@ -3674,7 +3696,7 @@ export default function ListingsPage() {
         id: listing.id,
         image,
         photos,
-        title: listing.title,
+        title: getListingMainTitle(listing),
         price: Number.parseFloat(listing.price),
         year: listing.year,
         mileage: listing.mileage,
@@ -3891,7 +3913,7 @@ export default function ListingsPage() {
                 <div
                   className={
                     viewMode === "grid"
-                      ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
+                      ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-8"
                       : "flex flex-col gap-8"
                   }
                 >
@@ -4046,7 +4068,7 @@ export default function ListingsPage() {
                 <div
                   className={
                     viewMode === "grid"
-                      ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
+                      ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3 gap-8"
                       : "flex flex-col gap-8"
                   }
                 >

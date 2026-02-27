@@ -3111,6 +3111,7 @@ import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
+import { getListingMainTitle } from "@/lib/listingTitle";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import { MediaLightbox } from "@/components/MediaLightbox";
@@ -3211,6 +3212,18 @@ export default function ListingDetailPage() {
     enabled: !!listing?.userId,
   });
 
+  const { data: cebiaConfig } = useQuery<{
+    enabled: boolean;
+    paymentsFrozen: boolean;
+    autoRequestOnPaid?: boolean;
+    priceCents?: number;
+    currency?: string;
+  }>({
+    queryKey: ["/api/cebia/config"],
+  });
+
+  const cebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen !== false; // default: frozen
+
   // Prefill VIN input once listing loads (do not overwrite user's edits)
   useEffect(() => {
     const vin = (listing?.vin || "").trim();
@@ -3288,6 +3301,27 @@ export default function ListingDetailPage() {
     };
   }, [carouselApi]);
 
+  // Preload neighbor images to reduce swipe stutter
+  useEffect(() => {
+    const len = photoKeys.length;
+    if (!len) return;
+
+    const idx = Math.max(0, Math.min(currentCarouselIndex, len - 1));
+    const neighbors = new Set<string>();
+    neighbors.add(photoKeys[(idx + 1) % len]);
+    neighbors.add(photoKeys[(idx - 1 + len) % len]);
+
+    for (const key of neighbors) {
+      const img = new Image();
+      img.decoding = "async";
+      img.src = getOptimizedImageUrl(key, {
+        width: 1200,
+        quality: 80,
+        format: "webp",
+      });
+    }
+  }, [currentCarouselIndex, photoKeys]);
+
   const scrollToCarouselItem = useCallback(
     (index: number) => {
       carouselApi?.scrollTo(index);
@@ -3323,6 +3357,9 @@ export default function ListingDetailPage() {
 
   const cebiaCheckoutMutation = useMutation({
     mutationFn: async () => {
+      if (cebiaPaymentsFrozen) {
+        throw new Error("503: {\"error\":\"Payments are temporarily disabled\"}");
+      }
       const vin = (cebiaVinInput || "").trim().toUpperCase();
       const endpoint = user ? "/api/cebia/checkout" : "/api/cebia/guest/checkout";
       const res = await apiRequest("POST", endpoint, {
@@ -3654,8 +3691,9 @@ export default function ListingDetailPage() {
     if (!listing) return;
 
     const shareUrl = window.location.href;
+    const mainTitle = getListingMainTitle(listing);
     const shareData = {
-      title: listing.title,
+      title: mainTitle,
       text: `${listing.brand} ${
         listing.model
       } - ${listing.price.toLocaleString()} Kč`,
@@ -3918,7 +3956,7 @@ export default function ListingDetailPage() {
                                 })}
                                 desktopMinWidth={1024}
                                 upgrade={index === currentCarouselIndex}
-                                alt={`${listing.title} - ${index + 1}`}
+                                alt={`${getListingMainTitle(listing)} - ${index + 1}`}
                                 loading={index === 0 ? "eager" : "lazy"}
                                 decoding="async"
                                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 800px"
@@ -4034,7 +4072,7 @@ export default function ListingDetailPage() {
                     <div className="aspect-[3/2] relative bg-muted">
                       <img
                         src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1200&h=675&fit=crop"
-                        alt={listing.title}
+                        alt={getListingMainTitle(listing)}
                         loading="eager"
                         decoding="async"
                         className="w-full h-full object-cover object-center bg-muted"
@@ -4148,11 +4186,13 @@ export default function ListingDetailPage() {
                     className="text-3xl md:text-4xl font-bold tracking-tight mb-2"
                     data-testid="text-listing-title"
                   >
-                    {listing.title}
+                    {getListingMainTitle(listing)}
                   </h1>
-                  <p className="text-lg text-black dark:text-white">
-                    {listing.brand} {listing.model}
-                  </p>
+                  {listing.title ? (
+                    <p className="text-sm text-muted-foreground">
+                      {listing.title}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="flex flex-wrap gap-6">
@@ -4816,13 +4856,15 @@ export default function ListingDetailPage() {
                         className="w-full"
                         onClick={handleCebiaClick}
                         data-testid="button-cebia-open"
+                        disabled={cebiaPaymentsFrozen}
                       >
-                        Koupit report (Stripe)
+                        {cebiaPaymentsFrozen ? "Platby dočasně vypnuté" : "Koupit report (Stripe)"}
                       </Button>
 
                       <p className="text-xs text-muted-foreground">
-                        Nejprve proběhne platba přes Stripe. Přístup k VIN reportu
-                        se zpřístupní až po úspěšné platbě.
+                        {cebiaPaymentsFrozen
+                          ? "Platby jsou dočasně vypnuté."
+                          : "Nejprve proběhne platba přes Stripe. Přístup k VIN reportu se zpřístupní až po úspěšné platbě."}
                       </p>
                     </div>
                   </div>
@@ -4964,12 +5006,17 @@ export default function ListingDetailPage() {
               <Button
                 disabled={
                   (cebiaVinInput || "").trim().length !== 17 ||
-                  cebiaCheckoutMutation.isPending
+                  cebiaCheckoutMutation.isPending ||
+                  cebiaPaymentsFrozen
                 }
                 onClick={() => cebiaCheckoutMutation.mutate()}
                 data-testid="button-cebia-stripe-pay"
               >
-                {cebiaCheckoutMutation.isPending ? "Přesměrování…" : "Zaplatit přes Stripe"}
+                {cebiaPaymentsFrozen
+                  ? "Platby dočasně vypnuté"
+                  : cebiaCheckoutMutation.isPending
+                    ? "Přesměrování…"
+                    : "Zaplatit přes Stripe"}
               </Button>
             </div>
 

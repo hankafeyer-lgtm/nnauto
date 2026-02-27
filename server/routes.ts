@@ -1,9 +1,11 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
 import fs from "fs";
 import path from "path";
 import {
+  listings as listingsTable,
   insertListingSchema,
   updateListingSchema,
   insertUserSchema,
@@ -13,6 +15,7 @@ import {
   verifyEmailSchema,
   changeEmailSchema,
 } from "@shared/schema";
+import { asc, desc, sql } from "drizzle-orm";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import "./types";
 import bcrypt from "bcrypt";
@@ -3609,7 +3612,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      let listings = [...(await storage.getListings())];
       const q = req.query;
 
       const sort = normalizeSort(q.sort);
@@ -3617,15 +3619,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pageNum = Math.max(1, toInt(q.page) ?? 1);
       const limitNum = Math.min(100, Math.max(1, toInt(q.limit) ?? 20));
 
+      // ✅ Fast path: no filters => DB pagination/sort (avoids loading ALL listings into memory)
+      const allowedNonFilterKeys = new Set(["page", "limit", "sort"]);
+      const hasAnyFilters = Object.keys(q).some((k) => !allowedNonFilterKeys.has(k));
+
+      if (!hasAnyFilters) {
+        const totalRow = await db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(listingsTable);
+        const total = Number(totalRow?.[0]?.count ?? 0);
+
+        const totalPages = Math.max(1, Math.ceil(total / limitNum));
+        const safePage = Math.min(pageNum, totalPages);
+        const start = (safePage - 1) * limitNum;
+
+        const orderBy = [desc(listingsTable.isTopListing)];
+        switch (sort) {
+          case "oldest":
+            orderBy.push(asc(listingsTable.createdAt));
+            break;
+          case "price-asc":
+            orderBy.push(asc(listingsTable.price));
+            break;
+          case "price-desc":
+            orderBy.push(desc(listingsTable.price));
+            break;
+          case "year-asc":
+            orderBy.push(asc(listingsTable.year));
+            break;
+          case "year-desc":
+            orderBy.push(desc(listingsTable.year));
+            break;
+          case "mileage-asc":
+            orderBy.push(asc(listingsTable.mileage));
+            break;
+          case "mileage-desc":
+            orderBy.push(desc(listingsTable.mileage));
+            break;
+          case "newest":
+          default:
+            orderBy.push(desc(listingsTable.createdAt));
+            break;
+        }
+        // Stable tiebreaker
+        orderBy.push(desc(listingsTable.createdAt));
+
+        const paginated = await db
+          .select()
+          .from(listingsTable)
+          .orderBy(...orderBy)
+          .limit(limitNum)
+          .offset(start);
+
+        return res.json({
+          listings: paginated,
+          pagination: {
+            total,
+            page: safePage,
+            limit: limitNum,
+            totalPages,
+            hasMore: safePage * limitNum < total,
+          },
+        });
+      }
+
+      // Fallback (filters supported): current in-memory implementation
+      let allListings = [...(await storage.getListings())];
+
       // --- filters ---
       const userId = typeof q.userId === "string" ? q.userId.trim() : "";
       if (userId)
-        listings = listings.filter((l) => String(l.userId || "") === userId);
+        allListings = allListings.filter((l) => String(l.userId || "") === userId);
 
       const search = typeof q.search === "string" ? q.search.trim() : "";
       if (search) {
         const s = normalizeText(search);
-        listings = listings.filter((l) => {
+        allListings = allListings.filter((l) => {
           const b = normalizeText(l.brand || "");
           const m = normalizeText(l.model || "");
           const t = normalizeText(l.title || "");
@@ -3638,43 +3707,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (typeof q.brand === "string" && q.brand.trim()) {
         const b = normalizeText(q.brand);
-        listings = listings.filter((l) => normalizeText(l.brand || "") === b);
+        allListings = allListings.filter((l) => normalizeText(l.brand || "") === b);
       }
 
       if (typeof q.model === "string" && q.model.trim()) {
         const wanted = slugify(q.model);
-        listings = listings.filter((l) => slugify(l.model || "") === wanted);
+        allListings = allListings.filter((l) => slugify(l.model || "") === wanted);
       }
 
       const priceMin = toNumber(q.priceMin);
       const priceMax = toNumber(q.priceMax);
       if (priceMin !== undefined)
-        listings = listings.filter((l) => (toNumber(l.price) ?? 0) >= priceMin);
+        allListings = allListings.filter((l) => (toNumber(l.price) ?? 0) >= priceMin);
       if (priceMax !== undefined)
-        listings = listings.filter((l) => (toNumber(l.price) ?? 0) <= priceMax);
+        allListings = allListings.filter((l) => (toNumber(l.price) ?? 0) <= priceMax);
 
       const yearMin = toInt(q.yearMin);
       const yearMax = toInt(q.yearMax);
       if (yearMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.year) ?? 0) >= yearMin);
+        allListings = allListings.filter((l) => (toInt(l.year) ?? 0) >= yearMin);
       if (yearMax !== undefined)
-        listings = listings.filter((l) => (toInt(l.year) ?? 0) <= yearMax);
+        allListings = allListings.filter((l) => (toInt(l.year) ?? 0) <= yearMax);
 
       const mileageMin = toInt(q.mileageMin);
       const mileageMax = toInt(q.mileageMax);
       if (mileageMin !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.mileage) ?? 0) >= mileageMin,
         );
       if (mileageMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.mileage) ?? 0) <= mileageMax,
         );
 
       // fuel -> listing.fuelType[]
       if (typeof q.fuel === "string" && q.fuel.trim()) {
         const wanted = parseCsv(q.fuel).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           (Array.isArray(l.fuelType) ? l.fuelType : []).some((v: any) =>
             wanted.includes(normalizeText(v)),
           ),
@@ -3684,7 +3753,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // bodyType -> listing.bodyType (string)
       if (typeof q.bodyType === "string" && q.bodyType.trim()) {
         const wanted = parseCsv(q.bodyType).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           wanted.includes(normalizeText(l.bodyType || "")),
         );
       }
@@ -3692,7 +3761,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // transmission -> listing.transmission[]
       if (typeof q.transmission === "string" && q.transmission.trim()) {
         const wanted = parseCsv(q.transmission).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           (Array.isArray(l.transmission) ? l.transmission : []).some((v: any) =>
             wanted.includes(normalizeText(v)),
           ),
@@ -3700,19 +3769,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (typeof q.color === "string" && q.color.trim()) {
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => normalizeText(l.color || "") === normalizeText(q.color),
         );
       }
 
       if (typeof q.trim === "string" && q.trim.trim()) {
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           normalizeText(l.trim || "").includes(normalizeText(q.trim)),
         );
       }
 
       if (typeof q.region === "string" && q.region.trim()) {
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => normalizeText(l.region || "") === normalizeText(q.region),
         );
       }
@@ -3720,7 +3789,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // driveType -> listing.driveType[]
       if (typeof q.driveType === "string" && q.driveType.trim()) {
         const wanted = parseCsv(q.driveType).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           (Array.isArray(l.driveType) ? l.driveType : []).some((v: any) =>
             wanted.includes(normalizeText(v)),
           ),
@@ -3728,14 +3797,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (typeof q.category === "string" && q.category.trim()) {
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => normalizeText(l.category || "") === normalizeText(q.category),
         );
       }
 
       if (typeof q.vehicleType === "string" && q.vehicleType.trim()) {
         const wanted = parseCsv(q.vehicleType).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           wanted.includes(normalizeText(l.vehicleType || "")),
         );
       }
@@ -3743,11 +3812,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const engineMin = toNumber(q.engineMin);
       const engineMax = toNumber(q.engineMax);
       if (engineMin !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toNumber(l.engineVolume) ?? -1) >= engineMin,
         );
       if (engineMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) =>
             (toNumber(l.engineVolume) ?? Number.MAX_SAFE_INTEGER) <= engineMax,
         );
@@ -3755,52 +3824,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const powerMin = toInt(q.powerMin);
       const powerMax = toInt(q.powerMax);
       if (powerMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.power) ?? -1) >= powerMin);
+        allListings = allListings.filter((l) => (toInt(l.power) ?? -1) >= powerMin);
       if (powerMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.power) ?? Number.MAX_SAFE_INTEGER) <= powerMax,
         );
 
       const doorsMin = toInt(q.doorsMin);
       const doorsMax = toInt(q.doorsMax);
       if (doorsMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.doors) ?? -1) >= doorsMin);
+        allListings = allListings.filter((l) => (toInt(l.doors) ?? -1) >= doorsMin);
       if (doorsMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.doors) ?? Number.MAX_SAFE_INTEGER) <= doorsMax,
         );
 
       const seatsMin = toInt(q.seatsMin);
       const seatsMax = toInt(q.seatsMax);
       if (seatsMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.seats) ?? -1) >= seatsMin);
+        allListings = allListings.filter((l) => (toInt(l.seats) ?? -1) >= seatsMin);
       if (seatsMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.seats) ?? Number.MAX_SAFE_INTEGER) <= seatsMax,
         );
 
       const ownersMin = toInt(q.ownersMin);
       const ownersMax = toInt(q.ownersMax);
       if (ownersMin !== undefined)
-        listings = listings.filter((l) => (toInt(l.owners) ?? -1) >= ownersMin);
+        allListings = allListings.filter((l) => (toInt(l.owners) ?? -1) >= ownersMin);
       if (ownersMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.owners) ?? Number.MAX_SAFE_INTEGER) <= ownersMax,
         );
 
       const airbagsMin = toInt(q.airbagsMin);
       const airbagsMax = toInt(q.airbagsMax);
       if (airbagsMin !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.airbags) ?? -1) >= airbagsMin,
         );
       if (airbagsMax !== undefined)
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) => (toInt(l.airbags) ?? Number.MAX_SAFE_INTEGER) <= airbagsMax,
         );
 
       if (typeof q.sellerType === "string" && q.sellerType.trim()) {
-        listings = listings.filter(
+        allListings = allListings.filter(
           (l) =>
             normalizeText(l.sellerType || "") === normalizeText(q.sellerType),
         );
@@ -3812,18 +3881,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const maxDate = new Date();
         maxDate.setDate(maxDate.getDate() - listingAgeMin);
         const maxMs = maxDate.getTime();
-        listings = listings.filter((l) => dateMs(l.createdAt) <= maxMs);
+        allListings = allListings.filter((l) => dateMs(l.createdAt) <= maxMs);
       }
       if (listingAgeMax !== undefined) {
         const minDate = new Date();
         minDate.setDate(minDate.getDate() - listingAgeMax);
         const minMs = minDate.getTime();
-        listings = listings.filter((l) => dateMs(l.createdAt) >= minMs);
+        allListings = allListings.filter((l) => dateMs(l.createdAt) >= minMs);
       }
 
       if (typeof q.equipment === "string" && q.equipment.trim()) {
         const needed = parseCsv(q.equipment).map(normalizeText);
-        listings = listings.filter((l) => {
+        allListings = allListings.filter((l) => {
           const arr = Array.isArray(l.equipment) ? l.equipment : [];
           if (!arr.length) return false;
           const norm = arr.map((x: any) => normalizeText(x));
@@ -3833,14 +3902,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (typeof q.condition === "string" && q.condition.trim()) {
         const wanted = parseCsv(q.condition).map(normalizeText);
-        listings = listings.filter((l) =>
+        allListings = allListings.filter((l) =>
           wanted.includes(normalizeText(l.condition || "")),
         );
       }
 
       if (typeof q.extras === "string" && q.extras.trim()) {
         const wanted = parseCsv(q.extras).map(normalizeText);
-        listings = listings.filter((l) => {
+        allListings = allListings.filter((l) => {
           const arr = Array.isArray(l.extras) ? l.extras : [];
           if (!arr.length) return false;
           const norm = arr.map((x: any) => normalizeText(x));
@@ -3849,11 +3918,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (toBool(q.hasServiceBook)) {
-        listings = listings.filter((l) => l.hasServiceBook === true);
+        allListings = allListings.filter((l) => l.hasServiceBook === true);
       }
 
       // --- sort: TOP first, потім сортування усередині ---
-      listings.sort((a, b) => {
+      allListings.sort((a, b) => {
         const aTop = !!a.isTopListing;
         const bTop = !!b.isTopListing;
         if (aTop && !bTop) return -1;
@@ -3867,13 +3936,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // --- pagination ---
-      const total = listings.length;
+      const total = allListings.length;
       const totalPages = Math.max(1, Math.ceil(total / limitNum));
       const safePage = Math.min(pageNum, totalPages);
 
       const start = (safePage - 1) * limitNum;
       const end = start + limitNum;
-      const paginated = listings.slice(start, end);
+      const paginated = allListings.slice(start, end);
 
       return res.json({
         listings: paginated,
