@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 
 // Key for storing scroll position in sessionStorage
 export const SCROLL_POSITION_KEY = "listings_scroll_position";
+export const LISTINGS_RETURN_URL_KEY = "listings_return_url";
 
 export function ScrollToTop() {
   const [location] = useLocation();
@@ -10,8 +11,9 @@ export function ScrollToTop() {
   useEffect(() => {
     // Check if we should restore scroll position instead of resetting
     const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
-    
-    if (savedPosition && (location === "/" || location === "/listings")) {
+
+    const pathname = (location || "").split("?")[0];
+    if (savedPosition && (pathname === "/" || pathname === "/listings")) {
       // Restore saved position after a short delay to ensure content is rendered
       const scrollY = parseInt(savedPosition, 10);
       sessionStorage.removeItem(SCROLL_POSITION_KEY);
@@ -32,4 +34,8 @@ export function ScrollToTop() {
 // Helper function to save scroll position before navigating to detail page
 export function saveScrollPosition() {
   sessionStorage.setItem(SCROLL_POSITION_KEY, String(window.scrollY));
+  sessionStorage.setItem(
+    LISTINGS_RETURN_URL_KEY,
+    `${window.location.pathname}${window.location.search}`,
+  );
 }

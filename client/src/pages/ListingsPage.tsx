@@ -2944,8 +2944,8 @@ import { SEO, generateListingsSchema } from "@/components/SEO";
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { LISTINGS_RETURN_URL_KEY } from "@/components/ScrollToTop";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -3078,6 +3078,35 @@ export default function ListingsPage() {
   const { filters, resetFilters } = useFilterParams();
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // When returning from a listing detail, restore exact /listings URL (page + filters)
+  // so browser back lands on the same page instead of resetting to page 1.
+  useEffect(() => {
+    const w = safeWindow();
+    if (!w) return;
+
+    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    if (!returnUrl) return;
+
+    try {
+      const u = new URL(returnUrl, w.location.origin);
+      if (u.pathname !== "/listings") {
+        sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
+        return;
+      }
+
+      const desired = `${u.pathname}${u.search}`;
+      const current = `${w.location.pathname}${w.location.search}`;
+      sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
+
+      if (current !== desired) {
+        w.history.replaceState({}, "", desired);
+        w.dispatchEvent(new PopStateEvent("popstate"));
+      }
+    } catch {
+      sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
+    }
+  }, []);
 
   const searchString = useSearch();
 
