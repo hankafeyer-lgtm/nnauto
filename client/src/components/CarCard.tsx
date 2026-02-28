@@ -213,7 +213,7 @@ function CarCard({
         <Link
           href={`/listing/${id}`}
           data-testid={`link-car-${id}`}
-          onClick={saveScrollPosition}
+          onClick={() => saveScrollPosition(id)}
         >
           <Card
             className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-lg duration-300 rounded-xl"
@@ -391,11 +391,12 @@ function CarCard({
         href={`/listing/${id}`}
         data-testid={`link-car-${id}`}
         className="block h-full"
-        onClick={saveScrollPosition}
+        onClick={() => saveScrollPosition(id)}
       >
         <Card
           className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col"
           data-testid={`card-car-${title.toLowerCase().replace(/\s+/g, "-")}`}
+          data-listing-id={id}
         >
           <div
             className="relative bg-muted group/photo touch-pan-y min-w-0 shrink-0 h-[240px] sm:h-[260px] lg:h-[220px] overflow-hidden"

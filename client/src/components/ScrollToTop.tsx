@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 // Key for storing scroll position in sessionStorage
 export const SCROLL_POSITION_KEY = "listings_scroll_position";
 export const LISTINGS_RETURN_URL_KEY = "listings_return_url";
+export const LISTINGS_TARGET_ID_KEY = "listings_target_id";
 
 export function ScrollToTop() {
   const [location] = useLocation();
@@ -35,10 +36,15 @@ export function ScrollToTop() {
 }
 
 // Helper function to save scroll position before navigating to detail page
-export function saveScrollPosition() {
+export function saveScrollPosition(listingId?: string) {
   sessionStorage.setItem(SCROLL_POSITION_KEY, String(window.scrollY));
   sessionStorage.setItem(
     LISTINGS_RETURN_URL_KEY,
     `${window.location.pathname}${window.location.search}`,
   );
+  if (listingId) {
+    sessionStorage.setItem(LISTINGS_TARGET_ID_KEY, listingId);
+  } else {
+    sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
+  }
 }

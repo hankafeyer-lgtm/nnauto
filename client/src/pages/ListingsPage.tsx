@@ -2947,6 +2947,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   LISTINGS_RETURN_URL_KEY,
+  LISTINGS_TARGET_ID_KEY,
   SCROLL_POSITION_KEY,
 } from "@/components/ScrollToTop";
 
@@ -3582,13 +3583,26 @@ export default function ListingsPage() {
     if (!savedPosition) return;
     if (accumulated.length === 0 && listings.length === 0) return;
 
+    const targetId = sessionStorage.getItem(LISTINGS_TARGET_ID_KEY);
     const scrollY = parseInt(savedPosition, 10);
     sessionStorage.removeItem(SCROLL_POSITION_KEY);
+    sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
     restoredListingsScrollRef.current = true;
 
-    if (Number.isNaN(scrollY)) return;
     requestAnimationFrame(() => {
-      w.scrollTo({ top: scrollY, left: 0, behavior: "instant" });
+      if (targetId) {
+        const target = document.querySelector(
+          `[data-listing-id="${targetId}"]`,
+        ) as HTMLElement | null;
+        if (target) {
+          target.scrollIntoView({ block: "center", inline: "nearest" });
+          return;
+        }
+      }
+
+      if (!Number.isNaN(scrollY)) {
+        w.scrollTo({ top: scrollY, left: 0, behavior: "instant" });
+      }
     });
   }, [isFetching, accumulated.length, listings.length]);
 
