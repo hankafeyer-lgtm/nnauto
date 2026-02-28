@@ -3115,6 +3115,7 @@ import { getListingMainTitle } from "@/lib/listingTitle";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import { MediaLightbox } from "@/components/MediaLightbox";
+import { LISTINGS_RETURN_URL_KEY } from "@/components/ScrollToTop";
 import {
   SEO,
   generateVehicleSchema,
@@ -3913,6 +3914,11 @@ export default function ListingDetailPage() {
             className="mb-6"
             data-testid="button-back"
             onClick={() => {
+              const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+              if (returnUrl) {
+                window.location.href = returnUrl;
+                return;
+              }
               if (window.history.length > 1) window.history.back();
               else window.location.href = "/listings";
             }}
