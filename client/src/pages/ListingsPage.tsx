@@ -3142,6 +3142,7 @@ export default function ListingsPage() {
   const [deletingListingId, setDeletingListingId] = useState<string | null>(
     null,
   );
+  const userIdChangeInitRef = useRef(false);
 
   /* ----- sync page + sort when url changes (back/forward, manual edit) ----- */
   useEffect(() => {
@@ -3158,6 +3159,12 @@ export default function ListingsPage() {
 
   /* ----- reset when userId changes ----- */
   useEffect(() => {
+    // Do not reset page on initial mount; only react to actual userId changes.
+    if (!userIdChangeInitRef.current) {
+      userIdChangeInitRef.current = true;
+      return;
+    }
+
     setCurrentPage(1);
     setAccumulated([]);
     setIsLoadingMore(false);
