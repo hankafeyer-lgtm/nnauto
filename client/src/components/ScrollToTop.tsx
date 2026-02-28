@@ -13,7 +13,10 @@ export function ScrollToTop() {
     const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
 
     const pathname = (location || "").split("?")[0];
-    if (savedPosition && (pathname === "/" || pathname === "/listings")) {
+    // Listings page restores scroll after cards are loaded (handled in ListingsPage)
+    if (pathname === "/listings") return;
+
+    if (savedPosition && pathname === "/") {
       // Restore saved position after a short delay to ensure content is rendered
       const scrollY = parseInt(savedPosition, 10);
       sessionStorage.removeItem(SCROLL_POSITION_KEY);

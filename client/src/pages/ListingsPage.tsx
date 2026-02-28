@@ -2945,7 +2945,10 @@ import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { LISTINGS_RETURN_URL_KEY } from "@/components/ScrollToTop";
+import {
+  LISTINGS_RETURN_URL_KEY,
+  SCROLL_POSITION_KEY,
+} from "@/components/ScrollToTop";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -3143,6 +3146,7 @@ export default function ListingsPage() {
     null,
   );
   const userIdChangeInitRef = useRef(false);
+  const restoredListingsScrollRef = useRef(false);
 
   /* ----- sync page + sort when url changes (back/forward, manual edit) ----- */
   useEffect(() => {
@@ -3564,6 +3568,29 @@ export default function ListingsPage() {
     hasMore: false,
   };
   const baseListingsCount = pagination?.total ?? 0;
+
+  // Restore saved listings scroll only after data is present,
+  // so browser back/swipe returns to the exact card position.
+  useEffect(() => {
+    const w = safeWindow();
+    if (!w) return;
+    if (restoredListingsScrollRef.current) return;
+    if (isFetching) return;
+    if (w.location.pathname !== "/listings") return;
+
+    const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+    if (!savedPosition) return;
+    if (accumulated.length === 0 && listings.length === 0) return;
+
+    const scrollY = parseInt(savedPosition, 10);
+    sessionStorage.removeItem(SCROLL_POSITION_KEY);
+    restoredListingsScrollRef.current = true;
+
+    if (Number.isNaN(scrollY)) return;
+    requestAnimationFrame(() => {
+      w.scrollTo({ top: scrollY, left: 0, behavior: "instant" });
+    });
+  }, [isFetching, accumulated.length, listings.length]);
 
   // якщо +98 — маркетинговий “бонус”, залишаємо, але застосовуємо всюди однаково
   const listingsCount = baseListingsCount > 0 ? baseListingsCount + 98 : 0;
