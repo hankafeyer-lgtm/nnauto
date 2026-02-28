@@ -485,6 +485,16 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [urlSearchState, setUrlSearchState] = useState(window.location.search);
 
+  // Prevent a pending debounced URL update from firing after unmount (e.g. user opens a listing)
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const parseFiltersFromURL = useCallback((): FilterParams => {
     const params = new URLSearchParams(window.location.search);
 
