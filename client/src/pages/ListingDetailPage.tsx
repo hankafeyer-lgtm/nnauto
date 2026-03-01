@@ -3048,7 +3048,7 @@
 //     </>
 //   );
 // }
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRoute, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
@@ -3176,6 +3176,8 @@ export default function ListingDetailPage() {
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [cebiaDialogOpen, setCebiaDialogOpen] = useState(false);
   const [cebiaVinInput, setCebiaVinInput] = useState("");
+  const swipeStartXRef = useRef<number | null>(null);
+  const swipeStartYRef = useRef<number | null>(null);
   const [cebiaGuest, setCebiaGuest] = useState<{ reportId: string; token: string } | null>(
     null,
   );
@@ -3752,6 +3754,48 @@ export default function ListingDetailPage() {
     }
     window.location.assign("/listings");
   }, [isEmbedded]);
+
+  // Match browser-style back swipe: left-edge swipe should trigger the same flow as "zpět".
+  useEffect(() => {
+    const edgeThreshold = 28; // px from left edge
+    const minHorizontalDistance = 70; // px
+    const maxVerticalDrift = 60; // px
+
+    const onTouchStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      if (t.clientX > edgeThreshold) {
+        swipeStartXRef.current = null;
+        swipeStartYRef.current = null;
+        return;
+      }
+      swipeStartXRef.current = t.clientX;
+      swipeStartYRef.current = t.clientY;
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (swipeStartXRef.current == null || swipeStartYRef.current == null) return;
+      const t = e.changedTouches[0];
+      if (!t) return;
+
+      const deltaX = t.clientX - swipeStartXRef.current;
+      const deltaY = Math.abs(t.clientY - swipeStartYRef.current);
+
+      swipeStartXRef.current = null;
+      swipeStartYRef.current = null;
+
+      if (deltaX > minHorizontalDistance && deltaY < maxVerticalDrift) {
+        handleBack();
+      }
+    };
+
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchend", onTouchEnd, { passive: true });
+    return () => {
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchend", onTouchEnd);
+    };
+  }, [handleBack]);
   // (Cebia UI placeholder only for now)
 
   // --- SEO (memoized)
