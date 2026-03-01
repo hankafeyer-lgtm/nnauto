@@ -19,7 +19,12 @@ export function getPool() {
 }
 
 export function getSession() {
-  const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  const defaultSessionTtlMs = 24 * 60 * 60 * 1000; // 24h
+  const envSessionTtlHours = Number(process.env.SESSION_TTL_HOURS || "24");
+  const sessionTtl =
+    Number.isFinite(envSessionTtlHours) && envSessionTtlHours > 0
+      ? Math.floor(envSessionTtlHours * 60 * 60 * 1000)
+      : defaultSessionTtlMs;
   // Replit uses REPLIT_DEPLOYMENT for production - check for any truthy value, not just "1"
   const replitDeployment = process.env.REPLIT_DEPLOYMENT;
   const isProduction = process.env.NODE_ENV === 'production' || !!(replitDeployment && replitDeployment.length > 0);

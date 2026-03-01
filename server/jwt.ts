@@ -1,7 +1,8 @@
-import jwt from 'jsonwebtoken';
+import jwt, { type SignOptions } from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'nnauto-jwt-secret-key-2024';
-const JWT_EXPIRES_IN = '7d';
+const JWT_EXPIRES_IN: SignOptions["expiresIn"] =
+  (process.env.JWT_EXPIRES_IN as SignOptions["expiresIn"]) || "24h";
 
 export interface JWTPayload {
   userId: string;
