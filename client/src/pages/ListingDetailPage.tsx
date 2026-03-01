@@ -3181,6 +3181,7 @@ export default function ListingDetailPage() {
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  const lastLightboxOpenRef = useRef<{ index: number; ts: number } | null>(null);
   const [cebiaDialogOpen, setCebiaDialogOpen] = useState(false);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeStartYRef = useRef<number | null>(null);
@@ -3350,11 +3351,19 @@ export default function ListingDetailPage() {
     neighbors.add(photoKeys[(idx - 1 + len) % len]);
 
     for (const key of neighbors) {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = getOptimizedImageUrl(key, {
+      const mobileImg = new Image();
+      mobileImg.decoding = "async";
+      mobileImg.src = getOptimizedImageUrl(key, {
         width: 1200,
         quality: 80,
+        format: "webp",
+      });
+
+      const desktopImg = new Image();
+      desktopImg.decoding = "async";
+      desktopImg.src = getOptimizedImageUrl(key, {
+        width: 1600,
+        quality: 85,
         format: "webp",
       });
     }
@@ -3368,6 +3377,11 @@ export default function ListingDetailPage() {
   );
 
   const openLightboxAt = useCallback((index: number) => {
+    const now = Date.now();
+    const prev = lastLightboxOpenRef.current;
+    // Ignore accidental rapid repeated taps on the same slide.
+    if (prev && prev.index === index && now - prev.ts < 500) return;
+    lastLightboxOpenRef.current = { index, ts: now };
     setLightboxIndex(index);
     setLightboxOpen(true);
   }, []);
@@ -4092,7 +4106,7 @@ export default function ListingDetailPage() {
                                   format: "webp",
                                 })}
                                 desktopMinWidth={1024}
-                                upgrade={index === currentCarouselIndex}
+                                upgrade={Math.abs(index - currentCarouselIndex) <= 1}
                                 alt={`${getListingMainTitle(listing)} - ${index + 1}`}
                                 loading={index === 0 ? "eager" : "lazy"}
                                 decoding="async"
