@@ -3241,6 +3241,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mapped: CzLocationSuggestion[] = rows
         .map((row) => {
           const address = row?.address && typeof row.address === "object" ? row.address : {};
+          const displayName =
+            typeof row?.display_name === "string" ? row.display_name.trim() : "";
+          const street =
+            [address.road, address.house_number].filter(Boolean).join(" ").trim() ||
+            [address.pedestrian, address.house_number].filter(Boolean).join(" ").trim() ||
+            "";
           const city =
             address.city ||
             address.town ||
@@ -3254,10 +3260,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             address.county ||
             "";
           const country = address.country || "Czechia";
-          const parts = [city, region, country].filter(Boolean);
-          const fallbackLabel =
-            typeof row?.display_name === "string" ? row.display_name : "";
-          const label = parts.length ? parts.join(", ") : fallbackLabel;
+          const parts = [street, city, address.postcode, region, country].filter(Boolean);
+          const fallbackLabel = parts.length ? parts.join(", ") : "";
+          const label = displayName || fallbackLabel;
           if (!label) return null;
 
           const id =
