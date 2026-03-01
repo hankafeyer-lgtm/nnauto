@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Video, X, Loader2, Play, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/translations";
@@ -7,12 +7,14 @@ interface VideoUploaderProps {
   video: string | null;
   onVideoChange: (video: string | null) => void;
   maxDurationSeconds?: number;
+  onUploadingChange?: (isUploading: boolean) => void;
 }
 
 export function VideoUploader({
   video,
   onVideoChange,
   maxDurationSeconds = 300,
+  onUploadingChange,
 }: VideoUploaderProps) {
   const { toast } = useToast();
   const t = useTranslation();
@@ -23,6 +25,10 @@ export function VideoUploader({
   const [uploadPhase, setUploadPhase] = useState<"uploading" | "processing">(
     "uploading"
   );
+
+  useEffect(() => {
+    onUploadingChange?.(uploading);
+  }, [uploading, onUploadingChange]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

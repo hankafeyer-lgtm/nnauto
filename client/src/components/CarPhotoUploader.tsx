@@ -17,12 +17,14 @@ interface CarPhotoUploaderProps {
   photos: string[];
   onPhotosChange: (photos: string[]) => void;
   maxPhotos?: number;
+  onUploadingChange?: (isUploading: boolean) => void;
 }
 
 export function CarPhotoUploader({ 
   photos, 
   onPhotosChange, 
-  maxPhotos = 30 
+  maxPhotos = 30,
+  onUploadingChange,
 }: CarPhotoUploaderProps) {
   const { toast } = useToast();
   const t = useTranslation();
@@ -35,6 +37,7 @@ export function CarPhotoUploader({
       isLocal: false,
     }));
   });
+  const isMountedRef = useRef(true);
 
   const syncWithParent = useCallback((items: PhotoItem[]) => {
     const uploadedPaths = items
@@ -42,6 +45,12 @@ export function CarPhotoUploader({
       .map(item => item.url);
     onPhotosChange(uploadedPaths);
   }, [onPhotosChange]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     setPhotoItems(prev => {
@@ -69,6 +78,10 @@ export function CarPhotoUploader({
       return [...newExisting, ...uploadingItems];
     });
   }, [photos]);
+
+  useEffect(() => {
+    onUploadingChange?.(photoItems.some((item) => item.isUploading));
+  }, [photoItems, onUploadingChange]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -117,10 +130,19 @@ export function CarPhotoUploader({
         const fileData = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => {
-            const base64 = (reader.result as string).split(',')[1];
+            const result = reader.result;
+            if (typeof result !== "string" || !result.includes(",")) {
+              reject(new Error(`Nepodařilo se načíst soubor ${file.name}`));
+              return;
+            }
+            const base64 = result.split(",")[1];
+            if (!base64) {
+              reject(new Error(`Nepodařilo se zpracovat soubor ${file.name}`));
+              return;
+            }
             resolve(base64);
           };
-          reader.onerror = reject;
+          reader.onerror = () => reject(new Error(`Chyba čtení souboru ${file.name}`));
           reader.readAsDataURL(file);
         });
 
@@ -132,6 +154,7 @@ export function CarPhotoUploader({
         const uploadData = await uploadRes.json();
         const objectPath = uploadData.objectPath;
 
+        if (!isMountedRef.current) return;
         setPhotoItems(prev => {
           const updated = prev.map(item => {
             if (item.id === itemId) {
@@ -155,6 +178,7 @@ export function CarPhotoUploader({
         });
 
       } catch (error: any) {
+        if (!isMountedRef.current) return;
         setPhotoItems(prev => {
           const item = prev.find(p => p.id === itemId);
           if (item?.localPreview) {
@@ -166,7 +190,7 @@ export function CarPhotoUploader({
         toast({
           variant: "destructive",
           title: "Chyba nahrávání",
-          description: error.message || "Nepodařilo se nahrát fotografii",
+          description: error instanceof Error ? error.message : "Nepodařilo se nahrát fotografii",
         });
       }
     }

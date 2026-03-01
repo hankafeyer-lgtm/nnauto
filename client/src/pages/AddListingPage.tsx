@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertListingSchema, type InsertListing } from "@shared/schema";
@@ -483,8 +483,12 @@ export default function AddListingPage() {
   const [showPaymentSuccessDialog, setShowPaymentSuccessDialog] = useState(false);
   const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+  const [isPhotosUploading, setIsPhotosUploading] = useState(false);
+  const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [topsPurchased, setTopsPurchased] = useState(1);
+  const submitLockRef = useRef(false);
   const { language } = useLanguage();
+  const isMediaUploading = isPhotosUploading || isVideoUploading;
   
   const formatNumber = (value: number): string => {
     if (value === 0) return "";
@@ -890,6 +894,28 @@ export default function AddListingPage() {
     },
   });
 
+  useEffect(() => {
+    const shouldWarn =
+      isMediaUploading ||
+      isProcessingCheckout ||
+      createListingMutation.isPending ||
+      completeTopListingMutation.isPending;
+    if (!shouldWarn) return;
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [
+    isMediaUploading,
+    isProcessingCheckout,
+    createListingMutation.isPending,
+    completeTopListingMutation.isPending,
+  ]);
+
   const requiredFieldLabels: Record<string, { cs: string; uk: string; en: string }> = {
     title: { cs: "Název inzerátu", uk: "Назва оголошення", en: "Listing title" },
     description: { cs: "Popis", uk: "Опис", en: "Description" },
@@ -942,6 +968,20 @@ export default function AddListingPage() {
   };
 
   const handleSubmitClick = async () => {
+    if (submitLockRef.current) return;
+    if (isMediaUploading) {
+      toast({
+        variant: "destructive",
+        title: language === "uk" ? "Зачекайте" : language === "cs" ? "Počkejte" : "Please wait",
+        description:
+          language === "uk"
+            ? "Завантаження медіа ще триває. Спробуйте знову після завершення."
+            : language === "cs"
+              ? "Nahrávání médií stále probíhá. Zkuste to znovu po dokončení."
+              : "Media upload is still in progress. Try again when it completes.",
+      });
+      return;
+    }
     const missingFields = validateRequiredFields();
     
     if (photos.length === 0) {
@@ -970,12 +1010,16 @@ export default function AddListingPage() {
   };
 
   const onSubmit = async (data: InsertListing) => {
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
+
     if (!user?.id) {
       toast({
         variant: "destructive",
         title: t("auth.loginRequired"),
         description: t("auth.loginRequiredDescription"),
       });
+      submitLockRef.current = false;
       return;
     }
     
@@ -985,6 +1029,22 @@ export default function AddListingPage() {
         title: language === 'uk' ? "Потрібне фото" : "Foto je povinné",
         description: language === 'uk' ? "Додайте щонайменше 1 фото автомобіля" : "Přidejte alespoň 1 fotografii vozidla",
       });
+      submitLockRef.current = false;
+      return;
+    }
+
+    if (isMediaUploading) {
+      toast({
+        variant: "destructive",
+        title: language === "uk" ? "Зачекайте" : language === "cs" ? "Počkejte" : "Please wait",
+        description:
+          language === "uk"
+            ? "Завантаження медіа ще триває. Спробуйте знову після завершення."
+            : language === "cs"
+              ? "Nahrávání médií stále probíhá. Zkuste to znovu po dokončení."
+              : "Media upload is still in progress. Try again when it completes.",
+      });
+      submitLockRef.current = false;
       return;
     }
     
@@ -1006,6 +1066,7 @@ export default function AddListingPage() {
         }
       } catch (error: any) {
         setIsProcessingCheckout(false);
+        submitLockRef.current = false;
         toast({
           variant: "destructive",
           title: t("payment.error") || "Chyba platby",
@@ -1013,12 +1074,16 @@ export default function AddListingPage() {
         });
       }
     } else {
-      createListingMutation.mutate({ 
-        ...data, 
-        userId: user.id,
-        photos: photos.length > 0 ? photos : undefined,
-        video: video || undefined,
-      });
+      try {
+        await createListingMutation.mutateAsync({
+          ...data,
+          userId: user.id,
+          photos: photos.length > 0 ? photos : undefined,
+          video: video || undefined,
+        });
+      } finally {
+        submitLockRef.current = false;
+      }
     }
   };
 
@@ -1189,6 +1254,7 @@ export default function AddListingPage() {
                       photos={photos}
                       onPhotosChange={setPhotos}
                       maxPhotos={30}
+                      onUploadingChange={setIsPhotosUploading}
                     />
                   </div>
 
@@ -1198,6 +1264,7 @@ export default function AddListingPage() {
                       video={video}
                       onVideoChange={setVideo}
                       maxDurationSeconds={300}
+                      onUploadingChange={setIsVideoUploading}
                     />
                   </div>
 
@@ -2598,11 +2665,19 @@ export default function AddListingPage() {
                     </Button>
                     <Button 
                       type="submit" 
-                      disabled={createListingMutation.isPending || isProcessingCheckout}
+                      disabled={
+                        createListingMutation.isPending ||
+                        isProcessingCheckout ||
+                        completeTopListingMutation.isPending ||
+                        isMediaUploading
+                      }
                       className="w-full sm:flex-1"
                       data-testid="button-submit"
                     >
-                      {createListingMutation.isPending || isProcessingCheckout
+                      {createListingMutation.isPending ||
+                      isProcessingCheckout ||
+                      completeTopListingMutation.isPending ||
+                      isMediaUploading
                         ? t("listing.submitting") || "Odesílání..."
                         : isTopListing
                         ? t("listing.submitWithPayment")
