@@ -4316,6 +4316,68 @@ export default function ListingDetailPage() {
                 )}
               </Card>
 
+              {canSeeListingAnalytics && listingAnalytics ? (
+                <Card className="rounded-2xl border-[#B8860B]/20 bg-[#B8860B]/5">
+                  <CardContent className="p-4 md:p-5">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="font-semibold">
+                        {language === "uk"
+                          ? "Аналітика оголошення"
+                          : language === "cs"
+                            ? "Statistiky inzerátu"
+                            : "Listing analytics"}
+                      </p>
+                      <span className="text-xs text-muted-foreground">
+                        {language === "uk"
+                          ? "Тільки для власника"
+                          : language === "cs"
+                            ? "Pouze pro vlastníka"
+                            : "Owner only"}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-3">
+                      <div className="rounded-lg border bg-background/70 p-3 text-center">
+                        <p className="text-muted-foreground text-xs">
+                          {language === "uk"
+                            ? "Перегляди"
+                            : language === "cs"
+                              ? "Zobrazení"
+                              : "Views"}
+                        </p>
+                        <p className="font-semibold text-base" data-testid="text-analytics-card-views">
+                          {listingAnalytics.views}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-background/70 p-3 text-center">
+                        <p className="text-muted-foreground text-xs">
+                          {language === "uk"
+                            ? "Контакт"
+                            : language === "cs"
+                              ? "Kontakt"
+                              : "Contact"}
+                        </p>
+                        <p
+                          className="font-semibold text-base"
+                          data-testid="text-analytics-card-contact-clicks"
+                        >
+                          {listingAnalytics.contactClicks}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-background/70 p-3 text-center">
+                        <p className="text-muted-foreground text-xs">WhatsApp</p>
+                        <p
+                          className="font-semibold text-base"
+                          data-testid="text-analytics-card-whatsapp-clicks"
+                        >
+                          {listingAnalytics.whatsappClicks}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
+
               {/* Title and basic info */}
               <div className="space-y-4">
                 <div>
