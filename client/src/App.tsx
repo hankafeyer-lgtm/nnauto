@@ -103,7 +103,6 @@ const SuspenseCebiaReturn = memo(() => (
     <CebiaReturnPage />
   </Suspense>
 ));
-
 const SuspenseNotFound = memo(() => (
   <Suspense fallback={<PageLoader />}>
     <NotFound />

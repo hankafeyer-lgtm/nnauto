@@ -478,6 +478,43 @@ export interface FilterParams {
 // Custom event name for filter URL changes
 const FILTER_URL_CHANGE_EVENT = "filterUrlChange";
 
+const normalizeFilters = (filters: FilterParams): Record<string, unknown> => {
+  const normalized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(filters)) {
+    if (value === undefined || value === null) continue;
+    normalized[key] = value;
+  }
+  return normalized;
+};
+
+const areFiltersEqual = (left: FilterParams, right: FilterParams): boolean => {
+  const a = normalizeFilters(left);
+  const b = normalizeFilters(right);
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+
+  if (aKeys.length !== bKeys.length) return false;
+
+  for (const key of aKeys) {
+    if (!(key in b)) return false;
+    const aValue = a[key];
+    const bValue = b[key];
+
+    if (Array.isArray(aValue) || Array.isArray(bValue)) {
+      if (!Array.isArray(aValue) || !Array.isArray(bValue)) return false;
+      if (aValue.length !== bValue.length) return false;
+      for (let i = 0; i < aValue.length; i += 1) {
+        if (aValue[i] !== bValue[i]) return false;
+      }
+      continue;
+    }
+
+    if (aValue !== bValue) return false;
+  }
+
+  return true;
+};
+
 export function useFilterParams(options?: { autoNavigate?: boolean }) {
   const autoNavigate = options?.autoNavigate ?? true;
 
@@ -614,7 +651,9 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
   // Re-parse filters when URL changes
   useEffect(() => {
     const updatedFilters = parseFiltersFromURL();
-    setFiltersState(updatedFilters);
+    setFiltersState((prev) =>
+      areFiltersEqual(prev, updatedFilters) ? prev : updatedFilters,
+    );
   }, [location, urlSearchState, parseFiltersFromURL]);
 
   const updateURL = useCallback(
@@ -714,6 +753,10 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       const newPath = queryString
         ? `${currentPath}?${queryString}`
         : currentPath;
+      const currentPathWithSearch = `${window.location.pathname}${window.location.search}`;
+      if (newPath === currentPathWithSearch) {
+        return;
+      }
       setLocation(newPath);
 
       // Dispatch custom event to notify all hook instances of URL change
@@ -1063,6 +1106,10 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
     const queryString = params.toString();
     const targetUrl = queryString ? `/listings?${queryString}` : "/listings";
+    const currentPathWithSearch = `${window.location.pathname}${window.location.search}`;
+    if (targetUrl === currentPathWithSearch) {
+      return;
+    }
     setLocation(targetUrl);
 
     // Dispatch custom event to notify all hook instances of URL change
