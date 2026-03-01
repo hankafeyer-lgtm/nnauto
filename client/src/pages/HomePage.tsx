@@ -2102,11 +2102,15 @@ function getPageFromUrl(): number {
   return Math.floor(n);
 }
 
-function setPageToUrl(page: number) {
+function setPageToUrl(page: number, mode: "replace" | "push" = "replace") {
   const url = new URL(window.location.href);
   if (page <= 1) url.searchParams.delete("page");
   else url.searchParams.set("page", String(page));
-  window.history.replaceState({}, "", url.toString());
+  if (mode === "push") {
+    window.history.pushState({}, "", url.toString());
+  } else {
+    window.history.replaceState({}, "", url.toString());
+  }
 }
 
 export default function HomePage() {
@@ -2150,9 +2154,11 @@ export default function HomePage() {
       totalPages && totalPages > 0
         ? Math.min(Math.max(1, page), totalPages)
         : Math.max(1, page);
+    if (clamped === currentPage) return;
 
     setCurrentPage(clamped);
-    setPageToUrl(clamped);
+    // Use pushState so browser Back returns to previous recommended page.
+    setPageToUrl(clamped, "push");
   };
   const openListingOverlay = useCallback((id: string) => {
     const url = new URL(window.location.href);
