@@ -2295,7 +2295,7 @@ function Hero() {
     listingsData?.listings?.length ??
     0;
 
-  const listingsCount = baseListingsCount > 0 ? baseListingsCount + 98 : 0;
+  const listingsCount = baseListingsCount > 0 ? baseListingsCount : 0;
   const handleCheckboxChange = (
     category: "condition" | "extras" | "equipment",
     value: string,

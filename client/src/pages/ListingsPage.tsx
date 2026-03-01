@@ -3572,9 +3572,26 @@ export default function ListingsPage() {
     hasMore: false,
   };
   const baseListingsCount = pagination?.total ?? 0;
+  const hasActiveFilters = useMemo(
+    () =>
+      Object.values(filters).some((value) => {
+        if (value === undefined || value === null) return false;
+        if (typeof value === "string") return value.trim() !== "";
+        if (Array.isArray(value)) return value.length > 0;
+        if (typeof value === "boolean") return value;
+        return true;
+      }),
+    [filters],
+  );
 
-  // якщо +98 — маркетинговий “бонус”, залишаємо, але застосовуємо всюди однаково
-  const listingsCount = baseListingsCount > 0 ? baseListingsCount + 98 : 0;
+  const listingsCount =
+    baseListingsCount > 0
+      ? hasActiveFilters
+        ? baseListingsCount
+        : userId
+          ? baseListingsCount
+          : baseListingsCount + 98
+      : 0;
   /* ----- reset page when filters change (exclude page/limit/sort) ----- */
   const didMountRef = useRef(false);
 
