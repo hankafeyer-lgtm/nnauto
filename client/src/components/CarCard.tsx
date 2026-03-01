@@ -50,6 +50,7 @@ interface CarCardProps {
   onDelete?: (id: string) => void;
   priority?: boolean;
   vatDeductible?: boolean;
+  onOpenListing?: (id: string) => void;
 }
 
 function CarCard({
@@ -74,6 +75,7 @@ function CarCard({
   onDelete,
   priority = false,
   vatDeductible = false,
+  onOpenListing,
 }: CarCardProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const t = useTranslation();
@@ -206,18 +208,29 @@ function CarCard({
   const handlePrefetch = useCallback(() => {
     prefetchListing(id);
   }, [id]);
+  const listingHref = onOpenListing ? "#" : `/listing/${id}`;
 
   if (viewMode === "list") {
     return (
       <div className="relative isolate mb-2" onMouseEnter={handlePrefetch}>
         <Link
-          href={`/listing/${id}`}
+          href={listingHref}
           data-testid={`link-car-${id}`}
-          onClick={() => saveScrollPosition(id)}
+          onClick={(e) => {
+            if (onOpenListing) {
+              e.preventDefault();
+              e.stopPropagation();
+              onOpenListing(id);
+              return;
+            }
+            saveScrollPosition(id);
+          }}
         >
           <Card
             className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-lg duration-300 rounded-xl"
             data-testid={`card-car-${title.toLowerCase().replace(/\s+/g, "-")}`}
+            data-listing-id={id}
+            id={`listing-${id}`}
           >
             <div className="flex flex-col sm:flex-row">
               <div className="w-full sm:w-64 md:w-80 shrink-0 aspect-[3/2] sm:aspect-auto sm:h-48 relative overflow-hidden bg-muted">
@@ -388,15 +401,24 @@ function CarCard({
   return (
     <div className="relative h-full isolate pb-2" onMouseEnter={handlePrefetch}>
       <Link
-        href={`/listing/${id}`}
+        href={listingHref}
         data-testid={`link-car-${id}`}
         className="block h-full"
-        onClick={() => saveScrollPosition(id)}
+        onClick={(e) => {
+          if (onOpenListing) {
+            e.preventDefault();
+            e.stopPropagation();
+            onOpenListing(id);
+            return;
+          }
+          saveScrollPosition(id);
+        }}
       >
         <Card
           className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col"
           data-testid={`card-car-${title.toLowerCase().replace(/\s+/g, "-")}`}
           data-listing-id={id}
+          id={`listing-${id}`}
         >
           <div
             className="relative bg-muted group/photo touch-pan-y min-w-0 shrink-0 h-[240px] sm:h-[260px] lg:h-[220px] overflow-hidden"
@@ -541,15 +563,15 @@ function CarCard({
           </div>
           <CardContent className="p-4 sm:p-6 lg:p-4 space-y-4 sm:space-y-6 lg:space-y-4 flex-1 flex flex-col">
             <div className="min-w-0">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 sm:gap-3 mb-1 min-w-0">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-1 items-start gap-2 sm:gap-3 mb-1 min-w-0">
                 <h3
-                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 lg:line-clamp-1 min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-[1.75rem] min-w-0 text-black dark:text-white"
+                  className="font-semibold text-lg sm:text-xl lg:text-lg leading-tight tracking-tight line-clamp-2 lg:line-clamp-none min-h-[3rem] sm:min-h-[3.5rem] lg:min-h-0 min-w-0 text-black dark:text-white"
                   data-testid="text-car-title"
                 >
                   {title}
                 </h3>
 
-                <div className="text-right shrink-0">
+                <div className="text-right lg:text-right shrink-0 lg:justify-self-end">
                   <span
                     className="text-2xl sm:text-3xl lg:text-xl font-semibold text-primary whitespace-nowrap tracking-tight"
                     data-testid="text-car-price"

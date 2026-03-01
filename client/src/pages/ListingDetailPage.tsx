@@ -3115,7 +3115,9 @@ import { getListingMainTitle } from "@/lib/listingTitle";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import { MediaLightbox } from "@/components/MediaLightbox";
-import { LISTINGS_RETURN_URL_KEY } from "@/components/ScrollToTop";
+import {
+  LISTINGS_RETURN_URL_KEY,
+} from "@/components/ScrollToTop";
 import {
   SEO,
   generateVehicleSchema,
@@ -3162,6 +3164,9 @@ export default function ListingDetailPage() {
 
   const [, params] = useRoute("/listing/:id");
   const listingId = params?.id;
+  const isEmbedded =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("embedded") === "1";
 
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
@@ -3861,7 +3866,7 @@ export default function ListingDetailPage() {
   if (error || !listing) {
     return (
       <>
-        <Header />
+        {!isEmbedded && <Header />}
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center space-y-4">
             <h1 className="text-3xl font-bold">{t("detail.notFound")}</h1>
@@ -3904,28 +3909,33 @@ export default function ListingDetailPage() {
         }}
       />
 
-      <Header />
+      {!isEmbedded && <Header />}
 
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-7xl">
           {/* Back button */}
-          <Button
-            variant="ghost"
-            className="mb-6"
-            data-testid="button-back"
-            onClick={() => {
-              const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
-              if (returnUrl) {
-                window.location.href = returnUrl;
+          {!isEmbedded && (
+            <Button
+              variant="ghost"
+              className="mb-6"
+              data-testid="button-back"
+              onClick={() => {
+                const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+                if (returnUrl) {
+                  window.location.assign(returnUrl);
+                  return;
+                }
+              if (window.history.length > 1) {
+                window.history.back();
                 return;
               }
-              if (window.history.length > 1) window.history.back();
-              else window.location.href = "/listings";
-            }}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {t("detail.backToListings")}
-          </Button>
+                window.location.assign("/listings");
+              }}
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              {t("detail.backToListings")}
+            </Button>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main content */}

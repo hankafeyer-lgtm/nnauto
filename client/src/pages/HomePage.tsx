@@ -2124,6 +2124,7 @@ export default function HomePage() {
   const [deletingListingId, setDeletingListingId] = useState<string | null>(
     null,
   );
+  const [openListingId, setOpenListingId] = useState<string | null>(null);
 
   // ✅ page state synced with URL
   const [currentPage, setCurrentPage] = useState<number>(() =>
@@ -2146,6 +2147,12 @@ export default function HomePage() {
     setCurrentPage(clamped);
     setPageToUrl(clamped);
   };
+  const openListingOverlay = useCallback((id: string) => {
+    setOpenListingId(id);
+  }, []);
+  const closeListingOverlay = useCallback(() => {
+    setOpenListingId(null);
+  }, []);
 
   const recommendedSectionRef = useRef<HTMLElement>(null);
   const isFirstRender = useRef(true);
@@ -2444,11 +2451,11 @@ export default function HomePage() {
           {/* ✅ Desktop (кнопка як у першому варіанті: між aside і картками, sticky по центру) */}
           <div className="relative hidden lg:block">
             <div
-              className="grid gap-6 xl:gap-8 transition-[grid-template-columns] duration-300"
+              className="grid gap-4 xl:gap-6 transition-[grid-template-columns] duration-300"
               style={{
                 gridTemplateColumns: sidebarCollapsed
                   ? "0px 36px 1fr"
-                  : "minmax(280px, 340px) 36px 1fr",
+                  : "minmax(260px, 300px) 36px 1fr",
               }}
             >
               {/* Filters (фон тягнеться донизу: self-stretch + h-full) */}
@@ -2516,6 +2523,7 @@ export default function HomePage() {
                           <CarCard
                             key={c.props.id}
                             {...c.props}
+                            onOpenListing={openListingOverlay}
                             priority={index < 4}
                             onDelete={handleDelete}
                           />
@@ -2632,6 +2640,7 @@ export default function HomePage() {
                       <CarCard
                         key={c.props.id}
                         {...c.props}
+                        onOpenListing={openListingOverlay}
                         priority={index < 4}
                         onDelete={handleDelete}
                       />
@@ -2699,6 +2708,26 @@ export default function HomePage() {
             )}
           </div>
         </section>
+
+        {openListingId ? (
+          <div className="fixed inset-0 z-[100] bg-background">
+            <div className="absolute top-2 right-2 z-[101]">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={closeListingOverlay}
+                data-testid="button-close-overlay-home"
+              >
+                ✕
+              </Button>
+            </div>
+            <iframe
+              src={`/listing/${openListingId}?embedded=1`}
+              className="w-full h-full border-0 bg-background"
+              title="Listing detail"
+            />
+          </div>
+        ) : null}
 
         <section className="bg-gradient-to-b from-muted/50 to-background py-12 sm:py-16 lg:py-24 content-auto">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">

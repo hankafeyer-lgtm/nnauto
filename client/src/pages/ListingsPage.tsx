@@ -2945,11 +2945,6 @@ import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import {
-  LISTINGS_RETURN_URL_KEY,
-  LISTINGS_TARGET_ID_KEY,
-  SCROLL_POSITION_KEY,
-} from "@/components/ScrollToTop";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -3083,36 +3078,16 @@ export default function ListingsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // When returning from a listing detail, restore exact /listings URL (page + filters)
-  // so browser back lands on the same page instead of resetting to page 1.
-  useEffect(() => {
-    const w = safeWindow();
-    if (!w) return;
-
-    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
-    if (!returnUrl) return;
-
-    try {
-      const u = new URL(returnUrl, w.location.origin);
-      if (u.pathname !== "/listings") {
-        sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
-        return;
-      }
-
-      const desired = `${u.pathname}${u.search}`;
-      const current = `${w.location.pathname}${w.location.search}`;
-      sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
-
-      if (current !== desired) {
-        w.history.replaceState({}, "", desired);
-        w.dispatchEvent(new PopStateEvent("popstate"));
-      }
-    } catch {
-      sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
-    }
-  }, []);
-
   const searchString = useSearch();
+  const openListingId = useMemo(() => {
+    const p = new URLSearchParams(searchString);
+    return p.get("openListing");
+  }, [searchString]);
+  const searchStringForListState = useMemo(() => {
+    const p = new URLSearchParams(searchString);
+    p.delete("openListing");
+    return p.toString();
+  }, [searchString]);
 
   const urlParams = useMemo(
     () => new URLSearchParams(searchString),
@@ -3147,12 +3122,11 @@ export default function ListingsPage() {
     null,
   );
   const userIdChangeInitRef = useRef(false);
-  const restoredListingsScrollRef = useRef(false);
 
   /* ----- sync page + sort when url changes (back/forward, manual edit) ----- */
   useEffect(() => {
-    const pageFromUrl = readPageFromSearch(searchString);
-    const sortFromUrl = readSortFromSearch(searchString);
+    const pageFromUrl = readPageFromSearch(searchStringForListState);
+    const sortFromUrl = readSortFromSearch(searchStringForListState);
 
     setCurrentPage((prev) => (prev === pageFromUrl ? prev : pageFromUrl));
     setSortBy((prev) => (prev === sortFromUrl ? prev : sortFromUrl));
@@ -3160,7 +3134,19 @@ export default function ListingsPage() {
     // при навігації назад/вперед — підтягуємо саме server page
     setAccumulated([]);
     setIsLoadingMore(false);
-  }, [searchString]);
+  }, [searchStringForListState]);
+
+  const openListingOverlay = useCallback((id: string) => {
+    pushUrlParams((p) => {
+      p.set("openListing", id);
+    });
+  }, []);
+
+  const closeListingOverlay = useCallback(() => {
+    replaceUrlParams((p) => {
+      p.delete("openListing");
+    });
+  }, []);
 
   /* ----- reset when userId changes ----- */
   useEffect(() => {
@@ -3570,42 +3556,6 @@ export default function ListingsPage() {
   };
   const baseListingsCount = pagination?.total ?? 0;
 
-  // Restore saved listings scroll only after data is present,
-  // so browser back/swipe returns to the exact card position.
-  useEffect(() => {
-    const w = safeWindow();
-    if (!w) return;
-    if (restoredListingsScrollRef.current) return;
-    if (isFetching) return;
-    if (w.location.pathname !== "/listings") return;
-
-    const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
-    if (!savedPosition) return;
-    if (accumulated.length === 0 && listings.length === 0) return;
-
-    const targetId = sessionStorage.getItem(LISTINGS_TARGET_ID_KEY);
-    const scrollY = parseInt(savedPosition, 10);
-    sessionStorage.removeItem(SCROLL_POSITION_KEY);
-    sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
-    restoredListingsScrollRef.current = true;
-
-    requestAnimationFrame(() => {
-      if (targetId) {
-        const target = document.querySelector(
-          `[data-listing-id="${targetId}"]`,
-        ) as HTMLElement | null;
-        if (target) {
-          target.scrollIntoView({ block: "center", inline: "nearest" });
-          return;
-        }
-      }
-
-      if (!Number.isNaN(scrollY)) {
-        w.scrollTo({ top: scrollY, left: 0, behavior: "instant" });
-      }
-    });
-  }, [isFetching, accumulated.length, listings.length]);
-
   // якщо +98 — маркетинговий “бонус”, залишаємо, але застосовуємо всюди однаково
   const listingsCount = baseListingsCount > 0 ? baseListingsCount + 98 : 0;
   /* ----- reset page when filters change (exclude page/limit/sort) ----- */
@@ -3624,6 +3574,7 @@ export default function ListingsPage() {
       didMountRef.current = true;
       return;
     }
+
     setCurrentPage(1);
     setAccumulated([]);
     setIsLoadingMore(false);
@@ -4008,6 +3959,7 @@ export default function ListingsPage() {
                         key={car.id}
                         {...car}
                         viewMode={viewMode}
+                        onOpenListing={openListingOverlay}
                         isOwner={isOwner}
                         isTopListing={isTopListing}
                         onPromote={handlePromote}
@@ -4146,7 +4098,10 @@ export default function ListingsPage() {
                 <div
                   className={
                     viewMode === "grid"
-                      ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8"
+                      ? [
+                          "grid grid-cols-1 md:grid-cols-2 gap-8",
+                          sidebarCollapsed ? "xl:grid-cols-3" : "xl:grid-cols-2",
+                        ].join(" ")
                       : "flex flex-col gap-8"
                   }
                 >
@@ -4163,6 +4118,7 @@ export default function ListingsPage() {
                         key={car.id}
                         {...car}
                         viewMode={viewMode}
+                        onOpenListing={openListingOverlay}
                         isOwner={isOwner}
                         isTopListing={isTopListing}
                         onPromote={handlePromote}
@@ -4271,6 +4227,26 @@ export default function ListingsPage() {
       </div>
 
       <Footer />
+
+      {openListingId ? (
+        <div className="fixed inset-0 z-[100] bg-background">
+          <div className="absolute top-2 right-2 z-[101]">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={closeListingOverlay}
+              data-testid="button-close-overlay"
+            >
+              ✕
+            </Button>
+          </div>
+          <iframe
+            src={`/listing/${openListingId}?embedded=1`}
+            className="w-full h-full border-0 bg-background"
+            title="Listing detail"
+          />
+        </div>
+      ) : null}
 
       {editingListing && (
         <Suspense fallback={null}>
