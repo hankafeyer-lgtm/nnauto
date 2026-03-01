@@ -2134,11 +2134,21 @@ export default function AddListingPage() {
                                 placeholder={t("listing.vinPlaceholder")}
                                 {...field}
                                 value={field.value || ""}
+                                onChange={(e) => {
+                                  const normalized = e.target.value
+                                    .toUpperCase()
+                                    .replace(/\s+/g, "")
+                                    .replace(/[^A-Z0-9]/g, "")
+                                    .replace(/[IOQ]/g, "")
+                                    .slice(0, 17);
+                                  field.onChange(normalized);
+                                }}
                                 maxLength={17}
                                 className="uppercase"
                                 data-testid="input-vin"
                               />
                             </FormControl>
+                            <FormDescription>{t("listing.vinHint")}</FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}

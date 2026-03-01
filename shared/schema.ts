@@ -136,6 +136,8 @@ export const listings = pgTable("listings", {
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 });
 
+const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/;
+
 export const insertListingSchema = createInsertSchema(listings).omit({
   id: true,
   topListingExpiresAt: true,
@@ -163,7 +165,20 @@ export const insertListingSchema = createInsertSchema(listings).omit({
   sellerType: z.string().min(1, "Prodejce je povinný / Продавець обов'язковий"),
   region: z.string().min(1, "Region je povinný / Регіон обов'язковий"),
   phone: z.string().min(1, "Telefon je povinný / Телефон обов'язковий"),
-  vin: z.string().optional(),
+  vin: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") return undefined;
+      const normalized = value.trim().toUpperCase();
+      return normalized === "" ? undefined : normalized;
+    },
+    z
+      .string()
+      .regex(
+        VIN_REGEX,
+        "VIN must have exactly 17 characters (A-Z, 0-9, without I/O/Q) / VIN має містити рівно 17 символів (A-Z, 0-9, без I/O/Q) / VIN must have exactly 17 characters (A-Z, 0-9, no I/O/Q)",
+      )
+      .optional(),
+  ),
   euroEmission: z.string().optional(),
   stkValidUntil: z.string().optional(),
   hasServiceBook: z.boolean().optional(),

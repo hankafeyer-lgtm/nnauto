@@ -45,6 +45,7 @@ export interface IStorage {
   // Cebia reports (Stripe-gated paid API)
   createCebiaReport(report: InsertCebiaReport): Promise<CebiaReport>;
   getCebiaReportById(id: string): Promise<CebiaReport | undefined>;
+  getAllCebiaReports(): Promise<CebiaReport[]>;
   getCebiaReportsByUserId(userId: string): Promise<CebiaReport[]>;
   getCebiaReportByStripeSessionId(stripeSessionId: string): Promise<CebiaReport | undefined>;
   updateCebiaReport(id: string, report: UpdateCebiaReport): Promise<CebiaReport | undefined>;
@@ -239,6 +240,10 @@ export class DatabaseStorage implements IStorage {
   async getCebiaReportById(id: string): Promise<CebiaReport | undefined> {
     const [report] = await db.select().from(cebiaReports).where(eq(cebiaReports.id, id));
     return report || undefined;
+  }
+
+  async getAllCebiaReports(): Promise<CebiaReport[]> {
+    return await db.select().from(cebiaReports);
   }
 
   async getCebiaReportsByUserId(userId: string): Promise<CebiaReport[]> {

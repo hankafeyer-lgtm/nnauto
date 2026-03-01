@@ -17,6 +17,7 @@ export default function CebiaReturnPage() {
   const [isWorking, setIsWorking] = useState(false);
   const [resolvedGuest, setResolvedGuest] = useState<LastGuest | null>(null);
   const autoDeliveredRef = useRef(false);
+  const openedTabRef = useRef<Window | null>(null);
 
   const last = useMemo((): LastGuest | null => {
     try {
@@ -53,10 +54,18 @@ export default function CebiaReturnPage() {
   }, []);
 
   const openPdfInBrowser = useCallback((reportId: string, token: string) => {
-    window.open(
-      buildPdfUrl(reportId, token, false),
-      "_blank",
-    );
+    const url = buildPdfUrl(reportId, token, false);
+    if (openedTabRef.current && !openedTabRef.current.closed) {
+      openedTabRef.current.location.href = url;
+      return;
+    }
+    const opened = window.open(url, "_blank", "noopener,noreferrer");
+    if (opened) {
+      openedTabRef.current = opened;
+      return;
+    }
+    // Fallback for aggressive popup blockers: ensure user still sees the report.
+    window.location.assign(url);
   }, [buildPdfUrl]);
 
   const triggerPdfDownload = useCallback((reportId: string, token: string) => {
@@ -156,10 +165,20 @@ export default function CebiaReturnPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    // Some browsers block async popups; reserve a tab as early as possible.
+    if (openedTabRef.current && !openedTabRef.current.closed) return;
+    const opened = window.open("", "_blank", "noopener,noreferrer");
+    if (opened) {
+      opened.document.title = "VIN report";
+      openedTabRef.current = opened;
+    }
+  }, []);
+
   return (
-    <div className="container max-w-xl py-10">
-      <Card>
-        <CardContent className="p-6 space-y-4">
+    <div className="container max-w-3xl py-4 sm:py-8 lg:py-10 px-3 sm:px-4">
+      <Card className="overflow-hidden">
+        <CardContent className="p-4 sm:p-6 space-y-4">
           <div className="space-y-1">
             <p className="text-lg font-semibold">Platba přijata</p>
             <p className="text-sm text-muted-foreground">
@@ -172,8 +191,12 @@ export default function CebiaReturnPage() {
             <p className="text-sm text-red-600">{error}</p>
           ) : null}
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button onClick={() => process(true)} disabled={isWorking}>
+          <div className="flex flex-wrap items-stretch gap-2 sm:gap-3">
+            <Button
+              onClick={() => process(true)}
+              disabled={isWorking}
+              className="w-full sm:w-auto whitespace-normal text-left sm:text-center"
+            >
               {isWorking ? "Zpracovávám…" : "Otevřít + stáhnout VIN report"}
             </Button>
             {(resolvedGuest || last) ? (
@@ -186,6 +209,7 @@ export default function CebiaReturnPage() {
                   triggerPdfDownload(guest.reportId, guest.token);
                 }}
                 disabled={isWorking}
+                className="w-full sm:w-auto whitespace-normal text-left sm:text-center"
               >
                 Stáhnout PDF znovu
               </Button>
@@ -197,6 +221,7 @@ export default function CebiaReturnPage() {
                   setLocation(`/listing/${resolvedGuest?.listingId || last?.listingId}`)
                 }
                 disabled={isWorking}
+                className="w-full sm:w-auto whitespace-normal text-left sm:text-center"
               >
                 Zpět na inzerát
               </Button>

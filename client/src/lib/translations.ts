@@ -392,6 +392,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "listing.phonePlaceholder": "+420 XXX XXX XXX",
     "listing.vin": "VIN kód",
     "listing.vinPlaceholder": "např. WVWZZZ3CZWE123456",
+    "listing.vinHint": "Volitelné: zadejte VIN přesně 17 znaků (A-Z, 0-9, bez I/O/Q).",
     "listing.euroEmission": "Emisní norma",
     "listing.selectEuroEmission": "Vyberte emisní normu",
     "listing.stkValidUntil": "Platnost STK do",
@@ -738,6 +739,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "cebia.openPdf": "Otevřít PDF",
     "cebia.unavailable": "Report pro toto VIN není dostupný",
     "cebia.error": "Chyba kontroly. Zkuste to prosím znovu",
+    "cebia.requiresListingVin": "Cebia je dostupná jen u inzerátů s platným VIN od majitele.",
     "about.missionP1":
       "Věříme, že nákup nebo prodej automobilu by měl být jednoduchý, bezpečný a příjemný zážitek. Proto budujeme platformu, která spojuje moderní technologie s osobním přístupem. Chceme, aby každý zákazník našel přesně to, co hledá - ať už je to rodinné SUV, sportovní kupé nebo užitkový vůz.",
     "about.trustTitle": "Důvěra",
@@ -1377,6 +1379,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "cebia.openPdf": "Відкрити PDF",
     "cebia.unavailable": "Звіт для цього VIN недоступний",
     "cebia.error": "Помилка перевірки. Спробуйте ще раз",
+    "cebia.requiresListingVin": "Cebia доступна лише для оголошень з валідним VIN від власника.",
 
     // Trim levels
     "trims.base": "Базова",
@@ -1439,6 +1442,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "listing.phonePlaceholder": "+380 12 XX XXXXX",
     "listing.vin": "VIN код",
     "listing.vinPlaceholder": "напр. WVWZZZ3CZWE123456",
+    "listing.vinHint": "Необов'язково: введіть VIN рівно 17 символів (A-Z, 0-9, без I/O/Q).",
     "listing.euroEmission": "Екологічна норма",
     "listing.selectEuroEmission": "Виберіть екологічну норму",
     "listing.stkValidUntil": "Дійсність ТО до",
@@ -2486,6 +2490,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "listing.phonePlaceholder": "+420 XXX XXX XXX",
     "listing.vin": "VIN Code",
     "listing.vinPlaceholder": "e.g. WVWZZZ3CZWE123456",
+    "listing.vinHint": "Optional: enter VIN with exactly 17 characters (A-Z, 0-9, no I/O/Q).",
     "listing.euroEmission": "Emission Standard",
     "listing.selectEuroEmission": "Select emission standard",
     "listing.stkValidUntil": "Inspection Valid Until",
@@ -2734,6 +2739,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "cebia.openPdf": "Open PDF",
     "cebia.unavailable": "Report is not available for this VIN",
     "cebia.error": "Check failed. Please try again",
+    "cebia.requiresListingVin": "Cebia is available only for listings with a valid seller-provided VIN.",
 
     // Options - Cities (Moravskoslezský kraj)
     "options.region.ostrava": "Ostrava",

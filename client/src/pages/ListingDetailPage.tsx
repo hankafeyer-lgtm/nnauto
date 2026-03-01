@@ -3175,7 +3175,6 @@ export default function ListingDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [cebiaDialogOpen, setCebiaDialogOpen] = useState(false);
-  const [cebiaVinInput, setCebiaVinInput] = useState("");
   const swipeStartXRef = useRef<number | null>(null);
   const swipeStartYRef = useRef<number | null>(null);
   const [cebiaGuest, setCebiaGuest] = useState<{ reportId: string; token: string } | null>(
@@ -3185,8 +3184,18 @@ export default function ListingDetailPage() {
   const [cebiaGuestHasPdf, setCebiaGuestHasPdf] = useState(false);
 
   const handleCebiaClick = useCallback(() => {
+    const vin = (listing?.vin || "").trim().toUpperCase();
+    const vinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
+    if (!vinValid) {
+      toast({
+        variant: "destructive",
+        title: t("cebia.unavailable"),
+        description: t("cebia.requiresListingVin"),
+      });
+      return;
+    }
     setCebiaDialogOpen(true);
-  }, []);
+  }, [listing?.vin, t, toast]);
 
   const redirectToCheckout = useCallback((url: string) => {
     try {
@@ -3243,6 +3252,8 @@ export default function ListingDetailPage() {
   });
 
   const cebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen !== false; // default: frozen
+  const listingVin = (listing?.vin || "").trim().toUpperCase();
+  const listingVinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(listingVin);
 
   // Stripe redirect: promoted=success/cancelled
   useEffect(() => {
@@ -3372,7 +3383,10 @@ export default function ListingDetailPage() {
       if (cebiaPaymentsFrozen) {
         throw new Error("503: {\"error\":\"Payments are temporarily disabled\"}");
       }
-      const vin = (cebiaVinInput || "").trim().toUpperCase();
+      if (!listingVinValid) {
+        throw new Error(t("cebia.requiresListingVin"));
+      }
+      const vin = listingVin;
       const endpoint = user ? "/api/cebia/checkout" : "/api/cebia/guest/checkout";
       const res = await apiRequest("POST", endpoint, {
         vin,
@@ -4892,7 +4906,8 @@ export default function ListingDetailPage() {
                       />
                     ) : null}
 
-                    {/* Cebia widget (placeholder, Stripe lock) */}
+                    {/* Cebia widget is available only when seller provided a valid VIN */}
+                    {listingVinValid ? (
                     <div
                       className="rounded-2xl border border-[#B8860B]/30 bg-[#B8860B]/5 p-4 space-y-3"
                       data-testid="cebia-widget"
@@ -4913,15 +4928,9 @@ export default function ListingDetailPage() {
 
                       <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">VIN</p>
-                        <input
-                          value={cebiaVinInput}
-                          onChange={(e) =>
-                            setCebiaVinInput(e.target.value.toUpperCase())
-                          }
-                          placeholder="Zadejte VIN (17 znaků)"
-                          className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono uppercase outline-none focus:ring-2 focus:ring-[#B8860B]/40"
-                          inputMode="text"
-                        />
+                        <div className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono uppercase break-all min-h-10 flex items-center">
+                          {listingVinValid ? listingVin : "—"}
+                        </div>
                       </div>
 
                       <div className="flex items-center justify-between text-sm">
@@ -4935,17 +4944,20 @@ export default function ListingDetailPage() {
                         className="w-full"
                         onClick={handleCebiaClick}
                         data-testid="button-cebia-open"
-                        disabled={cebiaPaymentsFrozen}
+                        disabled={cebiaPaymentsFrozen || !listingVinValid}
                       >
                         {cebiaPaymentsFrozen ? "Platby dočasně vypnuté" : t("cebia.orderCheck")}
                       </Button>
 
                       <p className="text-xs text-muted-foreground">
-                        {cebiaPaymentsFrozen
+                        {!listingVinValid
+                          ? t("cebia.requiresListingVin")
+                          : cebiaPaymentsFrozen
                           ? "Platby jsou dočasně vypnuté."
                           : "Nejprve proběhne platba přes Stripe. Přístup k VIN reportu se zpřístupní až po úspěšné platbě."}
                       </p>
                     </div>
+                    ) : null}
                   </div>
 
                   <Separator />
@@ -5056,7 +5068,7 @@ export default function ListingDetailPage() {
               <div className="flex items-center justify-between gap-4">
                 <span className="text-sm text-muted-foreground">VIN</span>
                 <span className="text-sm font-mono uppercase break-all">
-                  {cebiaVinInput?.trim() ? cebiaVinInput.trim() : "—"}
+                  {listingVinValid ? listingVin : "—"}
                 </span>
               </div>
               <div className="flex items-center justify-between gap-4">
@@ -5084,7 +5096,7 @@ export default function ListingDetailPage() {
               </Button>
               <Button
                 disabled={
-                  (cebiaVinInput || "").trim().length !== 17 ||
+                  !listingVinValid ||
                   cebiaCheckoutMutation.isPending ||
                   cebiaPaymentsFrozen
                 }
