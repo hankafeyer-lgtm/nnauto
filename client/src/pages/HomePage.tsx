@@ -2154,6 +2154,16 @@ export default function HomePage() {
     setOpenListingId(null);
   }, []);
 
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "nnauto-close-listing-overlay") {
+        closeListingOverlay();
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [closeListingOverlay]);
+
   const recommendedSectionRef = useRef<HTMLElement>(null);
   const isFirstRender = useRef(true);
 

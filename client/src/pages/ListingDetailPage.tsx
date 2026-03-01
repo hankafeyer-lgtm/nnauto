@@ -3734,6 +3734,24 @@ export default function ListingDetailPage() {
       });
     }
   }, [listing, toast, t]);
+
+  const handleBack = useCallback(() => {
+    if (isEmbedded && window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: "nnauto-close-listing-overlay" }, "*");
+      return;
+    }
+
+    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    if (returnUrl) {
+      window.location.assign(returnUrl);
+      return;
+    }
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    window.location.assign("/listings");
+  }, [isEmbedded]);
   // (Cebia UI placeholder only for now)
 
   // --- SEO (memoized)
@@ -3913,36 +3931,21 @@ export default function ListingDetailPage() {
 
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-7xl">
-          {/* Back button */}
-          {!isEmbedded && (
-            <Button
-              variant="ghost"
-              className="mb-6"
-              data-testid="button-back"
-              onClick={() => {
-                const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
-                if (returnUrl) {
-                  window.location.assign(returnUrl);
-                  return;
-                }
-              if (window.history.length > 1) {
-                window.history.back();
-                return;
-              }
-                window.location.assign("/listings");
-              }}
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              {t("detail.backToListings")}
-            </Button>
-          )}
-
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main content */}
             <div className="lg:col-span-2 space-y-6">
               {/* Image/Video Gallery */}
               <Card className="overflow-hidden rounded-2xl">
                 <div className="relative">
+                  <Button
+                    variant="ghost"
+                    className="absolute top-3 left-3 z-[70] bg-black/55 hover:bg-black/70 text-white"
+                    data-testid="button-back"
+                    onClick={handleBack}
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    {t("detail.backToListings")}
+                  </Button>
                   {totalItems > 0 ? (
                     <Carousel
                       setApi={setCarouselApi}

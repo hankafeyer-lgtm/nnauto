@@ -3148,6 +3148,16 @@ export default function ListingsPage() {
     });
   }, []);
 
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "nnauto-close-listing-overlay") {
+        closeListingOverlay();
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [closeListingOverlay]);
+
   /* ----- reset when userId changes ----- */
   useEffect(() => {
     // Do not reset page on initial mount; only react to actual userId changes.
