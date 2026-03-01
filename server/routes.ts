@@ -513,6 +513,70 @@ const mergeVinDecoded = (primary: VinDecodedCore, fallback: VinDecodedCore): Vin
   vehicleType: primary.vehicleType || fallback.vehicleType || null,
 });
 
+const WMI_MAKE_MAP: Record<string, string> = {
+  TMB: "Skoda",
+  WAU: "Audi",
+  WVG: "Volkswagen",
+  WVW: "Volkswagen",
+  WBA: "BMW",
+  WBS: "BMW",
+  WDC: "Mercedes-Benz",
+  WDD: "Mercedes-Benz",
+  VF1: "Renault",
+  VF3: "Peugeot",
+  VF7: "Citroen",
+  ZFA: "Fiat",
+  ZFF: "Ferrari",
+  JHM: "Honda",
+  JTD: "Toyota",
+  JTM: "Toyota",
+  JT3: "Toyota",
+  KNM: "Nissan",
+  KNA: "Kia",
+  KNE: "Kia",
+  KMH: "Hyundai",
+  SAL: "Land Rover",
+  SCC: "Lotus",
+  SCA: "Rolls-Royce",
+  TRU: "Audi",
+  U5Y: "Kia",
+  VNK: "Toyota",
+  VS7: "Citroen",
+  VSS: "Seat",
+  W0L: "Opel",
+  YV1: "Volvo",
+  YV4: "Volvo",
+};
+
+const decodeYearFromVin = (vin: string): number | null => {
+  if (vin.length !== 17) return null;
+  const code = vin[9]?.toUpperCase();
+  if (!code) return null;
+  const yearMap: Record<string, number> = {
+    A: 1980, B: 1981, C: 1982, D: 1983, E: 1984, F: 1985, G: 1986, H: 1987,
+    J: 1988, K: 1989, L: 1990, M: 1991, N: 1992, P: 1993, R: 1994, S: 1995,
+    T: 1996, V: 1997, W: 1998, X: 1999, Y: 2000,
+    "1": 2001, "2": 2002, "3": 2003, "4": 2004, "5": 2005,
+    "6": 2006, "7": 2007, "8": 2008, "9": 2009,
+  };
+  const base = yearMap[code];
+  if (!base) return null;
+  const current = new Date().getFullYear();
+  let candidate = base;
+  while (candidate + 30 <= current + 1) candidate += 30;
+  return candidate;
+};
+
+const decodeVinStructureFallback = (vin: string): VinDecodedCore => {
+  const fallback = emptyVinDecodedCore();
+  const wmi = vin.slice(0, 3).toUpperCase();
+  if (WMI_MAKE_MAP[wmi]) fallback.make = WMI_MAKE_MAP[wmi];
+  const year = decodeYearFromVin(vin);
+  if (year) fallback.year = year;
+  if (fallback.make || fallback.year) fallback.vehicleType = "osobni-auta";
+  return fallback;
+};
+
 const mergeRawResponse = (existing: unknown, patch: Record<string, unknown>) => {
   if (existing && typeof existing === "object" && !Array.isArray(existing)) {
     return { ...(existing as any), ...patch };
@@ -3209,7 +3273,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       clearTimeout(timeout);
     }
 
-    const merged = mergeVinDecoded(fromCebia, fromNhtsa);
+    const structuralFallback = decodeVinStructureFallback(vin);
+    const merged = mergeVinDecoded(mergeVinDecoded(fromCebia, fromNhtsa), structuralFallback);
+    if (
+      structuralFallback.make ||
+      structuralFallback.year ||
+      structuralFallback.vehicleType
+    ) {
+      usedSources.push("vin-structure");
+    }
     const found = Object.values(merged).some((value) => value !== null);
     res.json({
       vin,
