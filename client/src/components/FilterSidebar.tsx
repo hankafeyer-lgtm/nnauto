@@ -2651,13 +2651,17 @@ function FilterSidebar() {
   const powerMax = filters.powerMax ?? 1000;
 
   const handleConditionToggle = (value: string) => {
-    const next = toggleInArray(filters.condition, value) ?? [];
-    setCondition(next);
+    setFilters((prev) => ({
+      ...prev,
+      condition: toggleInArray(prev.condition, value) ?? [],
+    }));
   };
 
   const handleEquipmentToggle = (value: string) => {
-    const next = toggleInArray(filters.equipment, value) ?? [];
-    setEquipment(next);
+    setFilters((prev) => ({
+      ...prev,
+      equipment: toggleInArray(prev.equipment, value) ?? [],
+    }));
   };
 
   const handleVehicleTypeToggle = (type: string) => {
@@ -2680,18 +2684,24 @@ function FilterSidebar() {
   };
 
   const handleFuelToggle = (key: string) => {
-    const next = toggleInCommaList(filters.fuel, key);
-    setFuel(next);
+    setFilters((prev) => ({
+      ...prev,
+      fuel: toggleInCommaList(prev.fuel, key),
+    }));
   };
 
   const handleTransmissionToggle = (key: string) => {
-    const next = toggleInCommaList(filters.transmission, key);
-    setTransmission(next);
+    setFilters((prev) => ({
+      ...prev,
+      transmission: toggleInCommaList(prev.transmission, key),
+    }));
   };
 
   const handleDriveToggle = (key: string) => {
-    const next = toggleInCommaList(filters.driveType, key);
-    setDriveType(next);
+    setFilters((prev) => ({
+      ...prev,
+      driveType: toggleInCommaList(prev.driveType, key),
+    }));
   };
 
   const filteredBrands = useMemo(() => {
@@ -3326,9 +3336,15 @@ function FilterSidebar() {
                       className={`h-auto py-2 px-3 text-xs ${
                         !isSelected ? "text-black dark:text-white" : ""
                       } ${isSelected ? "toggle-elevated" : ""} toggle-elevate`}
-                      onClick={() =>
-                        setSellerType(isSelected ? "" : option.key)
-                      }
+                          onClick={() =>
+                            setFilters((prev) => ({
+                              ...prev,
+                              sellerType:
+                                prev.sellerType === option.key
+                                  ? ""
+                                  : option.key,
+                            }))
+                          }
                       data-testid={`button-sidebar-seller-${option.key}`}
                     >
                       {option.label}

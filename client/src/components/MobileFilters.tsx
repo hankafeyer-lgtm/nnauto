@@ -2983,30 +2983,45 @@ function MobileFilters({ variant = "compact" }: MobileFiltersProps) {
   };
 
   const handleFuelToggle = (key: string) => {
-    setFuel(toggleInCommaList(filters.fuel, key));
+    setFilters((prev) => ({
+      ...prev,
+      fuel: toggleInCommaList(prev.fuel, key),
+    }));
   };
 
   const handleTransmissionToggle = (key: string) => {
-    setTransmission(toggleInCommaList(filters.transmission, key));
+    setFilters((prev) => ({
+      ...prev,
+      transmission: toggleInCommaList(prev.transmission, key),
+    }));
   };
 
   const handleDriveToggle = (key: string) => {
-    setDriveType(toggleInCommaList(filters.driveType, key));
+    setFilters((prev) => ({
+      ...prev,
+      driveType: toggleInCommaList(prev.driveType, key),
+    }));
   };
 
   const handleConditionToggle = (value: string) => {
-    const next = toggleInArray(filters.condition, value) ?? [];
-    setCondition(next);
+    setFilters((prev) => ({
+      ...prev,
+      condition: toggleInArray(prev.condition, value) ?? [],
+    }));
   };
 
   const handleEquipmentToggle = (value: string) => {
-    const next = toggleInArray(filters.equipment, value) ?? [];
-    setEquipment(next);
+    setFilters((prev) => ({
+      ...prev,
+      equipment: toggleInArray(prev.equipment, value) ?? [],
+    }));
   };
 
   const handleExtrasToggle = (value: string) => {
-    const next = toggleInArray(filters.extras, value) ?? [];
-    setExtras(next);
+    setFilters((prev) => ({
+      ...prev,
+      extras: toggleInArray(prev.extras, value) ?? [],
+    }));
   };
 
   const handleReset = () => {
@@ -3688,7 +3703,13 @@ function MobileFilters({ variant = "compact" }: MobileFiltersProps) {
                               !selected ? "text-black dark:text-white" : ""
                             } ${selected ? "toggle-elevated" : ""} toggle-elevate`}
                             onClick={() =>
-                              setSellerType(selected ? "" : opt.key)
+                              setFilters((prev) => ({
+                                ...prev,
+                                sellerType:
+                                  prev.sellerType === opt.key
+                                    ? ""
+                                    : opt.key,
+                              }))
                             }
                             data-testid={`button-mobile-seller-${opt.key}`}
                           >
