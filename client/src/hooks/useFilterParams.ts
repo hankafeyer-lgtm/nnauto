@@ -482,6 +482,8 @@ const normalizeFilters = (filters: FilterParams): Record<string, unknown> => {
   const normalized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(filters)) {
     if (value === undefined || value === null) continue;
+    if (typeof value === "string" && value.trim() === "") continue;
+    if (Array.isArray(value) && value.length === 0) continue;
     normalized[key] = value;
   }
   return normalized;
