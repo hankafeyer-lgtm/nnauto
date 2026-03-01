@@ -2124,7 +2124,10 @@ export default function HomePage() {
   const [deletingListingId, setDeletingListingId] = useState<string | null>(
     null,
   );
-  const [openListingId, setOpenListingId] = useState<string | null>(null);
+  const [openListingId, setOpenListingId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("openListing");
+  });
 
   // ✅ page state synced with URL
   const [currentPage, setCurrentPage] = useState<number>(() =>
@@ -2133,7 +2136,11 @@ export default function HomePage() {
 
   // if user navigates back/forward, keep in sync
   useEffect(() => {
-    const onPop = () => setCurrentPage(getPageFromUrl());
+    const onPop = () => {
+      setCurrentPage(getPageFromUrl());
+      const opened = new URLSearchParams(window.location.search).get("openListing");
+      setOpenListingId(opened);
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -2148,9 +2155,20 @@ export default function HomePage() {
     setPageToUrl(clamped);
   };
   const openListingOverlay = useCallback((id: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("openListing", id);
+    window.history.pushState(window.history.state, "", url.toString());
     setOpenListingId(id);
   }, []);
   const closeListingOverlay = useCallback(() => {
+    const url = new URL(window.location.href);
+    const hasOverlayParam = url.searchParams.has("openListing");
+    if (hasOverlayParam && window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    url.searchParams.delete("openListing");
+    window.history.replaceState(window.history.state, "", url.toString());
     setOpenListingId(null);
   }, []);
 

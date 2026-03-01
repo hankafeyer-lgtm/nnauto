@@ -3143,6 +3143,13 @@ export default function ListingsPage() {
   }, []);
 
   const closeListingOverlay = useCallback(() => {
+    const w = safeWindow();
+    if (!w) return;
+    const hasOverlayParam = new URL(w.location.href).searchParams.has("openListing");
+    if (hasOverlayParam && w.history.length > 1) {
+      w.history.back();
+      return;
+    }
     replaceUrlParams((p) => {
       p.delete("openListing");
     });

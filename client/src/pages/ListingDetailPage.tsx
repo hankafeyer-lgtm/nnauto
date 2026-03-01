@@ -3744,12 +3744,21 @@ export default function ListingDetailPage() {
     }
 
     const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
-    if (returnUrl) {
-      window.location.assign(returnUrl);
+    if (window.history.length > 1) {
+      const currentUrl = window.location.href;
+      window.history.back();
+      window.setTimeout(() => {
+        if (window.location.href !== currentUrl) return;
+        if (returnUrl) {
+          window.location.assign(returnUrl);
+          return;
+        }
+        window.location.assign("/listings");
+      }, 180);
       return;
     }
-    if (window.history.length > 1) {
-      window.history.back();
+    if (returnUrl) {
+      window.location.assign(returnUrl);
       return;
     }
     window.location.assign("/listings");
@@ -3757,6 +3766,8 @@ export default function ListingDetailPage() {
 
   // Match browser-style back swipe: left-edge swipe should trigger the same flow as "zpět".
   useEffect(() => {
+    if (!isEmbedded) return;
+
     const edgeThreshold = 28; // px from left edge
     const minHorizontalDistance = 70; // px
     const maxVerticalDrift = 60; // px
@@ -3795,7 +3806,7 @@ export default function ListingDetailPage() {
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchend", onTouchEnd);
     };
-  }, [handleBack]);
+  }, [handleBack, isEmbedded]);
   // (Cebia UI placeholder only for now)
 
   // --- SEO (memoized)
