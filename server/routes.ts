@@ -311,12 +311,72 @@ const flattenObjectEntries = (
   return out;
 };
 
+const collectNamedValuePairs = (
+  input: unknown,
+  maxPairs = 4000,
+  pairs: Array<{ name: string; value: string }> = [],
+): Array<{ name: string; value: string }> => {
+  if (pairs.length >= maxPairs || input == null) return pairs;
+
+  const primitiveToString = (v: unknown): string | null => {
+    if (typeof v === "string") return v.trim() || null;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    return null;
+  };
+
+  if (Array.isArray(input)) {
+    for (const item of input) {
+      collectNamedValuePairs(item, maxPairs, pairs);
+      if (pairs.length >= maxPairs) break;
+    }
+    return pairs;
+  }
+
+  if (typeof input === "object") {
+    const obj = input as Record<string, unknown>;
+    const keys = Object.keys(obj);
+    const nameKey = keys.find((k) =>
+      ["name", "label", "title", "field", "key", "nazev", "param", "property"].includes(
+        k.toLowerCase(),
+      ),
+    );
+    const valueKey = keys.find((k) =>
+      ["value", "text", "val", "hodnota", "result", "data", "obsah"].includes(k.toLowerCase()),
+    );
+
+    if (nameKey && valueKey) {
+      const name = primitiveToString(obj[nameKey]);
+      const value = primitiveToString(obj[valueKey]);
+      if (name && value) pairs.push({ name, value });
+    }
+
+    for (const value of Object.values(obj)) {
+      collectNamedValuePairs(value, maxPairs, pairs);
+      if (pairs.length >= maxPairs) break;
+    }
+  }
+
+  return pairs;
+};
+
 const pickValueByAliases = (
   payload: unknown,
   aliases: string[],
 ): string | null => {
-  const flat = flattenObjectEntries(payload);
   const normalizedAliases = aliases.map((a) => normalizeKey(a));
+
+  const namedPairs = collectNamedValuePairs(payload);
+  for (const pair of namedPairs) {
+    const nameNorm = normalizeKey(pair.name);
+    if (!nameNorm) continue;
+    const matched = normalizedAliases.some(
+      (alias) =>
+        nameNorm === alias || nameNorm.includes(alias) || alias.includes(nameNorm),
+    );
+    if (matched && pair.value.trim()) return pair.value.trim();
+  }
+
+  const flat = flattenObjectEntries(payload);
   for (const entry of flat) {
     const keyNorm = normalizeKey(entry.key);
     if (!keyNorm) continue;
