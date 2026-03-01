@@ -125,6 +125,116 @@ const mapDecodedFuelType = (fuelRaw: string): string | null => {
   return null;
 };
 
+const mapDecodedBodyType = (bodyRaw: string): string | null => {
+  const normalized = bodyRaw.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes("sedan")) return "sedan";
+  if (
+    normalized.includes("sport utility") ||
+    normalized.includes("suv")
+  ) {
+    return "suv";
+  }
+  if (normalized.includes("crossover")) return "crossover";
+  if (normalized.includes("hatchback")) return "hatchback";
+  if (normalized.includes("coupe")) return "coupe";
+  if (normalized.includes("convertible") || normalized.includes("cabriolet")) {
+    return "convertible";
+  }
+  if (
+    normalized.includes("wagon") ||
+    normalized.includes("estate")
+  ) {
+    return "wagon";
+  }
+  if (
+    normalized.includes("van") ||
+    normalized.includes("minivan") ||
+    normalized.includes("mpv")
+  ) {
+    return normalized.includes("minivan") || normalized.includes("mpv")
+      ? "minivan"
+      : "van";
+  }
+  if (normalized.includes("pickup")) return "pickup";
+  if (normalized.includes("liftback")) return "liftback";
+  return null;
+};
+
+const mapDecodedDriveType = (driveRaw: string): string | null => {
+  const normalized = driveRaw.trim().toLowerCase();
+  if (!normalized) return null;
+  if (
+    normalized.includes("all-wheel") ||
+    normalized.includes("all wheel") ||
+    normalized.includes("awd")
+  ) {
+    return "awd";
+  }
+  if (
+    normalized.includes("4x4") ||
+    normalized.includes("4wd") ||
+    normalized.includes("four-wheel")
+  ) {
+    return "4wd";
+  }
+  if (
+    normalized.includes("front-wheel") ||
+    normalized.includes("front wheel") ||
+    normalized.includes("fwd")
+  ) {
+    return "fwd";
+  }
+  if (
+    normalized.includes("rear-wheel") ||
+    normalized.includes("rear wheel") ||
+    normalized.includes("rwd")
+  ) {
+    return "rwd";
+  }
+  return null;
+};
+
+const mapDecodedTransmission = (transmissionRaw: string): string | null => {
+  const normalized = transmissionRaw.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes("cvt")) return "cvt";
+  if (
+    normalized.includes("dct") ||
+    normalized.includes("dual clutch") ||
+    normalized.includes("robot")
+  ) {
+    return "robot";
+  }
+  if (
+    normalized.includes("auto") ||
+    normalized.includes("automatic")
+  ) {
+    return "automatic";
+  }
+  if (
+    normalized.includes("manual") ||
+    normalized.includes("man.")
+  ) {
+    return "manual";
+  }
+  return null;
+};
+
+const mapDecodedVehicleType = (vehicleRaw: string): string | null => {
+  const normalized = vehicleRaw.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes("motorcycle")) return "motorky";
+  if (
+    normalized.includes("truck") ||
+    normalized.includes("bus") ||
+    normalized.includes("trailer")
+  ) {
+    return "nakladni-vozy";
+  }
+  return "osobni-auta";
+};
+
 const mergeRawResponse = (existing: unknown, patch: Record<string, unknown>) => {
   if (existing && typeof existing === "object" && !Array.isArray(existing)) {
     return { ...(existing as any), ...patch };
@@ -192,6 +302,125 @@ const archiveCebiaPdfIfReady = async (report: any) => {
   } catch (error) {
     console.error("[CEBIA] Failed to archive PDF:", error);
   }
+};
+
+type AdminCebiaReportItem = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  userId: string | null;
+  listingId: string | null;
+  vin: string;
+  status: string;
+  priceCents: number | null;
+  currency: string | null;
+  stripeSessionId: string | null;
+  stripePaymentIntentId: string | null;
+  customerEmail: string;
+  hasPdf: boolean;
+  adminPdfUrl: string;
+};
+
+const readArchivedCebiaEvents = async (): Promise<any[]> => {
+  try {
+    const archiveFile = path.join(CEBIA_ARCHIVE_DIR, "purchases.jsonl");
+    const raw = await fs.promises.readFile(archiveFile, "utf8");
+    return raw
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter((v): v is any => !!v && typeof v === "object");
+  } catch {
+    return [];
+  }
+};
+
+const buildAdminCebiaReports = async (): Promise<AdminCebiaReportItem[]> => {
+  const reports = await storage.getAllCebiaReports();
+  const dbItems: AdminCebiaReportItem[] = reports.map((r) => {
+    const rr: any =
+      r.rawResponse && typeof r.rawResponse === "object" && !Array.isArray(r.rawResponse)
+        ? r.rawResponse
+        : {};
+    return {
+      id: r.id,
+      createdAt: new Date(r.createdAt as any).toISOString(),
+      updatedAt: new Date(r.updatedAt as any).toISOString(),
+      userId: r.userId ?? null,
+      listingId: r.listingId ?? null,
+      vin: r.vin,
+      status: r.status,
+      priceCents: r.priceCents ?? null,
+      currency: r.currency ?? null,
+      stripeSessionId: r.stripeSessionId ?? null,
+      stripePaymentIntentId: r.stripePaymentIntentId ?? null,
+      customerEmail: typeof rr.customerEmail === "string" ? rr.customerEmail : "",
+      hasPdf: !!r.pdfBase64,
+      adminPdfUrl: `/api/admin/cebia/reports/${encodeURIComponent(r.id)}/pdf`,
+    };
+  });
+
+  const byId = new Map<string, AdminCebiaReportItem>(dbItems.map((item) => [item.id, item]));
+  const archiveEvents = await readArchivedCebiaEvents();
+  for (const event of archiveEvents) {
+    const reportId = typeof event.reportId === "string" ? event.reportId.trim() : "";
+    if (!reportId) continue;
+    const ts =
+      typeof event.ts === "string" && event.ts.trim()
+        ? new Date(event.ts).toISOString()
+        : new Date().toISOString();
+    const existing = byId.get(reportId);
+    if (existing) {
+      existing.createdAt = existing.createdAt || ts;
+      existing.updatedAt = ts;
+      existing.userId = existing.userId || (event.userId ? String(event.userId) : null);
+      existing.listingId =
+        existing.listingId || (event.listingId ? String(event.listingId) : null);
+      existing.vin = existing.vin || (event.vin ? String(event.vin) : "");
+      if (!existing.stripeSessionId && event.stripeSessionId) {
+        existing.stripeSessionId = String(event.stripeSessionId);
+      }
+      if (!existing.stripePaymentIntentId && event.stripePaymentIntentId) {
+        existing.stripePaymentIntentId = String(event.stripePaymentIntentId);
+      }
+      existing.hasPdf =
+        existing.hasPdf || !!event.hasPdf || event.stage === "ready" || !!event.archivedPdf;
+      continue;
+    }
+    const statusFromArchive =
+      (typeof event.status === "string" && event.status.trim()) ||
+      (typeof event.stage === "string" && event.stage.trim()) ||
+      "archived";
+    byId.set(reportId, {
+      id: reportId,
+      createdAt: ts,
+      updatedAt: ts,
+      userId: event.userId ? String(event.userId) : null,
+      listingId: event.listingId ? String(event.listingId) : null,
+      vin: event.vin ? String(event.vin) : "",
+      status: statusFromArchive,
+      priceCents: null,
+      currency: "CZK",
+      stripeSessionId: event.stripeSessionId ? String(event.stripeSessionId) : null,
+      stripePaymentIntentId: event.stripePaymentIntentId
+        ? String(event.stripePaymentIntentId)
+        : null,
+      customerEmail: "",
+      hasPdf: !!event.hasPdf || event.stage === "ready" || !!event.archivedPdf,
+      adminPdfUrl: `/api/admin/cebia/reports/${encodeURIComponent(reportId)}/pdf`,
+    });
+  }
+
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 };
 
 // Cloudflare Turnstile verification
@@ -2651,14 +2880,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fuelType =
         mapDecodedFuelType([fuelPrimary, fuelSecondary].filter(Boolean).join(" ")) ||
         null;
+      const bodyClass = typeof row.BodyClass === "string" ? row.BodyClass.trim() : "";
+      const bodyType = mapDecodedBodyType(bodyClass);
+      const doorsRaw = typeof row.Doors === "string" ? row.Doors.trim() : "";
+      const doors = Number.parseInt(doorsRaw, 10);
+      const driveTypeRaw = typeof row.DriveType === "string" ? row.DriveType.trim() : "";
+      const driveType = mapDecodedDriveType(driveTypeRaw);
+      const transmissionRaw =
+        typeof row.TransmissionStyle === "string" ? row.TransmissionStyle.trim() : "";
+      const transmission = mapDecodedTransmission(transmissionRaw);
+      const displacementRaw =
+        typeof row.DisplacementL === "string" ? row.DisplacementL.trim() : "";
+      const displacement = Number.parseFloat(displacementRaw);
+      const engineVolume = Number.isFinite(displacement)
+        ? displacement.toFixed(1).replace(/\.0$/, "")
+        : null;
+      const hpRaw = typeof row.EngineHP === "string" ? row.EngineHP.trim() : "";
+      const hp = Number.parseFloat(hpRaw);
+      const power = Number.isFinite(hp) ? Math.round(hp * 0.7457) : null;
+      const vehicleTypeRaw =
+        typeof row.VehicleType === "string" ? row.VehicleType.trim() : "";
+      const vehicleType = mapDecodedVehicleType(vehicleTypeRaw);
+      const found = Boolean(
+        make ||
+          model ||
+          (Number.isFinite(modelYear) ? modelYear : null) ||
+          fuelType ||
+          bodyType ||
+          (Number.isFinite(doors) ? doors : null) ||
+          driveType ||
+          transmission ||
+          engineVolume ||
+          power,
+      );
 
       res.json({
         vin,
         source: "nhtsa-vpic",
+        found,
         make: make || null,
         model: model || null,
         year: Number.isFinite(modelYear) ? modelYear : null,
         fuelType,
+        bodyType,
+        doors: Number.isFinite(doors) ? doors : null,
+        driveType,
+        transmission,
+        engineVolume,
+        power,
+        vehicleType,
       });
     } catch (error) {
       console.error("[VIN] decode failed:", error);
@@ -4381,33 +4651,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/cebia/reports", isAdmin, async (_req, res) => {
     try {
-      const reports = await storage.getAllCebiaReports();
-      reports.sort(
-        (a, b) =>
-          new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime(),
-      );
-      const mapped = reports.map((r) => {
-        const rr: any =
-          r.rawResponse && typeof r.rawResponse === "object" && !Array.isArray(r.rawResponse)
-            ? r.rawResponse
-            : {};
-        return {
-          id: r.id,
-          createdAt: r.createdAt,
-          updatedAt: r.updatedAt,
-          userId: r.userId,
-          listingId: r.listingId,
-          vin: r.vin,
-          status: r.status,
-          priceCents: r.priceCents,
-          currency: r.currency,
-          stripeSessionId: r.stripeSessionId,
-          stripePaymentIntentId: r.stripePaymentIntentId,
-          customerEmail: typeof rr.customerEmail === "string" ? rr.customerEmail : "",
-          hasPdf: !!r.pdfBase64,
-          adminPdfUrl: `/api/admin/cebia/reports/${encodeURIComponent(r.id)}/pdf`,
-        };
-      });
+      const mapped = await buildAdminCebiaReports();
       res.json({ count: mapped.length, items: mapped });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -4416,11 +4660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/admin/cebia/reports/export.csv", isAdmin, async (_req, res) => {
     try {
-      const reports = await storage.getAllCebiaReports();
-      reports.sort(
-        (a, b) =>
-          new Date(b.createdAt as any).getTime() - new Date(a.createdAt as any).getTime(),
-      );
+      const reports = await buildAdminCebiaReports();
       const escapeCsv = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
       const header = [
         "id",
@@ -4438,10 +4678,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         "hasPdf",
       ];
       const rows = reports.map((r) => {
-        const rr: any =
-          r.rawResponse && typeof r.rawResponse === "object" && !Array.isArray(r.rawResponse)
-            ? r.rawResponse
-            : {};
         return [
           r.id,
           r.createdAt,
@@ -4454,8 +4690,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           r.currency,
           r.stripeSessionId || "",
           r.stripePaymentIntentId || "",
-          typeof rr.customerEmail === "string" ? rr.customerEmail : "",
-          r.pdfBase64 ? "yes" : "no",
+          r.customerEmail || "",
+          r.hasPdf ? "yes" : "no",
         ]
           .map(escapeCsv)
           .join(",");
@@ -4472,12 +4708,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/cebia/reports/:id/pdf", isAdmin, async (req, res) => {
     try {
       const report = await storage.getCebiaReportById(req.params.id);
-      if (!report) return res.status(404).json({ error: "Not found" });
-      if (!report.pdfBase64) return res.status(409).json({ error: "PDF not ready yet" });
+      if (report?.pdfBase64) {
+        const pdfBuffer = Buffer.from(report.pdfBase64, "base64");
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="cebia-${report.vin}.pdf"`);
+        res.send(pdfBuffer);
+        return;
+      }
 
-      const pdfBuffer = Buffer.from(report.pdfBase64, "base64");
+      // Fallback for historic archive-only purchases
+      const archiveEvents = await readArchivedCebiaEvents();
+      const archivedEvent = archiveEvents
+        .slice()
+        .reverse()
+        .find(
+          (event) =>
+            String(event?.reportId || "").trim() === req.params.id &&
+            typeof event?.archivedPdf === "string" &&
+            String(event.archivedPdf).trim().toLowerCase().endsWith(".pdf"),
+        );
+      if (!archivedEvent) {
+        return res.status(404).json({ error: "Not found" });
+      }
+      const archivedFile = path.join(CEBIA_ARCHIVE_DIR, String(archivedEvent.archivedPdf));
+      const pdfBuffer = await fs.promises.readFile(archivedFile);
+      const safeVin =
+        typeof archivedEvent.vin === "string" && archivedEvent.vin.trim()
+          ? archivedEvent.vin.trim()
+          : req.params.id;
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `attachment; filename="cebia-${report.vin}.pdf"`);
+      res.setHeader("Content-Disposition", `attachment; filename="cebia-${safeVin}.pdf"`);
       res.send(pdfBuffer);
     } catch (error: any) {
       res.status(500).json({ error: error.message });

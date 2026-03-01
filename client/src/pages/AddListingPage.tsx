@@ -169,10 +169,30 @@ type BrandIconEntry =
 type VinDecodeResponse = {
   vin: string;
   source: string;
+  found: boolean;
   make: string | null;
   model: string | null;
   year: number | null;
   fuelType: "benzin" | "diesel" | "hybrid" | "electric" | "lpg" | "cng" | null;
+  bodyType:
+    | "sedan"
+    | "hatchback"
+    | "wagon"
+    | "suv"
+    | "crossover"
+    | "coupe"
+    | "convertible"
+    | "minivan"
+    | "pickup"
+    | "van"
+    | "liftback"
+    | null;
+  doors: number | null;
+  driveType: "fwd" | "rwd" | "awd" | "4wd" | null;
+  transmission: "manual" | "automatic" | "robot" | "cvt" | null;
+  engineVolume: string | null;
+  power: number | null;
+  vehicleType: "osobni-auta" | "nakladni-vozy" | "motorky" | null;
 };
 
 const normalizeLookup = (value: string): string =>
@@ -834,6 +854,46 @@ export default function AddListingPage() {
         form.setValue("fuelType", [decoded.fuelType], { shouldDirty: true, shouldValidate: true });
         applied += 1;
       }
+      if (decoded.bodyType) {
+        form.setValue("bodyType", decoded.bodyType as any, { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (decoded.vehicleType) {
+        form.setValue("vehicleType", decoded.vehicleType as any, { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (decoded.doors && decoded.doors > 0) {
+        form.setValue("doors", decoded.doors, { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (decoded.driveType) {
+        form.setValue("driveType", [decoded.driveType], { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (decoded.transmission) {
+        form.setValue("transmission", [decoded.transmission], { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (decoded.engineVolume) {
+        form.setValue("engineVolume", decoded.engineVolume, { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (decoded.power && decoded.power > 0) {
+        form.setValue("power", decoded.power, { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (
+        form.getValues("title")?.trim?.() === "" &&
+        (decoded.year || decoded.make || decoded.model)
+      ) {
+        const generatedTitle = [decoded.year, decoded.make, decoded.model]
+          .filter(Boolean)
+          .join(" ");
+        if (generatedTitle) {
+          form.setValue("title", generatedTitle, { shouldDirty: true, shouldValidate: true });
+          applied += 1;
+        }
+      }
 
       if (applied > 0) {
         setVinAutofillStatus("success");
@@ -843,6 +903,15 @@ export default function AddListingPage() {
             : language === "cs"
               ? `VIN autovyplnění: doplněno polí ${applied}.`
               : `VIN autofill: filled ${applied} fields.`,
+        );
+      } else if (!decoded.found) {
+        setVinAutofillStatus("warning");
+        setVinAutofillMessage(
+          language === "uk"
+            ? "Інфо по VIN не знайдено у відкритих джерелах."
+            : language === "cs"
+              ? "Informace podle VIN nebyly v otevřených zdrojích nalezeny."
+              : "No VIN details found in open sources.",
         );
       } else {
         setVinAutofillStatus("warning");
@@ -1143,6 +1212,60 @@ export default function AddListingPage() {
                 <form onSubmit={(e) => { e.preventDefault(); handleSubmitClick(); }} className="space-y-6 sm:space-y-8">
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">{t("listing.basicInfo")}</h3>
+
+                    <FormField
+                      control={form.control}
+                      name="vin"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("listing.vin")} (VIN search)</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder={t("listing.vinPlaceholder")}
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                const normalized = e.target.value
+                                  .toUpperCase()
+                                  .replace(/\s+/g, "")
+                                  .replace(/[^A-Z0-9]/g, "")
+                                  .replace(/[IOQ]/g, "")
+                                  .slice(0, 17);
+                                field.onChange(normalized);
+                              }}
+                              maxLength={17}
+                              className="uppercase"
+                              data-testid="input-vin"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            {t("listing.vinHint")}{" "}
+                            {language === "uk"
+                              ? "Після 17 символів виконується автопошук з відкритих джерел."
+                              : language === "cs"
+                                ? "Po zadání 17 znaků proběhne auto-vyhledání z otevřených zdrojů."
+                                : "After 17 characters, auto-lookup runs from open sources."}
+                          </FormDescription>
+                          {vinAutofillStatus !== "idle" && vinAutofillMessage ? (
+                            <p
+                              className={`text-xs ${
+                                vinAutofillStatus === "error"
+                                  ? "text-red-600"
+                                  : vinAutofillStatus === "warning"
+                                    ? "text-amber-600"
+                                    : vinAutofillStatus === "loading"
+                                      ? "text-muted-foreground"
+                                      : "text-emerald-600"
+                              }`}
+                              data-testid="text-vin-autofill-status"
+                            >
+                              {vinAutofillMessage}
+                            </p>
+                          ) : null}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     
                     <FormField
                       control={form.control}
@@ -2298,52 +2421,6 @@ export default function AddListingPage() {
                         )}
                       />
 
-                      <FormField
-                        control={form.control}
-                        name="vin"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("listing.vin")}</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={t("listing.vinPlaceholder")}
-                                {...field}
-                                value={field.value || ""}
-                                onChange={(e) => {
-                                  const normalized = e.target.value
-                                    .toUpperCase()
-                                    .replace(/\s+/g, "")
-                                    .replace(/[^A-Z0-9]/g, "")
-                                    .replace(/[IOQ]/g, "")
-                                    .slice(0, 17);
-                                  field.onChange(normalized);
-                                }}
-                                maxLength={17}
-                                className="uppercase"
-                                data-testid="input-vin"
-                              />
-                            </FormControl>
-                            <FormDescription>{t("listing.vinHint")}</FormDescription>
-                            {vinAutofillStatus !== "idle" && vinAutofillMessage ? (
-                              <p
-                                className={`text-xs ${
-                                  vinAutofillStatus === "error"
-                                    ? "text-red-600"
-                                    : vinAutofillStatus === "warning"
-                                      ? "text-amber-600"
-                                      : vinAutofillStatus === "loading"
-                                        ? "text-muted-foreground"
-                                        : "text-emerald-600"
-                                }`}
-                                data-testid="text-vin-autofill-status"
-                              >
-                                {vinAutofillMessage}
-                              </p>
-                            ) : null}
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                     </div>
                   </div>
 
