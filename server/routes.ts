@@ -79,6 +79,52 @@ const CEBIA_STRIPE_PAYMENT_LINK_URL = (
   "https://buy.stripe.com/5kQdR857b0jVaZf8SsdZ600"
 ).trim();
 
+const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/;
+
+const mapDecodedFuelType = (fuelRaw: string): string | null => {
+  const normalized = fuelRaw.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized.includes("electric")) return "electric";
+  if (
+    normalized.includes("hybrid") ||
+    normalized.includes("phev") ||
+    normalized.includes("plug-in")
+  ) {
+    return "hybrid";
+  }
+  if (
+    normalized.includes("diesel") ||
+    normalized.includes("nafta") ||
+    normalized.includes("tdi") ||
+    normalized.includes("dci") ||
+    normalized.includes("hdi")
+  ) {
+    return "diesel";
+  }
+  if (
+    normalized.includes("cng") ||
+    normalized.includes("compressed natural gas")
+  ) {
+    return "cng";
+  }
+  if (
+    normalized.includes("lpg") ||
+    normalized.includes("autogas") ||
+    normalized.includes("liquefied petroleum")
+  ) {
+    return "lpg";
+  }
+  if (
+    normalized.includes("gasoline") ||
+    normalized.includes("petrol") ||
+    normalized.includes("benzin") ||
+    normalized.includes("benzine")
+  ) {
+    return "benzin";
+  }
+  return null;
+};
+
 const mergeRawResponse = (existing: unknown, patch: Record<string, unknown>) => {
   if (existing && typeof existing === "object" && !Array.isArray(existing)) {
     return { ...(existing as any), ...patch };
@@ -2562,6 +2608,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error getting Stripe config:", error);
       res.status(503).json({ error: "Payment system not configured" });
+    }
+  });
+
+  // Basic VIN decoder for listing auto-fill (brand/model/year/fuel)
+  app.get("/api/vin/decode/:vin", async (req, res) => {
+    const vin = String(req.params.vin || "")
+      .trim()
+      .toUpperCase();
+    if (!VIN_REGEX.test(vin)) {
+      return res.status(400).json({ error: "VIN must have 17 valid characters" });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch(
+        `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/${encodeURIComponent(vin)}?format=json`,
+        { signal: controller.signal },
+      );
+      if (!response.ok) {
+        return res.status(502).json({ error: "VIN decode service unavailable" });
+      }
+      const payload: any = await response.json();
+      const row =
+        Array.isArray(payload?.Results) && payload.Results.length > 0
+          ? payload.Results[0]
+          : null;
+      if (!row || typeof row !== "object") {
+        return res.status(404).json({ error: "VIN decode data not found" });
+      }
+
+      const make = typeof row.Make === "string" ? row.Make.trim() : "";
+      const model = typeof row.Model === "string" ? row.Model.trim() : "";
+      const modelYearRaw =
+        typeof row.ModelYear === "string" ? row.ModelYear.trim() : "";
+      const modelYear = Number.parseInt(modelYearRaw, 10);
+      const fuelPrimary =
+        typeof row.FuelTypePrimary === "string" ? row.FuelTypePrimary.trim() : "";
+      const fuelSecondary =
+        typeof row.FuelTypeSecondary === "string" ? row.FuelTypeSecondary.trim() : "";
+      const fuelType =
+        mapDecodedFuelType([fuelPrimary, fuelSecondary].filter(Boolean).join(" ")) ||
+        null;
+
+      res.json({
+        vin,
+        source: "nhtsa-vpic",
+        make: make || null,
+        model: model || null,
+        year: Number.isFinite(modelYear) ? modelYear : null,
+        fuelType,
+      });
+    } catch (error) {
+      console.error("[VIN] decode failed:", error);
+      res.status(502).json({ error: "VIN decode failed" });
+    } finally {
+      clearTimeout(timeout);
     }
   });
 

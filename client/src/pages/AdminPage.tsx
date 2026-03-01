@@ -424,11 +424,41 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Shield, Users, Car, Trash2, CreditCard, Star } from "lucide-react";
+import {
+  Shield,
+  Users,
+  Car,
+  Trash2,
+  CreditCard,
+  Star,
+  FileSpreadsheet,
+} from "lucide-react";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import type { User, Listing, EnrichedPayment } from "@shared/schema";
+
+type AdminCebiaReport = {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  userId: string | null;
+  listingId: string | null;
+  vin: string;
+  status: string;
+  priceCents: number | null;
+  currency: string | null;
+  stripeSessionId: string | null;
+  stripePaymentIntentId: string | null;
+  customerEmail: string;
+  hasPdf: boolean;
+  adminPdfUrl: string;
+};
+
+type AdminCebiaReportsResponse = {
+  count: number;
+  items: AdminCebiaReport[];
+};
 
 export default function AdminPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -474,6 +504,15 @@ export default function AdminPage() {
     enabled: isAuthenticated && user?.isAdmin,
   });
 
+  const {
+    data: cebiaReportsData,
+    isLoading: cebiaReportsLoading,
+    error: cebiaReportsError,
+  } = useQuery<AdminCebiaReportsResponse>({
+    queryKey: ["/api/admin/cebia/reports"],
+    enabled: isAuthenticated && user?.isAdmin,
+  });
+
   // const users = usersData || [];
   // const listings = listingsData || [];
   // const payments = paymentsData || [];
@@ -482,11 +521,59 @@ export default function AdminPage() {
   const listings = (listingsData || []).slice().reverse();
 
   const payments = paymentsData || [];
+  const cebiaReports = cebiaReportsData?.items || [];
 
-  if ((usersError || listingsError || paymentsError) && !authLoading) {
+  if (
+    (usersError || listingsError || paymentsError || cebiaReportsError) &&
+    !authLoading
+  ) {
     navigate("/");
     return null;
   }
+
+  const downloadFromAuthorizedApi = async (
+    url: string,
+    filename: string,
+    fallbackOpenInNewTab = false,
+  ) => {
+    try {
+      const res = await apiRequest("GET", url);
+      const blob = await res.blob();
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(objectUrl);
+    } catch (error: any) {
+      if (fallbackOpenInNewTab) {
+        window.open(url, "_blank", "noopener,noreferrer");
+        return;
+      }
+      toast({
+        variant: "destructive",
+        title: t("admin.error"),
+        description: error?.message || "Failed to download file",
+      });
+    }
+  };
+
+  const handleExportCebiaCsv = async () => {
+    await downloadFromAuthorizedApi(
+      "/api/admin/cebia/reports/export.csv",
+      `cebia-reports-${new Date().toISOString().slice(0, 10)}.csv`,
+    );
+  };
+
+  const handleDownloadCebiaPdf = async (report: AdminCebiaReport) => {
+    await downloadFromAuthorizedApi(
+      report.adminPdfUrl,
+      `cebia-${report.vin || report.id}.pdf`,
+      true,
+    );
+  };
 
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -595,7 +682,7 @@ export default function AdminPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 max-w-4xl">
             <TabsTrigger value="users" data-testid="tab-admin-users">
               <Users className="h-4 w-4 mr-2" />
               {t("admin.users")} {users && `(${users.length})`}
@@ -607,6 +694,10 @@ export default function AdminPage() {
             <TabsTrigger value="payments" data-testid="tab-admin-payments">
               <CreditCard className="h-4 w-4 mr-2" />
               {t("admin.payments")} {payments && `(${payments.length})`}
+            </TabsTrigger>
+            <TabsTrigger value="cebia" data-testid="tab-admin-cebia">
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Cebia Reports {cebiaReports && `(${cebiaReports.length})`}
             </TabsTrigger>
           </TabsList>
 
@@ -939,6 +1030,108 @@ export default function AdminPage() {
                 ) : (
                   <p className="text-center py-8 text-muted-foreground">
                     {t("admin.noPayments")}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="cebia" className="mt-6">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle>Cebia Reports</CardTitle>
+                    <CardDescription>
+                      Усі куплені VIN-репорти з можливістю експорту CSV і
+                      завантаження PDF.
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={handleExportCebiaCsv}
+                    data-testid="button-export-cebia-csv"
+                  >
+                    Export CSV
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {cebiaReportsLoading ? (
+                  <p className="text-center py-8 text-muted-foreground">
+                    {t("admin.loading")}
+                  </p>
+                ) : cebiaReports.length > 0 ? (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead>VIN</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Price</TableHead>
+                          <TableHead className="text-right">PDF</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {cebiaReports.map((report) => (
+                          <TableRow
+                            key={report.id}
+                            data-testid={`row-cebia-report-${report.id}`}
+                          >
+                            <TableCell>
+                              {format(
+                                new Date(report.createdAt),
+                                "dd.MM.yyyy HH:mm",
+                              )}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs uppercase">
+                              {report.vin}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  report.status === "ready"
+                                    ? "default"
+                                    : report.status === "paid" ||
+                                        report.status === "processing"
+                                      ? "secondary"
+                                      : "destructive"
+                                }
+                              >
+                                {report.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-[220px] truncate">
+                              {report.customerEmail || "-"}
+                            </TableCell>
+                            <TableCell>
+                              {report.priceCents
+                                ? `${new Intl.NumberFormat("cs-CZ").format(
+                                    report.priceCents / 100,
+                                  )} ${report.currency?.toUpperCase() || "CZK"}`
+                                : "-"}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDownloadCebiaPdf(report)}
+                                disabled={!report.hasPdf}
+                                data-testid={`button-cebia-pdf-${report.id}`}
+                              >
+                                PDF
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-center py-8 text-muted-foreground">
+                    Ще немає куплених Cebia-репортів.
                   </p>
                 )}
               </CardContent>

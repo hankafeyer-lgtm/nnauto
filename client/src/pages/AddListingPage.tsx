@@ -166,6 +166,77 @@ type BrandIconEntry =
   | { type: "component"; component: ComponentType<{ className?: string }> }
   | { type: "image"; src: string; alt: string };
 
+type VinDecodeResponse = {
+  vin: string;
+  source: string;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  fuelType: "benzin" | "diesel" | "hybrid" | "electric" | "lpg" | "cng" | null;
+};
+
+const normalizeLookup = (value: string): string =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+const modelToValue = (model: string): string =>
+  model.toLowerCase().replace(/\s+/g, "-");
+
+const findBrandByDecodedMake = (decodedMake: string | null): string | null => {
+  if (!decodedMake) return null;
+  const normalizedMake = normalizeLookup(decodedMake);
+  if (!normalizedMake) return null;
+
+  const aliases: Record<string, string> = {
+    mercedes: "mercedes-benz",
+    "mercedes benz": "mercedes-benz",
+    skoda: "skoda",
+    "land rover": "land-rover",
+    "rolls royce": "rolls-royce",
+    "ssang yong": "ssangyong",
+  };
+  if (aliases[normalizedMake]) return aliases[normalizedMake];
+
+  const byValue = carBrands.find((b) => normalizeLookup(b.value) === normalizedMake);
+  if (byValue) return byValue.value;
+
+  const byLabel = carBrands.find((b) => normalizeLookup(b.label) === normalizedMake);
+  if (byLabel) return byLabel.value;
+
+  const includesLabel = carBrands.find((b) =>
+    normalizeLookup(b.label).includes(normalizedMake),
+  );
+  return includesLabel?.value ?? null;
+};
+
+const findModelByDecodedModel = (
+  brandValue: string | null,
+  decodedModel: string | null,
+): string | null => {
+  if (!brandValue || !decodedModel) return null;
+  const models = carModels[brandValue] || [];
+  if (!models.length) return null;
+
+  const normalizedDecodedModel = normalizeLookup(decodedModel);
+  if (!normalizedDecodedModel) return null;
+
+  const exact = models.find(
+    (m) => normalizeLookup(m) === normalizedDecodedModel,
+  );
+  if (exact) return modelToValue(exact);
+
+  const includes = models.find((m) =>
+    normalizeLookup(m).includes(normalizedDecodedModel),
+  );
+  if (includes) return modelToValue(includes);
+
+  return null;
+};
+
 const BrandIconRenderer = ({ icon, className = "w-4 h-4" }: { icon?: BrandIconEntry; className?: string }) => {
   if (!icon) return null;
   
@@ -379,6 +450,11 @@ export default function AddListingPage() {
   const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [topsPurchased, setTopsPurchased] = useState(1);
+  const [vinAutofillMessage, setVinAutofillMessage] = useState("");
+  const [vinAutofillStatus, setVinAutofillStatus] = useState<
+    "idle" | "loading" | "success" | "warning" | "error"
+  >("idle");
+  const [lastDecodedVin, setLastDecodedVin] = useState("");
   
   const { language } = useLanguage();
   
@@ -729,7 +805,106 @@ export default function AddListingPage() {
   const selectedVehicleType = form.watch("vehicleType");
   const isTopListing = form.watch("isTopListing");
   const isImported = form.watch("isImported");
+  const vinValue = form.watch("vin");
   const availableModels = selectedBrand ? getModelsForVehicleType(selectedBrand, selectedVehicleType ?? undefined) : [];
+
+  const vinDecodeMutation = useMutation({
+    mutationFn: async (vin: string) => {
+      const res = await apiRequest("GET", `/api/vin/decode/${encodeURIComponent(vin)}`);
+      return (await res.json()) as VinDecodeResponse;
+    },
+    onSuccess: (decoded) => {
+      const brandValue = findBrandByDecodedMake(decoded.make);
+      const modelValue = findModelByDecodedModel(brandValue, decoded.model);
+
+      let applied = 0;
+      if (brandValue) {
+        form.setValue("brand", brandValue, { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (modelValue) {
+        form.setValue("model", modelValue, { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (decoded.year && decoded.year >= 1900 && decoded.year <= new Date().getFullYear() + 1) {
+        form.setValue("year", decoded.year, { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+      if (decoded.fuelType) {
+        form.setValue("fuelType", [decoded.fuelType], { shouldDirty: true, shouldValidate: true });
+        applied += 1;
+      }
+
+      if (applied > 0) {
+        setVinAutofillStatus("success");
+        setVinAutofillMessage(
+          language === "uk"
+            ? `Автозаповнення VIN: заповнено полів ${applied}.`
+            : language === "cs"
+              ? `VIN autovyplnění: doplněno polí ${applied}.`
+              : `VIN autofill: filled ${applied} fields.`,
+        );
+      } else {
+        setVinAutofillStatus("warning");
+        setVinAutofillMessage(
+          language === "uk"
+            ? "VIN розпізнано, але нічого не вдалося автозаповнити."
+            : language === "cs"
+              ? "VIN byl rozpoznán, ale nepodařilo se nic doplnit."
+              : "VIN was decoded, but no fields could be auto-filled.",
+        );
+      }
+    },
+    onError: () => {
+      setVinAutofillStatus("error");
+      setVinAutofillMessage(
+        language === "uk"
+          ? "Не вдалося отримати дані з VIN."
+          : language === "cs"
+            ? "Nepodařilo se načíst data z VIN."
+            : "Failed to load VIN data.",
+      );
+    },
+  });
+  const { mutate: decodeVin, isPending: isVinDecodePending } = vinDecodeMutation;
+
+  useEffect(() => {
+    const normalizedVin = (vinValue || "")
+      .toUpperCase()
+      .replace(/\s+/g, "")
+      .replace(/[^A-Z0-9]/g, "")
+      .replace(/[IOQ]/g, "")
+      .slice(0, 17);
+
+    if (normalizedVin.length !== 17) {
+      if (lastDecodedVin) setLastDecodedVin("");
+      if (vinAutofillStatus !== "idle") {
+        setVinAutofillStatus("idle");
+        setVinAutofillMessage("");
+      }
+      return;
+    }
+
+    if (normalizedVin === lastDecodedVin || isVinDecodePending) return;
+
+    setLastDecodedVin(normalizedVin);
+    setVinAutofillStatus("loading");
+    setVinAutofillMessage(
+      language === "uk"
+        ? "Підтягуємо базову інформацію по VIN..."
+        : language === "cs"
+          ? "Načítám základní informace podle VIN..."
+          : "Loading basic VIN details...",
+    );
+    decodeVin(normalizedVin);
+  }, [
+    vinValue,
+    lastDecodedVin,
+    vinAutofillStatus,
+    isVinDecodePending,
+    decodeVin,
+    language,
+  ]);
 
   const completeTopListingMutation = useMutation({
     mutationFn: async (sessionId: string) => {
@@ -2149,6 +2324,22 @@ export default function AddListingPage() {
                               />
                             </FormControl>
                             <FormDescription>{t("listing.vinHint")}</FormDescription>
+                            {vinAutofillStatus !== "idle" && vinAutofillMessage ? (
+                              <p
+                                className={`text-xs ${
+                                  vinAutofillStatus === "error"
+                                    ? "text-red-600"
+                                    : vinAutofillStatus === "warning"
+                                      ? "text-amber-600"
+                                      : vinAutofillStatus === "loading"
+                                        ? "text-muted-foreground"
+                                        : "text-emerald-600"
+                                }`}
+                                data-testid="text-vin-autofill-status"
+                              >
+                                {vinAutofillMessage}
+                              </p>
+                            ) : null}
                             <FormMessage />
                           </FormItem>
                         )}
