@@ -4240,16 +4240,6 @@ export default function ListingsPage() {
 
       {openListingId ? (
         <div className="fixed inset-0 z-[100] bg-background">
-          <div className="absolute top-2 right-2 z-[101]">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={closeListingOverlay}
-              data-testid="button-close-overlay"
-            >
-              ✕
-            </Button>
-          </div>
           <iframe
             src={`/listing/${openListingId}?embedded=1`}
             className="w-full h-full border-0 bg-background"

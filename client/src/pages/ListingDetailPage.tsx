@@ -3934,18 +3934,19 @@ export default function ListingDetailPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main content */}
             <div className="lg:col-span-2 space-y-6">
+              <Button
+                variant="ghost"
+                className="w-fit bg-black/55 hover:bg-black/70 text-white"
+                data-testid="button-back"
+                onClick={handleBack}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                {t("detail.backToListings")}
+              </Button>
+
               {/* Image/Video Gallery */}
               <Card className="overflow-hidden rounded-2xl">
                 <div className="relative">
-                  <Button
-                    variant="ghost"
-                    className="absolute top-3 left-3 z-[70] bg-black/55 hover:bg-black/70 text-white"
-                    data-testid="button-back"
-                    onClick={handleBack}
-                  >
-                    <ArrowLeft className="w-4 h-4 mr-2" />
-                    {t("detail.backToListings")}
-                  </Button>
                   {totalItems > 0 ? (
                     <Carousel
                       setApi={setCarouselApi}
