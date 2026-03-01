@@ -1486,7 +1486,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupAuth(app);
   await ensureListingAnalyticsTable();
-  app.set("etag", false);
+  app.set("etag", "weak");
   // Test session save endpoint - comprehensive session diagnostics
   app.get("/api/health/test-session", async (req, res) => {
     const replitDeployment = process.env.REPLIT_DEPLOYMENT;

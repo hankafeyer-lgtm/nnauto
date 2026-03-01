@@ -16,5 +16,25 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("react") || id.includes("scheduler")) {
+            return "vendor-react";
+          }
+          if (id.includes("@tanstack/react-query")) {
+            return "vendor-query";
+          }
+          if (id.includes("wouter")) {
+            return "vendor-router";
+          }
+          if (id.includes("lucide-react")) {
+            return "vendor-icons";
+          }
+          return "vendor";
+        },
+      },
+    },
   },
 });
