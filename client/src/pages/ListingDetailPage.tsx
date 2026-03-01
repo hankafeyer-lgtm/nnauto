@@ -3188,6 +3188,18 @@ export default function ListingDetailPage() {
     setCebiaDialogOpen(true);
   }, []);
 
+  const redirectToCheckout = useCallback((url: string) => {
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.location.assign(url);
+        return;
+      }
+    } catch {
+      // Cross-origin protections are expected in some embedding scenarios.
+    }
+    window.location.assign(url);
+  }, []);
+
   useEffect(() => {
     if (!listingId) return;
     try {
@@ -3341,7 +3353,7 @@ export default function ListingDetailPage() {
       return await res.json();
     },
     onSuccess: (data: { url: string }) => {
-      if (data?.url) window.location.href = data.url;
+      if (data?.url) redirectToCheckout(data.url);
     },
     onError: (err: any) => {
       toast({
@@ -3391,7 +3403,7 @@ export default function ListingDetailPage() {
             // ignore
           }
         }
-        window.location.href = data.url;
+        redirectToCheckout(data.url);
         return;
       }
       toast({
