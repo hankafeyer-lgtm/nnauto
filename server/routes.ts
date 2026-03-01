@@ -2962,11 +2962,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!report.pdfBase64) return res.status(409).json({ error: "PDF not ready yet" });
 
       const pdfBuffer = Buffer.from(report.pdfBase64, "base64");
+      const downloadParam = req.query?.download;
+      const forceDownload = downloadParam === "1" || downloadParam === "true";
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `inline; filename="cebia-${report.vin}.pdf"`);
+      res.setHeader(
+        "Content-Disposition",
+        `${forceDownload ? "attachment" : "inline"}; filename="cebia-${report.vin}.pdf"`,
+      );
       res.send(pdfBuffer);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Resolve guest report after Stripe redirect using session_id/report_id.
+  // This avoids hard dependency on localStorage when user returns from Stripe.
+  app.post("/api/cebia/guest/resolve-return", async (req, res) => {
+    try {
+      const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId.trim() : "";
+      const reportId = typeof req.body?.reportId === "string" ? req.body.reportId.trim() : "";
+      if (!sessionId && !reportId) {
+        return res.status(400).json({ error: "sessionId or reportId required" });
+      }
+
+      let report = reportId ? await storage.getCebiaReportById(reportId) : undefined;
+      let session: Stripe.Checkout.Session | null = null;
+
+      if (sessionId) {
+        try {
+          const stripe = await getUncachableStripeClient();
+          session = await stripe.checkout.sessions.retrieve(sessionId);
+        } catch (error) {
+          console.error("Stripe resolve-return error:", error);
+          if (!report) return res.status(503).json({ error: "Payment system not configured" });
+        }
+      }
+
+      if (!report && sessionId) {
+        report = await storage.getCebiaReportByStripeSessionId(sessionId);
+      }
+
+      const sessionReportId =
+        (session?.client_reference_id as string | null) ||
+        (session?.metadata?.reportId as string | undefined) ||
+        "";
+      if (!report && sessionReportId) {
+        report = await storage.getCebiaReportById(sessionReportId);
+      }
+
+      if (!report) return res.status(404).json({ error: "Cebia order not found" });
+      if (!String(report.userId || "").startsWith("guest:")) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      if (sessionReportId && report.id !== sessionReportId) {
+        return res.status(403).json({ error: "Session/report mismatch" });
+      }
+      if (session && session.payment_status !== "paid") {
+        return res.status(400).json({ error: "Payment not completed" });
+      }
+
+      if (
+        session &&
+        session.payment_status === "paid" &&
+        report.status !== "paid" &&
+        report.status !== "requested" &&
+        report.status !== "ready"
+      ) {
+        const updated = await storage.updateCebiaReport(report.id, {
+          status: "paid",
+          stripeSessionId: session.id,
+          stripePaymentIntentId: (session.payment_intent as string) || report.stripePaymentIntentId,
+          rawResponse: mergeRawResponse(report.rawResponse, {
+            stripeSession: session as any,
+            customerEmail: (session.customer_details?.email as string | undefined) || "",
+          }),
+        });
+        if (updated) report = updated;
+      }
+
+      const token = getCebiaGuestToken(report);
+      if (!token) return res.status(404).json({ error: "Guest token not found" });
+
+      return res.json({
+        reportId: report.id,
+        token,
+        listingId: report.listingId || null,
+        status: report.status,
+      });
+    } catch (error: any) {
+      console.error("Cebia guest resolve-return error:", error);
+      return res.status(500).json({ error: error.message });
     }
   });
 
@@ -3113,8 +3198,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!report.pdfBase64) return res.status(409).json({ error: "PDF not ready yet" });
 
       const pdfBuffer = Buffer.from(report.pdfBase64, "base64");
+      const downloadParam = req.query?.download;
+      const forceDownload = downloadParam === "1" || downloadParam === "true";
       res.setHeader("Content-Type", "application/pdf");
-      res.setHeader("Content-Disposition", `inline; filename=\"cebia-${report.vin}.pdf\"`);
+      res.setHeader(
+        "Content-Disposition",
+        `${forceDownload ? "attachment" : "inline"}; filename=\"cebia-${report.vin}.pdf\"`,
+      );
       res.send(pdfBuffer);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
