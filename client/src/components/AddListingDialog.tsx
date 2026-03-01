@@ -116,7 +116,7 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
       price: "0",
       brand: "",
       model: "",
-      year: new Date().getFullYear(),
+      year: undefined,
       mileage: 0,
       fuelType: "",
       transmission: undefined,
@@ -358,8 +358,12 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
                         <Input
                           type="number"
                           data-testid="input-year"
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          placeholder={t("listing.year")}
+                          value={field.value ?? ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value === "" ? undefined : parseInt(value, 10));
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
