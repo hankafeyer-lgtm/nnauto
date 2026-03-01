@@ -2780,6 +2780,14 @@ const toggleInArray = (current: string[] | undefined, value: string) => {
   return next.length ? next : undefined;
 };
 
+const toDomSafeIdPart = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
 // ✅ прибираємо службові поля, щоб auto-apply не зациклювався
 const buildStableFiltersKey = (filters: any) => {
   const {
@@ -3056,6 +3064,7 @@ function MobileFilters({ variant = "compact" }: MobileFiltersProps) {
       <Drawer open={open} onOpenChange={setOpen}>
         <DrawerContent
           style={{ bottom: keyboardOffset }}
+          translate="no"
           className="bg-background h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col"
         >
           {" "}
@@ -4069,27 +4078,28 @@ function MobileFilters({ variant = "compact" }: MobileFiltersProps) {
                       { label: t("filters.notPainted"), key: "Nelakovaný" },
                       { label: t("filters.warranty"), key: "Záruka" },
                       { label: t("filters.exchange"), key: "Výměna" },
-                    ].map((item) => (
-                      <div
-                        key={item.key}
-                        className="flex items-center space-x-2"
-                      >
-                        <Checkbox
-                          id={`mobile-extra-${item.key}`}
-                          checked={filters.extras?.includes(item.key) || false}
-                          onCheckedChange={() => handleExtrasToggle(item.key)}
-                          data-testid={`checkbox-mobile-extra-${item.key
-                            .toLowerCase()
-                            .replace(/\s+/g, "-")}`}
-                        />
-                        <label
-                          htmlFor={`mobile-extra-${item.key}`}
-                          className="text-sm font-medium cursor-pointer text-black dark:text-white"
+                    ].map((item) => {
+                      const safeId = `mobile-extra-${toDomSafeIdPart(item.key)}`;
+                      return (
+                        <div
+                          key={item.key}
+                          className="flex items-center space-x-2"
                         >
-                          {item.label}
-                        </label>
-                      </div>
-                    ))}
+                          <Checkbox
+                            id={safeId}
+                            checked={filters.extras?.includes(item.key) || false}
+                            onCheckedChange={() => handleExtrasToggle(item.key)}
+                            data-testid={`checkbox-${safeId}`}
+                          />
+                          <label
+                            htmlFor={safeId}
+                            className="text-sm font-medium cursor-pointer text-black dark:text-white"
+                          >
+                            {item.label}
+                          </label>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CollapsibleContent>
               </Collapsible>

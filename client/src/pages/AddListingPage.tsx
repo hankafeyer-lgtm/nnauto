@@ -1149,7 +1149,7 @@ export default function AddListingPage() {
     <div className="min-h-screen flex flex-col">
       <Header />
       
-      <main className="flex-1 py-8 sm:py-12 lg:py-16">
+      <main className="flex-1 py-8 sm:py-12 lg:py-16" translate="no">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
           <Card className="rounded-xl sm:rounded-2xl shadow-xl">
             <CardHeader className="pb-6 sm:pb-8">

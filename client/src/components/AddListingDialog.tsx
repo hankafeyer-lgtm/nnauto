@@ -171,7 +171,7 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-add-listing">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-add-listing" translate="no">
         <DialogHeader>
           <DialogTitle data-testid="text-dialog-title">{t("listing.addTitle")}</DialogTitle>
           <DialogDescription>

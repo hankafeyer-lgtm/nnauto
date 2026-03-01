@@ -2431,7 +2431,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col home-filters-page">
+    <div className="min-h-screen flex flex-col home-filters-page overflow-x-hidden">
       {" "}
       <SEO
         title={seoTitles[language as keyof typeof seoTitles] || seoTitles.cs}
