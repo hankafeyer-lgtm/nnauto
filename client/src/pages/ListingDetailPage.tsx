@@ -3143,6 +3143,13 @@ type PublicContact = {
   lastName: string | null;
 };
 
+type ListingAnalytics = {
+  listingId: string;
+  views: number;
+  contactClicks: number;
+  whatsappClicks: number;
+};
+
 function PageLoaderInline({ text }: { text: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center">
@@ -3225,6 +3232,16 @@ export default function ListingDetailPage() {
   const { data: seller } = useQuery<PublicContact>({
     queryKey: [`/api/users/${listing?.userId}`],
     enabled: !!listing?.userId,
+  });
+
+  const canSeeListingAnalytics =
+    !!listing && !!user && (user.isAdmin || user.id === listing.userId);
+
+  const { data: listingAnalytics } = useQuery<ListingAnalytics>({
+    queryKey: [`/api/listings/${listingId}/analytics`],
+    enabled: !!listingId && canSeeListingAnalytics,
+    refetchInterval: canSeeListingAnalytics ? 15000 : false,
+    retry: false,
   });
 
   const { data: cebiaConfig } = useQuery<{
@@ -3752,6 +3769,35 @@ export default function ListingDetailPage() {
       });
     }
   }, [listing, toast, t]);
+
+  const trackListingAnalyticsEvent = useCallback(
+    async (eventType: "view" | "contact_click" | "whatsapp_click") => {
+      if (!listingId) return;
+      try {
+        await apiRequest(
+          "POST",
+          `/api/listings/${encodeURIComponent(listingId)}/analytics/${eventType}`,
+          {},
+        );
+        if (canSeeListingAnalytics) {
+          queryClient.invalidateQueries({
+            queryKey: [`/api/listings/${listingId}/analytics`],
+          });
+        }
+      } catch {
+        // Analytics should never block user actions.
+      }
+    },
+    [listingId, canSeeListingAnalytics],
+  );
+
+  useEffect(() => {
+    if (!listingId || !listing) return;
+    const sessionKey = `listing-analytics:view:${listingId}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+    sessionStorage.setItem(sessionKey, "1");
+    void trackListingAnalyticsEvent("view");
+  }, [listingId, listing, trackListingAnalyticsEvent]);
 
   const handleBack = useCallback(() => {
     if (isEmbedded && window.parent && window.parent !== window) {
@@ -4840,7 +4886,10 @@ export default function ListingDetailPage() {
                     <Button
                       className="w-full"
                       size="lg"
-                      onClick={() => setShowContactDialog(true)}
+                      onClick={() => {
+                        void trackListingAnalyticsEvent("contact_click");
+                        setShowContactDialog(true);
+                      }}
                       data-testid="button-contact-seller"
                     >
                       <Phone className="w-5 h-5 mr-2" />
@@ -4901,6 +4950,9 @@ export default function ListingDetailPage() {
                         tgText={t("detail.writeTelegram") || "Telegram"}
                         className="pt-2"
                         toastFn={toast}
+                        onWhatsAppClick={() =>
+                          void trackListingAnalyticsEvent("whatsapp_click")
+                        }
                       />
                     ) : null}
 
@@ -4957,6 +5009,60 @@ export default function ListingDetailPage() {
                     </div>
                     ) : null}
                   </div>
+
+                  <Separator />
+
+                  {canSeeListingAnalytics && listingAnalytics ? (
+                    <div className="space-y-3 text-sm rounded-xl border p-3 bg-muted/20">
+                      <p className="font-semibold">
+                        {language === "uk"
+                          ? "Аналітика оголошення"
+                          : language === "cs"
+                            ? "Statistiky inzerátu"
+                            : "Listing analytics"}
+                      </p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="text-center">
+                          <p className="text-muted-foreground text-xs">
+                            {language === "uk"
+                              ? "Перегляди"
+                              : language === "cs"
+                                ? "Zobrazení"
+                                : "Views"}
+                          </p>
+                          <p className="font-semibold" data-testid="text-analytics-views">
+                            {listingAnalytics.views}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-muted-foreground text-xs">
+                            {language === "uk"
+                              ? "Контакт"
+                              : language === "cs"
+                                ? "Kontakt"
+                                : "Contact"}
+                          </p>
+                          <p
+                            className="font-semibold"
+                            data-testid="text-analytics-contact-clicks"
+                          >
+                            {listingAnalytics.contactClicks}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-muted-foreground text-xs">
+                            WhatsApp
+                          </p>
+                          <p
+                            className="font-semibold"
+                            data-testid="text-analytics-whatsapp-clicks"
+                          >
+                            {listingAnalytics.whatsappClicks}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <Separator />
 
@@ -5216,6 +5322,7 @@ function ContactChatButtons({
   tgText = "Napsat na Telegram",
   className = "",
   toastFn,
+  onWhatsAppClick,
 }: {
   phone?: string | null;
   carTitle: string;
@@ -5227,6 +5334,7 @@ function ContactChatButtons({
     description?: string;
     variant?: "default" | "destructive";
   }) => void;
+  onWhatsAppClick?: () => void;
 }) {
   const digits = phoneToDigits(phone);
   if (!digits) return null;
@@ -5261,6 +5369,7 @@ function ContactChatButtons({
           href={waHref}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={onWhatsAppClick}
           className={link}
         >
           <MessageCircle className="h-4 w-4 flex-none text-[#25D366]" />

@@ -93,6 +93,157 @@ const czLocationCache = new Map<
   { expiresAt: number; items: CzLocationSuggestion[] }
 >();
 
+type ListingAnalyticsEventType = "view" | "contact_click" | "whatsapp_click";
+type ListingAnalyticsCounts = {
+  listingId: string;
+  views: number;
+  contactClicks: number;
+  whatsappClicks: number;
+};
+
+const LISTING_ANALYTICS_EVENT_TYPES = new Set<ListingAnalyticsEventType>([
+  "view",
+  "contact_click",
+  "whatsapp_click",
+]);
+
+const stableHash = (input: string): string => {
+  let hash = 5381;
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 33) ^ input.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(16);
+};
+
+const getViewerFingerprint = (req: Request): string => {
+  const forwardedForRaw = req.headers["x-forwarded-for"];
+  const forwardedFor =
+    typeof forwardedForRaw === "string"
+      ? forwardedForRaw
+      : Array.isArray(forwardedForRaw)
+        ? forwardedForRaw[0] || ""
+        : "";
+  const ip = forwardedFor.split(",")[0]?.trim() || req.ip || "";
+  const sessionUserId = req.session?.userId || "";
+  const sessionId = req.sessionID || "";
+  const ua = req.get("user-agent") || "";
+  const acceptLanguage = req.get("accept-language") || "";
+  return `v1_${stableHash(
+    `${sessionUserId}|${sessionId}|${ip}|${ua}|${acceptLanguage}`,
+  )}`;
+};
+
+const ensureListingAnalyticsTable = async () => {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS listing_analytics_events (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      listing_id VARCHAR NOT NULL,
+      owner_user_id VARCHAR NOT NULL,
+      event_type VARCHAR(32) NOT NULL,
+      viewer_fingerprint TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      updated_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+
+  await db.execute(sql`
+    CREATE UNIQUE INDEX IF NOT EXISTS listing_analytics_unique_event_idx
+    ON listing_analytics_events (listing_id, event_type, viewer_fingerprint)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listing_analytics_listing_event_idx
+    ON listing_analytics_events (listing_id, event_type)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listing_analytics_owner_idx
+    ON listing_analytics_events (owner_user_id)
+  `);
+};
+
+const recordListingAnalyticsEvent = async (
+  req: Request,
+  listingId: string,
+  eventType: ListingAnalyticsEventType,
+): Promise<boolean> => {
+  if (!LISTING_ANALYTICS_EVENT_TYPES.has(eventType)) return false;
+
+  const listing = await storage.getListing(listingId);
+  if (!listing) return false;
+  if (req.session?.userId && req.session.userId === listing.userId) {
+    // Owner's own interactions should not inflate audience analytics.
+    return true;
+  }
+
+  const viewerFingerprint = getViewerFingerprint(req);
+  await db.execute(sql`
+    INSERT INTO listing_analytics_events (
+      listing_id,
+      owner_user_id,
+      event_type,
+      viewer_fingerprint,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      ${listingId},
+      ${listing.userId},
+      ${eventType},
+      ${viewerFingerprint},
+      now(),
+      now()
+    )
+    ON CONFLICT (listing_id, event_type, viewer_fingerprint)
+    DO UPDATE SET updated_at = now()
+  `);
+
+  return true;
+};
+
+const getListingAnalyticsByIds = async (
+  listingIds: string[],
+): Promise<Record<string, ListingAnalyticsCounts>> => {
+  const base: Record<string, ListingAnalyticsCounts> = {};
+  for (const listingId of listingIds) {
+    base[listingId] = {
+      listingId,
+      views: 0,
+      contactClicks: 0,
+      whatsappClicks: 0,
+    };
+  }
+
+  if (!listingIds.length) return base;
+
+  const listingIdsSql = sql.join(
+    listingIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
+  const result = (await db.execute(sql`
+    SELECT
+      listing_id,
+      COUNT(*) FILTER (WHERE event_type = 'view')::int AS views,
+      COUNT(*) FILTER (WHERE event_type = 'contact_click')::int AS contact_clicks,
+      COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS whatsapp_clicks
+    FROM listing_analytics_events
+    WHERE listing_id IN (${listingIdsSql})
+    GROUP BY listing_id
+  `)) as any;
+
+  const rows = Array.isArray(result?.rows) ? result.rows : [];
+  for (const row of rows) {
+    const listingId = String(row?.listing_id || "");
+    if (!listingId || !base[listingId]) continue;
+    base[listingId] = {
+      listingId,
+      views: Number(row?.views || 0),
+      contactClicks: Number(row?.contact_clicks || 0),
+      whatsappClicks: Number(row?.whatsapp_clicks || 0),
+    };
+  }
+
+  return base;
+};
+
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/;
 
 const mapDecodedFuelType = (fuelRaw: string): string | null => {
@@ -1334,6 +1485,7 @@ const compareBySort = (a: any, b: any, sort: SortKey) => {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupAuth(app);
+  await ensureListingAnalyticsTable();
   app.set("etag", false);
   // Test session save endpoint - comprehensive session diagnostics
   app.get("/api/health/test-session", async (req, res) => {
@@ -4982,6 +5134,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/listings/:id/analytics/:eventType", async (req, res) => {
+    try {
+      const listingId = String(req.params.id || "").trim();
+      const eventType = String(req.params.eventType || "").trim() as ListingAnalyticsEventType;
+      if (!listingId) return res.status(400).json({ error: "Missing listing id" });
+      if (!LISTING_ANALYTICS_EVENT_TYPES.has(eventType)) {
+        return res.status(400).json({ error: "Unknown analytics event type" });
+      }
+
+      const tracked = await recordListingAnalyticsEvent(req, listingId, eventType);
+      if (!tracked) return res.status(404).json({ error: "Listing not found" });
+
+      return res.json({ ok: true });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Failed to track analytics event" });
+    }
+  });
+
+  app.get("/api/listings/:id/analytics", isAuthenticated, async (req, res) => {
+    try {
+      const listingId = String(req.params.id || "").trim();
+      if (!listingId) return res.status(400).json({ error: "Missing listing id" });
+
+      const listing = await storage.getListing(listingId);
+      if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+      const currentUser = await storage.getUser(req.session.userId!);
+      if (!currentUser) return res.status(401).json({ error: "Unauthorized" });
+      if (listing.userId !== currentUser.id && !currentUser.isAdmin) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const stats = await getListingAnalyticsByIds([listingId]);
+      return res.json(
+        stats[listingId] || {
+          listingId,
+          views: 0,
+          contactClicks: 0,
+          whatsappClicks: 0,
+        },
+      );
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Failed to load listing analytics" });
+    }
+  });
+
   // Admin endpoints
   app.get("/api/admin/users", isAdmin, async (req, res) => {
     try {
@@ -5020,6 +5218,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(listings);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/listings/analytics", isAdmin, async (_req, res) => {
+    try {
+      const listings = await storage.getListings();
+      const listingIds = listings.map((listing) => listing.id);
+      const statsMap = await getListingAnalyticsByIds(listingIds);
+
+      const items = listings.map((listing) => {
+        const stats = statsMap[listing.id] || {
+          listingId: listing.id,
+          views: 0,
+          contactClicks: 0,
+          whatsappClicks: 0,
+        };
+        return {
+          listingId: listing.id,
+          ownerUserId: listing.userId,
+          views: stats.views,
+          contactClicks: stats.contactClicks,
+          whatsappClicks: stats.whatsappClicks,
+        };
+      });
+
+      return res.json({ count: items.length, items });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "Failed to load admin listing analytics" });
     }
   });
 

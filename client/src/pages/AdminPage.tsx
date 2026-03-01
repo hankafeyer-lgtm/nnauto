@@ -399,7 +399,7 @@
 //     </div>
 //   );
 // }
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -460,6 +460,19 @@ type AdminCebiaReportsResponse = {
   items: AdminCebiaReport[];
 };
 
+type AdminListingAnalyticsItem = {
+  listingId: string;
+  ownerUserId: string;
+  views: number;
+  contactClicks: number;
+  whatsappClicks: number;
+};
+
+type AdminListingAnalyticsResponse = {
+  count: number;
+  items: AdminListingAnalyticsItem[];
+};
+
 export default function AdminPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const t = useTranslation();
@@ -513,6 +526,11 @@ export default function AdminPage() {
     enabled: isAuthenticated && user?.isAdmin,
   });
 
+  const { data: listingAnalyticsData } = useQuery<AdminListingAnalyticsResponse>({
+    queryKey: ["/api/admin/listings/analytics"],
+    enabled: isAuthenticated && user?.isAdmin,
+  });
+
   // const users = usersData || [];
   // const listings = listingsData || [];
   // const payments = paymentsData || [];
@@ -522,6 +540,13 @@ export default function AdminPage() {
 
   const payments = paymentsData || [];
   const cebiaReports = cebiaReportsData?.items || [];
+  const listingAnalyticsMap = useMemo(() => {
+    const map = new Map<string, AdminListingAnalyticsItem>();
+    for (const item of listingAnalyticsData?.items || []) {
+      map.set(item.listingId, item);
+    }
+    return map;
+  }, [listingAnalyticsData]);
 
   if (
     (usersError || listingsError || paymentsError || cebiaReportsError) &&
@@ -821,6 +846,9 @@ export default function AdminPage() {
                           <TableHead>{t("admin.model")}</TableHead>
                           <TableHead>{t("admin.price")}</TableHead>
                           <TableHead>{t("admin.year")}</TableHead>
+                          <TableHead>Views</TableHead>
+                          <TableHead>Contact</TableHead>
+                          <TableHead>WhatsApp</TableHead>
                           <TableHead>{t("admin.createdAt")}</TableHead>
                           <TableHead>{t("admin.status")}</TableHead>
                           <TableHead className="text-right">
@@ -829,11 +857,13 @@ export default function AdminPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {listings.map((listing) => (
-                          <TableRow
-                            key={listing.id}
-                            data-testid={`row-listing-${listing.id}`}
-                          >
+                        {listings.map((listing) => {
+                          const analytics = listingAnalyticsMap.get(listing.id);
+                          return (
+                            <TableRow
+                              key={listing.id}
+                              data-testid={`row-listing-${listing.id}`}
+                            >
                             <TableCell
                               className="font-medium"
                               data-testid={`text-title-${listing.id}`}
@@ -854,6 +884,21 @@ export default function AdminPage() {
                             </TableCell>
                             <TableCell data-testid={`text-year-${listing.id}`}>
                               {listing.year}
+                            </TableCell>
+                            <TableCell
+                              data-testid={`text-views-${listing.id}`}
+                            >
+                              {analytics?.views ?? 0}
+                            </TableCell>
+                            <TableCell
+                              data-testid={`text-contact-clicks-${listing.id}`}
+                            >
+                              {analytics?.contactClicks ?? 0}
+                            </TableCell>
+                            <TableCell
+                              data-testid={`text-whatsapp-clicks-${listing.id}`}
+                            >
+                              {analytics?.whatsappClicks ?? 0}
                             </TableCell>
                             <TableCell
                               data-testid={`text-created-listing-${listing.id}`}
@@ -923,8 +968,9 @@ export default function AdminPage() {
                                 </Button>
                               </div>
                             </TableCell>
-                          </TableRow>
-                        ))}
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
