@@ -3183,20 +3183,6 @@ export default function ListingDetailPage() {
   const [cebiaGuestStatus, setCebiaGuestStatus] = useState<string | null>(null);
   const [cebiaGuestHasPdf, setCebiaGuestHasPdf] = useState(false);
 
-  const handleCebiaClick = useCallback(() => {
-    const vin = (listing?.vin || "").trim().toUpperCase();
-    const vinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
-    if (!vinValid) {
-      toast({
-        variant: "destructive",
-        title: t("cebia.unavailable"),
-        description: t("cebia.requiresListingVin"),
-      });
-      return;
-    }
-    setCebiaDialogOpen(true);
-  }, [listing?.vin, t, toast]);
-
   const redirectToCheckout = useCallback((url: string) => {
     try {
       if (window.parent && window.parent !== window) {
@@ -3254,6 +3240,18 @@ export default function ListingDetailPage() {
   const cebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen !== false; // default: frozen
   const listingVin = (listing?.vin || "").trim().toUpperCase();
   const listingVinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(listingVin);
+
+  const handleCebiaClick = useCallback(() => {
+    if (!listingVinValid) {
+      toast({
+        variant: "destructive",
+        title: t("cebia.unavailable"),
+        description: t("cebia.requiresListingVin"),
+      });
+      return;
+    }
+    setCebiaDialogOpen(true);
+  }, [listingVinValid, t, toast]);
 
   // Stripe redirect: promoted=success/cancelled
   useEffect(() => {
