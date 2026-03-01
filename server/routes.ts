@@ -235,6 +235,224 @@ const mapDecodedVehicleType = (vehicleRaw: string): string | null => {
   return "osobni-auta";
 };
 
+type VinDecodedCore = {
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  fuelType: "benzin" | "diesel" | "hybrid" | "electric" | "lpg" | "cng" | null;
+  bodyType:
+    | "sedan"
+    | "hatchback"
+    | "wagon"
+    | "suv"
+    | "crossover"
+    | "coupe"
+    | "convertible"
+    | "minivan"
+    | "pickup"
+    | "van"
+    | "liftback"
+    | null;
+  doors: number | null;
+  driveType: "fwd" | "rwd" | "awd" | "4wd" | null;
+  transmission: "manual" | "automatic" | "robot" | "cvt" | null;
+  engineVolume: string | null;
+  power: number | null;
+  vehicleType: "osobni-auta" | "nakladni-vozy" | "motorky" | null;
+};
+
+const emptyVinDecodedCore = (): VinDecodedCore => ({
+  make: null,
+  model: null,
+  year: null,
+  fuelType: null,
+  bodyType: null,
+  doors: null,
+  driveType: null,
+  transmission: null,
+  engineVolume: null,
+  power: null,
+  vehicleType: null,
+});
+
+const normalizeKey = (value: string): string =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+
+const flattenObjectEntries = (
+  input: unknown,
+  prefix = "",
+  maxEntries = 4000,
+  out: Array<{ key: string; value: string }> = [],
+): Array<{ key: string; value: string }> => {
+  if (out.length >= maxEntries || input == null) return out;
+  if (typeof input === "string" || typeof input === "number" || typeof input === "boolean") {
+    const value = String(input).trim();
+    if (value) out.push({ key: prefix, value });
+    return out;
+  }
+  if (Array.isArray(input)) {
+    for (let i = 0; i < input.length; i++) {
+      flattenObjectEntries(input[i], `${prefix}[${i}]`, maxEntries, out);
+      if (out.length >= maxEntries) break;
+    }
+    return out;
+  }
+  if (typeof input === "object") {
+    for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+      const nextPrefix = prefix ? `${prefix}.${k}` : k;
+      flattenObjectEntries(v, nextPrefix, maxEntries, out);
+      if (out.length >= maxEntries) break;
+    }
+  }
+  return out;
+};
+
+const pickValueByAliases = (
+  payload: unknown,
+  aliases: string[],
+): string | null => {
+  const flat = flattenObjectEntries(payload);
+  const normalizedAliases = aliases.map((a) => normalizeKey(a));
+  for (const entry of flat) {
+    const keyNorm = normalizeKey(entry.key);
+    if (!keyNorm) continue;
+    const matched = normalizedAliases.some(
+      (alias) => keyNorm === alias || keyNorm.endsWith(alias) || keyNorm.includes(alias),
+    );
+    if (matched && entry.value.trim()) return entry.value.trim();
+  }
+  return null;
+};
+
+const parseYearFromAny = (raw: string | null): number | null => {
+  if (!raw) return null;
+  const direct = Number.parseInt(raw.trim(), 10);
+  if (Number.isFinite(direct) && direct >= 1900 && direct <= new Date().getFullYear() + 1) {
+    return direct;
+  }
+  const yearMatch = raw.match(/\b(19|20)\d{2}\b/);
+  if (!yearMatch) return null;
+  const year = Number.parseInt(yearMatch[0], 10);
+  if (!Number.isFinite(year)) return null;
+  if (year < 1900 || year > new Date().getFullYear() + 1) return null;
+  return year;
+};
+
+const parseDoorsFromAny = (raw: string | null): number | null => {
+  if (!raw) return null;
+  const first = raw.match(/\d{1,2}/);
+  if (!first) return null;
+  const value = Number.parseInt(first[0], 10);
+  if (!Number.isFinite(value) || value < 1 || value > 8) return null;
+  return value;
+};
+
+const parseEngineVolumeFromAny = (raw: string | null): string | null => {
+  if (!raw) return null;
+  const normalized = raw.replace(",", ".").toLowerCase();
+  const match = normalized.match(/\d+(\.\d+)?/);
+  if (!match) return null;
+  let value = Number.parseFloat(match[0]);
+  if (!Number.isFinite(value)) return null;
+  if (normalized.includes("cm3") || normalized.includes("ccm")) value = value / 1000;
+  if (value <= 0 || value > 10) return null;
+  return value.toFixed(1).replace(/\.0$/, "");
+};
+
+const parsePowerKwFromAny = (raw: string | null): number | null => {
+  if (!raw) return null;
+  const normalized = raw.replace(",", ".").toLowerCase();
+  const match = normalized.match(/\d+(\.\d+)?/);
+  if (!match) return null;
+  const value = Number.parseFloat(match[0]);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  if (
+    normalized.includes("hp") ||
+    normalized.includes("bhp") ||
+    normalized.includes("horse")
+  ) {
+    return Math.round(value * 0.7457);
+  }
+  if (normalized.includes("kw")) return Math.round(value);
+  if (value <= 600) return Math.round(value);
+  return null;
+};
+
+const decodeVinFromCebiaPayload = (payload: unknown): VinDecodedCore => {
+  const make = pickValueByAliases(payload, ["make", "manufacturer", "brand", "znacka", "vyrobce"]);
+  const model = pickValueByAliases(payload, ["model", "typ", "modelname"]);
+  const yearRaw = pickValueByAliases(payload, [
+    "modelyear",
+    "year",
+    "rok",
+    "rokvyroby",
+    "yearofmanufacture",
+    "firstregistrationyear",
+  ]);
+  const fuelRaw = pickValueByAliases(payload, [
+    "fueltype",
+    "fuel",
+    "palivo",
+    "druhpaliva",
+    "fueltypeprimary",
+  ]);
+  const bodyRaw = pickValueByAliases(payload, ["bodyclass", "bodytype", "body", "karoserie"]);
+  const doorsRaw = pickValueByAliases(payload, ["doors", "doorcount", "pocetdveri"]);
+  const driveRaw = pickValueByAliases(payload, ["drivetype", "drivetrain", "drive", "pohon"]);
+  const transmissionRaw = pickValueByAliases(payload, [
+    "transmission",
+    "transmissionstyle",
+    "gearbox",
+    "prevodovka",
+  ]);
+  const engineVolumeRaw = pickValueByAliases(payload, [
+    "displacementl",
+    "enginevolume",
+    "displacement",
+    "objemmotoru",
+    "objem",
+  ]);
+  const powerRaw = pickValueByAliases(payload, ["enginehp", "power", "vykon", "kw", "horsepower"]);
+  const vehicleTypeRaw = pickValueByAliases(payload, [
+    "vehicletype",
+    "vehiclecategory",
+    "typvozidla",
+    "kategorievozidla",
+  ]);
+
+  return {
+    make: make || null,
+    model: model || null,
+    year: parseYearFromAny(yearRaw),
+    fuelType: mapDecodedFuelType(fuelRaw || ""),
+    bodyType: mapDecodedBodyType(bodyRaw || "") as VinDecodedCore["bodyType"],
+    doors: parseDoorsFromAny(doorsRaw),
+    driveType: mapDecodedDriveType(driveRaw || "") as VinDecodedCore["driveType"],
+    transmission: mapDecodedTransmission(transmissionRaw || "") as VinDecodedCore["transmission"],
+    engineVolume: parseEngineVolumeFromAny(engineVolumeRaw),
+    power: parsePowerKwFromAny(powerRaw),
+    vehicleType: mapDecodedVehicleType(vehicleTypeRaw || "") as VinDecodedCore["vehicleType"],
+  };
+};
+
+const mergeVinDecoded = (primary: VinDecodedCore, fallback: VinDecodedCore): VinDecodedCore => ({
+  make: primary.make || fallback.make || null,
+  model: primary.model || fallback.model || null,
+  year: primary.year || fallback.year || null,
+  fuelType: primary.fuelType || fallback.fuelType || null,
+  bodyType: primary.bodyType || fallback.bodyType || null,
+  doors: primary.doors || fallback.doors || null,
+  driveType: primary.driveType || fallback.driveType || null,
+  transmission: primary.transmission || fallback.transmission || null,
+  engineVolume: primary.engineVolume || fallback.engineVolume || null,
+  power: primary.power || fallback.power || null,
+  vehicleType: primary.vehicleType || fallback.vehicleType || null,
+});
+
 const mergeRawResponse = (existing: unknown, patch: Record<string, unknown>) => {
   if (existing && typeof existing === "object" && !Array.isArray(existing)) {
     return { ...(existing as any), ...patch };
@@ -2849,6 +3067,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ error: "VIN must have 17 valid characters" });
     }
 
+    let fromCebia = emptyVinDecodedCore();
+    let fromNhtsa = emptyVinDecodedCore();
+    const usedSources: string[] = [];
+
+    // 1) Primary source for CZ/EU market: Cebia
+    try {
+      const cebiaPayload = await cebiaVinCheck(vin);
+      fromCebia = decodeVinFromCebiaPayload(cebiaPayload);
+      if (Object.values(fromCebia).some((v) => v !== null)) {
+        usedSources.push("cebia");
+      }
+    } catch (error) {
+      console.warn("[VIN] Cebia decode unavailable, fallback to NHTSA:", error);
+    }
+
+    // 2) Fallback source: NHTSA (stronger for US/CA VINs)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     try {
@@ -2856,86 +3090,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
         `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/${encodeURIComponent(vin)}?format=json`,
         { signal: controller.signal },
       );
-      if (!response.ok) {
-        return res.status(502).json({ error: "VIN decode service unavailable" });
-      }
-      const payload: any = await response.json();
-      const row =
-        Array.isArray(payload?.Results) && payload.Results.length > 0
-          ? payload.Results[0]
-          : null;
-      if (!row || typeof row !== "object") {
-        return res.status(404).json({ error: "VIN decode data not found" });
-      }
+      if (response.ok) {
+        const payload: any = await response.json();
+        const row =
+          Array.isArray(payload?.Results) && payload.Results.length > 0
+            ? payload.Results[0]
+            : null;
+        if (row && typeof row === "object") {
+          const make = typeof row.Make === "string" ? row.Make.trim() : "";
+          const model = typeof row.Model === "string" ? row.Model.trim() : "";
+          const modelYearRaw =
+            typeof row.ModelYear === "string" ? row.ModelYear.trim() : "";
+          const modelYear = Number.parseInt(modelYearRaw, 10);
+          const fuelPrimary =
+            typeof row.FuelTypePrimary === "string" ? row.FuelTypePrimary.trim() : "";
+          const fuelSecondary =
+            typeof row.FuelTypeSecondary === "string" ? row.FuelTypeSecondary.trim() : "";
+          const fuelType =
+            mapDecodedFuelType([fuelPrimary, fuelSecondary].filter(Boolean).join(" ")) ||
+            null;
+          const bodyClass = typeof row.BodyClass === "string" ? row.BodyClass.trim() : "";
+          const doorsRaw = typeof row.Doors === "string" ? row.Doors.trim() : "";
+          const doors = Number.parseInt(doorsRaw, 10);
+          const driveTypeRaw = typeof row.DriveType === "string" ? row.DriveType.trim() : "";
+          const transmissionRaw =
+            typeof row.TransmissionStyle === "string" ? row.TransmissionStyle.trim() : "";
+          const displacementRaw =
+            typeof row.DisplacementL === "string" ? row.DisplacementL.trim() : "";
+          const displacement = Number.parseFloat(displacementRaw);
+          const hpRaw = typeof row.EngineHP === "string" ? row.EngineHP.trim() : "";
+          const hp = Number.parseFloat(hpRaw);
+          const vehicleTypeRaw =
+            typeof row.VehicleType === "string" ? row.VehicleType.trim() : "";
 
-      const make = typeof row.Make === "string" ? row.Make.trim() : "";
-      const model = typeof row.Model === "string" ? row.Model.trim() : "";
-      const modelYearRaw =
-        typeof row.ModelYear === "string" ? row.ModelYear.trim() : "";
-      const modelYear = Number.parseInt(modelYearRaw, 10);
-      const fuelPrimary =
-        typeof row.FuelTypePrimary === "string" ? row.FuelTypePrimary.trim() : "";
-      const fuelSecondary =
-        typeof row.FuelTypeSecondary === "string" ? row.FuelTypeSecondary.trim() : "";
-      const fuelType =
-        mapDecodedFuelType([fuelPrimary, fuelSecondary].filter(Boolean).join(" ")) ||
-        null;
-      const bodyClass = typeof row.BodyClass === "string" ? row.BodyClass.trim() : "";
-      const bodyType = mapDecodedBodyType(bodyClass);
-      const doorsRaw = typeof row.Doors === "string" ? row.Doors.trim() : "";
-      const doors = Number.parseInt(doorsRaw, 10);
-      const driveTypeRaw = typeof row.DriveType === "string" ? row.DriveType.trim() : "";
-      const driveType = mapDecodedDriveType(driveTypeRaw);
-      const transmissionRaw =
-        typeof row.TransmissionStyle === "string" ? row.TransmissionStyle.trim() : "";
-      const transmission = mapDecodedTransmission(transmissionRaw);
-      const displacementRaw =
-        typeof row.DisplacementL === "string" ? row.DisplacementL.trim() : "";
-      const displacement = Number.parseFloat(displacementRaw);
-      const engineVolume = Number.isFinite(displacement)
-        ? displacement.toFixed(1).replace(/\.0$/, "")
-        : null;
-      const hpRaw = typeof row.EngineHP === "string" ? row.EngineHP.trim() : "";
-      const hp = Number.parseFloat(hpRaw);
-      const power = Number.isFinite(hp) ? Math.round(hp * 0.7457) : null;
-      const vehicleTypeRaw =
-        typeof row.VehicleType === "string" ? row.VehicleType.trim() : "";
-      const vehicleType = mapDecodedVehicleType(vehicleTypeRaw);
-      const found = Boolean(
-        make ||
-          model ||
-          (Number.isFinite(modelYear) ? modelYear : null) ||
-          fuelType ||
-          bodyType ||
-          (Number.isFinite(doors) ? doors : null) ||
-          driveType ||
-          transmission ||
-          engineVolume ||
-          power,
-      );
-
-      res.json({
-        vin,
-        source: "nhtsa-vpic",
-        found,
-        make: make || null,
-        model: model || null,
-        year: Number.isFinite(modelYear) ? modelYear : null,
-        fuelType,
-        bodyType,
-        doors: Number.isFinite(doors) ? doors : null,
-        driveType,
-        transmission,
-        engineVolume,
-        power,
-        vehicleType,
-      });
+          fromNhtsa = {
+            make: make || null,
+            model: model || null,
+            year: Number.isFinite(modelYear) ? modelYear : null,
+            fuelType,
+            bodyType: mapDecodedBodyType(bodyClass) as VinDecodedCore["bodyType"],
+            doors: Number.isFinite(doors) ? doors : null,
+            driveType: mapDecodedDriveType(driveTypeRaw) as VinDecodedCore["driveType"],
+            transmission: mapDecodedTransmission(transmissionRaw) as VinDecodedCore["transmission"],
+            engineVolume: Number.isFinite(displacement)
+              ? displacement.toFixed(1).replace(/\.0$/, "")
+              : null,
+            power: Number.isFinite(hp) ? Math.round(hp * 0.7457) : null,
+            vehicleType: mapDecodedVehicleType(vehicleTypeRaw) as VinDecodedCore["vehicleType"],
+          };
+          if (Object.values(fromNhtsa).some((v) => v !== null)) {
+            usedSources.push("nhtsa-vpic");
+          }
+        }
+      }
     } catch (error) {
-      console.error("[VIN] decode failed:", error);
-      res.status(502).json({ error: "VIN decode failed" });
+      console.warn("[VIN] NHTSA decode unavailable:", error);
     } finally {
       clearTimeout(timeout);
     }
+
+    const merged = mergeVinDecoded(fromCebia, fromNhtsa);
+    const found = Object.values(merged).some((value) => value !== null);
+    res.json({
+      vin,
+      source: usedSources.length ? usedSources.join("+") : "none",
+      found,
+      ...merged,
+    });
   });
 
   // Public Cebia config for frontend gating
