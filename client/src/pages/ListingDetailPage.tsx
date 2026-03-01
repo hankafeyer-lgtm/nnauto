@@ -3386,6 +3386,27 @@ export default function ListingDetailPage() {
     setLightboxOpen(true);
   }, []);
 
+  const handlePhotoThumbnailClick = useCallback(
+    (index: number) => {
+      // If user taps the already selected thumbnail, open gallery immediately.
+      if (index === currentCarouselIndex) {
+        openLightboxAt(index);
+        return;
+      }
+      scrollToCarouselItem(index);
+    },
+    [currentCarouselIndex, openLightboxAt, scrollToCarouselItem],
+  );
+
+  const handleVideoThumbnailClick = useCallback(() => {
+    const videoIndex = photoKeys.length;
+    if (currentCarouselIndex === videoIndex) {
+      openLightboxAt(videoIndex);
+      return;
+    }
+    scrollToCarouselItem(videoIndex);
+  }, [currentCarouselIndex, openLightboxAt, photoKeys.length, scrollToCarouselItem]);
+
   // Promote TOP
   const promoteToTopMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -4275,7 +4296,7 @@ export default function ListingDetailPage() {
                         return (
                           <button
                             key={`thumb-${key}-${index}`}
-                            onClick={() => scrollToCarouselItem(index)}
+                            onClick={() => handlePhotoThumbnailClick(index)}
                             className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                               isActive
                                 ? "border-primary ring-2 ring-primary/30"
@@ -4310,7 +4331,7 @@ export default function ListingDetailPage() {
 
                       {hasVideo && (
                         <button
-                          onClick={() => scrollToCarouselItem(photoKeys.length)}
+                          onClick={handleVideoThumbnailClick}
                           className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all relative ${
                             currentCarouselIndex === photoKeys.length
                               ? "border-[#B8860B] ring-2 ring-[#B8860B]/30"
