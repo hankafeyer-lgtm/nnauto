@@ -4925,7 +4925,7 @@ export default function ListingDetailPage() {
                         data-testid="button-cebia-open"
                         disabled={cebiaPaymentsFrozen}
                       >
-                        {cebiaPaymentsFrozen ? "Platby dočasně vypnuté" : "Перевірити VIN код"}
+                        {cebiaPaymentsFrozen ? "Platby dočasně vypnuté" : t("cebia.orderCheck")}
                       </Button>
 
                       <p className="text-xs text-muted-foreground">
@@ -5082,8 +5082,8 @@ export default function ListingDetailPage() {
                 {cebiaPaymentsFrozen
                   ? "Platby dočasně vypnuté"
                   : cebiaCheckoutMutation.isPending
-                    ? "Přesměrování…"
-                    : "Zaplatit"}
+                    ? t("cebia.payProcessing")
+                    : t("cebia.payButton")}
               </Button>
             </div>
 
