@@ -4100,7 +4100,7 @@ export default function ListingsPage() {
                     viewMode === "grid"
                       ? [
                           "grid grid-cols-1 md:grid-cols-2 gap-8",
-                          sidebarCollapsed ? "xl:grid-cols-3" : "xl:grid-cols-2",
+                          sidebarCollapsed ? "lg:grid-cols-3" : "lg:grid-cols-2",
                         ].join(" ")
                       : "flex flex-col gap-8"
                   }
