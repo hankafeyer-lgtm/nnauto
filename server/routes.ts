@@ -79,6 +79,20 @@ const CEBIA_STRIPE_PAYMENT_LINK_URL = (
   "https://buy.stripe.com/5kQdR857b0jVaZf8SsdZ600"
 ).trim();
 
+type CzLocationSuggestion = {
+  id: string;
+  label: string;
+  city: string;
+  region: string;
+  country: string;
+};
+
+const CZ_LOCATION_CACHE_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const czLocationCache = new Map<
+  string,
+  { expiresAt: number; items: CzLocationSuggestion[] }
+>();
+
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/;
 
 const mapDecodedFuelType = (fuelRaw: string): string | null => {
@@ -3179,6 +3193,97 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error getting Stripe config:", error);
       res.status(503).json({ error: "Payment system not configured" });
+    }
+  });
+
+  app.get("/api/analytics/config", (_req, res) => {
+    res.json({
+      clarityProjectId: (process.env.CLARITY_PROJECT_ID || "").trim() || null,
+    });
+  });
+
+  // CZ address/city autocomplete using OSM Nominatim
+  app.get("/api/locations/cz/autocomplete", async (req, res) => {
+    try {
+      const query = typeof req.query?.q === "string" ? req.query.q.trim() : "";
+      if (query.length < 2) {
+        return res.json({ items: [] });
+      }
+
+      const cacheKey = query.toLowerCase();
+      const cached = czLocationCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) {
+        return res.json({ items: cached.items });
+      }
+
+      const url = new URL("https://nominatim.openstreetmap.org/search");
+      url.searchParams.set("q", query);
+      url.searchParams.set("countrycodes", "cz");
+      url.searchParams.set("format", "jsonv2");
+      url.searchParams.set("addressdetails", "1");
+      url.searchParams.set("limit", "12");
+      url.searchParams.set("dedupe", "1");
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          // Required by Nominatim usage policy
+          "User-Agent": "NNAuto/1.0 (info@nnauto.cz)",
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return res.status(502).json({ error: "Location provider unavailable" });
+      }
+
+      const payload: any = await response.json();
+      const rows: any[] = Array.isArray(payload) ? payload : [];
+      const mapped: CzLocationSuggestion[] = rows
+        .map((row) => {
+          const address = row?.address && typeof row.address === "object" ? row.address : {};
+          const city =
+            address.city ||
+            address.town ||
+            address.village ||
+            address.municipality ||
+            address.hamlet ||
+            "";
+          const region =
+            address.state ||
+            address.region ||
+            address.county ||
+            "";
+          const country = address.country || "Czechia";
+          const parts = [city, region, country].filter(Boolean);
+          const fallbackLabel =
+            typeof row?.display_name === "string" ? row.display_name : "";
+          const label = parts.length ? parts.join(", ") : fallbackLabel;
+          if (!label) return null;
+
+          const id =
+            typeof row?.place_id === "number" || typeof row?.place_id === "string"
+              ? String(row.place_id)
+              : label;
+          return {
+            id,
+            label,
+            city: city || "",
+            region: region || "",
+            country: country || "",
+          } as CzLocationSuggestion;
+        })
+        .filter((v): v is CzLocationSuggestion => !!v)
+        .slice(0, 12);
+
+      czLocationCache.set(cacheKey, {
+        expiresAt: Date.now() + CZ_LOCATION_CACHE_TTL_MS,
+        items: mapped,
+      });
+
+      res.json({ items: mapped });
+    } catch (error: any) {
+      console.error("[LOCATIONS] autocomplete failed:", error);
+      res.status(500).json({ error: "Failed to load locations" });
     }
   });
 

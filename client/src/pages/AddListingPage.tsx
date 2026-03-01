@@ -195,6 +195,18 @@ type VinDecodeResponse = {
   vehicleType: "osobni-auta" | "nakladni-vozy" | "motorky" | null;
 };
 
+type CzLocationSuggestion = {
+  id: string;
+  label: string;
+  city: string;
+  region: string;
+  country: string;
+};
+
+type CzLocationAutocompleteResponse = {
+  items: CzLocationSuggestion[];
+};
+
 const normalizeLookup = (value: string): string =>
   value
     .normalize("NFD")
@@ -453,6 +465,8 @@ export default function AddListingPage() {
   const [seatsFilterType, setSeatsFilterType] = useState<'5' | '7' | 'custom' | ''>('');
   const [regionSearch, setRegionSearch] = useState('');
   const [showRegionSuggestions, setShowRegionSuggestions] = useState(false);
+  const [regionSuggestions, setRegionSuggestions] = useState<CzLocationSuggestion[]>([]);
+  const [isRegionSuggestionsLoading, setIsRegionSuggestionsLoading] = useState(false);
   
   const [yearOpen, setYearOpen] = useState(false);
   const [mileageOpen, setMileageOpen] = useState(false);
@@ -936,6 +950,35 @@ export default function AddListingPage() {
     },
   });
   const { mutate: decodeVin, isPending: isVinDecodePending } = vinDecodeMutation;
+
+  useEffect(() => {
+    if (!showRegionSuggestions) return;
+
+    const query = regionSearch.trim();
+    if (query.length < 2) {
+      setRegionSuggestions([]);
+      setIsRegionSuggestionsLoading(false);
+      return;
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsRegionSuggestionsLoading(true);
+        const response = await apiRequest(
+          "GET",
+          `/api/locations/cz/autocomplete?q=${encodeURIComponent(query)}`,
+        );
+        const data = (await response.json()) as CzLocationAutocompleteResponse;
+        setRegionSuggestions(Array.isArray(data.items) ? data.items : []);
+      } catch {
+        setRegionSuggestions([]);
+      } finally {
+        setIsRegionSuggestionsLoading(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timeoutId);
+  }, [regionSearch, showRegionSuggestions]);
 
   useEffect(() => {
     const normalizedVin = (vinValue || "")
@@ -2348,54 +2391,106 @@ export default function AddListingPage() {
                         control={form.control}
                         name="region"
                         render={({ field }) => {
-                          const filteredRegions = regions.filter(region => 
-                            region.label.toLowerCase().includes(regionSearch.toLowerCase()) ||
-                            region.value.toLowerCase().includes(regionSearch.toLowerCase())
-                          );
-                          const selectedRegion = regions.find(r => r.value === field.value);
-                          
+                          const normalizedSearch = regionSearch.trim().toLowerCase();
+                          const fallbackRegions = regions
+                            .filter(
+                              (region) =>
+                                region.label.toLowerCase().includes(normalizedSearch) ||
+                                region.value.toLowerCase().includes(normalizedSearch),
+                            )
+                            .slice(0, 12)
+                            .map((region) => ({
+                              id: `fallback-${region.value}`,
+                              label: region.label,
+                              city: region.label,
+                              region: "",
+                              country: "Czechia",
+                            }));
+
+                          const shownSuggestions =
+                            normalizedSearch.length >= 2
+                              ? regionSuggestions
+                              : fallbackRegions;
+
                           return (
                             <FormItem>
                               <FormLabel>{t("listing.region")}</FormLabel>
                               <FormControl>
                                 <div className="relative">
                                   <Input
-                                    placeholder={t("filters.allRegions")}
-                                    value={regionSearch || (selectedRegion?.label || '')}
+                                    placeholder={
+                                      language === "uk"
+                                        ? "Почніть вводити місто або адресу в Чехії"
+                                        : language === "cs"
+                                          ? "Začněte psát město nebo adresu v Česku"
+                                          : "Start typing city or address in Czechia"
+                                    }
+                                    value={regionSearch || field.value || ""}
                                     onChange={(e) => {
-                                      setRegionSearch(e.target.value);
+                                      const value = e.target.value;
+                                      setRegionSearch(value);
                                       setShowRegionSuggestions(true);
-                                      if (!e.target.value) {
-                                        field.onChange('');
-                                      }
+                                      field.onChange(value);
                                     }}
-                                    onFocus={() => setShowRegionSuggestions(true)}
+                                    onFocus={() => {
+                                      setRegionSearch(field.value || "");
+                                      setShowRegionSuggestions(true);
+                                    }}
                                     onBlur={() => setTimeout(() => setShowRegionSuggestions(false), 200)}
                                     data-testid="input-region"
                                   />
-                                  {showRegionSuggestions && filteredRegions.length > 0 && (
+                                  {showRegionSuggestions && (
                                     <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-xl shadow-lg z-50 overflow-hidden max-h-60 overflow-y-auto">
-                                      {filteredRegions.map((region) => (
-                                        <button
-                                          key={region.value}
-                                          type="button"
-                                          className={`w-full px-4 py-3 text-left hover:bg-accent flex items-center gap-3 border-b last:border-b-0 ${field.value === region.value ? 'bg-accent' : ''}`}
-                                          onMouseDown={(e) => {
-                                            e.preventDefault();
-                                            field.onChange(region.value);
-                                            setRegionSearch('');
-                                            setShowRegionSuggestions(false);
-                                          }}
-                                          data-testid={`region-option-${region.value}`}
-                                        >
-                                          <MapPin className="w-4 h-4 text-[#B8860B]" />
-                                          <span className="text-black dark:text-white font-medium">{region.label}</span>
-                                        </button>
-                                      ))}
+                                      {isRegionSuggestionsLoading ? (
+                                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                                          {language === "uk"
+                                            ? "Шукаємо адреси..."
+                                            : language === "cs"
+                                              ? "Hledám adresy..."
+                                              : "Searching addresses..."}
+                                        </div>
+                                      ) : shownSuggestions.length > 0 ? (
+                                        shownSuggestions.map((suggestion) => (
+                                          <button
+                                            key={suggestion.id}
+                                            type="button"
+                                            className={`w-full px-4 py-3 text-left hover:bg-accent flex items-center gap-3 border-b last:border-b-0 ${
+                                              field.value === suggestion.label ? "bg-accent" : ""
+                                            }`}
+                                            onMouseDown={(e) => {
+                                              e.preventDefault();
+                                              field.onChange(suggestion.label);
+                                              setRegionSearch(suggestion.label);
+                                              setShowRegionSuggestions(false);
+                                            }}
+                                            data-testid={`region-option-${suggestion.id}`}
+                                          >
+                                            <MapPin className="w-4 h-4 text-[#B8860B]" />
+                                            <span className="text-black dark:text-white font-medium">
+                                              {suggestion.label}
+                                            </span>
+                                          </button>
+                                        ))
+                                      ) : (
+                                        <div className="px-4 py-3 text-sm text-muted-foreground">
+                                          {language === "uk"
+                                            ? "Адреси не знайдено."
+                                            : language === "cs"
+                                              ? "Adresa nebyla nalezena."
+                                              : "No addresses found."}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
                               </FormControl>
+                              <FormDescription>
+                                {language === "uk"
+                                  ? "Почніть вводити адресу або місто — список підтягується з відкритої бази Чехії."
+                                  : language === "cs"
+                                    ? "Začněte psát adresu nebo město — seznam se načítá z otevřené databáze pro Česko."
+                                    : "Start typing an address or city — suggestions are loaded from open Czech location data."}
+                              </FormDescription>
                               <FormMessage />
                             </FormItem>
                           );
