@@ -34,6 +34,13 @@ interface BrandComboboxProps {
   testId?: string;
 }
 
+const normalizeSearchText = (value: string) =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
 export function BrandCombobox({
   brands,
   value,
@@ -106,7 +113,16 @@ export function BrandCombobox({
         onOpenAutoFocus={(e) => e.preventDefault()} // ✅ ключове
         onCloseAutoFocus={(e) => e.preventDefault()}
       >
-        <Command>
+        <Command
+          filter={(value, search, keywords) => {
+            const haystack = [value, ...(keywords ?? [])].join(" ");
+            return normalizeSearchText(haystack).includes(
+              normalizeSearchText(search),
+            )
+              ? 1
+              : 0;
+          }}
+        >
           {/* <CommandInput
             placeholder={placeholder}
             value={searchValue}
