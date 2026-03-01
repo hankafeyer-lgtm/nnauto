@@ -2296,7 +2296,6 @@ function Hero() {
     0;
 
   const listingsCount = baseListingsCount > 0 ? baseListingsCount : 0;
-  const heroSearchButtonCount = listingsCount > 0 ? listingsCount + 98 : 0;
   const handleCheckboxChange = (
     category: "condition" | "extras" | "equipment",
     value: string,
@@ -3652,11 +3651,9 @@ function Hero() {
             >
               <Search className="mr-2 h-5 w-5 sm:h-6 sm:w-6 lg:h-6 lg:w-6" />
               {t("hero.search")}
-              {listingsCount > 0 && (
-                <span className="ml-2 bg-primary text-primary-foreground rounded-full px-2.5 py-0.5 text-sm font-bold">
-                  {listingsCount}
-                </span>
-              )}
+              <span className="ml-2 bg-primary text-primary-foreground rounded-full px-2.5 py-0.5 text-sm font-bold">
+                +98 авто
+              </span>
             </Button>
           </form>
         </div>
