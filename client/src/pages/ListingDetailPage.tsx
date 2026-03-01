@@ -3232,14 +3232,6 @@ export default function ListingDetailPage() {
 
   const cebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen !== false; // default: frozen
 
-  // Prefill VIN input once listing loads (do not overwrite user's edits)
-  useEffect(() => {
-    const vin = (listing?.vin || "").trim();
-    if (vin && !cebiaVinInput) {
-      setCebiaVinInput(vin.toUpperCase());
-    }
-  }, [listing?.vin, cebiaVinInput]);
-
   // Stripe redirect: promoted=success/cancelled
   useEffect(() => {
     if (!listingId) return;
@@ -4933,7 +4925,7 @@ export default function ListingDetailPage() {
                         data-testid="button-cebia-open"
                         disabled={cebiaPaymentsFrozen}
                       >
-                        {cebiaPaymentsFrozen ? "Platby dočasně vypnuté" : "Koupit report (Stripe)"}
+                        {cebiaPaymentsFrozen ? "Platby dočasně vypnuté" : "Перевірити VIN код"}
                       </Button>
 
                       <p className="text-xs text-muted-foreground">
@@ -5091,7 +5083,7 @@ export default function ListingDetailPage() {
                   ? "Platby dočasně vypnuté"
                   : cebiaCheckoutMutation.isPending
                     ? "Přesměrování…"
-                    : "Zaplatit přes Stripe"}
+                    : "Zaplatit"}
               </Button>
             </div>
 
