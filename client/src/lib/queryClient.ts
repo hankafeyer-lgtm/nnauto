@@ -150,7 +150,7 @@ export function prefetchListings() {
 // Prefetch a single listing for faster navigation
 export function prefetchListing(id: string) {
   return queryClient.prefetchQuery({
-    queryKey: ['/api/listings', id],
+    queryKey: [`/api/listings/${id}`],
     staleTime: 10 * 60 * 1000,
   });
 }

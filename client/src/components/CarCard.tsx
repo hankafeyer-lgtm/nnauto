@@ -88,6 +88,7 @@ function CarCard({
   const touchStartRef = useRef<number | null>(null);
   const touchEndRef = useRef<number | null>(null);
   const minSwipeDistance = 50;
+  const didPrefetchRef = useRef(false);
 
   // Get all photos for navigation (use photos array if available, otherwise just the main image)
   const allPhotos = photos.length > 0 ? photos : [image];
@@ -206,13 +207,23 @@ function CarCard({
 
   // Prefetch listing data on hover for faster navigation
   const handlePrefetch = useCallback(() => {
+    if (didPrefetchRef.current) return;
+    didPrefetchRef.current = true;
     prefetchListing(id);
+  }, [id]);
+
+  useEffect(() => {
+    didPrefetchRef.current = false;
   }, [id]);
   const listingHref = onOpenListing ? "#" : `/listing/${id}`;
 
   if (viewMode === "list") {
     return (
-      <div className="relative isolate mb-2" onMouseEnter={handlePrefetch}>
+      <div
+        className="relative isolate mb-2"
+        onMouseEnter={handlePrefetch}
+        onTouchStart={handlePrefetch}
+      >
         <Link
           href={listingHref}
           data-testid={`link-car-${id}`}
@@ -399,7 +410,11 @@ function CarCard({
   }
 
   return (
-    <div className="relative h-full isolate pb-2" onMouseEnter={handlePrefetch}>
+    <div
+      className="relative h-full isolate pb-2"
+      onMouseEnter={handlePrefetch}
+      onTouchStart={handlePrefetch}
+    >
       <Link
         href={listingHref}
         data-testid={`link-car-${id}`}
