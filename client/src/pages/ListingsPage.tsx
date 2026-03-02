@@ -3122,18 +3122,28 @@ export default function ListingsPage() {
     null,
   );
   const userIdChangeInitRef = useRef(false);
+  const hasSyncedUrlPageRef = useRef(false);
+  const lastUrlPageRef = useRef(currentPage);
 
   /* ----- sync page + sort when url changes (back/forward, manual edit) ----- */
   useEffect(() => {
     const pageFromUrl = readPageFromSearch(searchStringForListState);
     const sortFromUrl = readSortFromSearch(searchStringForListState);
+    const shouldScrollToCards =
+      hasSyncedUrlPageRef.current && pageFromUrl !== lastUrlPageRef.current;
 
     setCurrentPage((prev) => (prev === pageFromUrl ? prev : pageFromUrl));
     setSortBy((prev) => (prev === sortFromUrl ? prev : sortFromUrl));
+    lastUrlPageRef.current = pageFromUrl;
+    hasSyncedUrlPageRef.current = true;
 
     // при навігації назад/вперед — підтягуємо саме server page
     setAccumulated([]);
     setIsLoadingMore(false);
+
+    if (shouldScrollToCards) {
+      scrollToTop();
+    }
   }, [searchStringForListState]);
 
   const openListingOverlay = useCallback((id: string) => {
