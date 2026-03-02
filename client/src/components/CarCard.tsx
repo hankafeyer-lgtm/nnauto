@@ -89,6 +89,7 @@ function CarCard({
   const touchEndRef = useRef<number | null>(null);
   const minSwipeDistance = 50;
   const didPrefetchRef = useRef(false);
+  const [shouldPreloadGallery, setShouldPreloadGallery] = useState(false);
 
   // Get all photos for navigation (use photos array if available, otherwise just the main image)
   const allPhotos = photos.length > 0 ? photos : [image];
@@ -105,7 +106,7 @@ function CarCard({
 
   // Preload next and previous images for instant navigation
   useEffect(() => {
-    if (!hasMultiplePhotos) return;
+    if (!hasMultiplePhotos || !shouldPreloadGallery) return;
 
     const preloadIndices = [
       (currentPhotoIndex + 1) % optimizedPhotos.length,
@@ -116,11 +117,12 @@ function CarCard({
       const img = new Image();
       img.src = optimizedPhotos[idx];
     });
-  }, [currentPhotoIndex, optimizedPhotos, hasMultiplePhotos]);
+  }, [currentPhotoIndex, optimizedPhotos, hasMultiplePhotos, shouldPreloadGallery]);
 
   const handlePrevPhoto = (e: React.MouseEvent | React.TouchEvent) => {
     if ("preventDefault" in e) e.preventDefault();
     if ("stopPropagation" in e) e.stopPropagation();
+    setShouldPreloadGallery(true);
     setCurrentPhotoIndex((prev) =>
       prev === 0 ? allPhotos.length - 1 : prev - 1,
     );
@@ -130,6 +132,7 @@ function CarCard({
   const handleNextPhoto = (e: React.MouseEvent | React.TouchEvent) => {
     if ("preventDefault" in e) e.preventDefault();
     if ("stopPropagation" in e) e.stopPropagation();
+    setShouldPreloadGallery(true);
     setCurrentPhotoIndex((prev) =>
       prev === allPhotos.length - 1 ? 0 : prev + 1,
     );
@@ -137,6 +140,7 @@ function CarCard({
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    setShouldPreloadGallery(true);
     touchEndRef.current = null;
     touchStartRef.current = e.targetTouches[0].clientX;
   };
@@ -222,7 +226,6 @@ function CarCard({
       <div
         className="relative isolate mb-2"
         onMouseEnter={handlePrefetch}
-        onTouchStart={handlePrefetch}
       >
         <Link
           href={listingHref}
@@ -413,7 +416,6 @@ function CarCard({
     <div
       className="relative h-full isolate pb-2"
       onMouseEnter={handlePrefetch}
-      onTouchStart={handlePrefetch}
     >
       <Link
         href={listingHref}
@@ -437,6 +439,7 @@ function CarCard({
         >
           <div
             className="relative bg-muted group/photo touch-pan-y min-w-0 shrink-0 h-[240px] sm:h-[260px] lg:h-[220px] overflow-hidden"
+            onMouseEnter={() => setShouldPreloadGallery(true)}
             onTouchStart={hasMultiplePhotos ? handleTouchStart : undefined}
             onTouchMove={hasMultiplePhotos ? handleTouchMove : undefined}
             onTouchEnd={hasMultiplePhotos ? handleTouchEnd : undefined}
@@ -486,6 +489,7 @@ function CarCard({
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        setShouldPreloadGallery(true);
                         setCurrentPhotoIndex(index);
                         setImageLoaded(false);
                       }}
