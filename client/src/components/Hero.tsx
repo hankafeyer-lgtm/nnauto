@@ -3651,9 +3651,11 @@ function Hero() {
             >
               <Search className="mr-2 h-5 w-5 sm:h-6 sm:w-6 lg:h-6 lg:w-6" />
               {t("hero.search")}
-              <span className="ml-2 bg-primary text-primary-foreground rounded-full px-2.5 py-0.5 text-sm font-bold">
-                424
-              </span>
+              {listingsCount > 0 && (
+                <span className="ml-2 bg-primary text-primary-foreground rounded-full px-2.5 py-0.5 text-sm font-bold">
+                  {listingsCount}
+                </span>
+              )}
             </Button>
           </form>
         </div>
