@@ -3069,6 +3069,15 @@ const scrollToTop = () => {
   });
 };
 
+const forceScrollToTop = () => {
+  const w = safeWindow();
+  if (!w) return;
+  const run = () => w.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  run();
+  requestAnimationFrame(run);
+  window.setTimeout(run, 120);
+};
+
 /* ---------------- component ---------------- */
 export default function ListingsPage() {
   const t = useTranslation();
@@ -3141,9 +3150,7 @@ export default function ListingsPage() {
     setAccumulated([]);
     setIsLoadingMore(false);
 
-    if (shouldScrollToCards) {
-      scrollToTop();
-    }
+    if (shouldScrollToCards) forceScrollToTop();
   }, [searchStringForListState]);
 
   const openListingOverlay = useCallback((id: string) => {
