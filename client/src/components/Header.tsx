@@ -46,7 +46,19 @@ const FavoritesModal = lazy(() =>
   })),
 );
 
-export default function Header() {
+type HeaderProps = {
+  compactMobile?: boolean;
+  showMobileSearch?: boolean;
+};
+
+export default function Header(props: HeaderProps) {
+  return <HeaderContent {...props} />;
+}
+
+function HeaderContent({
+  compactMobile = false,
+  showMobileSearch = true,
+}: HeaderProps = {}) {
   const { language, setLanguage } = useLanguage();
   const t = useTranslation();
   const { toast } = useToast();
@@ -304,21 +316,47 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl shadow-lg">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 sm:h-20 lg:h-24 items-center justify-between gap-2 sm:gap-4 lg:gap-8">
+    <header
+      className={`sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl shadow-lg ${
+        compactMobile ? "md:backdrop-blur-2xl" : ""
+      }`}
+    >
+      <div
+        className={`container mx-auto ${compactMobile ? "px-3 sm:px-6 lg:px-8" : "px-4 sm:px-6 lg:px-8"}`}
+      >
+        <div
+          className={`flex items-center justify-between gap-2 sm:gap-4 lg:gap-8 ${
+            compactMobile ? "h-14 sm:h-20 lg:h-24" : "h-16 sm:h-20 lg:h-24"
+          }`}
+        >
           <div
             onClick={handleLogoClick}
             className="cursor-pointer"
             data-testid="link-home"
           >
-            <div className="hover-elevate active-elevate-2 rounded-xl px-3 sm:px-4 py-2 -ml-3 sm:-ml-4 flex items-center gap-3 sm:gap-4 cursor-pointer">
+            <div
+              className={`hover-elevate active-elevate-2 rounded-xl py-2 flex items-center cursor-pointer ${
+                compactMobile
+                  ? "px-1.5 sm:px-4 -ml-1.5 sm:-ml-4 gap-2 sm:gap-4"
+                  : "px-3 sm:px-4 -ml-3 sm:-ml-4 gap-3 sm:gap-4"
+              }`}
+            >
               <img
                 src={logoImage}
                 alt="NNAuto"
-                className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24 object-contain"
+                className={`object-contain ${
+                  compactMobile
+                    ? "w-9 h-9 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
+                    : "w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
+                }`}
               />
-              <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tight">
+              <span
+                className={`font-bold tracking-tight ${
+                  compactMobile
+                    ? "text-[2rem] leading-none sm:text-2xl md:text-3xl lg:text-4xl"
+                    : "text-xl sm:text-2xl md:text-3xl lg:text-4xl"
+                }`}
+              >
                 <span className="text-[#B8860B]">NN</span>
                 <span className="text-black dark:text-white">Auto</span>
               </span>
@@ -404,7 +442,7 @@ export default function Header() {
               onClick={handleAddListingRequest}
               variant="outline"
               size="sm"
-              className="gap-1.5 px-2 sm:px-3"
+              className={`gap-1.5 px-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
               data-testid="button-open-add-listing"
             >
               <Plus className="w-4 h-4" />
@@ -413,7 +451,7 @@ export default function Header() {
             <Button
               variant="outline"
               size="icon"
-              className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl"
+              className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 sm:h-12 sm:w-12"}`}
               onClick={toggleDarkMode}
               data-testid="button-theme-toggle"
             >
@@ -429,7 +467,7 @@ export default function Header() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl"
+                  className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 sm:h-12 sm:w-12"}`}
                   data-testid="button-language"
                 >
                   <Languages className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -490,7 +528,7 @@ export default function Header() {
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg sm:rounded-xl"
+                  className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 sm:h-12 sm:w-12"}`}
                   data-testid="button-menu"
                 >
                   <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -627,7 +665,7 @@ export default function Header() {
             isSearchVisible
               ? "max-h-20 opacity-100 translate-y-0"
               : "max-h-0 opacity-0 -translate-y-4 pb-0"
-          }`}
+          } ${showMobileSearch ? "" : "hidden"}`}
         >
           <form onSubmit={handleSearch} className="w-full">
             <div className="relative">

@@ -4010,7 +4010,7 @@ export default function ListingDetailPage() {
   if (isLoading) {
     return (
       <>
-        <Header />
+        <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
         <PageLoaderInline text={t("detail.loading")} />
       </>
     );
@@ -4036,7 +4036,7 @@ export default function ListingDetailPage() {
   if (error || !listing) {
     return (
       <>
-        {!isEmbedded && <Header />}
+        <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center space-y-4">
             <h1 className="text-3xl font-bold">{t("detail.notFound")}</h1>
@@ -4079,7 +4079,7 @@ export default function ListingDetailPage() {
         }}
       />
 
-      {!isEmbedded && <Header />}
+      <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
 
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-8 max-w-7xl">
