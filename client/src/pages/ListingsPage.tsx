@@ -3081,9 +3081,8 @@ const forceScrollToTop = () => {
 const isReloadNavigation = () => {
   const w = safeWindow();
   if (!w) return false;
-  const navEntry = w.performance
-    .getEntriesByType("navigation")
-    .at(0) as PerformanceNavigationTiming | undefined;
+  const navEntries = w.performance.getEntriesByType("navigation");
+  const navEntry = navEntries[0] as PerformanceNavigationTiming | undefined;
   if (navEntry) return navEntry.type === "reload";
   const legacyNav = (w.performance as Performance & { navigation?: { type?: number } })
     .navigation;

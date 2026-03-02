@@ -2147,9 +2147,8 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    const navEntry = window.performance
-      .getEntriesByType("navigation")
-      .at(0) as PerformanceNavigationTiming | undefined;
+    const navEntries = window.performance.getEntriesByType("navigation");
+    const navEntry = navEntries[0] as PerformanceNavigationTiming | undefined;
     const isReload =
       navEntry?.type === "reload" ||
       (
