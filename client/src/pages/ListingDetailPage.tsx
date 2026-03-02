@@ -3766,7 +3766,7 @@ export default function ListingDetailPage() {
   const handleShare = useCallback(async () => {
     if (!listing) return;
 
-    const shareUrl = window.location.href;
+    const shareUrl = listingUrl || `https://nnauto.cz/listing/${listing.id}`;
     const mainTitle = getListingMainTitle(listing);
     const shareData = {
       title: mainTitle,
@@ -3803,7 +3803,7 @@ export default function ListingDetailPage() {
         variant: "destructive",
       });
     }
-  }, [listing, toast, t]);
+  }, [listing, listingUrl, toast, t]);
 
   const trackListingAnalyticsEvent = useCallback(
     async (eventType: "view" | "contact_click" | "whatsapp_click") => {
