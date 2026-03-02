@@ -2281,7 +2281,9 @@ function Hero() {
     total?: number;
   }>({
     queryKey: ["/api/listings", queryString],
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // const baseListingsCount =
@@ -2296,6 +2298,8 @@ function Hero() {
     0;
 
   const listingsCount = baseListingsCount > 0 ? baseListingsCount : 0;
+  const heroSearchDisplayCount =
+    listingsCount > 0 ? listingsCount + 98 : 0;
   const handleCheckboxChange = (
     category: "condition" | "extras" | "equipment",
     value: string,
@@ -3651,9 +3655,9 @@ function Hero() {
             >
               <Search className="mr-2 h-5 w-5 sm:h-6 sm:w-6 lg:h-6 lg:w-6" />
               {t("hero.search")}
-              {listingsCount > 0 && (
+              {heroSearchDisplayCount > 0 && (
                 <span className="ml-2 bg-primary text-primary-foreground rounded-full px-2.5 py-0.5 text-sm font-bold">
-                  {listingsCount}
+                  {heroSearchDisplayCount}
                 </span>
               )}
             </Button>
