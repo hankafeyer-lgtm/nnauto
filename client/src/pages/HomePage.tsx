@@ -2133,6 +2133,14 @@ export default function HomePage() {
     return new URLSearchParams(window.location.search).get("openListing");
   });
 
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("openListing")) return;
+    url.searchParams.delete("openListing");
+    window.history.replaceState(window.history.state, "", url.toString());
+    setOpenListingId(null);
+  }, []);
+
   // ✅ page state synced with URL
   const [currentPage, setCurrentPage] = useState<number>(() =>
     getPageFromUrl(),

@@ -3089,7 +3089,6 @@ import {
   Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -3179,8 +3178,6 @@ export default function ListingDetailPage() {
     new URLSearchParams(window.location.search).get("embedded") === "1";
 
   const [showContactDialog, setShowContactDialog] = useState(false);
-  const [isBottomSearchVisible, setIsBottomSearchVisible] = useState(true);
-  const [embeddedSearchQuery, setEmbeddedSearchQuery] = useState("");
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
 
@@ -3866,23 +3863,6 @@ export default function ListingDetailPage() {
     window.location.assign("/listings");
   }, [isEmbedded]);
 
-  const handleEmbeddedSearchSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      const term = embeddedSearchQuery.trim();
-      const target = term
-        ? `/listings?search=${encodeURIComponent(term)}`
-        : "/listings";
-
-      if (isEmbedded && window.parent && window.parent !== window) {
-        window.parent.location.assign(target);
-        return;
-      }
-      window.location.assign(target);
-    },
-    [embeddedSearchQuery, isEmbedded],
-  );
-
   // Match browser-style back swipe: left-edge swipe should trigger the same flow as "zpět".
   useEffect(() => {
     if (!isEmbedded) return;
@@ -3927,28 +3907,6 @@ export default function ListingDetailPage() {
     };
   }, [handleBack, isEmbedded]);
 
-  useEffect(() => {
-    if (!isEmbedded) return;
-
-    let lastScrollY = window.scrollY;
-
-    const onScroll = () => {
-      const currentScrollY = window.scrollY;
-
-      if (currentScrollY < 20) {
-        setIsBottomSearchVisible(true);
-      } else if (currentScrollY > lastScrollY + 2) {
-        setIsBottomSearchVisible(false);
-      } else if (currentScrollY < lastScrollY - 2) {
-        setIsBottomSearchVisible(true);
-      }
-
-      lastScrollY = currentScrollY;
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [isEmbedded]);
   // (Cebia UI placeholder only for now)
 
   // --- SEO (memoized)
@@ -4129,23 +4087,8 @@ export default function ListingDetailPage() {
       <div className={`min-h-screen bg-background ${isEmbedded ? "pb-24 md:pb-0" : ""}`}>
         {isEmbedded && (
           <div className="md:hidden border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-            <div className="px-4 py-3 flex items-center gap-2">
-              <div className="shrink-0">
-                <MobileFilters autoApply={false} applyButtonLabel="Vyhledat" />
-              </div>
-              <form onSubmit={handleEmbeddedSearchSubmit} className="flex-1">
-                <div className="relative">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Hledat auto"
-                    className="pl-12 h-12 rounded-xl"
-                    value={embeddedSearchQuery}
-                    onChange={(e) => setEmbeddedSearchQuery(e.target.value)}
-                    data-testid="input-embedded-search-mobile"
-                  />
-                </div>
-              </form>
+            <div className="px-4 py-3">
+              <MobileFilters autoApply={false} applyButtonLabel="Vyhledat" />
             </div>
           </div>
         )}
@@ -5443,26 +5386,6 @@ export default function ListingDetailPage() {
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
       />
-      {isEmbedded && (
-        <div
-          className={`md:hidden fixed left-1/2 -translate-x-1/2 z-[120] transition-all duration-300 ${
-            isBottomSearchVisible
-              ? "opacity-100 translate-y-0 pointer-events-auto"
-              : "opacity-0 translate-y-8 pointer-events-none"
-          }`}
-          style={{ bottom: "max(10px, env(safe-area-inset-bottom))" }}
-        >
-          <Button
-            type="button"
-            onClick={handleBack}
-            className="h-12 rounded-full px-5 shadow-xl bg-background/95 text-foreground border border-border hover:bg-background"
-            data-testid="button-embedded-search-cars"
-          >
-            <Search className="h-4 w-4 mr-2" />
-            Hledat auto
-          </Button>
-        </div>
-      )}
     </>
   );
 }
