@@ -2146,6 +2146,27 @@ export default function HomePage() {
     getPageFromUrl(),
   );
 
+  useEffect(() => {
+    const navEntry = window.performance
+      .getEntriesByType("navigation")
+      .at(0) as PerformanceNavigationTiming | undefined;
+    const isReload =
+      navEntry?.type === "reload" ||
+      (
+        window.performance as Performance & {
+          navigation?: { type?: number };
+        }
+      ).navigation?.type === 1;
+    if (!isReload) return;
+
+    const url = new URL(window.location.href);
+    if (!url.search) return;
+    url.search = "";
+    window.history.replaceState(window.history.state, "", url.toString());
+    setCurrentPage(1);
+    setOpenListingId(null);
+  }, []);
+
   // if user navigates back/forward, keep in sync
   useEffect(() => {
     const onPop = () => {

@@ -3078,6 +3078,18 @@ const forceScrollToTop = () => {
   window.setTimeout(run, 120);
 };
 
+const isReloadNavigation = () => {
+  const w = safeWindow();
+  if (!w) return false;
+  const navEntry = w.performance
+    .getEntriesByType("navigation")
+    .at(0) as PerformanceNavigationTiming | undefined;
+  if (navEntry) return navEntry.type === "reload";
+  const legacyNav = (w.performance as Performance & { navigation?: { type?: number } })
+    .navigation;
+  return legacyNav?.type === 1;
+};
+
 /* ---------------- component ---------------- */
 export default function ListingsPage() {
   const t = useTranslation();
@@ -3133,6 +3145,39 @@ export default function ListingsPage() {
   const userIdChangeInitRef = useRef(false);
   const hasSyncedUrlPageRef = useRef(false);
   const lastUrlPageRef = useRef(currentPage);
+
+  useEffect(() => {
+    const w = safeWindow();
+    if (!w) return;
+    if ("scrollRestoration" in w.history) {
+      w.history.scrollRestoration = "manual";
+    }
+    const onPageShow = () => {
+      if (readPageFromSearch(w.location.search) > 1) {
+        forceScrollToTop();
+      }
+    };
+    w.addEventListener("pageshow", onPageShow);
+    return () => {
+      w.removeEventListener("pageshow", onPageShow);
+      if ("scrollRestoration" in w.history) {
+        w.history.scrollRestoration = "auto";
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isReloadNavigation()) return;
+    replaceUrlParams((p) => {
+      for (const key of Array.from(p.keys())) p.delete(key);
+    });
+    setCurrentPage(1);
+    setSortBy(DEFAULT_SORT);
+    setAccumulated([]);
+    setIsLoadingMore(false);
+    resetFilters();
+    forceScrollToTop();
+  }, [resetFilters]);
 
   /* ----- sync page + sort when url changes (back/forward, manual edit) ----- */
   useEffect(() => {
