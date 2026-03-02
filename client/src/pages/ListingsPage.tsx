@@ -3112,10 +3112,11 @@ export default function ListingsPage() {
   const { toast } = useToast();
 
   const searchString = useSearch();
-  const openListingId = useMemo(() => {
-    const p = new URLSearchParams(searchString);
-    return p.get("openListing");
-  }, [searchString]);
+  const [openListingId, setOpenListingId] = useState<string | null>(() => {
+    const w = safeWindow();
+    if (!w) return null;
+    return new URLSearchParams(w.location.search).get("openListing");
+  });
   const searchStringForListState = useMemo(() => {
     const p = new URLSearchParams(searchString);
     p.delete("openListing");
@@ -3234,6 +3235,7 @@ export default function ListingsPage() {
     pushUrlParams((p) => {
       p.set("openListing", id);
     });
+    setOpenListingId(id);
   }, []);
 
   const closeListingOverlay = useCallback(() => {
@@ -3247,16 +3249,27 @@ export default function ListingsPage() {
     replaceUrlParams((p) => {
       p.delete("openListing");
     });
+    setOpenListingId(null);
   }, []);
 
   useEffect(() => {
+    const syncFromUrl = () => {
+      const w = safeWindow();
+      if (!w) return;
+      const opened = new URLSearchParams(w.location.search).get("openListing");
+      setOpenListingId(opened);
+    };
     const onMessage = (event: MessageEvent) => {
       if (event.data?.type === "nnauto-close-listing-overlay") {
         closeListingOverlay();
       }
     };
+    window.addEventListener("popstate", syncFromUrl);
     window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("popstate", syncFromUrl);
+      window.removeEventListener("message", onMessage);
+    };
   }, [closeListingOverlay]);
 
   /* ----- reset when userId changes ----- */
