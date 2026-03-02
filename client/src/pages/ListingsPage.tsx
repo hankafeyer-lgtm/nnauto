@@ -3145,6 +3145,7 @@ export default function ListingsPage() {
   const userIdChangeInitRef = useRef(false);
   const hasSyncedUrlPageRef = useRef(false);
   const lastUrlPageRef = useRef(currentPage);
+  const historyNavigationRef = useRef(false);
 
   useEffect(() => {
     const w = safeWindow();
@@ -3164,6 +3165,16 @@ export default function ListingsPage() {
         w.history.scrollRestoration = "auto";
       }
     };
+  }, []);
+
+  useEffect(() => {
+    const w = safeWindow();
+    if (!w) return;
+    const onPopState = () => {
+      historyNavigationRef.current = true;
+    };
+    w.addEventListener("popstate", onPopState);
+    return () => w.removeEventListener("popstate", onPopState);
   }, []);
 
   useEffect(() => {
@@ -3197,6 +3208,15 @@ export default function ListingsPage() {
 
     if (shouldScrollToCards) forceScrollToTop();
   }, [searchStringForListState]);
+
+  useEffect(() => {
+    if (!historyNavigationRef.current) return;
+    historyNavigationRef.current = false;
+    // iOS swipe-back can restore previous scroll after render; re-apply top reset.
+    forceScrollToTop();
+    window.setTimeout(forceScrollToTop, 220);
+    window.setTimeout(forceScrollToTop, 420);
+  }, [currentPage]);
 
   const openListingOverlay = useCallback((id: string) => {
     pushUrlParams((p) => {
