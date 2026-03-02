@@ -3089,6 +3089,7 @@ import {
   Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -3115,6 +3116,7 @@ import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { getListingMainTitle } from "@/lib/listingTitle";
 import { format } from "date-fns";
 import Header from "@/components/Header";
+import MobileFilters from "@/components/MobileFilters";
 import { MediaLightbox } from "@/components/MediaLightbox";
 import {
   LISTINGS_RETURN_URL_KEY,
@@ -3178,6 +3180,7 @@ export default function ListingDetailPage() {
 
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [isBottomSearchVisible, setIsBottomSearchVisible] = useState(true);
+  const [embeddedSearchQuery, setEmbeddedSearchQuery] = useState("");
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
 
@@ -3863,6 +3866,23 @@ export default function ListingDetailPage() {
     window.location.assign("/listings");
   }, [isEmbedded]);
 
+  const handleEmbeddedSearchSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const term = embeddedSearchQuery.trim();
+      const target = term
+        ? `/listings?search=${encodeURIComponent(term)}`
+        : "/listings";
+
+      if (isEmbedded && window.parent && window.parent !== window) {
+        window.parent.location.assign(target);
+        return;
+      }
+      window.location.assign(target);
+    },
+    [embeddedSearchQuery, isEmbedded],
+  );
+
   // Match browser-style back swipe: left-edge swipe should trigger the same flow as "zpět".
   useEffect(() => {
     if (!isEmbedded) return;
@@ -4107,6 +4127,28 @@ export default function ListingDetailPage() {
       <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
 
       <div className={`min-h-screen bg-background ${isEmbedded ? "pb-24 md:pb-0" : ""}`}>
+        {isEmbedded && (
+          <div className="md:hidden border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+            <div className="px-4 py-3 flex items-center gap-2">
+              <div className="shrink-0">
+                <MobileFilters />
+              </div>
+              <form onSubmit={handleEmbeddedSearchSubmit} className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Hledat auto"
+                    className="pl-12 h-12 rounded-xl"
+                    value={embeddedSearchQuery}
+                    onChange={(e) => setEmbeddedSearchQuery(e.target.value)}
+                    data-testid="input-embedded-search-mobile"
+                  />
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
         <div className="container mx-auto px-4 py-8 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main content */}
