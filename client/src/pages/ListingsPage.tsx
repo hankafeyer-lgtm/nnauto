@@ -3040,6 +3040,15 @@ const readSortFromSearch = (searchString: string) => {
   return raw && raw.trim() ? raw : DEFAULT_SORT;
 };
 
+const dispatchPopStateSafely = (w: Window) => {
+  try {
+    w.dispatchEvent(new PopStateEvent("popstate"));
+  } catch {
+    // Older iOS/webviews may not support PopStateEvent constructor.
+    w.dispatchEvent(new Event("popstate"));
+  }
+};
+
 const replaceUrlParams = (mutate: (params: URLSearchParams) => void) => {
   const w = safeWindow();
   if (!w) return;
@@ -3047,7 +3056,7 @@ const replaceUrlParams = (mutate: (params: URLSearchParams) => void) => {
   const url = new URL(w.location.href);
   mutate(url.searchParams);
   w.history.replaceState({}, "", url.toString());
-  w.dispatchEvent(new PopStateEvent("popstate"));
+  dispatchPopStateSafely(w);
 };
 
 const pushUrlParams = (mutate: (params: URLSearchParams) => void) => {
@@ -3057,7 +3066,7 @@ const pushUrlParams = (mutate: (params: URLSearchParams) => void) => {
   const url = new URL(w.location.href);
   mutate(url.searchParams);
   w.history.pushState({}, "", url.toString());
-  w.dispatchEvent(new PopStateEvent("popstate"));
+  dispatchPopStateSafely(w);
 };
 
 const scrollToTop = () => {
