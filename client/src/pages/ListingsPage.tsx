@@ -3159,6 +3159,7 @@ export default function ListingsPage() {
   const hasSyncedUrlPageRef = useRef(false);
   const lastUrlPageRef = useRef(currentPage);
   const historyNavigationRef = useRef(false);
+  const didRunReloadResetRef = useRef(false);
 
   useEffect(() => {
     const w = safeWindow();
@@ -3191,6 +3192,8 @@ export default function ListingsPage() {
   }, []);
 
   useEffect(() => {
+    if (didRunReloadResetRef.current) return;
+    didRunReloadResetRef.current = true;
     if (!isReloadNavigation()) return;
     replaceUrlParams((p) => {
       for (const key of Array.from(p.keys())) p.delete(key);
