@@ -3348,26 +3348,23 @@ export default function ListingDetailPage() {
   useEffect(() => {
     const len = photoKeys.length;
     if (!len) return;
+    const w = safeWindow();
+    if (!w) return;
 
     const idx = Math.max(0, Math.min(currentCarouselIndex, len - 1));
     const neighbors = new Set<string>();
     neighbors.add(photoKeys[(idx + 1) % len]);
     neighbors.add(photoKeys[(idx - 1 + len) % len]);
+    const isDesktop = w.innerWidth >= 1024;
+    const preloadWidth = isDesktop ? 1600 : 1200;
+    const preloadQuality = isDesktop ? 85 : 80;
 
     for (const key of neighbors) {
-      const mobileImg = new Image();
-      mobileImg.decoding = "async";
-      mobileImg.src = getOptimizedImageUrl(key, {
-        width: 1200,
-        quality: 80,
-        format: "webp",
-      });
-
-      const desktopImg = new Image();
-      desktopImg.decoding = "async";
-      desktopImg.src = getOptimizedImageUrl(key, {
-        width: 1600,
-        quality: 85,
+      const img = new Image();
+      img.decoding = "async";
+      img.src = getOptimizedImageUrl(key, {
+        width: preloadWidth,
+        quality: preloadQuality,
         format: "webp",
       });
     }
@@ -4361,10 +4358,10 @@ export default function ListingDetailPage() {
                               })}
                               desktopMinWidth={1024}
                               upgrade={
-                                Math.abs(index - currentCarouselIndex) <= 6
+                                Math.abs(index - currentCarouselIndex) <= 2
                               }
                               alt={`Thumbnail ${index + 1}`}
-                              loading={index < 8 ? "eager" : "lazy"}
+                              loading={index < 2 ? "eager" : "lazy"}
                               decoding="async"
                               sizes="64px"
                               className="w-full h-full object-cover"

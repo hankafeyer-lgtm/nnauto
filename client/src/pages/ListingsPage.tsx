@@ -3526,7 +3526,9 @@ export default function ListingsPage() {
 
   // Prefetch next page for faster pagination
   useEffect(() => {
+    if (!pagination.hasMore || isFetching) return;
     const nextPage = currentPage + 1;
+    if (nextPage > pagination.totalPages) return;
     const p = new URLSearchParams(queryString);
     p.set("page", String(nextPage));
     p.set("limit", String(ITEMS_PER_PAGE));
@@ -3545,7 +3547,7 @@ export default function ListingsPage() {
       },
       staleTime: 30_000,
     });
-  }, [currentPage, queryString]);
+  }, [currentPage, queryString, pagination.hasMore, pagination.totalPages, isFetching]);
 
   /**
    * ✅ ВАЖЛИВО:
