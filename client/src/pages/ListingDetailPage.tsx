@@ -3054,6 +3054,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 
 import {
   ArrowLeft,
+  Search,
   MapPin,
   Calendar,
   Gauge,
@@ -3176,6 +3177,7 @@ export default function ListingDetailPage() {
     new URLSearchParams(window.location.search).get("embedded") === "1";
 
   const [showContactDialog, setShowContactDialog] = useState(false);
+  const [isBottomSearchVisible, setIsBottomSearchVisible] = useState(true);
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
 
@@ -3904,6 +3906,29 @@ export default function ListingDetailPage() {
       window.removeEventListener("touchend", onTouchEnd);
     };
   }, [handleBack, isEmbedded]);
+
+  useEffect(() => {
+    if (!isEmbedded) return;
+
+    let lastScrollY = window.scrollY;
+
+    const onScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY < 20) {
+        setIsBottomSearchVisible(true);
+      } else if (currentScrollY > lastScrollY + 2) {
+        setIsBottomSearchVisible(false);
+      } else if (currentScrollY < lastScrollY - 2) {
+        setIsBottomSearchVisible(true);
+      }
+
+      lastScrollY = currentScrollY;
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [isEmbedded]);
   // (Cebia UI placeholder only for now)
 
   // --- SEO (memoized)
@@ -4081,7 +4106,7 @@ export default function ListingDetailPage() {
 
       <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
 
-      <div className="min-h-screen bg-background">
+      <div className={`min-h-screen bg-background ${isEmbedded ? "pb-24 md:pb-0" : ""}`}>
         <div className="container mx-auto px-4 py-8 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main content */}
@@ -5376,6 +5401,26 @@ export default function ListingDetailPage() {
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
       />
+      {isEmbedded && (
+        <div
+          className={`md:hidden fixed left-1/2 -translate-x-1/2 z-[120] transition-all duration-300 ${
+            isBottomSearchVisible
+              ? "opacity-100 translate-y-0 pointer-events-auto"
+              : "opacity-0 translate-y-8 pointer-events-none"
+          }`}
+          style={{ bottom: "max(10px, env(safe-area-inset-bottom))" }}
+        >
+          <Button
+            type="button"
+            onClick={handleBack}
+            className="h-12 rounded-full px-5 shadow-xl bg-background/95 text-foreground border border-border hover:bg-background"
+            data-testid="button-embedded-search-cars"
+          >
+            <Search className="h-4 w-4 mr-2" />
+            Hledat auto
+          </Button>
+        </div>
+      )}
     </>
   );
 }

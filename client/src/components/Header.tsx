@@ -353,7 +353,7 @@ function HeaderContent({
               <span
                 className={`font-bold tracking-tight ${
                   compactMobile
-                    ? "text-[2rem] leading-none sm:text-2xl md:text-3xl lg:text-4xl"
+                    ? "text-[1.65rem] leading-none sm:text-2xl md:text-3xl lg:text-4xl"
                     : "text-xl sm:text-2xl md:text-3xl lg:text-4xl"
                 }`}
               >
