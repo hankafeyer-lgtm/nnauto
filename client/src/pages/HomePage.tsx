@@ -2147,7 +2147,11 @@ export default function HomePage() {
   );
 
   useEffect(() => {
-    const navEntries = window.performance.getEntriesByType("navigation");
+    const getEntriesByType = (window.performance as Performance).getEntriesByType;
+    const navEntries =
+      typeof getEntriesByType === "function"
+        ? getEntriesByType.call(window.performance, "navigation")
+        : [];
     const navEntry = navEntries[0] as PerformanceNavigationTiming | undefined;
     const isReload =
       navEntry?.type === "reload" ||
