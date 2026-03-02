@@ -3089,6 +3089,7 @@ import {
   Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -3178,6 +3179,7 @@ export default function ListingDetailPage() {
     new URLSearchParams(window.location.search).get("embedded") === "1";
 
   const [showContactDialog, setShowContactDialog] = useState(false);
+  const [embeddedSearchQuery, setEmbeddedSearchQuery] = useState("");
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
 
@@ -3863,6 +3865,23 @@ export default function ListingDetailPage() {
     window.location.assign("/listings");
   }, [isEmbedded]);
 
+  const handleEmbeddedSearchSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      const term = embeddedSearchQuery.trim();
+      const target = term
+        ? `/listings?search=${encodeURIComponent(term)}`
+        : "/listings";
+
+      if (isEmbedded && window.parent && window.parent !== window) {
+        window.parent.location.assign(target);
+        return;
+      }
+      window.location.assign(target);
+    },
+    [embeddedSearchQuery, isEmbedded],
+  );
+
   // Match browser-style back swipe: left-edge swipe should trigger the same flow as "zpět".
   useEffect(() => {
     if (!isEmbedded) return;
@@ -4087,8 +4106,23 @@ export default function ListingDetailPage() {
       <div className={`min-h-screen bg-background ${isEmbedded ? "pb-24 md:pb-0" : ""}`}>
         {isEmbedded && (
           <div className="md:hidden border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-            <div className="px-4 py-3">
-              <MobileFilters autoApply={false} applyButtonLabel="Vyhledat" />
+            <div className="px-4 py-3 flex items-center gap-2">
+              <div className="shrink-0">
+                <MobileFilters autoApply={false} applyButtonLabel="Vyhledat" />
+              </div>
+              <form onSubmit={handleEmbeddedSearchSubmit} className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Hledat auto"
+                    className="pl-12 h-12 rounded-xl"
+                    value={embeddedSearchQuery}
+                    onChange={(e) => setEmbeddedSearchQuery(e.target.value)}
+                    data-testid="input-embedded-search-mobile"
+                  />
+                </div>
+              </form>
             </div>
           </div>
         )}
