@@ -62,6 +62,29 @@ const videoUpload = multer({
   },
 });
 
+const authRateLimitStore = new Map<string, number[]>();
+const AUTH_RATE_WINDOW_MS = 15 * 60 * 1000;
+const AUTH_RATE_MAX_ATTEMPTS = 10;
+
+const authRateLimit = (req: Request, res: Response, next: () => void) => {
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  const key = `${ip}:${req.path}`;
+  const now = Date.now();
+  const timestamps = (authRateLimitStore.get(key) || []).filter(
+    (ts) => now - ts < AUTH_RATE_WINDOW_MS,
+  );
+
+  if (timestamps.length >= AUTH_RATE_MAX_ATTEMPTS) {
+    return res.status(429).json({
+      error: "Too many attempts. Please try again later.",
+    });
+  }
+
+  timestamps.push(now);
+  authRateLimitStore.set(key, timestamps);
+  next();
+};
+
 // TOP listing promotion price in CZK (haléře)
 const TOP_LISTING_PRICE = 9900; // 99 CZK
 
@@ -1671,7 +1694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Auth endpoints - JWT-based for cross-domain production support
-  app.post("/api/register", async (req, res) => {
+  app.post("/api/register", authRateLimit, async (req, res) => {
     try {
       const { turnstileToken, ...userData } = req.body;
 
@@ -1771,7 +1794,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/login", async (req, res) => {
+  app.post("/api/login", authRateLimit, async (req, res) => {
     try {
       const { turnstileToken, ...loginData } = req.body;
 
@@ -1840,7 +1863,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.post("/api/auth/forgot-password", async (req, res) => {
+  app.post("/api/auth/forgot-password", authRateLimit, async (req, res) => {
     try {
       const { email } = req.body;
 
