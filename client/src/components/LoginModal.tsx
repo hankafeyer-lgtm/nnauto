@@ -50,6 +50,7 @@ export default function LoginModal({
     useState<string>("");
   const [loginVerified, setLoginVerified] = useState(false);
   const [registerVerified, setRegisterVerified] = useState(false);
+  const [loginErrorMessage, setLoginErrorMessage] = useState<string | null>(null);
   const loginTurnstileRef = useRef<TurnstileInstance>(null);
   const registerTurnstileRef = useRef<TurnstileInstance>(null);
   const [, setLocation] = useLocation();
@@ -68,10 +69,17 @@ export default function LoginModal({
       setRegisterTurnstileToken("");
       setLoginVerified(false);
       setRegisterVerified(false);
+      setLoginErrorMessage(null);
       loginTurnstileRef.current?.reset();
       registerTurnstileRef.current?.reset();
     }
   }, [open, initialTab]);
+
+  useEffect(() => {
+    if (activeTab !== "login" && loginErrorMessage) {
+      setLoginErrorMessage(null);
+    }
+  }, [activeTab, loginErrorMessage]);
 
   const handleLoginTurnstileSuccess = useCallback((token: string) => {
     setLoginTurnstileToken(token);
@@ -135,6 +143,7 @@ export default function LoginModal({
       setPassword("");
       setLoginTurnstileToken("");
       setLoginVerified(false);
+      setLoginErrorMessage(null);
       loginTurnstileRef.current?.reset();
       reloadAfterAuth();
     },
@@ -157,6 +166,7 @@ export default function LoginModal({
           errorMsg = error.message;
         }
       }
+      setLoginErrorMessage(errorMsg);
       toast({
         variant: "destructive",
         title: t("auth.loginError"),
@@ -258,11 +268,14 @@ export default function LoginModal({
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginErrorMessage(null);
     if (!loginTurnstileToken) {
+      const verifyMsg = t("auth.pleaseVerify");
+      setLoginErrorMessage(verifyMsg);
       toast({
         variant: "destructive",
         title: t("auth.verificationRequired"),
-        description: t("auth.pleaseVerify"),
+        description: verifyMsg,
       });
       return;
     }
@@ -374,7 +387,10 @@ export default function LoginModal({
                     type="email"
                     placeholder={t("auth.emailPlaceholder")}
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (loginErrorMessage) setLoginErrorMessage(null);
+                    }}
                     required
                     className="text-black dark:text-white"
                     data-testid="input-login-email"
@@ -388,7 +404,10 @@ export default function LoginModal({
                       type={showLoginPassword ? "text" : "password"}
                       placeholder={t("auth.passwordPlaceholder")}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (loginErrorMessage) setLoginErrorMessage(null);
+                      }}
                       required
                       className="text-black dark:text-white pr-10"
                       data-testid="input-login-password"
@@ -442,13 +461,21 @@ export default function LoginModal({
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={loginMutation.isPending || !loginVerified}
+                  disabled={loginMutation.isPending}
                   data-testid="button-login-submit"
                 >
                   {loginMutation.isPending
                     ? t("auth.loggingIn")
                     : t("auth.login")}
                 </Button>
+                {loginErrorMessage && (
+                  <p
+                    className="text-sm text-destructive text-center"
+                    data-testid="text-login-error"
+                  >
+                    {loginErrorMessage}
+                  </p>
+                )}
                 <div className="text-center mt-2">
                   <Button
                     type="button"
