@@ -3552,31 +3552,6 @@ export default function ListingsPage() {
     [queryString],
   );
 
-  // Prefetch next page for faster pagination
-  useEffect(() => {
-    if (!pagination.hasMore || isFetching) return;
-    const nextPage = currentPage + 1;
-    if (nextPage > pagination.totalPages) return;
-    const p = new URLSearchParams(queryString);
-    p.set("page", String(nextPage));
-    p.set("limit", String(ITEMS_PER_PAGE));
-    const nextQueryString = p.toString();
-    if (!nextQueryString) return;
-    queryClient.prefetchQuery({
-      queryKey: ["/api/listings", nextQueryString],
-      queryFn: async () => {
-        const res = await fetch(`/api/listings?${nextQueryString}`, {
-          method: "GET",
-          credentials: "same-origin",
-          headers: { Accept: "application/json" },
-        });
-        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-        return (await res.json()) as ListingsResponse;
-      },
-      staleTime: 30_000,
-    });
-  }, [currentPage, queryString, pagination.hasMore, pagination.totalPages, isFetching]);
-
   /**
    * ✅ ВАЖЛИВО:
    * тут ми НЕ використовуємо HTTP cache, щоб не ловити 304 + старі дані
@@ -3683,6 +3658,31 @@ export default function ListingsPage() {
     totalPages: 1,
     hasMore: false,
   };
+
+  // Prefetch next page for faster pagination
+  useEffect(() => {
+    if (!pagination.hasMore || isFetching) return;
+    const nextPage = currentPage + 1;
+    if (nextPage > pagination.totalPages) return;
+    const p = new URLSearchParams(queryString);
+    p.set("page", String(nextPage));
+    p.set("limit", String(ITEMS_PER_PAGE));
+    const nextQueryString = p.toString();
+    if (!nextQueryString) return;
+    queryClient.prefetchQuery({
+      queryKey: ["/api/listings", nextQueryString],
+      queryFn: async () => {
+        const res = await fetch(`/api/listings?${nextQueryString}`, {
+          method: "GET",
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+        return (await res.json()) as ListingsResponse;
+      },
+      staleTime: 30_000,
+    });
+  }, [currentPage, queryString, pagination.hasMore, pagination.totalPages, isFetching]);
   const baseListingsCount = pagination?.total ?? 0;
   const hasActiveFilters = useMemo(
     () =>
