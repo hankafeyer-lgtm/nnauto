@@ -4131,7 +4131,7 @@ export default function ListingDetailPage() {
           <div className="md:hidden border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="px-4 py-3 flex items-center gap-2">
               <div className="shrink-0">
-                <MobileFilters />
+                <MobileFilters autoApply={false} applyButtonLabel="Vyhledat" />
               </div>
               <form onSubmit={handleEmbeddedSearchSubmit} className="flex-1">
                 <div className="relative">

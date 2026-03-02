@@ -2805,9 +2805,15 @@ const buildStableFiltersKey = (filters: any) => {
 
 interface MobileFiltersProps {
   variant?: "hero" | "compact";
+  autoApply?: boolean;
+  applyButtonLabel?: string;
 }
 
-function MobileFilters({ variant = "compact" }: MobileFiltersProps) {
+function MobileFilters({
+  variant = "compact",
+  autoApply = true,
+  applyButtonLabel,
+}: MobileFiltersProps) {
   const t = useTranslation();
   const localizedOptions = useLocalizedOptions();
   const { language } = useLanguage();
@@ -2849,7 +2855,7 @@ function MobileFilters({ variant = "compact" }: MobileFiltersProps) {
 
     resetFilters,
     applyFilters,
-  } = useFilterParams();
+  } = useFilterParams({ autoNavigate: autoApply });
 
   const bodyTypes = localizedOptions.getBodyTypes();
   const colors = localizedOptions.getColors();
@@ -3046,6 +3052,7 @@ function MobileFilters({ variant = "compact" }: MobileFiltersProps) {
 
   const firstRenderRef = useRef(true);
   useEffect(() => {
+    if (!autoApply) return;
     if (firstRenderRef.current) {
       firstRenderRef.current = false;
       return;
@@ -3056,7 +3063,7 @@ function MobileFilters({ variant = "compact" }: MobileFiltersProps) {
     }, APPLY_DEBOUNCE_MS);
 
     return () => window.clearTimeout(id);
-  }, [stableFiltersKey]);
+  }, [stableFiltersKey, autoApply]);
 
   const isHero = variant === "hero";
 
@@ -4165,11 +4172,24 @@ function MobileFilters({ variant = "compact" }: MobileFiltersProps) {
             </DrawerClose>
           </DrawerFooter> */}
           <DrawerFooter className="border-t pt-4 bg-background mt-auto pb-0 shrink-0">
-            <DrawerClose asChild>
-              <Button className="w-full h-12 rounded-xl shadow-md">
-                {t("filters.close")}
+            {autoApply ? (
+              <DrawerClose asChild>
+                <Button className="w-full h-12 rounded-xl shadow-md">
+                  {t("filters.close")}
+                </Button>
+              </DrawerClose>
+            ) : (
+              <Button
+                className="w-full h-12 rounded-xl shadow-md"
+                onClick={() => {
+                  applyFilters();
+                  setOpen(false);
+                }}
+                data-testid="button-apply-mobile-filters"
+              >
+                {applyButtonLabel || t("hero.search")}
               </Button>
-            </DrawerClose>
+            )}
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
