@@ -3153,6 +3153,8 @@ type ListingAnalytics = {
   whatsappClicks: number;
 };
 
+const safeWindow = () => (typeof window !== "undefined" ? window : null);
+
 function PageLoaderInline({ text }: { text: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center">
