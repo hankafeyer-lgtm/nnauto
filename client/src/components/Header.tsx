@@ -294,6 +294,15 @@ function HeaderContent({
     }
   };
   const handleLogoClick = () => {
+    const isEmbeddedListing =
+      new URLSearchParams(window.location.search).get("embedded") === "1";
+    const isInIframe = window.parent && window.parent !== window;
+
+    if (isEmbeddedListing && isInIframe) {
+      window.parent.postMessage({ type: "nnauto-close-listing-overlay" }, "*");
+      return;
+    }
+
     const hasQueryOrHash = !!window.location.search || !!window.location.hash;
 
     // Якщо вже на чистій головній — просто скрол вгору

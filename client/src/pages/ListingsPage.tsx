@@ -3145,25 +3145,6 @@ export default function ListingsPage() {
   const hasSyncedUrlPageRef = useRef(false);
   const lastUrlPageRef = useRef(currentPage);
   const historyNavigationRef = useRef(false);
-  const avoidHistoryBackRef = useRef(false);
-
-  useEffect(() => {
-    const w = safeWindow();
-    if (!w) return;
-    const getEntriesByType = (w.performance as Performance).getEntriesByType;
-    const navEntries =
-      typeof getEntriesByType === "function"
-        ? getEntriesByType.call(w.performance, "navigation")
-        : [];
-    const navEntry = navEntries[0] as PerformanceNavigationTiming | undefined;
-    avoidHistoryBackRef.current =
-      navEntry?.type === "reload" ||
-      (
-        w.performance as Performance & {
-          navigation?: { type?: number };
-        }
-      ).navigation?.type === 1;
-  }, []);
 
   useEffect(() => {
     const w = safeWindow();
@@ -3233,14 +3214,21 @@ export default function ListingsPage() {
   const closeListingOverlay = useCallback(() => {
     const w = safeWindow();
     if (!w) return;
-    const hasOverlayParam = new URL(w.location.href).searchParams.has("openListing");
-    if (hasOverlayParam && w.history.length > 1 && !avoidHistoryBackRef.current) {
-      w.history.back();
-      return;
-    }
     replaceUrlParams((p) => {
       p.delete("openListing");
     });
+    setOpenListingId(null);
+  }, []);
+
+  useEffect(() => {
+    const w = safeWindow();
+    if (!w) return;
+    const url = new URL(w.location.href);
+    // In user cabinet view (`/listings?userId=...`) never auto-restore opened card on refresh.
+    if (!url.searchParams.get("userId")) return;
+    if (!url.searchParams.has("openListing")) return;
+    url.searchParams.delete("openListing");
+    w.history.replaceState(w.history.state, "", url.toString());
     setOpenListingId(null);
   }, []);
 

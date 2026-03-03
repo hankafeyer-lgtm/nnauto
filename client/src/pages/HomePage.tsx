@@ -2132,40 +2132,8 @@ export default function HomePage() {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("openListing");
   });
-  const avoidHistoryBackRef = useRef(false);
 
   useEffect(() => {
-    const getEntriesByType = (window.performance as Performance).getEntriesByType;
-    const navEntries =
-      typeof getEntriesByType === "function"
-        ? getEntriesByType.call(window.performance, "navigation")
-        : [];
-    const navEntry = navEntries[0] as PerformanceNavigationTiming | undefined;
-    avoidHistoryBackRef.current =
-      navEntry?.type === "reload" ||
-      (
-        window.performance as Performance & {
-          navigation?: { type?: number };
-        }
-      ).navigation?.type === 1;
-  }, []);
-
-  useEffect(() => {
-    const getEntriesByType = (window.performance as Performance).getEntriesByType;
-    const navEntries =
-      typeof getEntriesByType === "function"
-        ? getEntriesByType.call(window.performance, "navigation")
-        : [];
-    const navEntry = navEntries[0] as PerformanceNavigationTiming | undefined;
-    const isReload =
-      navEntry?.type === "reload" ||
-      (
-        window.performance as Performance & {
-          navigation?: { type?: number };
-        }
-      ).navigation?.type === 1;
-    if (!isReload) return;
-
     const url = new URL(window.location.href);
     if (!url.searchParams.has("openListing")) return;
     url.searchParams.delete("openListing");
@@ -2209,15 +2177,6 @@ export default function HomePage() {
   }, []);
   const closeListingOverlay = useCallback(() => {
     const url = new URL(window.location.href);
-    const hasOverlayParam = url.searchParams.has("openListing");
-    if (
-      hasOverlayParam &&
-      window.history.length > 1 &&
-      !avoidHistoryBackRef.current
-    ) {
-      window.history.back();
-      return;
-    }
     url.searchParams.delete("openListing");
     window.history.replaceState(window.history.state, "", url.toString());
     setOpenListingId(null);
