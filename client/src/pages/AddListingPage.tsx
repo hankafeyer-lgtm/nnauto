@@ -1191,6 +1191,68 @@ export default function AddListingPage() {
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">{t("listing.basicInfo")}</h3>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="brand"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("hero.brand")}</FormLabel>
+                            <FormControl>
+                              <BrandCombobox
+                                brands={carBrands
+                                  .filter(brand => {
+                                    const vehicleType = form.watch("vehicleType");
+                                    if (vehicleType && vehicleTypeBrands[vehicleType]) {
+                                      return vehicleTypeBrands[vehicleType].includes(brand.value);
+                                    }
+                                    return true;
+                                  })
+                                  .map(brand => ({
+                                    value: brand.value,
+                                    label: brand.label,
+                                    icon: brandIcons[brand.value]
+                                  }))}
+                                value={field.value}
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                  form.setValue("model", "");
+                                }}
+                                placeholder={t("hero.allBrands")}
+                                emptyMessage={t("hero.noBrandsFound") || "Značka nenalezena"}
+                                className="w-full h-10"
+                                testId="select-brand"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="model"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t("hero.model")}</FormLabel>
+                            <FormControl>
+                              <ModelCombobox
+                                models={availableModels}
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                disabled={!selectedBrand}
+                                placeholder={selectedBrand ? t("hero.allModels") : t("hero.selectBrand")}
+                                emptyMessage={t("hero.noModelsFound") || "Model nenalezen"}
+                                className="w-full h-10"
+                                testId="select-model"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+
                     <FormField
                       control={form.control}
                       name="title"
@@ -1471,66 +1533,6 @@ export default function AddListingPage() {
                                   );
                                 })}
                               </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="brand"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("hero.brand")}</FormLabel>
-                            <FormControl>
-                              <BrandCombobox
-                                brands={carBrands
-                                  .filter(brand => {
-                                    const vehicleType = form.watch("vehicleType");
-                                    if (vehicleType && vehicleTypeBrands[vehicleType]) {
-                                      return vehicleTypeBrands[vehicleType].includes(brand.value);
-                                    }
-                                    return true;
-                                  })
-                                  .map(brand => ({
-                                    value: brand.value,
-                                    label: brand.label,
-                                    icon: brandIcons[brand.value]
-                                  }))}
-                                value={field.value}
-                                onValueChange={(value) => {
-                                  field.onChange(value);
-                                  form.setValue("model", "");
-                                }}
-                                placeholder={t("hero.allBrands")}
-                                emptyMessage={t("hero.noBrandsFound") || "Značka nenalezena"}
-                                className="w-full h-10"
-                                testId="select-brand"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="model"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("hero.model")}</FormLabel>
-                            <FormControl>
-                              <ModelCombobox
-                                models={availableModels}
-                                value={field.value}
-                                onValueChange={field.onChange}
-                                disabled={!selectedBrand}
-                                placeholder={selectedBrand ? t("hero.allModels") : t("hero.selectBrand")}
-                                emptyMessage={t("hero.noModelsFound") || "Model nenalezen"}
-                                className="w-full h-10"
-                                testId="select-model"
-                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
