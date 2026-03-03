@@ -3087,20 +3087,6 @@ const forceScrollToTop = () => {
   window.setTimeout(run, 120);
 };
 
-const isReloadNavigation = () => {
-  const w = safeWindow();
-  if (!w) return false;
-  const getEntriesByType = (w.performance as Performance).getEntriesByType;
-  const navEntries =
-    typeof getEntriesByType === "function"
-      ? getEntriesByType.call(w.performance, "navigation")
-      : [];
-  const navEntry = navEntries[0] as PerformanceNavigationTiming | undefined;
-  if (navEntry) return navEntry.type === "reload";
-  const legacyNav = (w.performance as Performance & { navigation?: { type?: number } })
-    .navigation;
-  return legacyNav?.type === 1;
-};
 
 /* ---------------- component ---------------- */
 export default function ListingsPage() {
@@ -3159,7 +3145,6 @@ export default function ListingsPage() {
   const hasSyncedUrlPageRef = useRef(false);
   const lastUrlPageRef = useRef(currentPage);
   const historyNavigationRef = useRef(false);
-  const didRunReloadResetRef = useRef(false);
 
   useEffect(() => {
     const w = safeWindow();
@@ -3190,23 +3175,6 @@ export default function ListingsPage() {
     w.addEventListener("popstate", onPopState);
     return () => w.removeEventListener("popstate", onPopState);
   }, []);
-
-  useEffect(() => {
-    if (didRunReloadResetRef.current) return;
-    didRunReloadResetRef.current = true;
-    if (!isReloadNavigation()) return;
-    replaceUrlParams((p) => {
-      const preservedUserId = p.get("userId");
-      for (const key of Array.from(p.keys())) p.delete(key);
-      if (preservedUserId) p.set("userId", preservedUserId);
-    });
-    setCurrentPage(1);
-    setSortBy(DEFAULT_SORT);
-    setAccumulated([]);
-    setIsLoadingMore(false);
-    resetFilters();
-    forceScrollToTop();
-  }, [resetFilters]);
 
   /* ----- sync page + sort when url changes (back/forward, manual edit) ----- */
   useEffect(() => {
