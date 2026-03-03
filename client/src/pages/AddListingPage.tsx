@@ -1408,130 +1408,140 @@ export default function AddListingPage() {
                         name="bodyType"
                         render={({ field }) => (
                           <FormItem className="md:col-span-2">
-                            <FormLabel>{t("listing.vehicleType")} / {t("filters.bodyType")}</FormLabel>
                             <FormControl>
-                              <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 gap-2">
-                                {/* Osobní auta */}
-                                {(() => {
-                                  const isSelected = form.watch("vehicleType") === "osobni-auta";
-                                  return (
-                                    <Button
-                                      type="button"
-                                      variant={isSelected ? "default" : "outline"}
-                                      className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                      onClick={() => {
-                                        if (isSelected) {
-                                          form.setValue("vehicleType", "" as any);
-                                          field.onChange(undefined);
-                                        } else {
-                                          form.setValue("vehicleType", "osobni-auta");
-                                          field.onChange(undefined);
-                                        }
-                                      }}
-                                      data-testid="button-vehicle-cars"
-                                    >
-                                      <CarGoldIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
-                                      <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.cars")}</span>
-                                    </Button>
-                                  );
-                                })()}
-                                {/* Dodávky */}
-                                {(() => {
-                                  const isSelected = form.watch("vehicleType") === "dodavky";
-                                  return (
-                                    <Button
-                                      type="button"
-                                      variant={isSelected ? "default" : "outline"}
-                                      className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                      onClick={() => {
-                                        if (isSelected) {
-                                          form.setValue("vehicleType", "" as any);
-                                          field.onChange(undefined);
-                                        } else {
-                                          form.setValue("vehicleType", "dodavky");
-                                          field.onChange(undefined);
-                                        }
-                                      }}
-                                      data-testid="button-vehicle-vans"
-                                    >
-                                      <VanIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
-                                      <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.dodavky")}</span>
-                                    </Button>
-                                  );
-                                })()}
-                                {/* Nákladní vozy */}
-                                {(() => {
-                                  const isSelected = form.watch("vehicleType") === "nakladni-vozy";
-                                  return (
-                                    <Button
-                                      type="button"
-                                      variant={isSelected ? "default" : "outline"}
-                                      className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                      onClick={() => {
-                                        if (isSelected) {
-                                          form.setValue("vehicleType", "" as any);
-                                          field.onChange(undefined);
-                                        } else {
-                                          form.setValue("vehicleType", "nakladni-vozy");
-                                          field.onChange(undefined);
-                                        }
-                                      }}
-                                      data-testid="button-vehicle-trucks"
-                                    >
-                                      <TruckGoldIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
-                                      <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.trucks")}</span>
-                                    </Button>
-                                  );
-                                })()}
-                                {/* Motorky */}
-                                {(() => {
-                                  const isSelected = form.watch("vehicleType") === "motorky";
-                                  return (
-                                    <Button
-                                      type="button"
-                                      variant={isSelected ? "default" : "outline"}
-                                      className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                      onClick={() => {
-                                        if (isSelected) {
-                                          form.setValue("vehicleType", "" as any);
-                                          field.onChange(undefined);
-                                        } else {
-                                          form.setValue("vehicleType", "motorky");
-                                          field.onChange(undefined);
-                                        }
-                                      }}
-                                      data-testid="button-vehicle-motorky"
-                                    >
-                                      <MotorcycleIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
-                                      <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.motorky")}</span>
-                                    </Button>
-                                  );
-                                })()}
-                                {bodyTypes.map((type) => {
-                                  const IconComponent = bodyTypeIcons[type.value] || Car;
-                                  const isSelected = field.value === type.value;
-                                  return (
-                                    <Button
-                                      key={type.value}
-                                      type="button"
-                                      variant={isSelected ? "default" : "outline"}
-                                      className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated' : ''} toggle-elevate`}
-                                      onClick={() => {
-                                        if (isSelected) {
-                                          field.onChange(undefined);
-                                          form.setValue("vehicleType", "" as any);
-                                        } else {
-                                          form.setValue("vehicleType", "osobni-auta");
-                                          field.onChange(type.value);
-                                        }
-                                      }}
-                                      data-testid={`button-body-type-${type.value}`}
-                                    >
-                                      <IconComponent className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
-                                      <span className="text-[10px] sm:text-xs font-medium leading-tight">{type.label}</span>
-                                    </Button>
-                                  );
-                                })}
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <FormLabel>{t("listing.vehicleType")}</FormLabel>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                    {/* Osobní auta */}
+                                    {(() => {
+                                      const isSelected = form.watch("vehicleType") === "osobni-auta";
+                                      return (
+                                        <Button
+                                          type="button"
+                                          variant={isSelected ? "default" : "outline"}
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              form.setValue("vehicleType", "" as any);
+                                              field.onChange(undefined);
+                                            } else {
+                                              form.setValue("vehicleType", "osobni-auta");
+                                              field.onChange(undefined);
+                                            }
+                                          }}
+                                          data-testid="button-vehicle-cars"
+                                        >
+                                          <CarGoldIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
+                                          <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.cars")}</span>
+                                        </Button>
+                                      );
+                                    })()}
+                                    {/* Dodávky */}
+                                    {(() => {
+                                      const isSelected = form.watch("vehicleType") === "dodavky";
+                                      return (
+                                        <Button
+                                          type="button"
+                                          variant={isSelected ? "default" : "outline"}
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              form.setValue("vehicleType", "" as any);
+                                              field.onChange(undefined);
+                                            } else {
+                                              form.setValue("vehicleType", "dodavky");
+                                              field.onChange(undefined);
+                                            }
+                                          }}
+                                          data-testid="button-vehicle-vans"
+                                        >
+                                          <VanIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
+                                          <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.dodavky")}</span>
+                                        </Button>
+                                      );
+                                    })()}
+                                    {/* Nákladní vozy */}
+                                    {(() => {
+                                      const isSelected = form.watch("vehicleType") === "nakladni-vozy";
+                                      return (
+                                        <Button
+                                          type="button"
+                                          variant={isSelected ? "default" : "outline"}
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              form.setValue("vehicleType", "" as any);
+                                              field.onChange(undefined);
+                                            } else {
+                                              form.setValue("vehicleType", "nakladni-vozy");
+                                              field.onChange(undefined);
+                                            }
+                                          }}
+                                          data-testid="button-vehicle-trucks"
+                                        >
+                                          <TruckGoldIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
+                                          <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.trucks")}</span>
+                                        </Button>
+                                      );
+                                    })()}
+                                    {/* Motorky */}
+                                    {(() => {
+                                      const isSelected = form.watch("vehicleType") === "motorky";
+                                      return (
+                                        <Button
+                                          type="button"
+                                          variant={isSelected ? "default" : "outline"}
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              form.setValue("vehicleType", "" as any);
+                                              field.onChange(undefined);
+                                            } else {
+                                              form.setValue("vehicleType", "motorky");
+                                              field.onChange(undefined);
+                                            }
+                                          }}
+                                          data-testid="button-vehicle-motorky"
+                                        >
+                                          <MotorcycleIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
+                                          <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.motorky")}</span>
+                                        </Button>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                  <FormLabel>{t("filters.bodyType")}</FormLabel>
+                                  <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                                    {bodyTypes.map((type) => {
+                                      const IconComponent = bodyTypeIcons[type.value] || Car;
+                                      const isSelected = field.value === type.value;
+                                      return (
+                                        <Button
+                                          key={type.value}
+                                          type="button"
+                                          variant={isSelected ? "default" : "outline"}
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated' : ''} toggle-elevate`}
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              field.onChange(undefined);
+                                              form.setValue("vehicleType", "" as any);
+                                            } else {
+                                              form.setValue("vehicleType", "osobni-auta");
+                                              field.onChange(type.value);
+                                            }
+                                          }}
+                                          data-testid={`button-body-type-${type.value}`}
+                                        >
+                                          <IconComponent className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
+                                          <span className="text-[10px] sm:text-xs font-medium leading-tight">{type.label}</span>
+                                        </Button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
                               </div>
                             </FormControl>
                             <FormMessage />
