@@ -14,6 +14,7 @@ import {
 
 import { cn } from "@/lib/utils"
 import { Label } from "@/components/ui/label"
+import { useLanguage } from "@/contexts/LanguageContext"
 
 const Form = FormProvider
 
@@ -146,8 +147,31 @@ const FormMessage = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, children, ...props }, ref) => {
+  const { language } = useLanguage()
   const { error, formMessageId } = useFormField()
-  const body = error ? String(error?.message ?? "") : children
+  const rawBody = error ? String(error?.message ?? "") : children
+
+  const body =
+    typeof rawBody === "string" && rawBody.includes(" / ")
+      ? (() => {
+          const parts = rawBody
+            .split(" / ")
+            .map((part) => part.trim())
+            .filter(Boolean)
+
+          if (parts.length === 2) {
+            return language === "uk" ? parts[1] : parts[0]
+          }
+
+          if (parts.length >= 3) {
+            if (language === "uk") return parts[1]
+            if (language === "en") return parts[2]
+            return parts[0]
+          }
+
+          return rawBody
+        })()
+      : rawBody
 
   if (!body) {
     return null
