@@ -2473,7 +2473,7 @@ export default function HomePage() {
             </h2>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <MobileFilters />
+              <MobileFilters autoApply={false} applyButtonLabel="Vyhledat" />
               <Button
                 variant="outline"
                 className="h-10 px-4 sm:h-12 sm:px-6 lg:px-8 rounded-lg sm:rounded-xl text-sm sm:text-base"
