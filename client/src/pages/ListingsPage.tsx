@@ -3196,7 +3196,9 @@ export default function ListingsPage() {
     didRunReloadResetRef.current = true;
     if (!isReloadNavigation()) return;
     replaceUrlParams((p) => {
+      const preservedUserId = p.get("userId");
       for (const key of Array.from(p.keys())) p.delete(key);
+      if (preservedUserId) p.set("userId", preservedUserId);
     });
     setCurrentPage(1);
     setSortBy(DEFAULT_SORT);
