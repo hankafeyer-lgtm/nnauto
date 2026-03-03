@@ -41,7 +41,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MonthPicker } from "@/components/ui/month-picker";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CarPhotoUploader } from "@/components/CarPhotoUploader";
 import { VideoUploader } from "@/components/VideoUploader";
 import { BrandCombobox } from "@/components/BrandCombobox";
@@ -1177,9 +1177,6 @@ export default function AddListingPage() {
               <CardTitle className="text-2xl sm:text-3xl font-semibold tracking-tight" data-testid="text-page-title">
                 {t("listing.addTitle")}
               </CardTitle>
-              <CardDescription className="text-sm sm:text-base">
-                {t("listing.basicInfo")}
-              </CardDescription>
             </CardHeader>
 
             <CardContent>
