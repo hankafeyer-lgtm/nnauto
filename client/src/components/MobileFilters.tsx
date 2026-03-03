@@ -3253,7 +3253,7 @@ function MobileFilters({
               >
                 <CollapsibleTrigger className="flex items-center justify-between w-full py-2 hover-elevate rounded-xl px-3">
                   <h3 className="text-lg font-semibold">
-                    {t("listing.vehicleType")}
+                    {t("listing.vehicleType")} / {t("filters.bodyType")}
                   </h3>
                   <ChevronDown
                     className={`h-5 w-5 transition-transform ${
@@ -3263,105 +3263,91 @@ function MobileFilters({
                 </CollapsibleTrigger>
 
                 <CollapsibleContent className="space-y-6 pt-4">
-                  <div className="space-y-4">
-                    <div className="space-y-3">
-                      <Label className="text-base font-medium">
-                        {t("listing.vehicleType")}
-                      </Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          {
-                            key: "osobni-auta",
-                            label: t("hero.cars"),
-                            img: carGoldIcon,
-                            testId: "button-mobile-vehicle-cars",
-                          },
-                          {
-                            key: "dodavky",
-                            label: t("hero.dodavky"),
-                            img: vanIcon,
-                            testId: "button-mobile-vehicle-dodavky",
-                          },
-                          {
-                            key: "nakladni-vozy",
-                            label: t("hero.trucks"),
-                            img: truckGoldIcon,
-                            testId: "button-mobile-vehicle-trucks",
-                          },
-                          {
-                            key: "motorky",
-                            label: t("hero.motorky"),
-                            img: motorcycleIcon,
-                            testId: "button-mobile-vehicle-motorky",
-                          },
-                        ].map((item) => {
-                          const selected = selectedVehicleTypes.includes(item.key);
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      {
+                        key: "osobni-auta",
+                        label: t("hero.cars"),
+                        img: carGoldIcon,
+                        testId: "button-mobile-vehicle-cars",
+                      },
+                      {
+                        key: "dodavky",
+                        label: t("hero.dodavky"),
+                        img: vanIcon,
+                        testId: "button-mobile-vehicle-dodavky",
+                      },
+                      {
+                        key: "nakladni-vozy",
+                        label: t("hero.trucks"),
+                        img: truckGoldIcon,
+                        testId: "button-mobile-vehicle-trucks",
+                      },
+                      {
+                        key: "motorky",
+                        label: t("hero.motorky"),
+                        img: motorcycleIcon,
+                        testId: "button-mobile-vehicle-motorky",
+                      },
+                    ].map((item) => {
+                      const selected = selectedVehicleTypes.includes(item.key);
 
-                          return (
-                            <button
-                              key={item.key}
-                              type="button"
-                              onClick={() => handleVehicleTypeToggle(item.key)}
-                              className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
-                                selected
-                                  ? "bg-primary text-primary-foreground border-primary-border"
-                                  : "bg-background border-input text-black dark:text-white"
-                              }`}
-                              data-testid={item.testId}
-                            >
-                              <ImgIcon
-                                src={item.img}
-                                alt={item.key}
-                                className="w-8 h-8"
-                              />
-                              <span
-                                className={`text-xs text-center leading-tight ${
-                                  !selected ? "text-black dark:text-white" : ""
-                                }`}
-                              >
-                                {item.label}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                      return (
+                        <button
+                          key={item.key}
+                          type="button"
+                          onClick={() => handleVehicleTypeToggle(item.key)}
+                          className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                            selected
+                              ? "bg-primary text-primary-foreground border-primary-border"
+                              : "bg-background border-input text-black dark:text-white"
+                          }`}
+                          data-testid={item.testId}
+                        >
+                          <ImgIcon
+                            src={item.img}
+                            alt={item.key}
+                            className="w-8 h-8"
+                          />
+                          <span
+                            className={`text-xs text-center leading-tight ${
+                              !selected ? "text-black dark:text-white" : ""
+                            }`}
+                          >
+                            {item.label}
+                          </span>
+                        </button>
+                      );
+                    })}
 
-                    <div className="space-y-3">
-                      <Label className="text-base font-medium">
-                        {t("filters.bodyType")}
-                      </Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {bodyTypes.map((type) => {
-                          const IconComponent = bodyTypeIcons[type.value] || Car;
-                          const isSelected =
-                            filters.bodyType?.includes(type.value) || false;
+                    {bodyTypes.map((type) => {
+                      const IconComponent = bodyTypeIcons[type.value] || Car;
+                      const isSelected =
+                        filters.bodyType?.includes(type.value) || false;
 
-                          return (
-                            <button
-                              key={type.value}
-                              type="button"
-                              onClick={() => handleBodyTypeToggle(type.value)}
-                              className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
-                                isSelected
-                                  ? "bg-primary text-primary-foreground border-primary-border"
-                                  : "bg-background border-input text-black dark:text-white"
-                              }`}
-                              data-testid={`button-mobile-body-type-${type.value}`}
-                            >
-                              <IconComponent className="w-8 h-8" />
-                              <span
-                                className={`text-xs text-center leading-tight ${
-                                  !isSelected ? "text-black dark:text-white" : ""
-                                }`}
-                              >
-                                {type.label}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                      return (
+                        <button
+                          key={type.value}
+                          type="button"
+                          onClick={() => handleBodyTypeToggle(type.value)}
+                          className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary-border"
+                              : "bg-background border-input text-black dark:text-white"
+                          }`}
+                          data-testid={`button-mobile-body-type-${type.value}`}
+                        >
+                          <IconComponent className="w-8 h-8" />
+                          <span
+                            className={`text-xs text-center leading-tight ${
+                              !isSelected ? "text-black dark:text-white" : ""
+                            }`}
+                          >
+                            {type.label}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
