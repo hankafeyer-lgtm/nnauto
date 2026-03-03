@@ -2525,8 +2525,15 @@ const toggleInCommaList = (current: string | undefined, value: string) => {
   return joinComma(next);
 };
 
-const toggleInArray = (current: string[] | undefined, value: string) => {
-  const arr = current ?? [];
+const toggleInArray = (
+  current: string[] | string | undefined,
+  value: string,
+) => {
+  const arr = Array.isArray(current)
+    ? current
+    : typeof current === "string"
+      ? splitComma(current)
+      : [];
   const next = arr.includes(value)
     ? arr.filter((x) => x !== value)
     : [...arr, value];
