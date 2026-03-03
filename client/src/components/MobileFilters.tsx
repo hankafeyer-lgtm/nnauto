@@ -2904,43 +2904,29 @@ function MobileFilters({
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const selectedVehicleTypes = useMemo(
-    () => splitComma(filters.vehicleType),
-    [filters.vehicleType],
-  );
+  const selectedVehicleType = filters.vehicleType || "";
 
-  // ✅ Бренди під обрані типи авто (union)
+  // Brands filtered by a single selected vehicle type.
   const filteredBrands = useMemo(() => {
-    if (!selectedVehicleTypes.length) {
+    if (!selectedVehicleType) {
       return carBrands.map((b) => ({ ...b, icon: brandIcons[b.value] }));
     }
 
-    const allowed = new Set<string>();
-    for (const vt of selectedVehicleTypes) {
-      const list = (vehicleTypeBrands as any)[vt] as string[] | undefined;
-      if (Array.isArray(list)) {
-        for (const x of list) allowed.add(x);
-      }
-    }
-
-    // якщо не знайшли мапінг — не фільтруємо
-    const base = allowed.size
-      ? carBrands.filter((b) => allowed.has(b.value))
+    const allowed = (vehicleTypeBrands as any)[selectedVehicleType] as
+      | string[]
+      | undefined;
+    const base = Array.isArray(allowed)
+      ? carBrands.filter((b) => allowed.includes(b.value))
       : carBrands;
 
     return base.map((b) => ({ ...b, icon: brandIcons[b.value] }));
-  }, [selectedVehicleTypes]);
-
-  const primaryVehicleTypeForModels = useMemo(() => {
-    // якщо вибрано кілька типів — беремо перший для getModelsForVehicleType
-    return selectedVehicleTypes[0] || filters.vehicleType || "";
-  }, [selectedVehicleTypes, filters.vehicleType]);
+  }, [selectedVehicleType]);
 
   const availableModels = useMemo(() => {
     return filters.brand
-      ? getModelsForVehicleType(filters.brand, primaryVehicleTypeForModels)
+      ? getModelsForVehicleType(filters.brand, selectedVehicleType)
       : [];
-  }, [filters.brand, primaryVehicleTypeForModels]);
+  }, [filters.brand, selectedVehicleType]);
 
   const priceMin = filters.priceMin;
   const priceMax = filters.priceMax;
@@ -2964,7 +2950,7 @@ function MobileFilters({
   const handleVehicleTypeToggle = (type: string) => {
     setFilters((prev) => ({
       ...prev,
-      vehicleType: toggleInCommaList(prev.vehicleType, type) || "",
+      vehicleType: prev.vehicleType === type ? "" : type,
       bodyType: undefined, // при зміні типу авто — скидаємо кузов
     }));
   };
@@ -2973,16 +2959,9 @@ function MobileFilters({
     setFilters((prev) => {
       const nextBodyTypes = toggleInArray(prev.bodyType, bodyType);
 
-      // якщо вибираємо кузов — гарантуємо osobni-auta в vehicleType
-      let nextVehicleType = prev.vehicleType || "";
-      if (nextBodyTypes?.length) {
-        const types = new Set([...splitComma(nextVehicleType), "osobni-auta"]);
-        nextVehicleType = joinComma([...types]);
-      }
-
       return {
         ...prev,
-        vehicleType: nextVehicleType,
+        vehicleType: nextBodyTypes?.length ? "osobni-auta" : prev.vehicleType,
         bodyType: nextBodyTypes,
       };
     });
@@ -3295,7 +3274,7 @@ function MobileFilters({
                             testId: "button-mobile-vehicle-motorky",
                           },
                         ].map((item) => {
-                          const selected = selectedVehicleTypes.includes(item.key);
+                          const selected = selectedVehicleType === item.key;
 
                           return (
                             <button

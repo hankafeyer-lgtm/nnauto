@@ -2667,7 +2667,7 @@ function FilterSidebar() {
   const handleVehicleTypeToggle = (type: string) => {
     setFilters((prev) => ({
       ...prev,
-      vehicleType: toggleInCommaList(prev.vehicleType, type) || "",
+      vehicleType: prev.vehicleType === type ? "" : type,
       bodyType: undefined, // при зміні типу авто — скидаємо кузов
     }));
   };
@@ -2942,9 +2942,7 @@ function FilterSidebar() {
                       testId: "button-sidebar-vehicle-motorky",
                     },
                   ].map((item) => {
-                    const selected = splitComma(filters.vehicleType).includes(
-                      item.key,
-                    );
+                    const selected = filters.vehicleType === item.key;
 
                     return (
                       <button
