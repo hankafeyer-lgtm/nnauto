@@ -99,9 +99,11 @@ export function useAuth() {
     () => (typeof window !== "undefined" ? getToken() : null),
     []
   );
+  const hasToken = useMemo(() => !!token, [token]);
   const tokenInvalid = useMemo(() => {
     if (typeof window === "undefined") return true;
-    if (!token) return true;
+    // No token does not mean invalid auth state: session/cookie auth may still be valid.
+    if (!token) return false;
     return isJwtExpired(token);
   }, [token]);
 
@@ -131,18 +133,19 @@ export function useAuth() {
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
-    enabled: !tokenInvalid, // без валідного токена не стріляємо в /api/auth/user
+    enabled: true,
   });
 
   const serverUser = data?.user ?? null;
 
-  // Якщо токен є, але сервер вернув user:null (або був 401 -> returnNull) — робимо повний logout
+  // If a token exists but server returns user:null (or 401->returnNull),
+  // perform a full logout/cleanup.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!tokenInvalid && !isLoading && !serverUser) {
+    if (hasToken && !tokenInvalid && !isLoading && !serverUser) {
       logout();
     }
-  }, [tokenInvalid, isLoading, serverUser, logout]);
+  }, [hasToken, tokenInvalid, isLoading, serverUser, logout]);
 
   const user = tokenInvalid ? null : serverUser;
 
