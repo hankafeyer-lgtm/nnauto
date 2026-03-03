@@ -1026,7 +1026,12 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
   }, [setFilters]);
 
   const applyFilters = useCallback(() => {
+    const currentParams = new URLSearchParams(window.location.search);
+    const userId = currentParams.get("userId");
     const params = new URLSearchParams();
+
+    // Preserve user cabinet context when applying filters on "moje inzeraty".
+    if (userId) params.set("userId", userId);
 
     if (filters.search) params.set("search", filters.search);
     if (filters.category) params.set("category", filters.category);

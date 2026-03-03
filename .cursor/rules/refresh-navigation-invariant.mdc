@@ -20,6 +20,7 @@ When implementing navigation or URL-state changes, keep this invariant:
 - On protected pages, never redirect while auth is still loading/fetching (`isLoading || isFetching` must be false first).
 - Missing JWT alone is not enough to force logout if cookie/session auth is still valid.
 - On homepage reload, if `openListing` is present in query, clear it via `replaceState` so refresh stays on homepage content instead of reopening the last card.
+- In user-cabinet routes (`moje inzeraty`), always preserve `userId` query param when applying/resetting filters so refresh never escapes to generic listings.
 
 ## Required Verification Before Deploy
 
@@ -27,5 +28,6 @@ When implementing navigation or URL-state changes, keep this invariant:
 - Refresh on opened listing/detail keeps that listing/detail.
 - Refresh on homepage never jumps to previously visited page.
 - Flow check: open listing card -> click `NNAuto` logo -> refresh homepage must not reopen that listing card.
+- Flow check: in `moje inzeraty`, refresh and filter apply must keep `userId` and stay inside cabinet context.
 - Refresh on `add-listing`, `moje inzeraty`, `profile`, and `settings` keeps user on the same page.
 - Mobile and desktop behavior are identical.
