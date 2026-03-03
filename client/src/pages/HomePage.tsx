@@ -2169,11 +2169,6 @@ export default function HomePage() {
   }, []);
   const closeListingOverlay = useCallback(() => {
     const url = new URL(window.location.href);
-    const hasOverlayParam = url.searchParams.has("openListing");
-    if (hasOverlayParam && window.history.length > 1) {
-      window.history.back();
-      return;
-    }
     url.searchParams.delete("openListing");
     window.history.replaceState(window.history.state, "", url.toString());
     setOpenListingId(null);
