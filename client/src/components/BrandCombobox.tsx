@@ -53,7 +53,6 @@ export function BrandCombobox({
 }: BrandComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const [canType, setCanType] = useState(false);
 
   const selectedBrand = brands.find((brand) => brand.value === value);
 
@@ -64,10 +63,9 @@ export function BrandCombobox({
       onOpenChange={(next) => {
         setOpen(next);
         if (next) {
-          setCanType(false); // ✅ при відкритті: не фокусимось
+          return;
         } else {
           setSearchValue(""); // опційно
-          setCanType(false);
         }
       }}
       modal={true}
@@ -133,11 +131,6 @@ export function BrandCombobox({
             placeholder={placeholder}
             value={searchValue}
             onValueChange={setSearchValue}
-            readOnly={!canType} // ✅ спочатку не можна вводити
-            onPointerDown={() => setCanType(true)} // ✅ клікнув — можна вводити
-            onFocus={(e) => {
-              if (!canType) e.target.blur(); // ✅ якщо Radix все одно сфокусив — знімаємо фокус
-            }}
             data-testid={`${testId}-input`}
           />
 
@@ -150,7 +143,6 @@ export function BrandCombobox({
                   onValueChange("");
                   setOpen(false);
                   setSearchValue("");
-                  setCanType(false);
                 }}
                 data-testid={`${testId}-option-all`}
               >

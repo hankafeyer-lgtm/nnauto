@@ -475,9 +475,6 @@ export interface FilterParams {
   hasServiceBook?: boolean;
 }
 
-// Custom event name for filter URL changes
-const FILTER_URL_CHANGE_EVENT = "filterUrlChange";
-
 const normalizeFilters = (filters: FilterParams): Record<string, unknown> => {
   const normalized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(filters)) {
@@ -633,20 +630,16 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
   const [filters, setFiltersState] =
     useState<FilterParams>(parseFiltersFromURL);
 
-  // Listen for URL changes from various sources
+  // Listen for browser URL changes
   useEffect(() => {
     const handleUrlChange = () => {
       setUrlSearchState(window.location.search);
     };
 
-    // Browser back/forward navigation
     window.addEventListener("popstate", handleUrlChange);
-    // Custom event for programmatic navigation
-    window.addEventListener(FILTER_URL_CHANGE_EVENT, handleUrlChange);
 
     return () => {
       window.removeEventListener("popstate", handleUrlChange);
-      window.removeEventListener(FILTER_URL_CHANGE_EVENT, handleUrlChange);
     };
   }, []);
 
@@ -749,9 +742,9 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       if (newFilters.hasServiceBook) params.set("hasServiceBook", "true");
 
       const queryString = params.toString();
-      const currentPath = location.includes("?")
-        ? location.split("?")[0]
-        : location;
+      // Always derive path from browser URL to avoid stale route state
+      // and keep user on the currently opened page after refresh.
+      const currentPath = window.location.pathname;
       const newPath = queryString
         ? `${currentPath}?${queryString}`
         : currentPath;
@@ -760,13 +753,8 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
         return;
       }
       setLocation(newPath);
-
-      // Dispatch custom event to notify all hook instances of URL change
-      setTimeout(() => {
-        window.dispatchEvent(new CustomEvent(FILTER_URL_CHANGE_EVENT));
-      }, 0);
     },
-    [autoNavigate, location, setLocation],
+    [autoNavigate, setLocation],
   );
 
   const setFilters = useCallback(
@@ -1113,12 +1101,6 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       return;
     }
     setLocation(targetUrl);
-
-    // Dispatch custom event to notify all hook instances of URL change
-    // Use setTimeout to ensure URL has been updated before event fires
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent(FILTER_URL_CHANGE_EVENT));
-    }, 0);
   }, [filters, setLocation]);
 
   return {

@@ -164,7 +164,6 @@ export function ModelCombobox({
 }: ModelComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const [canType, setCanType] = useState(false);
 
   // Find the display label for the current value
   const selectedModel = models.find(
@@ -178,19 +177,15 @@ export function ModelCombobox({
         setOpen(next);
 
         if (next) {
-          // ✅ відкрили: не даємо інпуту одразу фокуситись
-          setCanType(false);
+          return;
         } else {
-          // ✅ закрили: прибираємо пошук і прапорець
           setSearchValue("");
-          setCanType(false);
         }
       }}
       modal={true}
     >
       <PopoverTrigger asChild>
         <Button
-          onPointerDown={(e) => e.preventDefault()}
           variant="outline"
           role="combobox"
           aria-expanded={open}
@@ -218,12 +213,6 @@ export function ModelCombobox({
             placeholder={placeholder}
             value={searchValue}
             onValueChange={setSearchValue}
-            readOnly={!canType} // ✅ до кліку не вводимо
-            onPointerDown={() => setCanType(true)} // ✅ клікнув у поле — можна вводити
-            onFocus={(e) => {
-              // ✅ якщо якийсь браузер все одно сфокусив — прибираємо фокус
-              if (!canType) (e.target as HTMLInputElement).blur();
-            }}
             data-testid={`${testId}-input`}
           />
 
@@ -236,7 +225,6 @@ export function ModelCombobox({
                   onValueChange("");
                   setOpen(false);
                   setSearchValue("");
-                  setCanType(false);
                 }}
                 data-testid={`${testId}-option-all`}
               >
@@ -258,7 +246,6 @@ export function ModelCombobox({
                       onValueChange(modelValue);
                       setOpen(false);
                       setSearchValue("");
-                      setCanType(false);
                     }}
                     data-testid={`${testId}-option-${modelValue}`}
                   >
