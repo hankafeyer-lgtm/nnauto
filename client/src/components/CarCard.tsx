@@ -244,7 +244,7 @@ function CarCard({
         // Lock repeated rapid taps briefly to prevent rage-click loops.
         openClickLockTimeoutRef.current = setTimeout(
           () => setIsOpeningListing(false),
-          900,
+          320,
         );
         return;
       }
@@ -264,6 +264,7 @@ function CarCard({
         <Link
           href={listingHref}
           data-testid={`link-car-${id}`}
+          className="touch-manipulation"
           onClick={handleListingClick}
         >
           <Card
@@ -423,7 +424,7 @@ function CarCard({
         <Button
           size="icon"
           variant="ghost"
-          className={`absolute top-3 left-3 rounded-full bg-white/90 dark:bg-black/70 backdrop-blur-sm hover:bg-white dark:hover:bg-black/90 z-10 shadow-md border border-gray-200/50 dark:border-gray-700/50 ${
+          className={`absolute top-3 left-3 rounded-full bg-white/90 dark:bg-black/70 backdrop-blur-sm hover:bg-white dark:hover:bg-black/90 z-10 shadow-md border border-gray-200/50 dark:border-gray-700/50 touch-manipulation ${
             favorite ? "text-red-500" : "text-gray-600 dark:text-gray-300"
           }`}
           onClick={handleFavoriteClick}
@@ -448,7 +449,7 @@ function CarCard({
       <Link
         href={listingHref}
         data-testid={`link-car-${id}`}
-        className="block h-full"
+        className="block h-full touch-manipulation"
         onClick={handleListingClick}
       >
         <Card
@@ -489,14 +490,14 @@ function CarCard({
                 <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 z-20 flex justify-between pointer-events-none">
                   <button
                     onClick={handlePrevPhoto}
-                    className="bg-black/60 hover:bg-black/80 text-white rounded-full p-2 sm:p-1.5 opacity-70 sm:opacity-0 sm:group-hover/photo:opacity-100 transition-opacity duration-200 active:scale-95 pointer-events-auto"
+                    className="bg-black/60 hover:bg-black/80 text-white rounded-full p-2 sm:p-1.5 opacity-70 sm:opacity-0 sm:group-hover/photo:opacity-100 transition-opacity duration-200 active:scale-95 pointer-events-auto touch-manipulation"
                     data-testid={`button-prev-photo-${id}`}
                   >
                     <ChevronLeft className="w-5 h-5" />
                   </button>
                   <button
                     onClick={handleNextPhoto}
-                    className="bg-black/60 hover:bg-black/80 text-white rounded-full p-2 sm:p-1.5 opacity-70 sm:opacity-0 sm:group-hover/photo:opacity-100 transition-opacity duration-200 active:scale-95 pointer-events-auto"
+                    className="bg-black/60 hover:bg-black/80 text-white rounded-full p-2 sm:p-1.5 opacity-70 sm:opacity-0 sm:group-hover/photo:opacity-100 transition-opacity duration-200 active:scale-95 pointer-events-auto touch-manipulation"
                     data-testid={`button-next-photo-${id}`}
                   >
                     <ChevronRight className="w-5 h-5" />
