@@ -129,7 +129,7 @@ export function useAuth() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tokenInvalid]);
 
-  const { data, isLoading, error } = useQuery<{ user: SafeUser | null }>({
+  const { data, isLoading, isFetching, error } = useQuery<{ user: SafeUser | null }>({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
     retry: false,
@@ -142,16 +142,16 @@ export function useAuth() {
   // perform a full logout/cleanup.
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (hasToken && !tokenInvalid && !isLoading && !serverUser) {
+    if (hasToken && !tokenInvalid && !isLoading && !isFetching && !serverUser) {
       logout();
     }
-  }, [hasToken, tokenInvalid, isLoading, serverUser, logout]);
+  }, [hasToken, tokenInvalid, isLoading, isFetching, serverUser, logout]);
 
   const user = tokenInvalid ? null : serverUser;
 
   return {
     user,
-    isLoading: tokenInvalid ? false : isLoading,
+    isLoading: tokenInvalid ? false : isLoading || isFetching,
     isAuthenticated: !!user,
     error,
     logout, // 👈 викликай з кнопки “Вийти”
