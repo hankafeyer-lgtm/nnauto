@@ -2304,6 +2304,22 @@ function Hero() {
     category: "condition" | "extras" | "equipment",
     value: string,
   ) => {
+    if (category === "condition") {
+      const raw = filters.condition;
+      const currentValues = Array.isArray(raw)
+        ? raw
+        : typeof raw === "string"
+          ? raw
+              .split(",")
+              .map((x) => x.trim())
+              .filter(Boolean)
+          : [];
+      const newValues =
+        currentValues.length === 1 && currentValues[0] === value ? [] : [value];
+      setCondition(newValues);
+      return;
+    }
+
     const currentValues = filters[category] || [];
     const newValues = currentValues.includes(value)
       ? currentValues.filter((v) => v !== value)
