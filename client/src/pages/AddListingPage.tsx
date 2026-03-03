@@ -557,7 +557,7 @@ export default function AddListingPage() {
         userId: user?.id || "",
         title: "",
         description: undefined,
-        price: "0",
+        price: "",
         brand: "",
         model: "",
         year: undefined,
@@ -800,7 +800,7 @@ export default function AddListingPage() {
       userId: user?.id || "",
       title: "",
       description: "",
-      price: "0",
+      price: "",
       brand: "",
       model: "",
       year: undefined,
@@ -1299,7 +1299,7 @@ export default function AddListingPage() {
                           <FormControl>
                             <Input
                               type="number"
-                              placeholder={t("listing.pricePlaceholder")}
+                              placeholder={t("listing.price")}
                               data-testid="input-price"
                               {...field}
                             />
