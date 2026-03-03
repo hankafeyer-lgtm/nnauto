@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { lazy, Suspense, memo } from "react";
+import { lazy, Suspense, memo, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
@@ -110,6 +110,53 @@ const SuspenseNotFound = memo(() => (
 ));
 
 function Router() {
+  useEffect(() => {
+    const RELOAD_URL_KEY = "nnauto_reload_url";
+
+    const getNavigationType = (): "reload" | "other" => {
+      const getEntriesByType = (window.performance as Performance).getEntriesByType;
+      const navEntries =
+        typeof getEntriesByType === "function"
+          ? getEntriesByType.call(window.performance, "navigation")
+          : [];
+      const navEntry = navEntries[0] as PerformanceNavigationTiming | undefined;
+      const isReload =
+        navEntry?.type === "reload" ||
+        (
+          window.performance as Performance & {
+            navigation?: { type?: number };
+          }
+        ).navigation?.type === 1;
+      return isReload ? "reload" : "other";
+    };
+
+    const currentRelativeUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const navigationType = getNavigationType();
+
+    if (navigationType === "reload") {
+      const savedUrl = sessionStorage.getItem(RELOAD_URL_KEY);
+      if (savedUrl && savedUrl !== currentRelativeUrl) {
+        window.history.replaceState(window.history.state, "", savedUrl);
+        window.dispatchEvent(new Event("popstate"));
+      }
+    }
+
+    const rememberCurrentUrl = () => {
+      const url = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      sessionStorage.setItem(RELOAD_URL_KEY, url);
+    };
+
+    // Save URL both on hard reload and on route changes inside SPA.
+    rememberCurrentUrl();
+    window.addEventListener("beforeunload", rememberCurrentUrl);
+    window.addEventListener("popstate", rememberCurrentUrl);
+
+    return () => {
+      window.removeEventListener("beforeunload", rememberCurrentUrl);
+      window.removeEventListener("popstate", rememberCurrentUrl);
+    };
+  }, []);
+
   return (
     <>
       <ScrollToTop />
