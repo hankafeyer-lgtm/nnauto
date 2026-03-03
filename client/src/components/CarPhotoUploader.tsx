@@ -258,7 +258,7 @@ export function CarPhotoUploader({
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="aspect-square rounded-lg border-2 border-dashed hover:border-primary transition-colors flex flex-col items-center justify-center gap-2 p-4 bg-background hover-elevate active-elevate-2"
+            className="aspect-square rounded-lg border-2 border-dashed hover:border-primary transition-colors flex flex-col items-center justify-center gap-2 p-4 bg-background hover-elevate active-elevate-2 touch-manipulation"
             data-testid="button-add-photos"
           >
             <Upload className="h-8 w-8 text-muted-foreground" />

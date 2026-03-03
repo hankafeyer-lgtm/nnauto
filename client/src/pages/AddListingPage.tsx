@@ -487,6 +487,7 @@ export default function AddListingPage() {
   const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [topsPurchased, setTopsPurchased] = useState(1);
   const submitLockRef = useRef(false);
+  const submitLockToastTsRef = useRef(0);
   const { language } = useLanguage();
   const isMediaUploading = isPhotosUploading || isVideoUploading;
   
@@ -968,7 +969,27 @@ export default function AddListingPage() {
   };
 
   const handleSubmitClick = async () => {
-    if (submitLockRef.current) return;
+    if (submitLockRef.current) {
+      const now = Date.now();
+      if (now - submitLockToastTsRef.current > 1200) {
+        toast({
+          title:
+            language === "uk"
+              ? "Обробляємо запит"
+              : language === "cs"
+                ? "Zpracováváme požadavek"
+                : "Processing request",
+          description:
+            language === "uk"
+              ? "Зачекайте, будь ласка, форма вже надсилається."
+              : language === "cs"
+                ? "Počkejte prosím, formulář se už odesílá."
+                : "Please wait, the form is already being submitted.",
+        });
+        submitLockToastTsRef.current = now;
+      }
+      return;
+    }
     if (isMediaUploading) {
       toast({
         variant: "destructive",
@@ -1163,7 +1184,13 @@ export default function AddListingPage() {
 
             <CardContent>
               <Form {...form}>
-                <form onSubmit={(e) => { e.preventDefault(); handleSubmitClick(); }} className="space-y-6 sm:space-y-8">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSubmitClick();
+                  }}
+                  className="space-y-6 sm:space-y-8 [&_button]:touch-manipulation [&_[role=button]]:touch-manipulation [&_label]:touch-manipulation"
+                >
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">{t("listing.basicInfo")}</h3>
 
@@ -2674,11 +2701,16 @@ export default function AddListingPage() {
                       className="w-full sm:flex-1"
                       data-testid="button-submit"
                     >
-                      {createListingMutation.isPending ||
-                      isProcessingCheckout ||
-                      completeTopListingMutation.isPending ||
-                      isMediaUploading
-                        ? t("listing.submitting") || "Odesílání..."
+                      {isMediaUploading
+                        ? language === "uk"
+                          ? "Завантаження медіа..."
+                          : language === "cs"
+                            ? "Nahrávání médií..."
+                            : "Uploading media..."
+                        : createListingMutation.isPending ||
+                            isProcessingCheckout ||
+                            completeTopListingMutation.isPending
+                          ? t("listing.submitting") || "Odesílání..."
                         : isTopListing
                         ? t("listing.submitWithPayment")
                         : t("listing.submit")}
