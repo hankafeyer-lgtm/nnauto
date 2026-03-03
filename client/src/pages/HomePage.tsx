@@ -2150,6 +2150,29 @@ export default function HomePage() {
       ).navigation?.type === 1;
   }, []);
 
+  useEffect(() => {
+    const getEntriesByType = (window.performance as Performance).getEntriesByType;
+    const navEntries =
+      typeof getEntriesByType === "function"
+        ? getEntriesByType.call(window.performance, "navigation")
+        : [];
+    const navEntry = navEntries[0] as PerformanceNavigationTiming | undefined;
+    const isReload =
+      navEntry?.type === "reload" ||
+      (
+        window.performance as Performance & {
+          navigation?: { type?: number };
+        }
+      ).navigation?.type === 1;
+    if (!isReload) return;
+
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("openListing")) return;
+    url.searchParams.delete("openListing");
+    window.history.replaceState(window.history.state, "", url.toString());
+    setOpenListingId(null);
+  }, []);
+
   // ✅ page state synced with URL
   const [currentPage, setCurrentPage] = useState<number>(() =>
     getPageFromUrl(),
