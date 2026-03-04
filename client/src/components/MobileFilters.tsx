@@ -2811,7 +2811,7 @@ interface MobileFiltersProps {
 
 function MobileFilters({
   variant = "compact",
-  autoApply = true,
+  autoApply = false,
   applyButtonLabel,
 }: MobileFiltersProps) {
   const t = useTranslation();

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { BrandIconRenderer, type BrandIconEntry } from "@/lib/brandIcons";
+
+const preloadedBrandIcons = new Set<string>();
 
 interface BrandOption {
   value: string;
@@ -56,6 +58,21 @@ export function BrandCombobox({
 
   const selectedBrand = brands.find((brand) => brand.value === value);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    for (const brand of brands) {
+      const icon = brand.icon;
+      if (!icon || icon.type !== "image") continue;
+      if (preloadedBrandIcons.has(icon.src)) continue;
+
+      preloadedBrandIcons.add(icon.src);
+      const img = new Image();
+      img.decoding = "async";
+      img.src = icon.src;
+    }
+  }, [brands]);
+
   return (
     // <Popover open={open} onOpenChange={setOpen} modal={true}>
     <Popover
@@ -76,7 +93,7 @@ export function BrandCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "justify-between h-12 rounded-xl text-black dark:text-white",
+            "w-full justify-between h-12 rounded-xl text-black dark:text-white touch-manipulation",
             className,
           )}
           disabled={disabled}
@@ -106,7 +123,7 @@ export function BrandCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 z-[100]"
+        className="w-[--radix-popover-trigger-width] p-0 z-[100] touch-manipulation"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()} // ✅ ключове
         onCloseAutoFocus={(e) => e.preventDefault()}

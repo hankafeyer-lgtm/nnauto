@@ -1842,7 +1842,7 @@ import { ListingAgeRangeInput } from "@/components/ListingAgeRangeInput";
 import { EngineRangeInput } from "@/components/EngineRangeInput";
 import { PowerRangeInput } from "@/components/PowerRangeInput";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useEffect, useState, useRef, memo } from "react";
+import { useEffect, useState, useRef, useMemo, memo } from "react";
 import { useLocation } from "wouter";
 import heroImage from "@assets/generated_images/Hero_background_dealership_5896f308.png";
 import convertibleIcon from "@assets/28299981-16D7-4B57-8C0A-67EE5A345CA1_1763441678210.png";
@@ -2581,6 +2581,22 @@ function Hero() {
     ? getModelsForVehicleType(filters.brand, filters.vehicleType)
     : [];
 
+  const filteredHeroBrands = useMemo(
+    () =>
+      carBrands
+        .filter((brand) => {
+          if (filters.vehicleType && vehicleTypeBrands[filters.vehicleType]) {
+            return vehicleTypeBrands[filters.vehicleType].includes(brand.value);
+          }
+          return true;
+        })
+        .map((brand) => ({
+          ...brand,
+          icon: brandIcons[brand.value],
+        })),
+    [filters.vehicleType],
+  );
+
   return (
     <div
       className={`relative flex items-center justify-center transition-all duration-300 pt-16 sm:pt-20 lg:pt-24 pb-6 sm:pb-8 lg:pb-10 ${
@@ -2924,22 +2940,7 @@ function Hero() {
             <div className="w-full lg:w-1/2 xl:w-2/5 2xl:w-1/3 mb-3 sm:mb-4 space-y-3">
               <div className="space-y-2">
                 <BrandCombobox
-                  brands={carBrands
-                    .filter((brand) => {
-                      if (
-                        filters.vehicleType &&
-                        vehicleTypeBrands[filters.vehicleType]
-                      ) {
-                        return vehicleTypeBrands[filters.vehicleType].includes(
-                          brand.value,
-                        );
-                      }
-                      return true;
-                    })
-                    .map((brand) => ({
-                      ...brand,
-                      icon: brandIcons[brand.value],
-                    }))}
+                  brands={filteredHeroBrands}
                   value={filters.brand || ""}
                   onValueChange={setBrand}
                   placeholder={t("hero.brand")}
