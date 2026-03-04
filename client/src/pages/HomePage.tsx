@@ -2023,6 +2023,7 @@ import {
 } from "@/components/SEO";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
@@ -2070,6 +2071,8 @@ const bodyTypeImages: Record<string, string> = {
   hatchback: hatchbackImage,
   pickup: truckImage,
 };
+const CEBIA_AUTOTRACER_URL = "https://www.cebia.cz/autotracer";
+const CEBIA_FAVICON_URL = "https://www.cebia.cz/favicon.ico";
 
 function PageLoader() {
   return (
@@ -2123,6 +2126,8 @@ export default function HomePage() {
   const { toast } = useToast();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [homeCebiaExpanded, setHomeCebiaExpanded] = useState(false);
+  const [homeCebiaVin, setHomeCebiaVin] = useState("");
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingListingId, setDeletingListingId] = useState<string | null>(
@@ -2434,6 +2439,22 @@ export default function HomePage() {
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((v) => !v);
   }, []);
+  const normalizedHomeCebiaVin = homeCebiaVin.trim().toUpperCase();
+  const isHomeCebiaVinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(normalizedHomeCebiaVin);
+
+  const handleHomeCebiaCheck = useCallback(() => {
+    if (!isHomeCebiaVinValid) {
+      toast({
+        variant: "destructive",
+        title: t("cebia.unavailable"),
+        description: t("listing.vinHint"),
+      });
+      return;
+    }
+
+    const targetUrl = `${CEBIA_AUTOTRACER_URL}?vin=${encodeURIComponent(normalizedHomeCebiaVin)}`;
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+  }, [isHomeCebiaVinValid, normalizedHomeCebiaVin, t, toast]);
 
   return (
     <div className="min-h-screen flex flex-col home-filters-page overflow-x-hidden">
@@ -2462,6 +2483,59 @@ export default function HomePage() {
         }}
       />
       <Header />
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3 lg:pt-4 pb-1 sm:pb-2">
+        <div
+          className="w-full rounded-xl border border-primary/30 bg-white/95 dark:bg-background/90 px-3 py-2.5 sm:px-4 sm:py-3 shadow-sm"
+          data-testid="home-cebia-widget"
+        >
+          <button
+            type="button"
+            onClick={() => setHomeCebiaExpanded((prev) => !prev)}
+            className="w-full flex items-center gap-3"
+            data-testid="home-cebia-link"
+          >
+            <img
+              src={CEBIA_FAVICON_URL}
+              alt="Cebia"
+              className="h-6 w-6 rounded-sm shrink-0"
+              loading="lazy"
+              decoding="async"
+            />
+            <div className="min-w-0">
+              <p className="text-sm sm:text-base font-semibold text-primary truncate">
+                {t("hero.cebiaTitle")}
+              </p>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-snug">
+                {t("hero.cebiaVinPrompt")}
+              </p>
+            </div>
+          </button>
+
+          {homeCebiaExpanded && (
+            <div className="mt-2.5 flex flex-col sm:flex-row gap-2">
+              <Input
+                value={homeCebiaVin}
+                onChange={(e) =>
+                  setHomeCebiaVin(
+                    e.target.value.toUpperCase().replace(/\s+/g, "").slice(0, 17),
+                  )
+                }
+                placeholder="VIN (17)"
+                className="h-10"
+                data-testid="input-home-cebia-vin"
+              />
+              <Button
+                type="button"
+                className="h-10 sm:px-5"
+                onClick={handleHomeCebiaCheck}
+                data-testid="button-home-cebia-check"
+              >
+                {t("cebia.orderCheck")}
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
       <Hero />
       <main className="flex-1">
         <section

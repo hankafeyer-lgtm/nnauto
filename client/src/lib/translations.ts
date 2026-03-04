@@ -94,6 +94,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "hero.subtitle":
       "Tisíce ověřených prémiových inzerátů od důvěryhodných prodejců",
     "hero.search": "Vyhledat",
+    "hero.cebiaTitle": "Cebia Autotracer",
+    "hero.cebiaVinPrompt": "Prověřte historii vozidla podle VIN",
     "hero.moreFilters": "Více filtrů",
     "hero.lessFilters": "Méně filtrů",
     "hero.found": "Nalezeno",
@@ -1139,6 +1141,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "hero.subtitle":
       "Тисячі перевірених преміум-оголошень від надійних продавців",
     "hero.search": "Знайти",
+    "hero.cebiaTitle": "Cebia Autotracer",
+    "hero.cebiaVinPrompt": "Перевірте історію авто за VIN",
     "hero.moreFilters": "Більше фільтрів",
     "hero.lessFilters": "Менше фільтрів",
     "hero.found": "Знайдено",
@@ -2194,6 +2198,8 @@ export const translations: Record<Language, Record<string, string>> = {
     "hero.subtitle":
       "Thousands of verified premium listings from trusted sellers",
     "hero.search": "Search",
+    "hero.cebiaTitle": "Cebia Autotracer",
+    "hero.cebiaVinPrompt": "Check vehicle history by VIN",
     "hero.moreFilters": "More Filters",
     "hero.lessFilters": "Less Filters",
     "hero.found": "Found",
