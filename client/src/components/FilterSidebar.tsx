@@ -2916,65 +2916,76 @@ function FilterSidebar() {
           </CollapsibleTrigger>
 
           <CollapsibleContent className="space-y-6 pt-4">
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                {
-                  key: "osobni-auta",
-                  label: t("hero.cars"),
-                  img: carGoldIcon,
-                  testId: "button-sidebar-vehicle-cars",
-                },
-                {
-                  key: "dodavky",
-                  label: t("hero.dodavky"),
-                  img: vanIcon,
-                  testId: "button-sidebar-vehicle-dodavky",
-                },
-                {
-                  key: "nakladni-vozy",
-                  label: t("hero.trucks"),
-                  img: truckGoldIcon,
-                  testId: "button-sidebar-vehicle-trucks",
-                },
-                {
-                  key: "motorky",
-                  label: t("hero.motorky"),
-                  img: motorcycleIcon,
-                  testId: "button-sidebar-vehicle-motorky",
-                },
-              ].map((item) => {
-                const selected = splitComma(filters.vehicleType).includes(
-                  item.key,
-                );
+            <div className="space-y-3">
+              <Label className="text-base font-medium">
+                {t("listing.vehicleType")}
+              </Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  {
+                    key: "osobni-auta",
+                    label: t("hero.cars"),
+                    img: carGoldIcon,
+                    testId: "button-sidebar-vehicle-cars",
+                  },
+                  {
+                    key: "dodavky",
+                    label: t("hero.dodavky"),
+                    img: vanIcon,
+                    testId: "button-sidebar-vehicle-dodavky",
+                  },
+                  {
+                    key: "nakladni-vozy",
+                    label: t("hero.trucks"),
+                    img: truckGoldIcon,
+                    testId: "button-sidebar-vehicle-trucks",
+                  },
+                  {
+                    key: "motorky",
+                    label: t("hero.motorky"),
+                    img: motorcycleIcon,
+                    testId: "button-sidebar-vehicle-motorky",
+                  },
+                ].map((item) => {
+                  const selected = splitComma(filters.vehicleType).includes(
+                    item.key,
+                  );
 
-                return (
-                  <button
-                    key={item.key}
-                    type="button"
-                    onClick={() => handleVehicleTypeToggle(item.key)}
-                    className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
-                      selected
-                        ? "bg-primary text-primary-foreground border-primary-border"
-                        : "bg-background border-input text-black dark:text-white"
-                    }`}
-                    data-testid={item.testId}
-                  >
-                    <ImgIcon
-                      src={item.img}
-                      alt={item.key}
-                      className="w-8 h-8"
-                    />
-                    <span
-                      className={`text-xs text-center leading-tight ${
-                        !selected ? "text-black dark:text-white" : ""
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => handleVehicleTypeToggle(item.key)}
+                      className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                        selected
+                          ? "bg-primary text-primary-foreground border-primary-border"
+                          : "bg-background border-input text-black dark:text-white"
                       }`}
+                      data-testid={item.testId}
                     >
-                      {item.label}
-                    </span>
-                  </button>
-                );
-              })}
+                      <ImgIcon
+                        src={item.img}
+                        alt={item.key}
+                        className="w-8 h-8"
+                      />
+                      <span
+                        className={`text-xs text-center leading-tight ${
+                          !selected ? "text-black dark:text-white" : ""
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
+            <div className="space-y-3">
+              <Label className="text-base font-medium">
+                {t("filters.bodyType")}
+              </Label>
+            <div className="grid grid-cols-3 gap-2">
               {bodyTypes.map((type) => {
                 const IconComponent = bodyTypeIcons[type.value] || Car;
                 const isSelected =
@@ -3003,6 +3014,7 @@ function FilterSidebar() {
                   </button>
                 );
               })}
+            </div>
             </div>
           </CollapsibleContent>
         </Collapsible>
