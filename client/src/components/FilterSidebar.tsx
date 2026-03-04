@@ -3783,8 +3783,18 @@ function FilterSidebar() {
           </CollapsibleContent>
         </Collapsible>
 
-        {/* ✅ КНОПКУ APPLY ПРИБРАЛИ — тепер все застосовується автоматично */}
       </CardContent>
+
+      <div className="shrink-0 border-t p-4 bg-white dark:bg-background">
+        <Button
+          type="button"
+          className="w-full h-12 rounded-xl shadow-md"
+          onClick={applyFilters}
+          data-testid="button-apply-filters-desktop"
+        >
+          {t("hero.search")}
+        </Button>
+      </div>
     </Card>
   );
 }
