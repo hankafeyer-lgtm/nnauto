@@ -2651,15 +2651,9 @@ function FilterSidebar() {
   const powerMax = filters.powerMax ?? 1000;
 
   const handleConditionToggle = (value: string) => {
-    const current = Array.isArray(filters.condition)
-      ? filters.condition
-      : typeof filters.condition === "string"
-        ? splitComma(filters.condition)
-        : [];
-    const next = current.length === 1 && current[0] === value ? [] : [value];
     setFilters((prev) => ({
       ...prev,
-      condition: next,
+      condition: toggleInArray(prev.condition, value) ?? [],
     }));
   };
 
