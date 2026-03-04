@@ -2602,6 +2602,12 @@ function FilterSidebar() {
 
   const [showAllConditions, setShowAllConditions] = useState(false);
 
+  useEffect(() => {
+    // Legacy hidden category may remain in URL and force 0 results.
+    if (!filters.category) return;
+    setFilters((prev) => ({ ...prev, category: undefined }));
+  }, [filters.category, setFilters]);
+
   const toggleSection = (section: keyof typeof openSections) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };

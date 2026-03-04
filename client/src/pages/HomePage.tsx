@@ -2174,6 +2174,10 @@ export default function HomePage() {
     setCurrentPage(clamped);
     // Use pushState so browser Back returns to previous recommended page.
     setPageToUrl(clamped, "push");
+    recommendedSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   };
   const openListingOverlay = useCallback((id: string) => {
     const url = new URL(window.location.href);
@@ -2199,19 +2203,6 @@ export default function HomePage() {
   }, [closeListingOverlay]);
 
   const recommendedSectionRef = useRef<HTMLElement>(null);
-  const isFirstRender = useRef(true);
-
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    recommendedSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, [currentPage]);
-
   const dateLocale = language === "cs" ? cs : language === "uk" ? uk : enUS;
 
   const fuelLabels = useMemo(
