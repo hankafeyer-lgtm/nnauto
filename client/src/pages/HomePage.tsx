@@ -2043,7 +2043,7 @@ import {
 
 import type { Listing } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getListingMainTitle } from "@/lib/listingTitle";
 
@@ -2128,6 +2128,14 @@ export default function HomePage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [homeCebiaExpanded, setHomeCebiaExpanded] = useState(false);
   const [homeCebiaVin, setHomeCebiaVin] = useState("");
+  const [homeCebiaGuest, setHomeCebiaGuest] = useState<{
+    reportId: string;
+    token: string;
+  } | null>(null);
+  const [homeCebiaGuestStatus, setHomeCebiaGuestStatus] = useState<string | null>(
+    null,
+  );
+  const [homeCebiaGuestHasPdf, setHomeCebiaGuestHasPdf] = useState(false);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingListingId, setDeletingListingId] = useState<string | null>(
@@ -2162,6 +2170,48 @@ export default function HomePage() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("cebia:home");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (
+        parsed &&
+        typeof parsed.reportId === "string" &&
+        typeof parsed.token === "string"
+      ) {
+        setHomeCebiaGuest({ reportId: parsed.reportId, token: parsed.token });
+      }
+    } catch {
+      // ignore invalid local state
+    }
+  }, []);
+
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const cebiaParam = sp.get("cebia");
+    if (!cebiaParam) return;
+
+    if (cebiaParam === "success") {
+      toast({
+        title: t("cebia.paySuccess"),
+        description: "Platba proběhla úspěšně. Dokončete získání reportu níže.",
+      });
+    } else if (cebiaParam === "cancelled") {
+      toast({
+        variant: "destructive",
+        title: t("cebia.payCancelled"),
+      });
+    }
+
+    sp.delete("cebia");
+    sp.delete("session_id");
+    sp.delete("report_id");
+    sp.delete("nnauto_report_id");
+    const clean = `${window.location.pathname}${sp.toString() ? `?${sp.toString()}` : ""}`;
+    window.history.replaceState({}, "", clean);
+  }, [t, toast]);
 
   // Keep current page in sync when URL changes from filter interactions.
   useEffect(() => {
@@ -2262,9 +2312,19 @@ export default function HomePage() {
   });
 
   const listings = data?.listings ?? [];
+  const { data: cebiaConfig } = useQuery<{
+    enabled: boolean;
+    paymentsFrozen: boolean;
+    autoRequestOnPaid?: boolean;
+    priceCents?: number;
+    currency?: string;
+  }>({
+    queryKey: ["/api/cebia/config"],
+  });
   const pagination = data?.pagination;
   const totalPages = pagination?.totalPages ?? 1;
   const total = pagination?.total ?? listings.length;
+  const homeCebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen !== false;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const visiblePages = useMemo(() => {
     const max = 5;
@@ -2442,6 +2502,155 @@ export default function HomePage() {
   const normalizedHomeCebiaVin = homeCebiaVin.trim().toUpperCase();
   const isHomeCebiaVinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(normalizedHomeCebiaVin);
 
+  const homeCebiaCheckoutMutation = useMutation({
+    mutationFn: async () => {
+      if (homeCebiaPaymentsFrozen) {
+        throw new Error("503: {\"error\":\"Payments are temporarily disabled\"}");
+      }
+      if (!isHomeCebiaVinValid) {
+        throw new Error(t("listing.vinHint"));
+      }
+
+      const endpoint = user
+        ? "/api/cebia/home/checkout"
+        : "/api/cebia/home/guest/checkout";
+      const res = await apiRequest("POST", endpoint, {
+        vin: normalizedHomeCebiaVin,
+      });
+      return (await res.json()) as { url?: string; reportId?: string; guestToken?: string };
+    },
+    onSuccess: (data) => {
+      if (data?.url) {
+        if (!user && data?.reportId && data?.guestToken) {
+          try {
+            const payload = { reportId: data.reportId, token: data.guestToken };
+            localStorage.setItem("cebia:home", JSON.stringify(payload));
+            localStorage.setItem(
+              "cebia:last",
+              JSON.stringify({
+                reportId: data.reportId,
+                token: data.guestToken,
+                ts: Date.now(),
+              }),
+            );
+            setHomeCebiaGuest(payload);
+          } catch {
+            // ignore storage errors
+          }
+        }
+        window.location.assign(data.url);
+        return;
+      }
+      toast({
+        variant: "destructive",
+        title: "Chyba platby",
+        description: "Stripe URL nebyla vrácena serverem.",
+      });
+    },
+    onError: (err: any) => {
+      const parsed = parseApiError(err);
+      toast({
+        variant: "destructive",
+        title: "Nepodařilo se vytvořit platbu",
+        description: parsed.message,
+      });
+    },
+  });
+
+  const homeCebiaRefreshMutation = useMutation({
+    mutationFn: async () => {
+      if (!homeCebiaGuest) throw new Error("Missing guest report");
+      const res = await apiRequest(
+        "GET",
+        `/api/cebia/guest/reports/${encodeURIComponent(
+          homeCebiaGuest.reportId,
+        )}?token=${encodeURIComponent(homeCebiaGuest.token)}`,
+      );
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      const status = data?.status;
+      setHomeCebiaGuestStatus(typeof status === "string" ? status : null);
+      setHomeCebiaGuestHasPdf(!!data?.hasPdf);
+      toast({ title: "Stav reportu", description: String(status || "unknown") });
+    },
+    onError: (err: any) => {
+      const parsed = parseApiError(err);
+      toast({
+        variant: "destructive",
+        title: "Nelze načíst stav",
+        description: parsed.message,
+      });
+    },
+  });
+
+  const homeCebiaGuestRequestMutation = useMutation({
+    mutationFn: async () => {
+      if (!homeCebiaGuest) throw new Error("Missing guest report");
+      const res = await apiRequest(
+        "POST",
+        `/api/cebia/guest/reports/${encodeURIComponent(homeCebiaGuest.reportId)}/request`,
+        { token: homeCebiaGuest.token },
+      );
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Žádost o report odeslána",
+        description: "Za chvíli zkuste zkontrolovat stav.",
+      });
+      homeCebiaRefreshMutation.mutate();
+    },
+    onError: (err: any) => {
+      const parsed = parseApiError(err);
+      toast({
+        variant: "destructive",
+        title: "Nelze vytvořit report",
+        description: parsed.message,
+      });
+    },
+  });
+
+  const homeCebiaGuestPollMutation = useMutation({
+    mutationFn: async () => {
+      if (!homeCebiaGuest) throw new Error("Missing guest report");
+      const res = await apiRequest(
+        "POST",
+        `/api/cebia/guest/reports/${encodeURIComponent(homeCebiaGuest.reportId)}/poll`,
+        { token: homeCebiaGuest.token },
+      );
+      return await res.json();
+    },
+    onSuccess: (data: any) => {
+      const status = data?.status;
+      if (status === "ready") {
+        toast({ title: "Report je připraven", description: "Otevírám PDF…" });
+        if (homeCebiaGuest) {
+          window.open(
+            `/api/cebia/guest/reports/${encodeURIComponent(
+              homeCebiaGuest.reportId,
+            )}/pdf?token=${encodeURIComponent(homeCebiaGuest.token)}`,
+            "_blank",
+          );
+        }
+      } else {
+        toast({
+          title: "Report se připravuje",
+          description: "Zkuste to prosím znovu za chvíli.",
+        });
+      }
+      homeCebiaRefreshMutation.mutate();
+    },
+    onError: (err: any) => {
+      const parsed = parseApiError(err);
+      toast({
+        variant: "destructive",
+        title: "Nelze zkontrolovat report",
+        description: parsed.message,
+      });
+    },
+  });
+
   const handleHomeCebiaCheck = useCallback(() => {
     if (!isHomeCebiaVinValid) {
       toast({
@@ -2451,10 +2660,8 @@ export default function HomePage() {
       });
       return;
     }
-
-    const targetUrl = `${CEBIA_AUTOTRACER_URL}?vin=${encodeURIComponent(normalizedHomeCebiaVin)}`;
-    window.open(targetUrl, "_blank", "noopener,noreferrer");
-  }, [isHomeCebiaVinValid, normalizedHomeCebiaVin, t, toast]);
+    homeCebiaCheckoutMutation.mutate();
+  }, [homeCebiaCheckoutMutation, isHomeCebiaVinValid, t, toast]);
 
   return (
     <div className="min-h-screen flex flex-col home-filters-page overflow-x-hidden">
@@ -2512,26 +2719,95 @@ export default function HomePage() {
           </button>
 
           {homeCebiaExpanded && (
-            <div className="mt-2.5 flex flex-col sm:flex-row gap-2">
-              <Input
-                value={homeCebiaVin}
-                onChange={(e) =>
-                  setHomeCebiaVin(
-                    e.target.value.toUpperCase().replace(/\s+/g, "").slice(0, 17),
-                  )
-                }
-                placeholder="VIN (17)"
-                className="h-10"
-                data-testid="input-home-cebia-vin"
-              />
-              <Button
-                type="button"
-                className="h-10 sm:px-5"
-                onClick={handleHomeCebiaCheck}
-                data-testid="button-home-cebia-check"
-              >
-                {t("cebia.orderCheck")}
-              </Button>
+            <div className="mt-2.5 space-y-2.5">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  value={homeCebiaVin}
+                  onChange={(e) =>
+                    setHomeCebiaVin(
+                      e.target.value.toUpperCase().replace(/\s+/g, "").slice(0, 17),
+                    )
+                  }
+                  placeholder="VIN (17)"
+                  className="h-10"
+                  data-testid="input-home-cebia-vin"
+                />
+                <Button
+                  type="button"
+                  className="h-10 sm:px-5"
+                  onClick={handleHomeCebiaCheck}
+                  disabled={
+                    !isHomeCebiaVinValid ||
+                    homeCebiaPaymentsFrozen ||
+                    homeCebiaCheckoutMutation.isPending
+                  }
+                  data-testid="button-home-cebia-check"
+                >
+                  {homeCebiaPaymentsFrozen
+                    ? "Platby dočasně vypnuté"
+                    : homeCebiaCheckoutMutation.isPending
+                      ? t("cebia.payProcessing")
+                      : t("cebia.payButton")}
+                </Button>
+              </div>
+
+              {!user && homeCebiaGuest ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => homeCebiaRefreshMutation.mutate()}
+                    disabled={homeCebiaRefreshMutation.isPending}
+                    data-testid="button-home-cebia-guest-refresh"
+                  >
+                    {homeCebiaRefreshMutation.isPending
+                      ? "Kontroluji…"
+                      : "Zkontrolovat stav po platbě"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => homeCebiaGuestRequestMutation.mutate()}
+                    disabled={
+                      homeCebiaGuestRequestMutation.isPending ||
+                      !(
+                        homeCebiaGuestStatus === "paid" ||
+                        homeCebiaGuestStatus === "requested"
+                      )
+                    }
+                    data-testid="button-home-cebia-guest-request"
+                  >
+                    {homeCebiaGuestRequestMutation.isPending
+                      ? "Odesílám…"
+                      : "Vygenerovat PDF"}
+                  </Button>
+                  <Button
+                    onClick={() => homeCebiaGuestPollMutation.mutate()}
+                    disabled={
+                      homeCebiaGuestPollMutation.isPending ||
+                      homeCebiaGuestStatus !== "requested"
+                    }
+                    data-testid="button-home-cebia-guest-poll"
+                  >
+                    {homeCebiaGuestPollMutation.isPending
+                      ? "Kontroluji…"
+                      : "Získat PDF"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={!homeCebiaGuestHasPdf}
+                    onClick={() => {
+                      window.open(
+                        `/api/cebia/guest/reports/${encodeURIComponent(
+                          homeCebiaGuest.reportId,
+                        )}/pdf?token=${encodeURIComponent(homeCebiaGuest.token)}`,
+                        "_blank",
+                      );
+                    }}
+                    data-testid="button-home-cebia-guest-open-pdf"
+                  >
+                    Otevřít PDF
+                  </Button>
+                </div>
+              ) : null}
             </div>
           )}
         </div>

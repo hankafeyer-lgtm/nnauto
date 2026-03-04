@@ -3859,6 +3859,239 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Homepage checkout by manually entered VIN (authenticated user)
+  app.post("/api/cebia/home/checkout", isAuthenticated, async (req, res) => {
+    try {
+      if (CEBIA_PAYMENTS_FROZEN) {
+        return res.status(503).json({ error: "Payments are temporarily disabled" });
+      }
+      if (!CEBIA_REPORT_PRICE_CENTS || !Number.isFinite(CEBIA_REPORT_PRICE_CENTS)) {
+        return res.status(503).json({ error: "Cebia pricing not configured" });
+      }
+
+      const vin = typeof req.body?.vin === "string" ? req.body.vin.trim().toUpperCase() : "";
+      if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+        return res.status(400).json({ error: "VIN is invalid" });
+      }
+
+      if (CEBIA_ENABLED) {
+        try {
+          await cebiaVinCheck(vin);
+        } catch (e) {
+          console.warn("[CEBIA] VIN check failed (continuing to checkout):", e);
+        }
+      }
+
+      let stripe: Stripe;
+      try {
+        stripe = await getUncachableStripeClient();
+      } catch (error) {
+        console.error("Stripe not configured:", error);
+        return res.status(503).json({ error: "Payment system not configured" });
+      }
+
+      const getBaseUrl = (req: Request): string => {
+        if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
+        const origin = req.get("origin");
+        if (origin) return origin;
+        const host = req.get("host");
+        if (host) {
+          const protocol =
+            req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+          return `${protocol}://${host}`;
+        }
+        return "http://localhost:5000";
+      };
+      const baseUrl = getBaseUrl(req);
+      const successPath = "/";
+      const cancelPath = "/";
+
+      const report = await storage.createCebiaReport({
+        userId: req.session.userId!,
+        listingId: null,
+        vin,
+        product: "pdf_autotracer",
+        status: "created",
+        priceCents: CEBIA_REPORT_PRICE_CENTS,
+        currency: "CZK",
+        stripeSessionId: null,
+        stripePaymentIntentId: null,
+        cebiaQueueId: null,
+        cebiaQueueStatus: null,
+        cebiaCouponNumber: null,
+        cebiaReportUrl: null,
+        pdfBase64: null,
+        rawResponse: null,
+      });
+
+      if (CEBIA_STRIPE_PAYMENT_LINK_URL) {
+        const u = new URL(CEBIA_STRIPE_PAYMENT_LINK_URL);
+        u.searchParams.set("client_reference_id", report.id);
+        u.searchParams.set("nnauto_report_id", report.id);
+        return res.json({ url: u.toString(), reportId: report.id });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "czk",
+              product_data: {
+                name: "Cebia Autotracer (PDF) — prověření VIN",
+                description: `VIN: ${vin}`,
+              },
+              unit_amount: CEBIA_REPORT_PRICE_CENTS,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${baseUrl}${successPath}?cebia=success&session_id={CHECKOUT_SESSION_ID}&report_id=${encodeURIComponent(
+          report.id,
+        )}`,
+        cancel_url: `${baseUrl}${cancelPath}?cebia=cancelled`,
+        metadata: {
+          type: "cebia_pdf_autotracer",
+          userId: req.session.userId!,
+          vin,
+          reportId: report.id,
+        },
+      });
+
+      await storage.updateCebiaReport(report.id, {
+        stripeSessionId: session.id,
+        stripePaymentIntentId: (session.payment_intent as string) || null,
+      });
+
+      res.json({ url: session.url, sessionId: session.id, reportId: report.id });
+    } catch (error: any) {
+      console.error("Cebia home checkout error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Homepage guest checkout by manually entered VIN
+  app.post("/api/cebia/home/guest/checkout", async (req, res) => {
+    try {
+      if (CEBIA_PAYMENTS_FROZEN) {
+        return res.status(503).json({ error: "Payments are temporarily disabled" });
+      }
+      if (!CEBIA_REPORT_PRICE_CENTS || !Number.isFinite(CEBIA_REPORT_PRICE_CENTS)) {
+        return res.status(503).json({ error: "Cebia pricing not configured" });
+      }
+
+      const vin = typeof req.body?.vin === "string" ? req.body.vin.trim().toUpperCase() : "";
+      if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) {
+        return res.status(400).json({ error: "VIN is invalid" });
+      }
+
+      if (CEBIA_ENABLED) {
+        try {
+          await cebiaVinCheck(vin);
+        } catch (e) {
+          console.warn("[CEBIA] VIN check failed (continuing to checkout):", e);
+        }
+      }
+
+      let stripe: Stripe;
+      try {
+        stripe = await getUncachableStripeClient();
+      } catch (error) {
+        console.error("Stripe not configured:", error);
+        return res.status(503).json({ error: "Payment system not configured" });
+      }
+
+      const { randomBytes } = await import("crypto");
+      const guestToken = randomBytes(24).toString("base64url");
+
+      const report = await storage.createCebiaReport({
+        userId: `guest:${guestToken}`,
+        listingId: null,
+        vin,
+        product: "pdf_autotracer",
+        status: "created",
+        priceCents: CEBIA_REPORT_PRICE_CENTS,
+        currency: "CZK",
+        stripeSessionId: null,
+        stripePaymentIntentId: null,
+        cebiaQueueId: null,
+        cebiaQueueStatus: null,
+        cebiaCouponNumber: null,
+        cebiaReportUrl: null,
+        pdfBase64: null,
+        rawResponse: { guestToken },
+      });
+
+      if (CEBIA_STRIPE_PAYMENT_LINK_URL) {
+        const u = new URL(CEBIA_STRIPE_PAYMENT_LINK_URL);
+        u.searchParams.set("client_reference_id", report.id);
+        u.searchParams.set("nnauto_report_id", report.id);
+        return res.json({ url: u.toString(), reportId: report.id, guestToken });
+      }
+
+      const getBaseUrl = (req: Request): string => {
+        if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
+        const origin = req.get("origin");
+        if (origin) return origin;
+        const host = req.get("host");
+        if (host) {
+          const protocol =
+            req.secure || req.get("x-forwarded-proto") === "https" ? "https" : "http";
+          return `${protocol}://${host}`;
+        }
+        return "http://localhost:5000";
+      };
+      const baseUrl = getBaseUrl(req);
+      const successPath = "/";
+      const cancelPath = "/";
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        line_items: [
+          {
+            price_data: {
+              currency: "czk",
+              product_data: {
+                name: "Cebia Autotracer (PDF) — prověření VIN",
+                description: `VIN: ${vin}`,
+              },
+              unit_amount: CEBIA_REPORT_PRICE_CENTS,
+            },
+            quantity: 1,
+          },
+        ],
+        mode: "payment",
+        success_url: `${baseUrl}${successPath}?cebia=success&session_id={CHECKOUT_SESSION_ID}&report_id=${encodeURIComponent(
+          report.id,
+        )}`,
+        cancel_url: `${baseUrl}${cancelPath}?cebia=cancelled`,
+        client_reference_id: report.id,
+        metadata: {
+          type: "cebia_pdf_autotracer",
+          vin,
+          reportId: report.id,
+        },
+      });
+
+      await storage.updateCebiaReport(report.id, {
+        stripeSessionId: session.id,
+        stripePaymentIntentId: (session.payment_intent as string) || null,
+        rawResponse: mergeRawResponse(report.rawResponse, { stripeSessionId: session.id }),
+      });
+
+      res.json({
+        url: session.url,
+        sessionId: session.id,
+        reportId: report.id,
+        guestToken,
+      });
+    } catch (error: any) {
+      console.error("Cebia home guest checkout error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/cebia/complete", isAuthenticated, async (req, res) => {
     try {
       const stripeSessionId =
