@@ -182,7 +182,7 @@ export function ModelCombobox({
           setSearchValue("");
         }
       }}
-      modal={true}
+      modal={false}
     >
       <PopoverTrigger asChild>
         <Button
@@ -190,7 +190,7 @@ export function ModelCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "justify-between h-12 rounded-xl text-black dark:text-white",
+            "w-full justify-between h-12 rounded-xl text-black dark:text-white touch-manipulation",
             className,
           )}
           disabled={disabled}
@@ -203,7 +203,7 @@ export function ModelCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 z-[100]"
+        className="w-[--radix-popover-trigger-width] p-0 z-[100] touch-manipulation"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()} // ✅ НЕ фокусимо інпут автоматично
         onCloseAutoFocus={(e) => e.preventDefault()}
