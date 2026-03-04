@@ -475,6 +475,8 @@ export interface FilterParams {
   hasServiceBook?: boolean;
 }
 
+const FILTERS_URL_CHANGE_EVENT = "nnauto:filters-url-change";
+
 const normalizeFilters = (filters: FilterParams): Record<string, unknown> => {
   const normalized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(filters)) {
@@ -638,9 +640,11 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     };
 
     window.addEventListener("popstate", handleUrlChange);
+    window.addEventListener(FILTERS_URL_CHANGE_EVENT, handleUrlChange);
 
     return () => {
       window.removeEventListener("popstate", handleUrlChange);
+      window.removeEventListener(FILTERS_URL_CHANGE_EVENT, handleUrlChange);
     };
   }, []);
 
@@ -753,6 +757,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
         return;
       }
       setLocation(newPath);
+      window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
     },
     [autoNavigate, setLocation],
   );
@@ -1105,6 +1110,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       return;
     }
     setLocation(targetUrl);
+    window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
   }, [filters, setLocation]);
 
   return {
