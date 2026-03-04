@@ -2222,7 +2222,6 @@ function Hero() {
   // Build query params for listings count
   const buildQueryParams = () => {
     const params = new URLSearchParams();
-    if (filters.category) params.set("category", filters.category);
     if (filters.vehicleType) params.set("vehicleType", filters.vehicleType);
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);
@@ -2533,7 +2532,6 @@ function Hero() {
     if (isMobile && !force) return;
 
     const params = new URLSearchParams();
-    if (filters.category) params.set("category", filters.category);
     if (filters.vehicleType) params.set("vehicleType", filters.vehicleType);
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);

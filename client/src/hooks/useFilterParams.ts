@@ -536,7 +536,8 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
     return {
       search: params.get("search") || undefined,
-      category: params.get("category") || undefined,
+      // Legacy category filter is no longer used in UI filtering flow.
+      category: undefined,
       vehicleType: params.get("vehicleType") || undefined,
       brand: params.get("brand") || undefined,
       model: params.get("model") || undefined,
@@ -666,7 +667,6 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       if (userId) params.set("userId", userId);
 
       if (newFilters.search) params.set("search", newFilters.search);
-      if (newFilters.category) params.set("category", newFilters.category);
       if (newFilters.vehicleType)
         params.set("vehicleType", newFilters.vehicleType);
       if (newFilters.brand) params.set("brand", newFilters.brand);
@@ -1034,7 +1034,6 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     if (userId) params.set("userId", userId);
 
     if (filters.search) params.set("search", filters.search);
-    if (filters.category) params.set("category", filters.category);
     if (filters.vehicleType) params.set("vehicleType", filters.vehicleType);
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);

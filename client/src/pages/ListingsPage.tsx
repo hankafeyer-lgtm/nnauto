@@ -3441,7 +3441,6 @@ export default function ListingsPage() {
     if (userId) p.set("userId", userId);
 
     if (filters.search) p.set("search", filters.search);
-    if (filters.category) p.set("category", filters.category);
     if (filters.vehicleType) p.set("vehicleType", filters.vehicleType);
     if (filters.brand) p.set("brand", filters.brand);
     if (filters.model) p.set("model", filters.model);

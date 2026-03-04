@@ -2236,6 +2236,7 @@ export default function HomePage() {
   const listUrl = useMemo(() => {
     const sp = new URLSearchParams(window.location.search);
     sp.delete("openListing");
+    sp.delete("category");
     sp.set("page", String(currentPage));
     sp.set("limit", String(ITEMS_PER_PAGE));
     sp.set("sort", "top"); // backend: isTopListing desc, createdAt desc
@@ -2292,6 +2293,7 @@ export default function HomePage() {
     const nextPage = currentPage + 1;
     const sp = new URLSearchParams(window.location.search);
     sp.delete("openListing");
+    sp.delete("category");
     sp.set("page", String(nextPage));
     sp.set("limit", String(ITEMS_PER_PAGE));
     sp.set("sort", "top");
