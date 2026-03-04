@@ -2439,8 +2439,6 @@ import {
 
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Sparkles,
   Car,
   Package,
@@ -2734,16 +2732,9 @@ function FilterSidebar() {
   const APPLY_DEBOUNCE_MS = 350;
 
   const applyRef = useRef(applyFilters);
-  const bodyTypeScrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     applyRef.current = applyFilters;
   }, [applyFilters]);
-
-  const scrollBodyTypes = (direction: "left" | "right") => {
-    if (!bodyTypeScrollRef.current) return;
-    const delta = direction === "left" ? -240 : 240;
-    bodyTypeScrollRef.current.scrollBy({ left: delta, behavior: "smooth" });
-  };
 
   const stableFiltersKey = useMemo(
     () => buildStableFiltersKey(filters),
@@ -3008,60 +2999,35 @@ function FilterSidebar() {
               <Label className="text-base font-medium">
                 {t("filters.bodyType")}
               </Label>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 rounded-full shrink-0"
-                  onClick={() => scrollBodyTypes("left")}
-                  data-testid="button-sidebar-body-type-scroll-left"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <div
-                  ref={bodyTypeScrollRef}
-                  className="flex-1 flex gap-2 overflow-x-auto pb-2 scrollbar-hide"
-                >
-                  {bodyTypes.map((type) => {
-                    const IconComponent = bodyTypeIcons[type.value] || Car;
-                    const isSelected =
-                      filters.bodyType?.includes(type.value) || false;
+              <div className="grid grid-cols-3 gap-2">
+                {bodyTypes.map((type) => {
+                  const IconComponent = bodyTypeIcons[type.value] || Car;
+                  const isSelected =
+                    filters.bodyType?.includes(type.value) || false;
 
-                    return (
-                      <button
-                        key={type.value}
-                        type="button"
-                        onClick={() => handleBodyTypeToggle(type.value)}
-                        className={`w-24 min-w-24 flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
-                          isSelected
-                            ? "bg-primary text-primary-foreground border-primary-border"
-                            : "bg-background border-input text-black dark:text-white"
+                  return (
+                    <button
+                      key={type.value}
+                      type="button"
+                      onClick={() => handleBodyTypeToggle(type.value)}
+                      className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary-border"
+                          : "bg-background border-input text-black dark:text-white"
+                      }`}
+                      data-testid={`button-sidebar-body-type-${type.value}`}
+                    >
+                      <IconComponent className="w-8 h-8" />
+                      <span
+                        className={`text-xs text-center leading-tight ${
+                          !isSelected ? "text-black dark:text-white" : ""
                         }`}
-                        data-testid={`button-sidebar-body-type-${type.value}`}
                       >
-                        <IconComponent className="w-8 h-8" />
-                        <span
-                          className={`text-xs text-center leading-tight ${
-                            !isSelected ? "text-black dark:text-white" : ""
-                          }`}
-                        >
-                          {type.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 rounded-full shrink-0"
-                  onClick={() => scrollBodyTypes("right")}
-                  data-testid="button-sidebar-body-type-scroll-right"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                        {type.label}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </CollapsibleContent>

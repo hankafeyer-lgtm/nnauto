@@ -2117,11 +2117,22 @@ function Hero() {
   >("");
 
   const vehicleTypeScrollRef = useRef<HTMLDivElement>(null);
+  const bodyTypeScrollRef = useRef<HTMLDivElement>(null);
 
   const scrollVehicleTypes = (direction: "left" | "right") => {
     if (vehicleTypeScrollRef.current) {
       const scrollAmount = 200;
       vehicleTypeScrollRef.current.scrollBy({
+        left: direction === "left" ? -scrollAmount : scrollAmount,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const scrollBodyTypes = (direction: "left" | "right") => {
+    if (bodyTypeScrollRef.current) {
+      const scrollAmount = 200;
+      bodyTypeScrollRef.current.scrollBy({
         left: direction === "left" ? -scrollAmount : scrollAmount,
         behavior: "smooth",
       });
@@ -2737,17 +2748,6 @@ function Hero() {
                   {t("listing.vehicleType")}
                 </Label>
                 <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm shadow-md shrink-0 hidden lg:flex"
-                    onClick={() => scrollVehicleTypes("left")}
-                    data-testid="button-scroll-vehicle-left"
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-
                   <div
                     ref={vehicleTypeScrollRef}
                     className="flex-1 flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide"
@@ -2939,17 +2939,6 @@ function Hero() {
                       </span>
                     </button>
                   </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm shadow-md shrink-0 hidden lg:flex"
-                    onClick={() => scrollVehicleTypes("right")}
-                    data-testid="button-scroll-vehicle-right"
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
 
@@ -2957,7 +2946,21 @@ function Hero() {
                 <Label className="text-base font-medium">
                   {t("filters.bodyType")}
                 </Label>
-                <div className="flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm shadow-md shrink-0 hidden lg:flex"
+                    onClick={() => scrollBodyTypes("left")}
+                    data-testid="button-scroll-body-left"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div
+                    ref={bodyTypeScrollRef}
+                    className="flex-1 flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide"
+                  >
                   {bodyTypes.map((type) => {
                     const IconComponent = bodyTypeIcons[type.value] || Car;
                     const isSelected =
@@ -3008,6 +3011,17 @@ function Hero() {
                       </button>
                     );
                   })}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm shadow-md shrink-0 hidden lg:flex"
+                    onClick={() => scrollBodyTypes("right")}
+                    data-testid="button-scroll-body-right"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             </div>
