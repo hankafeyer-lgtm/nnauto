@@ -68,7 +68,7 @@ export function BrandCombobox({
           setSearchValue(""); // опційно
         }
       }}
-      modal={false}
+      modal={true}
     >
       <PopoverTrigger asChild>
         <Button
@@ -110,6 +110,7 @@ export function BrandCombobox({
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()} // ✅ ключове
         onCloseAutoFocus={(e) => e.preventDefault()}
+        data-vaul-no-drag=""
       >
         <Command
           filter={(value, search, keywords) => {
@@ -171,15 +172,7 @@ export function BrandCombobox({
                       value === brand.value ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <div className="flex items-center gap-2">
-                    {brand.icon && (
-                      <BrandIconRenderer
-                        icon={brand.icon}
-                        className="w-4 h-4"
-                      />
-                    )}
-                    <span>{brand.label}</span>
-                  </div>
+                  <span>{brand.label}</span>
                 </CommandItem>
               ))}
             </CommandGroup>

@@ -116,6 +116,9 @@ export const BrandIconRenderer = ({ icon, className = "w-4 h-4" }: { icon?: Bran
       src={icon.src} 
       alt={icon.alt} 
       className={className}
+      loading="lazy"
+      decoding="async"
+      draggable={false}
       style={{ objectFit: "contain" }}
     />
   );
