@@ -182,7 +182,7 @@ export function ModelCombobox({
           setSearchValue("");
         }
       }}
-      modal={true}
+      modal={false}
     >
       <PopoverTrigger asChild>
         <Button
@@ -207,7 +207,6 @@ export function ModelCombobox({
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()} // ✅ НЕ фокусимо інпут автоматично
         onCloseAutoFocus={(e) => e.preventDefault()}
-        data-vaul-no-drag=""
       >
         <Command>
           <CommandInput

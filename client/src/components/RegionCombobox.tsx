@@ -55,7 +55,7 @@ export function RegionCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between h-12 rounded-xl text-black dark:text-white touch-manipulation",
+            "justify-between h-12 rounded-xl text-black dark:text-white",
             className
           )}
           disabled={disabled}
@@ -67,11 +67,7 @@ export function RegionCombobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 z-[100] touch-manipulation"
-        align="start"
-        data-vaul-no-drag=""
-      >
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0 z-[100]" align="start">
         <Command>
           <CommandInput
             placeholder={placeholder}
