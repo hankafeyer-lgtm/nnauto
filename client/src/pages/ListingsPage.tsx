@@ -3188,8 +3188,7 @@ export default function ListingsPage() {
     lastUrlPageRef.current = pageFromUrl;
     hasSyncedUrlPageRef.current = true;
 
-    // при навігації назад/вперед — підтягуємо саме server page
-    setAccumulated([]);
+    // Keep previous cards visible while new page/filter data is loading.
     setIsLoadingMore(false);
 
     if (shouldScrollToCards) forceScrollToTop();
@@ -3423,7 +3422,6 @@ export default function ListingsPage() {
   const handleSortChange = useCallback((nextSort: string) => {
     setSortBy(nextSort);
     setCurrentPage(1);
-    setAccumulated([]);
     setIsLoadingMore(false);
 
     // записуємо sort у URL, page видаляємо
