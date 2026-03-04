@@ -3699,7 +3699,6 @@ export default function ListingsPage() {
     }
 
     setCurrentPage(1);
-    setAccumulated([]);
     setIsLoadingMore(false);
 
     replaceUrlParams((p) => {
@@ -3757,7 +3756,6 @@ export default function ListingsPage() {
 
   const goToPage = useCallback((page: number) => {
     setIsLoadingMore(false);
-    setAccumulated([]);
     setCurrentPage(page);
 
     pushUrlParams((p) => {
@@ -3772,9 +3770,10 @@ export default function ListingsPage() {
   const dateLocale = language === "cs" ? cs : language === "uk" ? uk : enUS;
 
   const displayListings = useMemo(() => {
+    if (isFetching && accumulated.length === 0) return listings;
     if (!deletingListingId) return accumulated;
     return accumulated.filter((l) => l.id !== deletingListingId);
-  }, [accumulated, deletingListingId]);
+  }, [isFetching, listings, accumulated, deletingListingId]);
 
   // якщо потрібно “TOP” завжди зверху — залишаємо
   const sortedListings = useMemo(() => {
