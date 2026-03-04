@@ -3187,7 +3187,6 @@ export default function ListingDetailPage() {
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-  const lastLightboxOpenRef = useRef<{ index: number; ts: number } | null>(null);
   const [cebiaDialogOpen, setCebiaDialogOpen] = useState(false);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeStartYRef = useRef<number | null>(null);
@@ -3380,11 +3379,6 @@ export default function ListingDetailPage() {
   );
 
   const openLightboxAt = useCallback((index: number) => {
-    const now = Date.now();
-    const prev = lastLightboxOpenRef.current;
-    // Ignore accidental rapid repeated taps on the same slide.
-    if (prev && prev.index === index && now - prev.ts < 500) return;
-    lastLightboxOpenRef.current = { index, ts: now };
     setLightboxIndex(index);
     setLightboxOpen(true);
   }, []);
@@ -4153,7 +4147,7 @@ export default function ListingDetailPage() {
                         {photoKeys.map((key, index) => (
                           <CarouselItem key={`photo-${key}-${index}`}>
                             <div
-                              className="aspect-[3/2] relative bg-muted cursor-pointer"
+                              className="aspect-[3/2] relative bg-muted cursor-pointer touch-manipulation"
                               onClick={() => openLightboxAt(index)}
                             >
                               <ResponsiveImage
@@ -4338,9 +4332,10 @@ export default function ListingDetailPage() {
                         const isActive = index === currentCarouselIndex;
                         return (
                           <button
+                            type="button"
                             key={`thumb-${key}-${index}`}
                             onClick={() => handlePhotoThumbnailClick(index)}
-                            className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                            className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all touch-manipulation ${
                               isActive
                                 ? "border-primary ring-2 ring-primary/30"
                                 : "border-transparent hover:border-primary/50"
@@ -4374,8 +4369,9 @@ export default function ListingDetailPage() {
 
                       {hasVideo && (
                         <button
+                          type="button"
                           onClick={handleVideoThumbnailClick}
-                          className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all relative ${
+                          className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all relative touch-manipulation ${
                             currentCarouselIndex === photoKeys.length
                               ? "border-[#B8860B] ring-2 ring-[#B8860B]/30"
                               : "border-transparent hover:border-[#B8860B]/50"
