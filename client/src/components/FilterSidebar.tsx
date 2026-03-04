@@ -2602,12 +2602,6 @@ function FilterSidebar() {
 
   const [showAllConditions, setShowAllConditions] = useState(false);
 
-  useEffect(() => {
-    // Hidden legacy category in URL can make filter buttons look "broken".
-    if (!filters.category) return;
-    setFilters((prev) => ({ ...prev, category: undefined }));
-  }, [filters.category, setFilters]);
-
   const toggleSection = (section: keyof typeof openSections) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
