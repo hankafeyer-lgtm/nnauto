@@ -1593,9 +1593,7 @@ export default function AddListingPage() {
                                           onClick={() => {
                                             if (isSelected) {
                                               field.onChange(undefined);
-                                              form.setValue("vehicleType", "" as any);
                                             } else {
-                                              form.setValue("vehicleType", "osobni-auta");
                                               field.onChange(type.value);
                                             }
                                           }}

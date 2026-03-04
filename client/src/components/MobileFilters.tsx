@@ -2975,16 +2975,9 @@ function MobileFilters({
     setFilters((prev) => {
       const nextBodyTypes = toggleInArray(prev.bodyType, bodyType);
 
-      // якщо вибираємо кузов — гарантуємо osobni-auta в vehicleType
-      let nextVehicleType = prev.vehicleType || "";
-      if (nextBodyTypes?.length) {
-        const types = new Set([...splitComma(nextVehicleType), "osobni-auta"]);
-        nextVehicleType = joinComma([...types]);
-      }
-
       return {
         ...prev,
-        vehicleType: nextVehicleType,
+        vehicleType: prev.vehicleType,
         bodyType: nextBodyTypes,
       };
     });

@@ -2978,10 +2978,7 @@ function Hero() {
                               : [...current, type.value];
                             return {
                               ...prev,
-                              vehicleType:
-                                newBodyType.length > 0
-                                  ? "osobni-auta"
-                                  : prev.vehicleType,
+                              vehicleType: prev.vehicleType,
                               bodyType:
                                 newBodyType.length > 0
                                   ? newBodyType
