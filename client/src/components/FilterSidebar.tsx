@@ -2783,7 +2783,7 @@ function FilterSidebar() {
         </Button>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-y-auto space-y-6 pr-4 pb-6 filters-scrollbar touch-manipulation [&_button]:touch-manipulation">
+      <CardContent className="flex-1 overflow-y-auto space-y-6 pr-4 pb-6 filters-scrollbar">
         {/* CONDITION */}
         <Collapsible
           open={openSections.condition}

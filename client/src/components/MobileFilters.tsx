@@ -2811,7 +2811,7 @@ interface MobileFiltersProps {
 
 function MobileFilters({
   variant = "compact",
-  autoApply = false,
+  autoApply = true,
   applyButtonLabel,
 }: MobileFiltersProps) {
   const t = useTranslation();
@@ -3134,8 +3134,8 @@ function MobileFilters({
               {t("filters.title")}
             </DrawerDescription>
           </DrawerHeader>
-          <ScrollArea className="flex-1 min-h-0 overflow-y-auto overscroll-contain ios-scroll touch-manipulation">
-            <div className="space-y-6 p-4 touch-manipulation [&_button]:touch-manipulation">
+          <ScrollArea className="flex-1 min-h-0 overflow-y-auto overscroll-contain ios-scroll">
+            <div className="space-y-6 p-4">
               {/* CONDITION */}
               <Collapsible
                 open={openSections.condition}

@@ -68,7 +68,7 @@ export function BrandCombobox({
           setSearchValue(""); // опційно
         }
       }}
-      modal={false}
+      modal={true}
     >
       <PopoverTrigger asChild>
         <Button
@@ -76,7 +76,7 @@ export function BrandCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between h-12 rounded-xl text-black dark:text-white touch-manipulation",
+            "justify-between h-12 rounded-xl text-black dark:text-white",
             className,
           )}
           disabled={disabled}
@@ -106,7 +106,7 @@ export function BrandCombobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0 z-[100] touch-manipulation"
+        className="w-[--radix-popover-trigger-width] p-0 z-[100]"
         align="start"
         onOpenAutoFocus={(e) => e.preventDefault()} // ✅ ключове
         onCloseAutoFocus={(e) => e.preventDefault()}
