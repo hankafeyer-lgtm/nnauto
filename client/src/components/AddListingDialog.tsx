@@ -81,6 +81,8 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
     { value: "dodavky", label: t("hero.dodavky") },
     { value: "nakladni-vozy", label: t("hero.trucks") },
     { value: "motorky", label: t("hero.motorky") },
+    { value: "suv-offroad", label: t("hero.suvOffroad") },
+    { value: "elektro", label: t("hero.electric") },
   ];
 
   const fuelTypes = [

@@ -1859,6 +1859,7 @@ import sedanIcon from "@assets/539501B7-9335-431F-AE37-97524B2BC035_176344468231
 import motorcycleIcon from "@assets/44AD800C-C9BB-4F50-A278-5152E01D60BB_1763444856175.png";
 import truckGoldIcon from "@assets/8C9B6F5F-55BC-402E-9359-B2707FE2FB81_1763444987490.png";
 import carGoldIcon from "@assets/D545620E-B7EF-4EB5-AE03-389B4725412B_1763449648396.png";
+import elektroIcon from "@assets/7BF268AD-E859-4A28-8509-47319F8BCF33_1763450027820.png";
 import newCarIcon from "@assets/3AAF8DD0-3B6D-4DA3-8A1E-2858FCC004A1_1763451350424.png";
 import partsIcon from "@assets/62A9ABBD-0474-469C-8089-FA93C3E7C2B4_1763450942216.png";
 import usedCarIcon from "@assets/ABAF6CAB-50AC-450D-8FE8-342C0DF354D6_1763451176037.png";
@@ -2731,142 +2732,232 @@ function Hero() {
                 </Button>
               </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm shadow-md shrink-0 hidden lg:flex"
-                  onClick={() => scrollVehicleTypes("left")}
-                  data-testid="button-scroll-vehicle-left"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
+              <div className="space-y-3">
+                <Label className="text-base font-medium">
+                  {t("listing.vehicleType")}
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm shadow-md shrink-0 hidden lg:flex"
+                    onClick={() => scrollVehicleTypes("left")}
+                    data-testid="button-scroll-vehicle-left"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
 
-                <div
-                  ref={vehicleTypeScrollRef}
-                  className="flex-1 flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide"
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentTypes = filters.vehicleType
-                        ? filters.vehicleType.split(",").filter(Boolean)
-                        : [];
-                      const isSelected = currentTypes.includes("osobni-auta");
-                      const newTypes = isSelected
-                        ? currentTypes.filter((t) => t !== "osobni-auta")
-                        : [...currentTypes, "osobni-auta"];
-                      setFilters((prev) => ({
-                        ...prev,
-                        vehicleType: newTypes.join(",") || "",
-                        bodyType: undefined,
-                      }));
-                    }}
-                    data-testid="button-vehicle-cars"
-                    className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
-                      filters.vehicleType?.split(",").includes("osobni-auta")
-                        ? "bg-primary text-primary-foreground border-primary-border"
-                        : "bg-background border-input text-black dark:text-white"
-                    }`}
+                  <div
+                    ref={vehicleTypeScrollRef}
+                    className="flex-1 flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide"
                   >
-                    <CarGoldIcon className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12" />
-                    <span
-                      className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("osobni-auta") ? "text-black dark:text-white" : ""}`}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentTypes = filters.vehicleType
+                          ? filters.vehicleType.split(",").filter(Boolean)
+                          : [];
+                        const isSelected = currentTypes.includes("osobni-auta");
+                        const newTypes = isSelected
+                          ? currentTypes.filter((t) => t !== "osobni-auta")
+                          : [...currentTypes, "osobni-auta"];
+                        setFilters((prev) => ({
+                          ...prev,
+                          vehicleType: newTypes.join(",") || "",
+                          bodyType: undefined,
+                        }));
+                      }}
+                      data-testid="button-vehicle-cars"
+                      className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
+                        filters.vehicleType?.split(",").includes("osobni-auta")
+                          ? "bg-primary text-primary-foreground border-primary-border"
+                          : "bg-background border-input text-black dark:text-white"
+                      }`}
                     >
-                      {t("hero.cars")}
-                    </span>
-                  </button>
-                  <button
+                      <CarGoldIcon className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12" />
+                      <span
+                        className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("osobni-auta") ? "text-black dark:text-white" : ""}`}
+                      >
+                        {t("hero.cars")}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentTypes = filters.vehicleType
+                          ? filters.vehicleType.split(",").filter(Boolean)
+                          : [];
+                        const isSelected = currentTypes.includes("dodavky");
+                        const newTypes = isSelected
+                          ? currentTypes.filter((t) => t !== "dodavky")
+                          : [...currentTypes, "dodavky"];
+                        setFilters((prev) => ({
+                          ...prev,
+                          vehicleType: newTypes.join(",") || "",
+                          bodyType: undefined,
+                        }));
+                      }}
+                      data-testid="button-vehicle-dodavky"
+                      className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
+                        filters.vehicleType?.split(",").includes("dodavky")
+                          ? "bg-primary text-primary-foreground border-primary-border"
+                          : "bg-background border-input text-black dark:text-white"
+                      }`}
+                    >
+                      <VanGoldIcon className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12" />
+                      <span
+                        className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("dodavky") ? "text-black dark:text-white" : ""}`}
+                      >
+                        {t("hero.dodavky")}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentTypes = filters.vehicleType
+                          ? filters.vehicleType.split(",").filter(Boolean)
+                          : [];
+                        const isSelected =
+                          currentTypes.includes("nakladni-vozy");
+                        const newTypes = isSelected
+                          ? currentTypes.filter((t) => t !== "nakladni-vozy")
+                          : [...currentTypes, "nakladni-vozy"];
+                        setFilters((prev) => ({
+                          ...prev,
+                          vehicleType: newTypes.join(",") || "",
+                          bodyType: undefined,
+                        }));
+                      }}
+                      data-testid="button-vehicle-trucks"
+                      className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
+                        filters.vehicleType?.split(",").includes("nakladni-vozy")
+                          ? "bg-primary text-primary-foreground border-primary-border"
+                          : "bg-background border-input text-black dark:text-white"
+                      }`}
+                    >
+                      <TruckGoldIcon className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12" />
+                      <span
+                        className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("nakladni-vozy") ? "text-black dark:text-white" : ""}`}
+                      >
+                        {t("hero.trucks")}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentTypes = filters.vehicleType
+                          ? filters.vehicleType.split(",").filter(Boolean)
+                          : [];
+                        const isSelected = currentTypes.includes("motorky");
+                        const newTypes = isSelected
+                          ? currentTypes.filter((t) => t !== "motorky")
+                          : [...currentTypes, "motorky"];
+                        setFilters((prev) => ({
+                          ...prev,
+                          vehicleType: newTypes.join(",") || "",
+                          bodyType: undefined,
+                        }));
+                      }}
+                      data-testid="button-vehicle-motorky"
+                      className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
+                        filters.vehicleType?.split(",").includes("motorky")
+                          ? "bg-primary text-primary-foreground border-primary-border"
+                          : "bg-background border-input text-black dark:text-white"
+                      }`}
+                    >
+                      <MotorcycleIcon className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12" />
+                      <span
+                        className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("motorky") ? "text-black dark:text-white" : ""}`}
+                      >
+                        {t("hero.motorky")}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentTypes = filters.vehicleType
+                          ? filters.vehicleType.split(",").filter(Boolean)
+                          : [];
+                        const isSelected = currentTypes.includes("suv-offroad");
+                        const newTypes = isSelected
+                          ? currentTypes.filter((t) => t !== "suv-offroad")
+                          : [...currentTypes, "suv-offroad"];
+                        setFilters((prev) => ({
+                          ...prev,
+                          vehicleType: newTypes.join(",") || "",
+                          bodyType: undefined,
+                        }));
+                      }}
+                      data-testid="button-vehicle-suv-offroad"
+                      className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
+                        filters.vehicleType?.split(",").includes("suv-offroad")
+                          ? "bg-primary text-primary-foreground border-primary-border"
+                          : "bg-background border-input text-black dark:text-white"
+                      }`}
+                    >
+                      <SuvIcon className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12" />
+                      <span
+                        className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("suv-offroad") ? "text-black dark:text-white" : ""}`}
+                      >
+                        {t("hero.suvOffroad")}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentTypes = filters.vehicleType
+                          ? filters.vehicleType.split(",").filter(Boolean)
+                          : [];
+                        const isSelected = currentTypes.includes("elektro");
+                        const newTypes = isSelected
+                          ? currentTypes.filter((t) => t !== "elektro")
+                          : [...currentTypes, "elektro"];
+                        setFilters((prev) => ({
+                          ...prev,
+                          vehicleType: newTypes.join(",") || "",
+                          bodyType: undefined,
+                        }));
+                      }}
+                      data-testid="button-vehicle-elektro"
+                      className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
+                        filters.vehicleType?.split(",").includes("elektro")
+                          ? "bg-primary text-primary-foreground border-primary-border"
+                          : "bg-background border-input text-black dark:text-white"
+                      }`}
+                    >
+                      <img
+                        src={elektroIcon}
+                        alt="Elektro"
+                        className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12"
+                        style={{ objectFit: "contain" }}
+                      />
+                      <span
+                        className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("elektro") ? "text-black dark:text-white" : ""}`}
+                      >
+                        {t("hero.electric")}
+                      </span>
+                    </button>
+                  </div>
+
+                  <Button
                     type="button"
-                    onClick={() => {
-                      const currentTypes = filters.vehicleType
-                        ? filters.vehicleType.split(",").filter(Boolean)
-                        : [];
-                      const isSelected = currentTypes.includes("dodavky");
-                      const newTypes = isSelected
-                        ? currentTypes.filter((t) => t !== "dodavky")
-                        : [...currentTypes, "dodavky"];
-                      setFilters((prev) => ({
-                        ...prev,
-                        vehicleType: newTypes.join(",") || "",
-                        bodyType: undefined,
-                      }));
-                    }}
-                    data-testid="button-vehicle-dodavky"
-                    className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
-                      filters.vehicleType?.split(",").includes("dodavky")
-                        ? "bg-primary text-primary-foreground border-primary-border"
-                        : "bg-background border-input text-black dark:text-white"
-                    }`}
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm shadow-md shrink-0 hidden lg:flex"
+                    onClick={() => scrollVehicleTypes("right")}
+                    data-testid="button-scroll-vehicle-right"
                   >
-                    <VanGoldIcon className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12" />
-                    <span
-                      className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("dodavky") ? "text-black dark:text-white" : ""}`}
-                    >
-                      {t("hero.dodavky")}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentTypes = filters.vehicleType
-                        ? filters.vehicleType.split(",").filter(Boolean)
-                        : [];
-                      const isSelected = currentTypes.includes("nakladni-vozy");
-                      const newTypes = isSelected
-                        ? currentTypes.filter((t) => t !== "nakladni-vozy")
-                        : [...currentTypes, "nakladni-vozy"];
-                      setFilters((prev) => ({
-                        ...prev,
-                        vehicleType: newTypes.join(",") || "",
-                        bodyType: undefined,
-                      }));
-                    }}
-                    data-testid="button-vehicle-trucks"
-                    className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
-                      filters.vehicleType?.split(",").includes("nakladni-vozy")
-                        ? "bg-primary text-primary-foreground border-primary-border"
-                        : "bg-background border-input text-black dark:text-white"
-                    }`}
-                  >
-                    <TruckGoldIcon className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12" />
-                    <span
-                      className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("nakladni-vozy") ? "text-black dark:text-white" : ""}`}
-                    >
-                      {t("hero.trucks")}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentTypes = filters.vehicleType
-                        ? filters.vehicleType.split(",").filter(Boolean)
-                        : [];
-                      const isSelected = currentTypes.includes("motorky");
-                      const newTypes = isSelected
-                        ? currentTypes.filter((t) => t !== "motorky")
-                        : [...currentTypes, "motorky"];
-                      setFilters((prev) => ({
-                        ...prev,
-                        vehicleType: newTypes.join(",") || "",
-                        bodyType: undefined,
-                      }));
-                    }}
-                    data-testid="button-vehicle-motorky"
-                    className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
-                      filters.vehicleType?.split(",").includes("motorky")
-                        ? "bg-primary text-primary-foreground border-primary-border"
-                        : "bg-background border-input text-black dark:text-white"
-                    }`}
-                  >
-                    <MotorcycleIcon className="w-10 h-10 sm:w-11 sm:h-11 lg:w-12 lg:h-12" />
-                    <span
-                      className={`text-xs sm:text-sm ${!filters.vehicleType?.split(",").includes("motorky") ? "text-black dark:text-white" : ""}`}
-                    >
-                      {t("hero.motorky")}
-                    </span>
-                  </button>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-base font-medium">
+                  {t("filters.bodyType")}
+                </Label>
+                <div className="flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide">
                   {bodyTypes.map((type) => {
                     const IconComponent = bodyTypeIcons[type.value] || Car;
                     const isSelected =
@@ -2921,17 +3012,6 @@ function Hero() {
                     );
                   })}
                 </div>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm shadow-md shrink-0 hidden lg:flex"
-                  onClick={() => scrollVehicleTypes("right")}
-                  data-testid="button-scroll-vehicle-right"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
               </div>
             </div>
 

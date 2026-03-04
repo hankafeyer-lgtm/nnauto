@@ -2472,6 +2472,8 @@ import motorcycleIcon from "@assets/44AD800C-C9BB-4F50-A278-5152E01D60BB_1763444
 import truckGoldIcon from "@assets/8C9B6F5F-55BC-402E-9359-B2707FE2FB81_1763444987490.png";
 import carGoldIcon from "@assets/D545620E-B7EF-4EB5-AE03-389B4725412B_1763449648396.png";
 import vanIcon from "@assets/4E8B9722-D061-47D3-9C2F-2C8C1070F01B_1763443339270.png";
+import suvIcon from "@assets/0E073D5C-92A6-4128-9DB1-7736CCDBBB25_1763443580852.png";
+import elektroIcon from "@assets/7BF268AD-E859-4A28-8509-47319F8BCF33_1763450027820.png";
 
 import { brandIcons } from "@/lib/brandIcons";
 import { bodyTypeIcons } from "@/lib/bodyTypeIcons";
@@ -2945,6 +2947,18 @@ function FilterSidebar() {
                     label: t("hero.motorky"),
                     img: motorcycleIcon,
                     testId: "button-sidebar-vehicle-motorky",
+                  },
+                  {
+                    key: "suv-offroad",
+                    label: t("hero.suvOffroad"),
+                    img: suvIcon,
+                    testId: "button-sidebar-vehicle-suv-offroad",
+                  },
+                  {
+                    key: "elektro",
+                    label: t("hero.electric"),
+                    img: elektroIcon,
+                    testId: "button-sidebar-vehicle-elektro",
                   },
                 ].map((item) => {
                   const selected = splitComma(filters.vehicleType).includes(

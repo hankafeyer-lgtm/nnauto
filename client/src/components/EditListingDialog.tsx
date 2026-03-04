@@ -953,6 +953,8 @@ export default function EditListingDialog({
       { value: "dodavky", label: t("hero.dodavky") },
       { value: "nakladni-vozy", label: t("hero.trucks") },
       { value: "motorky", label: t("hero.motorky") },
+      { value: "suv-offroad", label: t("hero.suvOffroad") },
+      { value: "elektro", label: t("hero.electric") },
     ],
     [t],
   );

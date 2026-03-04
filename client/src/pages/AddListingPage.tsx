@@ -67,6 +67,7 @@ import sedanIcon from "@assets/539501B7-9335-431F-AE37-97524B2BC035_176344468231
 import motorcycleIcon from "@assets/44AD800C-C9BB-4F50-A278-5152E01D60BB_1763444856175.png";
 import truckGoldIcon from "@assets/8C9B6F5F-55BC-402E-9359-B2707FE2FB81_1763444987490.png";
 import carGoldIcon from "@assets/D545620E-B7EF-4EB5-AE03-389B4725412B_1763449648396.png";
+import elektroIcon from "@assets/7BF268AD-E859-4A28-8509-47319F8BCF33_1763450027820.png";
 import acuraLogoColor from "@assets/generated_images/Acura_brand_logo_original_6c3bebd7.png";
 import alfaRomeoLogoColor from "@assets/generated_images/Alfa_Romeo_logo_original_086a45c9.png";
 import astonMartinLogoColor from "@assets/generated_images/Aston_Martin_logo_b013e7bd.png";
@@ -192,7 +193,13 @@ type VinDecodeResponse = {
   transmission: "manual" | "automatic" | "robot" | "cvt" | null;
   engineVolume: string | null;
   power: number | null;
-  vehicleType: "osobni-auta" | "nakladni-vozy" | "motorky" | null;
+  vehicleType:
+    | "osobni-auta"
+    | "nakladni-vozy"
+    | "motorky"
+    | "suv-offroad"
+    | "elektro"
+    | null;
 };
 
 type CzLocationSuggestion = {
@@ -449,6 +456,15 @@ const CarGoldIcon = ({ className }: { className?: string }) => (
   />
 );
 
+const ElektroIcon = ({ className }: { className?: string }) => (
+  <img
+    src={elektroIcon}
+    alt="Elektro"
+    className={className}
+    style={{ objectFit: "contain" }}
+  />
+);
+
 export default function AddListingPage() {
   const t = useTranslation();
   const localizedOptions = useLocalizedOptions();
@@ -630,6 +646,8 @@ export default function AddListingPage() {
     { value: "osobni-auta", label: t("hero.cars") },     // Osobní auta / Легкові / Cars
     { value: "nakladni-vozy", label: t("hero.trucks") }, // Nákladní vozy / Вантажівки / Trucks
     { value: "motorky", label: t("hero.motorky") }, // Motorky / Мотоцикли / Motorcycles
+    { value: "suv-offroad", label: t("hero.suvOffroad") },
+    { value: "elektro", label: t("hero.electric") },
   ];
 
   const sellerTypes = [
@@ -1506,6 +1524,54 @@ export default function AddListingPage() {
                                         >
                                           <MotorcycleIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
                                           <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.motorky")}</span>
+                                        </Button>
+                                      );
+                                    })()}
+                                    {/* SUV / Offroad */}
+                                    {(() => {
+                                      const isSelected = form.watch("vehicleType") === "suv-offroad";
+                                      return (
+                                        <Button
+                                          type="button"
+                                          variant={isSelected ? "default" : "outline"}
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              form.setValue("vehicleType", "" as any);
+                                              field.onChange(undefined);
+                                            } else {
+                                              form.setValue("vehicleType", "suv-offroad");
+                                              field.onChange(undefined);
+                                            }
+                                          }}
+                                          data-testid="button-vehicle-suv-offroad"
+                                        >
+                                          <SuvIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
+                                          <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.suvOffroad")}</span>
+                                        </Button>
+                                      );
+                                    })()}
+                                    {/* Elektro */}
+                                    {(() => {
+                                      const isSelected = form.watch("vehicleType") === "elektro";
+                                      return (
+                                        <Button
+                                          type="button"
+                                          variant={isSelected ? "default" : "outline"}
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          onClick={() => {
+                                            if (isSelected) {
+                                              form.setValue("vehicleType", "" as any);
+                                              field.onChange(undefined);
+                                            } else {
+                                              form.setValue("vehicleType", "elektro");
+                                              field.onChange(undefined);
+                                            }
+                                          }}
+                                          data-testid="button-vehicle-elektro"
+                                        >
+                                          <ElektroIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
+                                          <span className="text-[10px] sm:text-xs font-medium leading-tight">{t("hero.electric")}</span>
                                         </Button>
                                       );
                                     })()}
