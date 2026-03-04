@@ -2117,7 +2117,7 @@ export default function HomePage() {
   const t = useTranslation();
   const { language } = useLanguage();
   const localizedOptions = useLocalizedOptions();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -2157,6 +2157,12 @@ export default function HomePage() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // Keep current page in sync when URL changes from filter interactions.
+  useEffect(() => {
+    const nextPage = getPageFromUrl();
+    setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+  }, [location]);
 
   const goToPage = (page: number, totalPages?: number) => {
     const clamped =
@@ -2237,15 +2243,16 @@ export default function HomePage() {
 
   // ✅ server-side pagination + sorting
   const listUrl = useMemo(() => {
-    const sp = new URLSearchParams();
+    const sp = new URLSearchParams(window.location.search);
+    sp.delete("openListing");
     sp.set("page", String(currentPage));
     sp.set("limit", String(ITEMS_PER_PAGE));
     sp.set("sort", "top"); // backend: isTopListing desc, createdAt desc
     return `/api/listings?${sp.toString()}`;
-  }, [currentPage]);
+  }, [currentPage, location]);
 
   const { data, isLoading, isFetching } = useQuery<ListingsResponse>({
-    queryKey: ["listings", currentPage, ITEMS_PER_PAGE],
+    queryKey: ["listings", listUrl],
     queryFn: async () => {
       const res = await fetch(listUrl, { credentials: "include" });
       if (!res.ok) throw new Error(`Failed to load listings: ${res.status}`);
@@ -2292,14 +2299,15 @@ export default function HomePage() {
     if (currentPage >= totalPages) return;
 
     const nextPage = currentPage + 1;
-    const sp = new URLSearchParams();
+    const sp = new URLSearchParams(window.location.search);
+    sp.delete("openListing");
     sp.set("page", String(nextPage));
     sp.set("limit", String(ITEMS_PER_PAGE));
     sp.set("sort", "top");
     const nextUrl = `/api/listings?${sp.toString()}`;
 
     queryClient.prefetchQuery({
-      queryKey: ["listings", nextPage, ITEMS_PER_PAGE],
+      queryKey: ["listings", nextUrl],
       queryFn: async () => {
         const res = await fetch(nextUrl, { credentials: "include" });
         if (!res.ok) throw new Error("prefetch failed");
@@ -2307,7 +2315,7 @@ export default function HomePage() {
       },
       staleTime: 30_000,
     });
-  }, [pagination, currentPage, totalPages]);
+  }, [pagination, currentPage, totalPages, location]);
 
   const deleteMutation = useMutation({
     mutationFn: async (listingId: string) => {
