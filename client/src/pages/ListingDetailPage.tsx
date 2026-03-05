@@ -4255,14 +4255,14 @@ export default function ListingDetailPage() {
                               <ResponsiveImage
                                 // було 400px → робимо 768px, щоб на мобільному/retina було чітко
                                 mobileSrc={getOptimizedImageUrl(key, {
-                                  width: 768,
-                                  quality: 72,
+                                  width: 640,
+                                  quality: 76,
                                   format: "webp",
                                 })}
                                 // було 1200px → робимо 1600px для деталки (виглядає значно різкіше)
                                 desktopSrc={getOptimizedImageUrl(key, {
-                                  width: 1600,
-                                  quality: 78,
+                                  width: 1280,
+                                  quality: 80,
                                   format: "webp",
                                 })}
                                 desktopMinWidth={1024}
@@ -4447,12 +4447,12 @@ export default function ListingDetailPage() {
                             <ResponsiveImage
                               mobileSrc={getOptimizedImageUrl(key, {
                                 width: 96,
-                                quality: 62,
+                                quality: 66,
                                 format: "webp",
                               })}
                               desktopSrc={getOptimizedImageUrl(key, {
                                 width: 192,
-                                quality: 68,
+                                quality: 72,
                                 format: "webp",
                               })}
                               desktopMinWidth={1024}
