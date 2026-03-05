@@ -3264,6 +3264,13 @@ export default function ListingDetailPage() {
   const listingVin = (listing?.vin || "").trim().toUpperCase();
   const listingVinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(listingVin);
 
+  const clearInteractionLocks = useCallback(() => {
+    document.body.style.pointerEvents = "";
+    document.body.style.overflow = "";
+    document.documentElement.style.pointerEvents = "";
+    document.documentElement.style.overflow = "";
+  }, []);
+
   const handleCebiaClick = useCallback(() => {
     if (!listingVinValid) {
       toast({
@@ -3273,8 +3280,9 @@ export default function ListingDetailPage() {
       });
       return;
     }
+    clearInteractionLocks();
     setCebiaDialogOpen(true);
-  }, [listingVinValid, t, toast]);
+  }, [clearInteractionLocks, listingVinValid, t, toast]);
 
   // Stripe redirect: promoted=success/cancelled
   useEffect(() => {
@@ -3317,8 +3325,7 @@ export default function ListingDetailPage() {
 
     // Close potentially stale dialog state after returning from payment.
     setCebiaDialogOpen(false);
-    document.body.style.pointerEvents = "";
-    document.body.style.overflow = "";
+    clearInteractionLocks();
 
     if (cebiaParam === "success") {
       toast({
@@ -3337,7 +3344,7 @@ export default function ListingDetailPage() {
     newUrl.searchParams.delete("report_id");
     newUrl.searchParams.delete("nnauto_report_id");
     window.history.replaceState({}, "", newUrl.toString());
-  }, [t, toast]);
+  }, [clearInteractionLocks, t, toast]);
 
   useEffect(() => {
     const handlePageShow = (event: PageTransitionEvent) => {
@@ -3345,13 +3352,12 @@ export default function ListingDetailPage() {
 
       // Safari bfcache can keep stale modal/pointer lock state.
       setCebiaDialogOpen(false);
-      document.body.style.pointerEvents = "";
-      document.body.style.overflow = "";
+      clearInteractionLocks();
     };
 
     window.addEventListener("pageshow", handlePageShow);
     return () => window.removeEventListener("pageshow", handlePageShow);
-  }, []);
+  }, [clearInteractionLocks]);
 
   // --- Media normalization (важливо для кешу/стабільних URL)
   const photoKeys = useMemo(() => {
@@ -5337,7 +5343,13 @@ export default function ListingDetailPage() {
       </Dialog>
 
       {/* Cebia dialog (placeholder) */}
-      <Dialog open={cebiaDialogOpen} onOpenChange={setCebiaDialogOpen}>
+      <Dialog
+        open={cebiaDialogOpen}
+        onOpenChange={(open) => {
+          setCebiaDialogOpen(open);
+          if (!open) clearInteractionLocks();
+        }}
+      >
         <DialogContent data-testid="dialog-cebia-placeholder">
           <DialogHeader>
             <DialogTitle>Cebia Autotracer — prověření VIN</DialogTitle>
