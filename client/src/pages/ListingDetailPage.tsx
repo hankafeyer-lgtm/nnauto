@@ -3347,16 +3347,26 @@ export default function ListingDetailPage() {
   }, [clearInteractionLocks, t, toast]);
 
   useEffect(() => {
-    const handlePageShow = (event: PageTransitionEvent) => {
-      if (!event.persisted) return;
-
-      // Safari bfcache can keep stale modal/pointer lock state.
+    const restoreAfterReturn = () => {
+      // Browsers can keep stale modal/pointer lock state after external redirect.
       setCebiaDialogOpen(false);
       clearInteractionLocks();
     };
 
-    window.addEventListener("pageshow", handlePageShow);
-    return () => window.removeEventListener("pageshow", handlePageShow);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        restoreAfterReturn();
+      }
+    };
+
+    window.addEventListener("pageshow", restoreAfterReturn);
+    window.addEventListener("focus", restoreAfterReturn);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pageshow", restoreAfterReturn);
+      window.removeEventListener("focus", restoreAfterReturn);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, [clearInteractionLocks]);
 
   // --- Media normalization (важливо для кешу/стабільних URL)
