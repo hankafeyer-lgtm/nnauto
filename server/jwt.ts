@@ -3,6 +3,7 @@ import jwt, { type SignOptions } from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'nnauto-jwt-secret-key-2024';
 const JWT_EXPIRES_IN: SignOptions["expiresIn"] =
   (process.env.JWT_EXPIRES_IN as SignOptions["expiresIn"]) || "24h";
+const AUTH_DEBUG_LOGS = process.env.AUTH_DEBUG_LOGS === "true";
 
 export interface JWTPayload {
   userId: string;
@@ -20,7 +21,9 @@ export function verifyToken(token: string): JWTPayload | null {
     const decoded = jwt.verify(token, JWT_SECRET) as JWTPayload;
     return decoded;
   } catch (error) {
-    console.log('[JWT] Token verification failed:', error instanceof Error ? error.message : 'Unknown error');
+    if (AUTH_DEBUG_LOGS) {
+      console.log('[JWT] Token verification failed:', error instanceof Error ? error.message : 'Unknown error');
+    }
     return null;
   }
 }
