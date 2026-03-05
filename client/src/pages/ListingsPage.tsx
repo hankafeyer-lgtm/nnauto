@@ -2944,7 +2944,7 @@ import { SEO, generateListingsSchema } from "@/components/SEO";
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, prefetchListing, queryClient } from "@/lib/queryClient";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -3209,6 +3209,7 @@ export default function ListingsPage() {
   }, [currentPage]);
 
   const openListingOverlay = useCallback((id: string) => {
+    void prefetchListing(id);
     pushUrlParams((p) => {
       p.set("openListing", id);
     });

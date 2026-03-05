@@ -1255,8 +1255,8 @@ export function MediaLightbox({
 
     const idx = clamp(currentIndex, 0, photoKeys.length - 1);
 
-    const neighbors = [idx - 1, idx + 1].filter(
-      (i) => i >= 0 && i < photoKeys.length,
+    const neighbors = [idx - 2, idx - 1, idx + 1, idx + 2].filter(
+      (i, pos, arr) => i >= 0 && i < photoKeys.length && arr.indexOf(i) === pos,
     );
 
     const preload = (url: string, onDone: () => void) => {

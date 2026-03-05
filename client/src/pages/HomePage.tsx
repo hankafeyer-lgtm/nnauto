@@ -2044,7 +2044,12 @@ import {
 
 import type { Listing } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
+import {
+  apiRequest,
+  parseApiError,
+  prefetchListing,
+  queryClient,
+} from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getListingMainTitle } from "@/lib/listingTitle";
 
@@ -2241,6 +2246,7 @@ export default function HomePage() {
     });
   };
   const openListingOverlay = useCallback((id: string) => {
+    void prefetchListing(id);
     const url = new URL(window.location.href);
     url.searchParams.set("openListing", id);
     window.history.pushState(window.history.state, "", url.toString());

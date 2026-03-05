@@ -246,6 +246,8 @@ function CarCard({
           data-testid={`link-car-${id}`}
           className="touch-manipulation"
           onClick={handleListingClick}
+          onTouchStart={handlePrefetch}
+          onFocus={handlePrefetch}
         >
           <Card
             className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-lg duration-300 rounded-xl"
@@ -429,6 +431,8 @@ function CarCard({
         data-testid={`link-car-${id}`}
         className="block h-full touch-manipulation"
         onClick={handleListingClick}
+        onTouchStart={handlePrefetch}
+        onFocus={handlePrefetch}
       >
         <Card
           className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col"
