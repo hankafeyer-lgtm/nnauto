@@ -16,7 +16,7 @@ export function FavoritesButton() {
     <>
       <Button
         onClick={() => setIsModalOpen(true)}
-        className="!fixed !bottom-4 !right-4 sm:!bottom-6 sm:!right-6 rounded-full shadow-2xl !z-[9999] bg-primary hover:bg-primary text-primary-foreground h-14 w-14 sm:h-auto sm:w-auto sm:px-6 sm:py-3 p-0 pointer-events-auto"
+        className="!fixed !bottom-4 !right-4 sm:!bottom-6 sm:!right-6 rounded-full shadow-2xl !z-40 bg-primary hover:bg-primary text-primary-foreground h-14 w-14 sm:h-auto sm:w-auto sm:px-6 sm:py-3 p-0 pointer-events-auto"
         data-testid="button-favorites-floating"
       >
         <div className="relative flex items-center justify-center sm:justify-start">
