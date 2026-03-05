@@ -28,6 +28,14 @@ import {
   getOptimizedImageUrl,
 } from "@/lib/imageOptimizer";
 
+let listingDetailChunkPrefetched = false;
+
+function prefetchListingDetailChunk() {
+  if (listingDetailChunkPrefetched) return;
+  listingDetailChunkPrefetched = true;
+  void import("@/pages/ListingDetailPage");
+}
+
 interface CarCardProps {
   id: string;
   image: string;
@@ -213,7 +221,8 @@ function CarCard({
   const handlePrefetch = useCallback(() => {
     if (didPrefetchRef.current) return;
     didPrefetchRef.current = true;
-    prefetchListing(id);
+    prefetchListingDetailChunk();
+    void prefetchListing(id);
   }, [id]);
 
   useEffect(() => {
@@ -225,6 +234,8 @@ function CarCard({
       if (onOpenListing) {
         e.preventDefault();
         e.stopPropagation();
+        prefetchListingDetailChunk();
+        void prefetchListing(id);
         onOpenListing(id);
         return;
       }
@@ -246,11 +257,11 @@ function CarCard({
           data-testid={`link-car-${id}`}
           className="touch-manipulation"
           onClick={handleListingClick}
+          onTouchStart={handlePrefetch}
+          onMouseDown={handlePrefetch}
         >
           <Card
-            className={`overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-lg duration-300 rounded-xl ${
-              isOpeningListing ? "opacity-90 cursor-progress" : ""
-            }`}
+            className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-lg duration-300 rounded-xl"
             data-testid={`card-car-${title.toLowerCase().replace(/\s+/g, "-")}`}
             data-listing-id={id}
             id={`listing-${id}`}
@@ -431,6 +442,8 @@ function CarCard({
         data-testid={`link-car-${id}`}
         className="block h-full touch-manipulation"
         onClick={handleListingClick}
+        onTouchStart={handlePrefetch}
+        onMouseDown={handlePrefetch}
       >
         <Card
           className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col"
