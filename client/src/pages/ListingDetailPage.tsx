@@ -3267,8 +3267,12 @@ export default function ListingDetailPage() {
   const clearInteractionLocks = useCallback(() => {
     document.body.style.pointerEvents = "";
     document.body.style.overflow = "";
+    document.body.style.touchAction = "";
+    document.body.style.overscrollBehavior = "";
     document.documentElement.style.pointerEvents = "";
     document.documentElement.style.overflow = "";
+    document.documentElement.style.touchAction = "";
+    document.documentElement.style.overscrollBehavior = "";
   }, []);
 
   const handleCebiaClick = useCallback(() => {
