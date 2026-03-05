@@ -154,3 +154,29 @@ export function prefetchListing(id: string) {
     staleTime: 10 * 60 * 1000,
   });
 }
+
+const prefetchedListingDocs = new Set<string>();
+
+// Warm listing page document cache (helps iframe open faster on mobile)
+export function prefetchListingDocument(id: string) {
+  if (typeof window === "undefined") return;
+  if (!id) return;
+  const url = `/listing/${id}?embedded=1`;
+  if (prefetchedListingDocs.has(url)) return;
+  prefetchedListingDocs.add(url);
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 1500);
+
+  fetch(url, {
+    method: "GET",
+    credentials: "include",
+    signal: controller.signal,
+  })
+    .catch(() => {
+      // Ignore warmup failures; real navigation still handles loading/errors.
+    })
+    .finally(() => {
+      window.clearTimeout(timeout);
+    });
+}

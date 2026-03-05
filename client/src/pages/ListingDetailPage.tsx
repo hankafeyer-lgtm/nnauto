@@ -3409,7 +3409,8 @@ export default function ListingDetailPage() {
     };
   }, [carouselApi]);
 
-  // Preload neighbor images to reduce swipe stutter
+  // Preload nearby images with the same params we actually render.
+  // This avoids decoding oversized variants on mobile.
   useEffect(() => {
     const len = photoKeys.length;
     if (!len) return;
@@ -3420,9 +3421,11 @@ export default function ListingDetailPage() {
     const neighbors = new Set<string>();
     neighbors.add(photoKeys[(idx + 1) % len]);
     neighbors.add(photoKeys[(idx - 1 + len) % len]);
+    neighbors.add(photoKeys[(idx + 2) % len]);
+    neighbors.add(photoKeys[(idx - 2 + len) % len]);
     const isDesktop = w.innerWidth >= 1024;
-    const preloadWidth = isDesktop ? 1600 : 1200;
-    const preloadQuality = isDesktop ? 85 : 80;
+    const preloadWidth = isDesktop ? 1280 : 640;
+    const preloadQuality = isDesktop ? 80 : 76;
 
     for (const key of neighbors) {
       const img = new Image();

@@ -2048,6 +2048,7 @@ import {
   apiRequest,
   parseApiError,
   prefetchListing,
+  prefetchListingDocument,
   queryClient,
 } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -2247,6 +2248,7 @@ export default function HomePage() {
   };
   const openListingOverlay = useCallback((id: string) => {
     void prefetchListing(id);
+    prefetchListingDocument(id);
     const url = new URL(window.location.href);
     url.searchParams.set("openListing", id);
     window.history.pushState(window.history.state, "", url.toString());

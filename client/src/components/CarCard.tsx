@@ -20,7 +20,7 @@ import { useFavorites } from "@/contexts/FavoritesContext";
 import { useTranslation } from "@/lib/translations";
 import { useState, memo, useRef, useEffect, useCallback, useMemo } from "react";
 import { saveScrollPosition } from "@/components/ScrollToTop";
-import { prefetchListing } from "@/lib/queryClient";
+import { prefetchListing, prefetchListingDocument } from "@/lib/queryClient";
 import {
   getCardImageUrl,
   getThumbnailUrl,
@@ -214,6 +214,7 @@ function CarCard({
     if (didPrefetchRef.current) return;
     didPrefetchRef.current = true;
     prefetchListing(id);
+    prefetchListingDocument(id);
   }, [id]);
 
   useEffect(() => {
