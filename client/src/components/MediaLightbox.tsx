@@ -1538,31 +1538,29 @@ export function MediaLightbox({
             onClick={(e) => e.stopPropagation()}
           />
         ) : currentKey ? (
-          <div className="relative">
-            <ResponsiveImage
-              // ✅ mobile-first + стабільні параметри + preload сусідів цими ж URL
-              mobileSrc={getMobileUrl(currentKey)}
-              desktopSrc={getDesktopUrl(currentKey)}
-              desktopMinWidth={DESKTOP_MIN_WIDTH}
-              upgrade={allowUpgrade}
-              alt={`Photo ${currentIndex + 1}`}
-              className="max-w-full max-h-full object-contain select-none transition-transform duration-200"
-              draggable={false}
-              // якщо ResponsiveImage прокидує пропси в <img />
-              // @ts-ignore
-              decoding="async"
-              // @ts-ignore
-              loading="eager"
-              style={{
-                transform: isZoomed
-                  ? `scale(2.5) translate(${panPosition.x / 2.5}px, ${panPosition.y / 2.5}px)`
-                  : "scale(1) translate(0, 0)",
-                willChange: isZoomed ? "transform" : undefined,
-              }}
-              data-testid="img-lightbox"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
+          <ResponsiveImage
+            // ✅ mobile-first + стабільні параметри + preload сусідів цими ж URL
+            mobileSrc={getMobileUrl(currentKey)}
+            desktopSrc={getDesktopUrl(currentKey)}
+            desktopMinWidth={DESKTOP_MIN_WIDTH}
+            upgrade={allowUpgrade}
+            alt={`Photo ${currentIndex + 1}`}
+            className="max-w-full max-h-full object-contain select-none transition-transform duration-200"
+            draggable={false}
+            // якщо ResponsiveImage прокидує пропси в <img />
+            // @ts-ignore
+            decoding="async"
+            // @ts-ignore
+            loading="eager"
+            style={{
+              transform: isZoomed
+                ? `scale(2.5) translate(${panPosition.x / 2.5}px, ${panPosition.y / 2.5}px)`
+                : "scale(1) translate(0, 0)",
+              willChange: isZoomed ? "transform" : undefined,
+            }}
+            data-testid="img-lightbox"
+            onClick={(e) => e.stopPropagation()}
+          />
         ) : null}
       </div>
 
