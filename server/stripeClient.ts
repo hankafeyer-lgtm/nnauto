@@ -75,28 +75,3 @@ export async function getStripeSecretKey() {
   return secretKey;
 }
 
-// StripeSync singleton for webhook processing and data sync
-let stripeSync: any = null;
-
-export async function getStripeSync() {
-  if (!stripeSync) {
-    const { StripeSync } = await import('stripe-replit-sync');
-    const secretKey = await getStripeSecretKey();
-    const dbUrl =
-      process.env.DATABASE_URL_POOLED ||
-      process.env.PRODUCTION_DATABASE_URL ||
-      process.env.DATABASE_URL;
-    if (!dbUrl) {
-      throw new Error("DATABASE_URL must be set for Stripe sync");
-    }
-
-    stripeSync = new StripeSync({
-      poolConfig: {
-        connectionString: dbUrl.trim(),
-        max: 2,
-      },
-      stripeSecretKey: secretKey,
-    });
-  }
-  return stripeSync;
-}
