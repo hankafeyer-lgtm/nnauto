@@ -15,7 +15,7 @@ import {
   verifyEmailSchema,
   changeEmailSchema,
 } from "@shared/schema";
-import { asc, desc, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import "./types";
 import bcrypt from "bcrypt";
@@ -180,6 +180,54 @@ const ensureListingAnalyticsTable = async () => {
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS listing_analytics_owner_idx
     ON listing_analytics_events (owner_user_id)
+  `);
+};
+
+const ensureListingsIndexes = async () => {
+  // Keep listing/search endpoints fast as dataset grows.
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_is_top_created_at_idx
+    ON listings (is_top_listing DESC, created_at DESC)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_created_at_idx
+    ON listings (created_at DESC)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_price_idx
+    ON listings (price)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_year_idx
+    ON listings (year)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_mileage_idx
+    ON listings (mileage)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_brand_idx
+    ON listings (brand)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_model_idx
+    ON listings (model)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_vehicle_type_idx
+    ON listings (vehicle_type)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_body_type_idx
+    ON listings (body_type)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_region_idx
+    ON listings (region)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_user_id_idx
+    ON listings (user_id)
   `);
 };
 
@@ -1509,6 +1557,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupAuth(app);
   await ensureListingAnalyticsTable();
+  await ensureListingsIndexes();
   app.set("etag", "weak");
   // Test session save endpoint - comprehensive session diagnostics
   app.get("/api/health/test-session", async (req, res) => {
@@ -5096,8 +5145,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Fallback (filters supported): current in-memory implementation
-      let allListings = [...(await storage.getListings())];
+      // Fallback (filters supported): preserve current logic, but narrow the DB
+      // candidate set first to avoid loading all listings on every filtered request.
+      const dbPrefilters: SQL[] = [];
+      const userIdPrefilter = typeof q.userId === "string" ? q.userId.trim() : "";
+      if (userIdPrefilter) {
+        dbPrefilters.push(eq(listingsTable.userId, userIdPrefilter));
+      }
+
+      const searchPrefilter = typeof q.search === "string" ? q.search.trim() : "";
+      if (searchPrefilter) {
+        const s = `%${searchPrefilter}%`;
+        dbPrefilters.push(
+          or(
+            ilike(listingsTable.brand, s),
+            ilike(listingsTable.model, s),
+            ilike(listingsTable.title, s),
+            ilike(listingsTable.description, s),
+          ) as SQL,
+        );
+      }
+
+      const priceMinPrefilter = toNumber(q.priceMin);
+      const priceMaxPrefilter = toNumber(q.priceMax);
+      if (priceMinPrefilter !== undefined) {
+        dbPrefilters.push(gte(listingsTable.price, String(priceMinPrefilter)));
+      }
+      if (priceMaxPrefilter !== undefined) {
+        dbPrefilters.push(lte(listingsTable.price, String(priceMaxPrefilter)));
+      }
+
+      const yearMinPrefilter = toInt(q.yearMin);
+      const yearMaxPrefilter = toInt(q.yearMax);
+      if (yearMinPrefilter !== undefined) {
+        dbPrefilters.push(gte(listingsTable.year, yearMinPrefilter));
+      }
+      if (yearMaxPrefilter !== undefined) {
+        dbPrefilters.push(lte(listingsTable.year, yearMaxPrefilter));
+      }
+
+      const mileageMinPrefilter = toInt(q.mileageMin);
+      const mileageMaxPrefilter = toInt(q.mileageMax);
+      if (mileageMinPrefilter !== undefined) {
+        dbPrefilters.push(gte(listingsTable.mileage, mileageMinPrefilter));
+      }
+      if (mileageMaxPrefilter !== undefined) {
+        dbPrefilters.push(lte(listingsTable.mileage, mileageMaxPrefilter));
+      }
+
+      const powerMinPrefilter = toInt(q.powerMin);
+      const powerMaxPrefilter = toInt(q.powerMax);
+      if (powerMinPrefilter !== undefined) {
+        dbPrefilters.push(gte(listingsTable.power, powerMinPrefilter));
+      }
+      if (powerMaxPrefilter !== undefined) {
+        dbPrefilters.push(lte(listingsTable.power, powerMaxPrefilter));
+      }
+
+      if (toBool(q.hasServiceBook)) {
+        dbPrefilters.push(eq(listingsTable.hasServiceBook, true));
+      }
+
+      const listingAgeMinPrefilter = toInt(q.listingAgeMin);
+      const listingAgeMaxPrefilter = toInt(q.listingAgeMax);
+      if (listingAgeMinPrefilter !== undefined) {
+        const maxDate = new Date();
+        maxDate.setDate(maxDate.getDate() - listingAgeMinPrefilter);
+        dbPrefilters.push(lte(listingsTable.createdAt, maxDate));
+      }
+      if (listingAgeMaxPrefilter !== undefined) {
+        const minDate = new Date();
+        minDate.setDate(minDate.getDate() - listingAgeMaxPrefilter);
+        dbPrefilters.push(gte(listingsTable.createdAt, minDate));
+      }
+
+      let allListings =
+        dbPrefilters.length > 0
+          ? await db
+              .select()
+              .from(listingsTable)
+              .where(and(...dbPrefilters))
+          : await storage.getListings();
 
       // --- filters ---
       const userId = typeof q.userId === "string" ? q.userId.trim() : "";

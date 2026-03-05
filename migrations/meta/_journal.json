@@ -15,6 +15,13 @@
       "when": 1772128094858,
       "tag": "0001_add_cebia_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772489954000,
+      "tag": "0002_listings_perf_indexes",
+      "breakpoints": true
     }
   ]
 }
