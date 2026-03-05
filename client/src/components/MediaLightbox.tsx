@@ -1076,7 +1076,6 @@ import { X, ChevronLeft, ChevronRight, Video } from "lucide-react";
 import { useTranslation } from "@/lib/translations";
 import { getThumbnailUrl, getOptimizedImageUrl } from "@/lib/imageOptimizer";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
-import PhotoWatermark from "@/components/PhotoWatermark";
 
 interface MediaLightboxProps {
   photos: string[];
@@ -1461,7 +1460,6 @@ export function MediaLightbox({
               loading="lazy"
               decoding="async"
             />
-            <PhotoWatermark className="left-0.5 top-0.5" compact />
           </button>
         ))}
 
@@ -1564,7 +1562,6 @@ export function MediaLightbox({
               data-testid="img-lightbox"
               onClick={(e) => e.stopPropagation()}
             />
-            <PhotoWatermark className="left-0.5 top-0.5 md:left-1 md:top-1" />
           </div>
         ) : null}
       </div>

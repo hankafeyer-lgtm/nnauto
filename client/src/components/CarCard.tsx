@@ -21,7 +21,6 @@ import { useTranslation } from "@/lib/translations";
 import { useState, memo, useRef, useEffect, useCallback, useMemo } from "react";
 import { saveScrollPosition } from "@/components/ScrollToTop";
 import { prefetchListing, prefetchListingDocument } from "@/lib/queryClient";
-import PhotoWatermark from "@/components/PhotoWatermark";
 import {
   getCardImageUrl,
   getThumbnailUrl,
@@ -291,7 +290,6 @@ function CarCard({
                     imageLoaded ? "opacity-100" : "opacity-0"
                   }`}
                 />
-                <PhotoWatermark className="left-0.5 top-0.5" />
 
                 {condition && (
                   <div className="absolute top-2 right-2">
@@ -466,7 +464,6 @@ function CarCard({
               } select-none pointer-events-none`}
               draggable={false}
             />
-            <PhotoWatermark className="left-0.5 top-0.5" />
 
             {/* Photo navigation arrows - flex container ensures proper positioning */}
             {hasMultiplePhotos && (
