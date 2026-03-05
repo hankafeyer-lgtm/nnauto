@@ -3309,6 +3309,50 @@ export default function ListingDetailPage() {
     }
   }, [listingId, t, toast]);
 
+  // Stripe Cebia redirect: ensure dialog state and page interactivity are restored.
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const cebiaParam = urlParams.get("cebia");
+    if (!cebiaParam) return;
+
+    // Close potentially stale dialog state after returning from payment.
+    setCebiaDialogOpen(false);
+    document.body.style.pointerEvents = "";
+    document.body.style.overflow = "";
+
+    if (cebiaParam === "success") {
+      toast({
+        title: t("cebia.paySuccess"),
+      });
+    } else if (cebiaParam === "cancelled") {
+      toast({
+        variant: "destructive",
+        title: t("cebia.payCancelled"),
+      });
+    }
+
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.delete("cebia");
+    newUrl.searchParams.delete("session_id");
+    newUrl.searchParams.delete("report_id");
+    newUrl.searchParams.delete("nnauto_report_id");
+    window.history.replaceState({}, "", newUrl.toString());
+  }, [t, toast]);
+
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+
+      // Safari bfcache can keep stale modal/pointer lock state.
+      setCebiaDialogOpen(false);
+      document.body.style.pointerEvents = "";
+      document.body.style.overflow = "";
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
   // --- Media normalization (важливо для кешу/стабільних URL)
   const photoKeys = useMemo(() => {
     const raw = listing?.photos ?? [];
