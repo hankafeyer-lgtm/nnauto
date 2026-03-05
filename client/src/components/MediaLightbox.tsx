@@ -1092,9 +1092,9 @@ const DESKTOP_MIN_WIDTH = 1024;
 
 // ✅ Тюнінг під швидкість/якість
 const MOBILE_MAX_W = 1200; // не роздуваємо мобільні
-const MOBILE_Q = 78; // швидко, майже без втрат у webp
+const MOBILE_Q = 68; // lighter mobile images for faster swipe loading
 const DESKTOP_W = 2400; // або 2000 якщо хочеш ще швидше
-const DESKTOP_Q = 86;
+const DESKTOP_Q = 78;
 
 export function MediaLightbox({
   photos,

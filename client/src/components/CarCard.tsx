@@ -273,7 +273,7 @@ function CarCard({
                 <img
                   src={getOptimizedImageUrl(image, {
                     width: 768,
-                    quality: 80,
+                    quality: 70,
                     format: "webp",
                   })}
                   srcSet={getCardSrcSet(image)}
