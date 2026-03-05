@@ -3136,6 +3136,7 @@ import {
   getThumbnailUrl,
 } from "@/lib/imageOptimizer";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
+import PhotoWatermark from "@/components/PhotoWatermark";
 
 // Type for public contact information returned by /api/users/:id
 type PublicContact = {
@@ -4277,6 +4278,7 @@ export default function ListingDetailPage() {
                                 className="w-full h-full object-cover object-center bg-muted"
                                 data-testid={`img-listing-${index}`}
                               />
+                              <PhotoWatermark className="left-0.5 top-0.5" />
 
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20">
                                 <div className="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-medium">
@@ -4290,8 +4292,8 @@ export default function ListingDetailPage() {
                                 type="button"
                                 style={{
                                   position: "absolute",
-                                  top: "12px",
-                                  left: "12px",
+                                  bottom: "12px",
+                                  right: "12px",
                                   zIndex: 50,
                                 }}
                                 className={`h-10 w-10 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-sm shadow-lg transition-all duration-200 flex items-center justify-center ${
@@ -4392,6 +4394,7 @@ export default function ListingDetailPage() {
                         className="w-full h-full object-cover object-center bg-muted"
                         data-testid="img-listing-main"
                       />
+                      <PhotoWatermark className="left-0.5 top-0.5" />
                     </div>
                   )}
 

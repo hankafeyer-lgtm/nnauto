@@ -21,6 +21,7 @@ import { useTranslation } from "@/lib/translations";
 import { useState, memo, useRef, useEffect, useCallback, useMemo } from "react";
 import { saveScrollPosition } from "@/components/ScrollToTop";
 import { prefetchListing, prefetchListingDocument } from "@/lib/queryClient";
+import PhotoWatermark from "@/components/PhotoWatermark";
 import {
   getCardImageUrl,
   getThumbnailUrl,
@@ -290,6 +291,7 @@ function CarCard({
                     imageLoaded ? "opacity-100" : "opacity-0"
                   }`}
                 />
+                <PhotoWatermark className="left-0.5 top-0.5" />
 
                 {condition && (
                   <div className="absolute top-2 right-2">
@@ -405,7 +407,7 @@ function CarCard({
         <Button
           size="icon"
           variant="ghost"
-          className={`absolute top-3 left-3 rounded-full bg-white/90 dark:bg-black/70 backdrop-blur-sm hover:bg-white dark:hover:bg-black/90 z-10 shadow-md border border-gray-200/50 dark:border-gray-700/50 touch-manipulation ${
+          className={`absolute bottom-3 right-3 rounded-full bg-white/90 dark:bg-black/70 backdrop-blur-sm hover:bg-white dark:hover:bg-black/90 z-10 shadow-md border border-gray-200/50 dark:border-gray-700/50 touch-manipulation ${
             favorite ? "text-red-500" : "text-gray-600 dark:text-gray-300"
           }`}
           onClick={handleFavoriteClick}
@@ -464,6 +466,7 @@ function CarCard({
               } select-none pointer-events-none`}
               draggable={false}
             />
+            <PhotoWatermark className="left-0.5 top-0.5" />
 
             {/* Photo navigation arrows - flex container ensures proper positioning */}
             {hasMultiplePhotos && (
@@ -514,9 +517,11 @@ function CarCard({
               </>
             )}
 
-            {/* Favorites Button - on photo top-left */}
+            {/* Favorites Button - on photo bottom-right */}
             <div
-              className="absolute top-2 left-2 z-[9999] w-10 h-10 bg-white/90 dark:bg-black/80 rounded-full flex items-center justify-center border border-gray-200 dark:border-gray-700 shadow-lg cursor-pointer hover:scale-110 transition-transform"
+              className={`absolute bottom-2 z-[9999] w-10 h-10 bg-white/90 dark:bg-black/80 rounded-full flex items-center justify-center border border-gray-200 dark:border-gray-700 shadow-lg cursor-pointer hover:scale-110 transition-transform ${
+                showEditButton || showDeleteButton ? "right-24" : "right-2"
+              }`}
               onClick={handleFavoriteClick}
               data-testid={`button-favorite-${id}`}
             >
