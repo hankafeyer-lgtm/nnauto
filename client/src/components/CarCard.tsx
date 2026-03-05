@@ -90,8 +90,6 @@ function CarCard({
   const minSwipeDistance = 50;
   const didPrefetchRef = useRef(false);
   const [shouldPreloadGallery, setShouldPreloadGallery] = useState(false);
-  const [isOpeningListing, setIsOpeningListing] = useState(false);
-  const openClickLockTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Get all photos for navigation (use photos array if available, otherwise just the main image)
   const allPhotos = photos.length > 0 ? photos : [image];
@@ -222,38 +220,20 @@ function CarCard({
     didPrefetchRef.current = false;
   }, [id]);
 
-  useEffect(() => {
-    return () => {
-      if (openClickLockTimeoutRef.current) {
-        clearTimeout(openClickLockTimeoutRef.current);
-      }
-    };
-  }, []);
-
   const handleListingClick = useCallback(
     (e: React.MouseEvent) => {
       if (onOpenListing) {
         e.preventDefault();
         e.stopPropagation();
-        if (isOpeningListing) return;
-        setIsOpeningListing(true);
         onOpenListing(id);
-        if (openClickLockTimeoutRef.current) {
-          clearTimeout(openClickLockTimeoutRef.current);
-        }
-        // Lock repeated rapid taps briefly to prevent rage-click loops.
-        openClickLockTimeoutRef.current = setTimeout(
-          () => setIsOpeningListing(false),
-          320,
-        );
         return;
       }
       saveScrollPosition(id);
     },
-    [id, isOpeningListing, onOpenListing],
+    [id, onOpenListing],
   );
 
-  const listingHref = onOpenListing ? "#" : `/listing/${id}`;
+  const listingHref = `/listing/${id}`;
 
   if (viewMode === "list") {
     return (
@@ -453,9 +433,7 @@ function CarCard({
         onClick={handleListingClick}
       >
         <Card
-          className={`overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col ${
-            isOpeningListing ? "opacity-90 cursor-progress" : ""
-          }`}
+          className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col"
           data-testid={`card-car-${title.toLowerCase().replace(/\s+/g, "-")}`}
           data-listing-id={id}
           id={`listing-${id}`}

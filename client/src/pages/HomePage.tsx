@@ -2039,6 +2039,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Loader2,
 } from "lucide-react";
 
 import type { Listing } from "@shared/schema";
@@ -2145,6 +2146,10 @@ export default function HomePage() {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("openListing");
   });
+  const [isOpenListingOverlayLoading, setIsOpenListingOverlayLoading] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !!new URLSearchParams(window.location.search).get("openListing");
+  });
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -2165,6 +2170,7 @@ export default function HomePage() {
     const onPop = () => {
       setCurrentPage(getPageFromUrl());
       const opened = new URLSearchParams(window.location.search).get("openListing");
+      setIsOpenListingOverlayLoading(!!opened);
       setOpenListingId(opened);
     };
     window.addEventListener("popstate", onPop);
@@ -2238,14 +2244,45 @@ export default function HomePage() {
     const url = new URL(window.location.href);
     url.searchParams.set("openListing", id);
     window.history.pushState(window.history.state, "", url.toString());
+    setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
   }, []);
   const closeListingOverlay = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete("openListing");
     window.history.replaceState(window.history.state, "", url.toString());
+    setIsOpenListingOverlayLoading(false);
     setOpenListingId(null);
   }, []);
+
+  useEffect(() => {
+    if (!openListingId) return;
+
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyTouchAction = document.body.style.touchAction;
+    const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    document.documentElement.style.overscrollBehavior = "none";
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.touchAction = prevBodyTouchAction;
+      document.documentElement.style.overscrollBehavior = prevHtmlOverscroll;
+    };
+  }, [openListingId]);
+
+  useEffect(() => {
+    if (!openListingId || !isOpenListingOverlayLoading) return;
+    const timer = window.setTimeout(() => {
+      setIsOpenListingOverlayLoading(false);
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [isOpenListingOverlayLoading, openListingId]);
 
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
@@ -3131,11 +3168,19 @@ export default function HomePage() {
         </section>
 
         {openListingId ? (
-          <div className="fixed inset-0 z-[100] bg-background">
+          <div className="fixed inset-0 z-[100] bg-background overscroll-none">
+            {isOpenListingOverlayLoading ? (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/95">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : null}
             <iframe
               src={`/listing/${openListingId}?embedded=1`}
-              className="w-full h-full border-0 bg-background"
+              className={`w-full h-full border-0 bg-background transition-opacity duration-150 ${
+                isOpenListingOverlayLoading ? "opacity-0" : "opacity-100"
+              }`}
               title="Listing detail"
+              onLoad={() => setIsOpenListingOverlayLoading(false)}
             />
           </div>
         ) : null}

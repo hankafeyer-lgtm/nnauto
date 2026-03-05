@@ -2972,7 +2972,7 @@ import {
   PaginationEllipsis,
 } from "@/components/ui/pagination";
 
-import { SearchX, ChevronLeft, ChevronRight } from "lucide-react";
+import { SearchX, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useSearch } from "wouter";
 
 import {
@@ -3103,6 +3103,11 @@ export default function ListingsPage() {
     if (!w) return null;
     return new URLSearchParams(w.location.search).get("openListing");
   });
+  const [isOpenListingOverlayLoading, setIsOpenListingOverlayLoading] = useState(() => {
+    const w = safeWindow();
+    if (!w) return false;
+    return !!new URLSearchParams(w.location.search).get("openListing");
+  });
   const searchStringForListState = useMemo(() => {
     const p = new URLSearchParams(searchString);
     p.delete("openListing");
@@ -3207,6 +3212,7 @@ export default function ListingsPage() {
     pushUrlParams((p) => {
       p.set("openListing", id);
     });
+    setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
   }, []);
 
@@ -3216,8 +3222,38 @@ export default function ListingsPage() {
     replaceUrlParams((p) => {
       p.delete("openListing");
     });
+    setIsOpenListingOverlayLoading(false);
     setOpenListingId(null);
   }, []);
+
+  useEffect(() => {
+    if (!openListingId) return;
+
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyTouchAction = document.body.style.touchAction;
+    const prevHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    document.documentElement.style.overscrollBehavior = "none";
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.touchAction = prevBodyTouchAction;
+      document.documentElement.style.overscrollBehavior = prevHtmlOverscroll;
+    };
+  }, [openListingId]);
+
+  useEffect(() => {
+    if (!openListingId || !isOpenListingOverlayLoading) return;
+    const timer = window.setTimeout(() => {
+      setIsOpenListingOverlayLoading(false);
+    }, 3000);
+    return () => window.clearTimeout(timer);
+  }, [isOpenListingOverlayLoading, openListingId]);
 
   useEffect(() => {
     const w = safeWindow();
@@ -3236,6 +3272,7 @@ export default function ListingsPage() {
       const w = safeWindow();
       if (!w) return;
       const opened = new URLSearchParams(w.location.search).get("openListing");
+      setIsOpenListingOverlayLoading(!!opened);
       setOpenListingId(opened);
     };
     const onMessage = (event: MessageEvent) => {
@@ -4348,11 +4385,19 @@ export default function ListingsPage() {
       <Footer />
 
       {openListingId ? (
-        <div className="fixed inset-0 z-[100] bg-background">
+        <div className="fixed inset-0 z-[100] bg-background overscroll-none">
+          {isOpenListingOverlayLoading ? (
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/95">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : null}
           <iframe
             src={`/listing/${openListingId}?embedded=1`}
-            className="w-full h-full border-0 bg-background"
+            className={`w-full h-full border-0 bg-background transition-opacity duration-150 ${
+              isOpenListingOverlayLoading ? "opacity-0" : "opacity-100"
+            }`}
             title="Listing detail"
+            onLoad={() => setIsOpenListingOverlayLoading(false)}
           />
         </div>
       ) : null}
