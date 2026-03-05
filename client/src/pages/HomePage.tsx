@@ -2651,6 +2651,37 @@ export default function HomePage() {
     },
   });
 
+  useEffect(() => {
+    const resetHomeCebiaPendingState = () => {
+      // Returning from Stripe can keep stale pending mutation state.
+      homeCebiaCheckoutMutation.reset();
+      homeCebiaRefreshMutation.reset();
+      homeCebiaGuestRequestMutation.reset();
+      homeCebiaGuestPollMutation.reset();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        resetHomeCebiaPendingState();
+      }
+    };
+
+    window.addEventListener("pageshow", resetHomeCebiaPendingState);
+    window.addEventListener("focus", resetHomeCebiaPendingState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", resetHomeCebiaPendingState);
+      window.removeEventListener("focus", resetHomeCebiaPendingState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [
+    homeCebiaCheckoutMutation,
+    homeCebiaGuestPollMutation,
+    homeCebiaGuestRequestMutation,
+    homeCebiaRefreshMutation,
+  ]);
+
   const handleHomeCebiaCheck = useCallback(() => {
     if (!isHomeCebiaVinValid) {
       toast({
@@ -2660,6 +2691,7 @@ export default function HomePage() {
       });
       return;
     }
+    homeCebiaCheckoutMutation.reset();
     homeCebiaCheckoutMutation.mutate();
   }, [homeCebiaCheckoutMutation, isHomeCebiaVinValid, t, toast]);
 

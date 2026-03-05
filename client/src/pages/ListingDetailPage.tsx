@@ -3629,6 +3629,44 @@ export default function ListingDetailPage() {
     },
   });
 
+  useEffect(() => {
+    const resetCebiaPendingState = () => {
+      // BFCache/Stripe return can preserve stale mutation pending flags.
+      cebiaCheckoutMutation.reset();
+      cebiaRefreshMutation.reset();
+      cebiaGuestRequestMutation.reset();
+      cebiaGuestPollMutation.reset();
+    };
+
+    const recoverCebiaUiState = () => {
+      setCebiaDialogOpen(false);
+      clearInteractionLocks();
+      resetCebiaPendingState();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        recoverCebiaUiState();
+      }
+    };
+
+    window.addEventListener("pageshow", recoverCebiaUiState);
+    window.addEventListener("focus", recoverCebiaUiState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pageshow", recoverCebiaUiState);
+      window.removeEventListener("focus", recoverCebiaUiState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [
+    cebiaCheckoutMutation,
+    cebiaGuestPollMutation,
+    cebiaGuestRequestMutation,
+    cebiaRefreshMutation,
+    clearInteractionLocks,
+  ]);
+
   // --- локалізаційні мапи (швидше за find на кожен рендер)
   const bodyTypeMap = useMemo(() => {
     const arr = localizedOptions.getBodyTypes();
@@ -4957,7 +4995,10 @@ export default function ListingDetailPage() {
                               variant="outline"
                               size="sm"
                               className="w-full sm:w-auto"
-                              onClick={handleCebiaClick}
+                              onClick={() => {
+                                cebiaCheckoutMutation.reset();
+                                handleCebiaClick();
+                              }}
                               data-testid="button-cebia-placeholder"
                             >
                               Cebia Autotracer (PDF) – koupit report
@@ -5188,7 +5229,10 @@ export default function ListingDetailPage() {
 
                       <Button
                         className="w-full"
-                        onClick={handleCebiaClick}
+                        onClick={() => {
+                          cebiaCheckoutMutation.reset();
+                          handleCebiaClick();
+                        }}
                         data-testid="button-cebia-open"
                         disabled={cebiaPaymentsFrozen || !listingVinValid}
                       >
