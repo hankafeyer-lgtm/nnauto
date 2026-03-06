@@ -230,6 +230,53 @@ const ensureListingsIndexes = async () => {
   `);
 };
 
+type ListingsFastCacheEntry = {
+  expiresAt: number;
+  payload: unknown;
+};
+
+const LISTINGS_FAST_CACHE_TTL_MS = Math.max(
+  0,
+  Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "15000", 10) || 0,
+);
+const LISTINGS_FAST_CACHE_MAX_ENTRIES = 300;
+const listingsFastCache = new Map<string, ListingsFastCacheEntry>();
+
+const getListingsFastCache = (key: string): unknown | null => {
+  const entry = listingsFastCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    listingsFastCache.delete(key);
+    return null;
+  }
+  return entry.payload;
+};
+
+const setListingsFastCache = (key: string, payload: unknown) => {
+  if (LISTINGS_FAST_CACHE_TTL_MS <= 0) return;
+
+  listingsFastCache.set(key, {
+    expiresAt: Date.now() + LISTINGS_FAST_CACHE_TTL_MS,
+    payload,
+  });
+
+  if (listingsFastCache.size > LISTINGS_FAST_CACHE_MAX_ENTRIES) {
+    const now = Date.now();
+    for (const [cacheKey, entry] of listingsFastCache) {
+      if (entry.expiresAt <= now) listingsFastCache.delete(cacheKey);
+      if (listingsFastCache.size <= LISTINGS_FAST_CACHE_MAX_ENTRIES) break;
+    }
+    if (listingsFastCache.size > LISTINGS_FAST_CACHE_MAX_ENTRIES) {
+      const firstKey = listingsFastCache.keys().next().value;
+      if (firstKey) listingsFastCache.delete(firstKey);
+    }
+  }
+};
+
+const clearListingsFastCache = () => {
+  listingsFastCache.clear();
+};
+
 const recordListingAnalyticsEvent = async (
   req: Request,
   listingId: string,
@@ -2688,6 +2735,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const listing = await storage.createListing(validatedData);
+      clearListingsFastCache();
 
       // Send listing created confirmation email
       try {
@@ -2736,6 +2784,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const updatedListing = await storage.updateListing(id, req.body);
+      clearListingsFastCache();
       res.json(updatedListing);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -2762,6 +2811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const deleted = await storage.deleteListing(id);
       if (deleted) {
+        clearListingsFastCache();
         res.json({ message: "Listing deleted successfully" });
       } else {
         res.status(404).json({ error: "Listing not found" });
@@ -3202,6 +3252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const updatedListing = await storage.updateListing(listingId, {
           isTopListing: true,
         });
+        clearListingsFastCache();
 
         // Create payment record
         await storage.createPayment({
@@ -3360,6 +3411,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Promote the listing to TOP
           await storage.updateListing(listingId, { isTopListing: true });
+          clearListingsFastCache();
 
           // Create payment record
           await storage.createPayment({
@@ -5052,6 +5104,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hasAnyFilters = Object.keys(q).some((k) => !allowedNonFilterKeys.has(k));
 
       if (!hasAnyFilters) {
+        const fastCacheKey = `${sort}:${pageNum}:${limitNum}`;
+        if (process.env.NODE_ENV === "production") {
+          const cachedPayload = getListingsFastCache(fastCacheKey);
+          if (cachedPayload) {
+            return res.json(cachedPayload);
+          }
+        }
+
         const totalRow = await db
           .select({ count: sql<number>`count(*)::int` })
           .from(listingsTable);
@@ -5099,7 +5159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           .limit(limitNum)
           .offset(start);
 
-        return res.json({
+        const payload = {
           listings: paginated,
           pagination: {
             total,
@@ -5108,7 +5168,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalPages,
             hasMore: safePage * limitNum < total,
           },
-        });
+        };
+
+        if (process.env.NODE_ENV === "production") {
+          setListingsFastCache(fastCacheKey, payload);
+        }
+
+        return res.json(payload);
       }
 
       // Fallback (filters supported): preserve current logic, but narrow the DB
@@ -5612,6 +5678,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Listing not found" });
       }
 
+      clearListingsFastCache();
       res.json(updatedListing);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -5627,6 +5694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Listing not found" });
       }
 
+      clearListingsFastCache();
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -5652,6 +5720,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Listing not found" });
       }
 
+      clearListingsFastCache();
       res.json(updatedListing);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
