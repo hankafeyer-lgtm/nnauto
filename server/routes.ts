@@ -34,7 +34,6 @@ import { signToken, verifyToken, extractTokenFromHeader } from "./jwt";
 import {
   cebiaCreatePdfQueue,
   cebiaGetPdfData,
-  cebiaVinCheck,
 } from "./cebiaClient";
 import multer from "multer";
 import sharp from "sharp";
@@ -3529,18 +3528,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     let fromNhtsa = emptyVinDecodedCore();
     const usedSources: string[] = [];
 
-    // 1) Primary source for CZ/EU market: Cebia
-    try {
-      const cebiaPayload = await cebiaVinCheck(vin);
-      fromCebia = decodeVinFromCebiaPayload(cebiaPayload);
-      if (Object.values(fromCebia).some((v) => v !== null)) {
-        usedSources.push("cebia");
-      }
-    } catch (error) {
-      console.warn("[VIN] Cebia decode unavailable, fallback to NHTSA:", error);
-    }
+    // Cebia is used only after payment (CreatePdfQueue + GetPdfData). No VIN sent to Cebia here.
 
-    // 2) Fallback source: NHTSA (stronger for US/CA VINs)
+    // 1) NHTSA (free, for US/CA VINs and general decode)
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000);
     try {
@@ -3664,14 +3654,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const vin = listingVin;
 
-      // Optional: quick VIN validation via Cebia before charging (only when enabled)
-      if (CEBIA_ENABLED) {
-        try {
-          await cebiaVinCheck(vin);
-        } catch (e) {
-          console.warn("[CEBIA] VIN check failed (continuing to checkout):", e);
-        }
-      }
+      // No Cebia API calls before payment — PDF generation starts only after Stripe webhook
 
       let stripe: Stripe;
       try {
@@ -3799,14 +3782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const vin = listingVin;
 
-      // Optional: quick VIN validation via Cebia before charging (only when enabled)
-      if (CEBIA_ENABLED) {
-        try {
-          await cebiaVinCheck(vin);
-        } catch (e) {
-          console.warn("[CEBIA] VIN check failed (continuing to checkout):", e);
-        }
-      }
+      // No Cebia API calls before payment — PDF generation starts only after Stripe webhook
 
       let stripe: Stripe;
       try {
@@ -3923,13 +3899,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "VIN is invalid" });
       }
 
-      if (CEBIA_ENABLED) {
-        try {
-          await cebiaVinCheck(vin);
-        } catch (e) {
-          console.warn("[CEBIA] VIN check failed (continuing to checkout):", e);
-        }
-      }
+      // No Cebia API calls before payment — PDF generation starts only after Stripe webhook
 
       let stripe: Stripe;
       try {
@@ -4035,13 +4005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "VIN is invalid" });
       }
 
-      if (CEBIA_ENABLED) {
-        try {
-          await cebiaVinCheck(vin);
-        } catch (e) {
-          console.warn("[CEBIA] VIN check failed (continuing to checkout):", e);
-        }
-      }
+      // No Cebia API calls before payment — PDF generation starts only after Stripe webhook
 
       let stripe: Stripe;
       try {
