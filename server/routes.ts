@@ -995,7 +995,9 @@ const buildAdminCebiaReports = async (): Promise<AdminCebiaReportItem[]> => {
     });
   }
 
-  return Array.from(byId.values()).sort(
+  // Only show paid reports (stripe_session_id = payment confirmed)
+  const paidOnly = Array.from(byId.values()).filter((item) => !!item.stripeSessionId);
+  return paidOnly.sort(
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 };

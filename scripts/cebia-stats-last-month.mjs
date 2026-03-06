@@ -110,7 +110,16 @@ try {
   );
   const withPdf = withPdfRes.rows[0]?.cnt ?? 0;
 
-  // 5) List of reports for audit
+  // 5) Запити на Cebia CreatePdfQueue (VIN → PDF) — кожен звіт з cebia_queue_id = 1 запит
+  const cebiaRequestsRes = await client.query(
+    `SELECT COUNT(*)::int AS cnt FROM cebia_reports
+     WHERE created_at >= $1 AND created_at <= $2
+       AND cebia_queue_id IS NOT NULL`,
+    [lastMonthStart.toISOString(), lastMonthEnd.toISOString()]
+  );
+  const cebiaPdfRequests = cebiaRequestsRes.rows[0]?.cnt ?? 0;
+
+  // 6) List of reports for audit (include cebia_queue_id for verification)
   const listRes = await client.query(
     `SELECT id, vin, status, stripe_session_id IS NOT NULL AS paid,
             pdf_base64 IS NOT NULL AS has_pdf, created_at
@@ -121,10 +130,15 @@ try {
   );
 
   console.log("--- З БД (cebia_reports) ---");
-  console.log(`Створено звітів (checkout):     ${created}`);
-  console.log(`Оплачено (є stripe_session):  ${paid}`);
+  console.log(`Почато checkout (запис у БД):  ${created}  ← НЕ відправлено на Cebia`);
+  console.log(`Оплачено (Stripe підтвердив):   ${paid}`);
+  console.log(`Запитів на Cebia (VIN→PDF):    ${cebiaPdfRequests}  ← ЗА ЦЕ ПЛАТИТЕ Cebia`);
   console.log(`Готових PDF (status=ready):    ${readyPdfs}`);
   console.log(`З PDF (pdf_base64 є):          ${withPdf}`);
+  console.log("");
+  console.log("--- Підсумок для розрахунку з Cebia ---");
+  console.log(`  Платити Cebia потрібно за: ${cebiaPdfRequests} запит(ів)`);
+  console.log(`  ${created - paid} користувачів почали checkout, але не оплатили → на Cebia не відправлено`);
   console.log("");
 
   if (listRes.rows.length > 0) {

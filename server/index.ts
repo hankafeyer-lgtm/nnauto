@@ -1579,14 +1579,28 @@ app.use((req, res, next) => {
   }
 
   const port = parseInt(process.env.PORT || "5000", 10);
-  server.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => log(`serving on port ${port}`),
-  );
+
+  const tryListen = (p: number) =>
+    new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen({ port: p, host: "0.0.0.0", reusePort: true }, () => {
+        server.off("error", reject);
+        resolve();
+      });
+    });
+
+  try {
+    await tryListen(port);
+    log(`serving on port ${port}`);
+  } catch (err: any) {
+    if (err?.code === "EADDRINUSE" && port === 5000) {
+      log(`port 5000 in use (macOS AirPlay?), falling back to 5001`);
+      await tryListen(5001);
+      log(`serving on port 5001`);
+    } else {
+      throw err;
+    }
+  }
 })().catch((e) => {
   console.error(e);
   process.exit(1);

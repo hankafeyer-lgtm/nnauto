@@ -2286,12 +2286,18 @@ function Hero() {
   //   queryKey: ["/api/listings", queryString],
   //   staleTime: 5 * 60 * 1000, // 5 minutes - reduce API calls
   // });
+  const listingsApiUrl = `/api/listings${queryString ? `?${queryString}` : ""}`;
   const { data: listingsData } = useQuery<{
     listings: Listing[];
     pagination?: { total: number };
     total?: number;
   }>({
-    queryKey: ["/api/listings", queryString],
+    queryKey: [listingsApiUrl],
+    queryFn: async () => {
+      const res = await fetch(listingsApiUrl, { credentials: "include" });
+      if (!res.ok) throw new Error(`Failed to load listings: ${res.status}`);
+      return res.json();
+    },
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,

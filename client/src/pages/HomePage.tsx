@@ -2329,16 +2329,14 @@ export default function HomePage() {
     [localizedOptions, language],
   );
 
-  // ✅ server-side pagination + sorting
+  // ✅ server-side pagination + sorting — homepage always uses clean params (no filters)
   const listUrl = useMemo(() => {
-    const sp = new URLSearchParams(window.location.search);
-    sp.delete("openListing");
-    sp.delete("category");
+    const sp = new URLSearchParams();
     sp.set("page", String(currentPage));
     sp.set("limit", String(ITEMS_PER_PAGE));
     sp.set("sort", "top"); // backend: isTopListing desc, createdAt desc
     return `/api/listings?${sp.toString()}`;
-  }, [currentPage, location]);
+  }, [currentPage]);
 
   const { data, isLoading, isFetching } = useQuery<ListingsResponse>({
     queryKey: ["listings", listUrl],
@@ -2398,9 +2396,7 @@ export default function HomePage() {
     if (currentPage >= totalPages) return;
 
     const nextPage = currentPage + 1;
-    const sp = new URLSearchParams(window.location.search);
-    sp.delete("openListing");
-    sp.delete("category");
+    const sp = new URLSearchParams();
     sp.set("page", String(nextPage));
     sp.set("limit", String(ITEMS_PER_PAGE));
     sp.set("sort", "top");
@@ -2415,7 +2411,7 @@ export default function HomePage() {
       },
       staleTime: 30_000,
     });
-  }, [pagination, currentPage, totalPages, location]);
+  }, [pagination, currentPage, totalPages]);
 
   const deleteMutation = useMutation({
     mutationFn: async (listingId: string) => {
