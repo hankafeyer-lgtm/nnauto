@@ -42,9 +42,11 @@ if (!rawConnectionString) {
 
 const connectionString = normalizeConnectionString(rawConnectionString);
 
-const poolMax = parseIntEnv("PGPOOL_MAX", 5);
+// Production traffic can exhaust a tiny pool and cause
+// "timeout exceeded when trying to connect" under burst load.
+const poolMax = parseIntEnv("PGPOOL_MAX", 20);
 const idleTimeoutMillis = parseIntEnv("PGPOOL_IDLE_TIMEOUT_MS", 30_000);
-const connectionTimeoutMillis = parseIntEnv("PGPOOL_CONN_TIMEOUT_MS", 10_000);
+const connectionTimeoutMillis = parseIntEnv("PGPOOL_CONN_TIMEOUT_MS", 20_000);
 
 const rejectUnauthorized = process.env.PGSSL_REJECT_UNAUTHORIZED !== "false";
 const ssl = shouldRequireSsl(connectionString) ? { rejectUnauthorized } : undefined;
