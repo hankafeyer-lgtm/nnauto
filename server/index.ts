@@ -1219,6 +1219,12 @@ app.use((req, res, next) => {
 
 // seed admin user
 async function seedAdminUser() {
+  if (
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.REPLIT_DEPLOYMENT)
+  ) {
+    return;
+  }
   const adminEmail = "admin@zlateauto.cz";
   const existingAdmin = await storage.getUserByEmail(adminEmail);
 
@@ -1227,7 +1233,11 @@ async function seedAdminUser() {
     return;
   }
 
-  const hashedPassword = await bcrypt.hash("admin123", 10);
+  const crypto = await import("crypto");
+  const adminPassword =
+    process.env.ADMIN_SEED_PASSWORD ||
+    crypto.randomBytes(9).toString("base64url");
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
   await storage.createUser({
     email: adminEmail,
     username: "admin",
@@ -1237,11 +1247,17 @@ async function seedAdminUser() {
     isAdmin: true,
   });
 
-  log("Created admin user: admin@zlateauto.cz / admin123");
+  log(`Created admin user: ${adminEmail} / ${adminPassword}`);
 }
 
 // seed demo listings
 async function seedDemoListings() {
+  if (
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.REPLIT_DEPLOYMENT)
+  ) {
+    return;
+  }
   const existingListings = await storage.getListings();
   if (existingListings.length > 0) {
     log(`Skipping seed - found ${existingListings.length} existing listings`);
@@ -1461,7 +1477,7 @@ app.use((req, res, next) => {
   if (skipBodyParserFor(req)) return next();
 
   express.json({
-    limit: "1500mb",
+    limit: "50mb",
     verify: (req: any, _res, buf) => {
       req.rawBody = buf;
     },
@@ -1470,7 +1486,7 @@ app.use((req, res, next) => {
 
 app.use((req, res, next) => {
   if (skipBodyParserFor(req)) return next();
-  express.urlencoded({ extended: false, limit: "1500mb" })(req, res, next);
+  express.urlencoded({ extended: false, limit: "50mb" })(req, res, next);
 });
 
 // simple api log

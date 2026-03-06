@@ -29,7 +29,9 @@ export function getSession() {
       : defaultSessionTtlMs;
   // Replit uses REPLIT_DEPLOYMENT for production - check for any truthy value, not just "1"
   const replitDeployment = process.env.REPLIT_DEPLOYMENT;
-  const isProduction = process.env.NODE_ENV === 'production' || !!(replitDeployment && replitDeployment.length > 0);
+  const isProduction =
+    process.env.NODE_ENV === "production" ||
+    !!(replitDeployment && replitDeployment.length > 0);
   
   if (AUTH_DEBUG_LOGS) {
     console.log("[Session] getSession called, NODE_ENV:", process.env.NODE_ENV);
@@ -93,7 +95,11 @@ export function getSession() {
     }
   }
   
-  const sessionSecret = process.env.SESSION_SECRET || "zlateauto-dev-secret-change-in-production";
+  const fallbackSessionSecret = "zlateauto-dev-secret-change-in-production";
+  const sessionSecret = process.env.SESSION_SECRET || fallbackSessionSecret;
+  if (isProduction && (!process.env.SESSION_SECRET || sessionSecret === fallbackSessionSecret)) {
+    throw new Error("SESSION_SECRET must be set in production");
+  }
   if (AUTH_DEBUG_LOGS) {
     console.log("[Session] Using secret length:", sessionSecret.length);
   }
@@ -158,8 +164,12 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     console.log("[isAuthenticated] Session userId:", req.session.userId);
   }
   
-  // Session header fallback for cross-origin requests
-  if (!req.session.userId && process.env.ENABLE_SESSION_HEADER_FALLBACK === "true") {
+  const allowSessionHeaderFallback =
+    process.env.ENABLE_SESSION_HEADER_FALLBACK === "true" &&
+    process.env.NODE_ENV !== "production";
+
+  // Session header fallback for cross-origin requests (dev-only)
+  if (!req.session.userId && allowSessionHeaderFallback) {
     const sessionIdHeader = req.headers['x-session-id'] as string;
     if (AUTH_DEBUG_LOGS) {
       console.log("[isAuthenticated] No session userId, trying header fallback. X-Session-Id:", sessionIdHeader);
@@ -216,8 +226,12 @@ export const isAdmin: RequestHandler = async (req, res, next) => {
     }
   }
   
-  // 2. Session header fallback for cross-origin requests
-  if (!req.session.userId && process.env.ENABLE_SESSION_HEADER_FALLBACK === "true") {
+  const allowSessionHeaderFallback =
+    process.env.ENABLE_SESSION_HEADER_FALLBACK === "true" &&
+    process.env.NODE_ENV !== "production";
+
+  // 2. Session header fallback for cross-origin requests (dev-only)
+  if (!req.session.userId && allowSessionHeaderFallback) {
     const sessionIdHeader = req.headers['x-session-id'] as string;
     
     if (sessionIdHeader) {

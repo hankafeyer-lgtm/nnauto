@@ -46,11 +46,14 @@ const imageCache = new Map<
 const IMAGE_CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
 const MAX_CACHE_SIZE = 100; // Maximum number of cached images
 
-// Configure multer for video upload (max 1000MB)
+const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
+const MAX_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
+
+// Configure multer for video upload
 const videoUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 1000 * 1024 * 1024, // 1000MB
+    fileSize: MAX_VIDEO_UPLOAD_BYTES,
   },
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith("video/")) {
@@ -84,6 +87,38 @@ const authRateLimit = (req: Request, res: Response, next: () => void) => {
   next();
 };
 
+const createRateLimit = (
+  keyPrefix: string,
+  maxAttempts: number,
+  windowMs: number,
+) => {
+  const store = new Map<string, number[]>();
+  return (req: Request, res: Response, next: () => void) => {
+    const ip = req.ip || req.socket.remoteAddress || "unknown";
+    const userId = req.session?.userId || "anon";
+    const key = `${keyPrefix}:${ip}:${userId}`;
+    const now = Date.now();
+    const timestamps = (store.get(key) || []).filter((ts) => now - ts < windowMs);
+
+    if (timestamps.length >= maxAttempts) {
+      return res.status(429).json({
+        error: "Too many requests. Please try again later.",
+      });
+    }
+
+    timestamps.push(now);
+    store.set(key, timestamps);
+    next();
+  };
+};
+
+const emailVerificationRateLimit = createRateLimit(
+  "email-verification",
+  12,
+  15 * 60 * 1000,
+);
+const uploadRateLimit = createRateLimit("upload", 30, 15 * 60 * 1000);
+
 // TOP listing promotion price in CZK (haléře)
 const TOP_LISTING_PRICE = 9900; // 99 CZK
 
@@ -96,6 +131,8 @@ const CEBIA_ENABLED = process.env.CEBIA_ENABLED === "true";
 const CEBIA_PAYMENTS_FROZEN = process.env.CEBIA_PAYMENTS_FROZEN === "true";
 const CEBIA_AUTO_REQUEST_ON_PAID = process.env.CEBIA_AUTO_REQUEST_ON_PAID !== "false";
 const CEBIA_EMAIL_ON_READY = process.env.CEBIA_EMAIL_ON_READY === "true";
+const IS_PRODUCTION =
+  process.env.NODE_ENV === "production" || Boolean(process.env.REPLIT_DEPLOYMENT);
 const CEBIA_STRIPE_PAYMENT_LINK_URL = (
   process.env.CEBIA_STRIPE_PAYMENT_LINK_URL ||
   "https://buy.stripe.com/5kQdR857b0jVaZf8SsdZ600"
@@ -1730,8 +1767,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test email endpoint - sends a test email to verify MailerSend is working
-  app.post("/api/health/test-email", async (req, res) => {
+  // Test email endpoint - admin-only and disabled in production
+  app.post("/api/health/test-email", isAdmin, authRateLimit, async (req, res) => {
+    if (IS_PRODUCTION) {
+      return res.status(404).json({ error: "Not found" });
+    }
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: "Email is required" });
@@ -2096,25 +2136,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Diagnostic endpoint to check email configuration AND test sending
-  app.get("/api/debug/email-config", async (req, res) => {
+  // Diagnostic endpoints are disabled in production and admin-only in non-production.
+  app.get("/api/debug/email-config", isAdmin, async (_req, res) => {
+    if (IS_PRODUCTION) {
+      return res.status(404).json({ error: "Not found" });
+    }
     const apiKey = process.env.MAILERSEND_API_KEY;
     const fromEmail = process.env.MAILERSEND_FROM_EMAIL;
 
     res.json({
       mailersend_key_exists: !!apiKey,
       mailersend_key_length: apiKey?.length || 0,
-      mailersend_key_preview: apiKey
-        ? `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`
-        : "NOT SET",
       from_email: fromEmail || "NOT SET",
       node_env: process.env.NODE_ENV,
       is_deployment: process.env.REPLIT_DEPLOYMENT === "1",
     });
   });
 
-  // Test email sending with detailed error reporting
-  app.post("/api/debug/test-email", async (req, res) => {
+  app.post("/api/debug/test-email", isAdmin, authRateLimit, async (req, res) => {
+    if (IS_PRODUCTION) {
+      return res.status(404).json({ error: "Not found" });
+    }
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: "Email required in body" });
@@ -2125,7 +2167,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.json({
         success: false,
         error: "MAILERSEND_API_KEY not configured",
-        key_exists: false,
       });
     }
 
@@ -2143,12 +2184,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .setText("Test email from NNAuto");
 
       const response = await mailerSend.email.send(emailParams);
-
       res.json({
         success: true,
         message: "Email sent successfully",
         status: response?.statusCode,
-        key_preview: `${apiKey.substring(0, 8)}...`,
         from_email: senderEmail,
       });
     } catch (error: any) {
@@ -2156,94 +2195,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: false,
         error: error?.message || "Unknown error",
         status_code: error?.statusCode || error?.status,
-        error_body: error?.body || error?.response?.body,
-        key_preview: `${apiKey.substring(0, 8)}...`,
-        from_email: process.env.MAILERSEND_FROM_EMAIL || "info@nnauto.cz",
-        hint:
-          error?.statusCode === 401
-            ? "API key is invalid"
-            : error?.statusCode === 422
-              ? "Sender domain not verified or email invalid"
-              : error?.statusCode === 429
-                ? "Rate limited"
-                : "Check MailerSend dashboard",
       });
     }
   });
 
   // Email verification endpoints - JWT-based authentication for production
   // SECURITY: Requires valid JWT or session - no anonymous access
-  app.post("/api/auth/send-verification-code", async (req, res) => {
+  app.post("/api/auth/send-verification-code", emailVerificationRateLimit, async (req, res) => {
     try {
-      // DIAGNOSTIC: Log all request details
       const authHeader = req.headers.authorization;
-      console.log("[VERIFY-CODE] === REQUEST RECEIVED ===");
-      console.log("[VERIFY-CODE] Auth header exists:", !!authHeader);
-      console.log(
-        "[VERIFY-CODE] Auth header preview:",
-        authHeader ? authHeader.substring(0, 30) + "..." : "NONE",
-      );
-      console.log(
-        "[VERIFY-CODE] Session userId:",
-        req.session.userId || "NONE",
-      );
-      console.log(
-        "[VERIFY-CODE] MAILERSEND_API_KEY exists:",
-        !!process.env.MAILERSEND_API_KEY,
-      );
-      console.log(
-        "[VERIFY-CODE] MAILERSEND_FROM_EMAIL:",
-        process.env.MAILERSEND_FROM_EMAIL || "not set",
-      );
 
       // 1. Try JWT from Authorization header (production-safe)
       const token = extractTokenFromHeader(authHeader);
       let user = null;
-      let authMethod = "";
 
       if (token) {
-        console.log("[VERIFY-CODE] Token extracted, length:", token.length);
         const payload = verifyToken(token);
-        console.log(
-          "[VERIFY-CODE] Token payload:",
-          payload ? `userId=${payload.userId}` : "INVALID/EXPIRED",
-        );
         if (payload?.userId) {
           user = await storage.getUser(payload.userId);
           if (user) {
-            authMethod = "JWT";
-            console.log(
-              "[VERIFY-CODE] Authenticated via JWT, user:",
-              user.id,
-              user.email,
-            );
-          } else {
-            console.log(
-              "[VERIFY-CODE] User not found in DB for userId:",
-              payload.userId,
-            );
+            // Authenticated via JWT
           }
         }
-      } else {
-        console.log("[VERIFY-CODE] No token extracted from header");
       }
 
       // 2. Fallback to session (development only)
       if (!user && req.session.userId) {
         user = await storage.getUser(req.session.userId);
-        if (user) {
-          authMethod = "session";
-          console.log(
-            "[VERIFY-CODE] Authenticated via session, user:",
-            user.id,
-            user.email,
-          );
-        }
       }
 
       // SECURITY: Reject unauthenticated requests
       if (!user) {
-        console.log("[VERIFY-CODE] REJECTED - no valid auth method worked");
         return res
           .status(401)
           .json({ error: "Authentication required. Please log in again." });
@@ -2264,9 +2246,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.setVerificationCode(user.id, code, expiry);
 
       // Send email with code
-      console.log(
-        `[INFO] send-verification-code: Attempting to send email to ${user.email} via ${authMethod}`,
-      );
       let emailSent = false;
       let emailError = "";
 
@@ -2280,11 +2259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!emailSent) {
-        console.error(
-          `[ERROR] send-verification-code: Failed to send email to ${
-            user.email
-          }, error: ${emailError || "sendVerificationEmail returned false"}`,
-        );
+        console.error("[ERROR] send-verification-code failed");
         return res.status(500).json({
           success: false,
           error:
@@ -2305,11 +2280,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Email verification - JWT-based authentication
   // SECURITY: Requires valid JWT or session - no anonymous access
-  app.post("/api/auth/verify-email", async (req, res) => {
+  app.post("/api/auth/verify-email", emailVerificationRateLimit, async (req, res) => {
     try {
       const { code } = req.body;
-      console.log("[VERIFY-EMAIL] === REQUEST ===");
-      console.log("[VERIFY-EMAIL] Submitted code:", code, "type:", typeof code);
 
       if (!code) {
         return res.status(400).json({ error: "Verification code is required" });
@@ -2317,59 +2290,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // 1. Try JWT from Authorization header (production-safe)
       const authHeader = req.headers.authorization;
-      console.log("[VERIFY-EMAIL] Auth header exists:", !!authHeader);
       const token = extractTokenFromHeader(authHeader);
       let user = null;
-      let authMethod = "";
 
       if (token) {
         const payload = verifyToken(token);
-        console.log(
-          "[VERIFY-EMAIL] Token payload:",
-          payload ? `userId=${payload.userId}` : "INVALID",
-        );
         if (payload?.userId) {
           user = await storage.getUser(payload.userId);
-          if (user) {
-            authMethod = "JWT";
-            console.log("[VERIFY-EMAIL] User found:", user.id, user.email);
-            console.log(
-              "[VERIFY-EMAIL] Stored code:",
-              user.verificationCode,
-              "type:",
-              typeof user.verificationCode,
-            );
-            console.log(
-              "[VERIFY-EMAIL] Code expiry:",
-              user.verificationCodeExpiry,
-            );
-          } else {
-            console.log(
-              "[VERIFY-EMAIL] User NOT found for userId:",
-              payload.userId,
-            );
-          }
         }
-      } else {
-        console.log("[VERIFY-EMAIL] No token extracted");
       }
 
-      // 2. Fallback to session (development only)
+      // 2. Fallback to session
       if (!user && req.session.userId) {
         user = await storage.getUser(req.session.userId);
-        if (user) {
-          authMethod = "session";
-          console.log(
-            "[VERIFY-EMAIL] Authenticated via session, user:",
-            user.id,
-          );
-          console.log("[VERIFY-EMAIL] Stored code:", user.verificationCode);
-        }
       }
 
       // SECURITY: Reject unauthenticated requests
       if (!user) {
-        console.log("[VERIFY-EMAIL] REJECTED - no valid auth");
         return res
           .status(401)
           .json({ error: "Authentication required. Please log in again." });
@@ -2381,12 +2318,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!user.verificationCode || !user.verificationCodeExpiry) {
-        console.log(
-          "[VERIFY-EMAIL] No stored code! verificationCode:",
-          user.verificationCode,
-          "expiry:",
-          user.verificationCodeExpiry,
-        );
         return res.status(400).json({
           error: "No verification code found. Please request a new code.",
         });
@@ -2394,17 +2325,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // SECURITY: Check if code expired
       const expiryDate = new Date(user.verificationCodeExpiry);
-      console.log(
-        "[VERIFY-EMAIL] Expiry check - expiry:",
-        expiryDate,
-        "now:",
-        new Date(),
-        "expired:",
-        new Date() > expiryDate,
-      );
       if (
         !expiryDate ||
-        isNaN(expiryDate.getTime()) ||
+        Number.isNaN(expiryDate.getTime()) ||
         new Date() > expiryDate
       ) {
         await storage.clearVerificationCode(user.id);
@@ -2413,26 +2336,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Verify code - ensure both are strings and trimmed
       const storedCode = String(user.verificationCode).trim();
       const submittedCode = String(code).trim();
-      console.log(
-        "[VERIFY-EMAIL] Comparing: stored='${storedCode}' vs submitted='${submittedCode}'",
-      );
-      console.log("[VERIFY-EMAIL] Match:", storedCode === submittedCode);
-
       if (storedCode !== submittedCode) {
-        console.log("[VERIFY-EMAIL] CODE MISMATCH!");
         return res.status(400).json({ error: "Invalid verification code" });
       }
 
       // Mark email as verified and clear verification code
       const updatedUser = await storage.verifyUserEmail(user.id);
-
-      console.log("[INFO] Email verified for user:", user.email);
       res.json({ success: true, user: updatedUser });
     } catch (error: any) {
-      console.error("[ERROR] Verify email error:", error);
+      console.error("[ERROR] Verify email error");
       res.status(500).json({ error: "Failed to verify email" });
     }
   });
@@ -2577,39 +2491,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/user", async (req, res) => {
     try {
-      // Debug log
-      console.log(
-        "[DEBUG] /api/auth/user - session.userId:",
-        req.session.userId,
-      );
-
-      // Try session header fallback if session is not available (Replit webview)
+      // Session header fallback for compatibility in non-production only.
       if (
         !req.session.userId &&
-        process.env.ENABLE_SESSION_HEADER_FALLBACK === "true"
+        process.env.ENABLE_SESSION_HEADER_FALLBACK === "true" &&
+        !IS_PRODUCTION
       ) {
         const sessionId = req.headers["x-session-id"] as string;
         if (sessionId) {
-          console.log(
-            "[DEBUG] /api/auth/user - trying X-Session-Id header:",
-            sessionId,
-          );
-          // Load session manually
           const sessionStore = req.sessionStore;
-          await new Promise<void>((resolve, reject) => {
+          await new Promise<void>((resolve) => {
             sessionStore.get(sessionId, (err: any, sessionData: any) => {
               if (err || !sessionData) {
-                console.log(
-                  "[DEBUG] /api/auth/user - session not found in store",
-                );
                 return resolve();
               }
-              // Manually assign session data
               req.session.userId = sessionData.userId;
-              console.log(
-                "[DEBUG] /api/auth/user - loaded session from header, userId:",
-                sessionData.userId,
-              );
               resolve();
             });
           });
@@ -3383,6 +3279,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe webhook to handle successful payments
   app.post("/api/stripe/webhook", async (req: Request, res: Response) => {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (IS_PRODUCTION && !webhookSecret) {
+      console.error("[STRIPE] STRIPE_WEBHOOK_SECRET is missing in production");
+      return res.status(503).json({ error: "Webhook not configured" });
+    }
 
     // Get Stripe client
     let stripe: Stripe;
@@ -3405,7 +3305,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
       } else {
-        // For development without webhook secret
+        // Development fallback only
         event = req.body as Stripe.Event;
       }
     } catch (err: any) {
@@ -5949,8 +5849,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Object Storage endpoints for photo upload (no auth required for upload flow)
-  app.post("/api/objects/upload", async (req, res) => {
+  // Object Storage endpoints for photo upload
+  app.post("/api/objects/upload", isAuthenticated, uploadRateLimit, async (req, res) => {
     try {
       const r2StorageService = new R2StorageService();
       const { uploadURL, objectKey } =
@@ -5962,9 +5862,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Video upload endpoint - streams through backend to avoid CORS issues (no auth required)
+  // Video upload endpoint - streams through backend to avoid CORS issues
   app.post(
     "/api/objects/upload-video",
+    isAuthenticated,
+    uploadRateLimit,
     videoUpload.single("video"),
     async (req, res) => {
       try {
@@ -5987,9 +5889,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           file.mimetype,
         );
 
-        // Set ACL to make it public (use 'anonymous' if not logged in)
+        // Set ACL to make it public for the authenticated uploader
         await r2StorageService.setObjectAclPolicy(objectKey, {
-          owner: req.session?.userId || "anonymous",
+          owner: req.session?.userId || "",
           visibility: "public",
         });
 
@@ -6007,8 +5909,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     },
   );
 
-  // Upload file directly through backend (avoids CORS issues, no auth required)
-  app.post("/api/objects/upload-file", async (req, res) => {
+  // Upload file directly through backend (avoids CORS issues)
+  app.post("/api/objects/upload-file", isAuthenticated, uploadRateLimit, async (req, res) => {
     try {
       if (!req.body || typeof req.body !== "object") {
         return res.status(400).json({ error: "No file data provided" });
@@ -6030,11 +5932,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Decode base64 file data
       const buffer = Buffer.from(fileData, "base64");
 
-      // Validate file size after decoding (max 1000MB)
-      const maxSize = 1000 * 1024 * 1024; // 1000MB in bytes
+      // Validate file size after decoding (max 20MB)
+      const maxSize = MAX_IMAGE_UPLOAD_BYTES;
       if (buffer.length > maxSize) {
         return res.status(400).json({
-          error: `File too large. Maximum size is 1000MB, got ${(
+          error: `File too large. Maximum size is 20MB, got ${(
             buffer.length /
             1024 /
             1024
@@ -6075,9 +5977,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const r2StorageService = new R2StorageService();
       const objectKey = await r2StorageService.uploadFile(buffer, contentType);
 
-      // Set ACL to make it public (use 'anonymous' if not logged in)
+      // Set ACL to make it public for the authenticated uploader
       await r2StorageService.setObjectAclPolicy(objectKey, {
-        owner: req.session?.userId || "anonymous",
+        owner: req.session?.userId || "",
         visibility: "public",
       });
 

@@ -1,6 +1,22 @@
 import jwt, { type SignOptions } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'nnauto-jwt-secret-key-2024';
+const isProduction =
+  process.env.NODE_ENV === "production" ||
+  Boolean(process.env.REPLIT_DEPLOYMENT);
+
+const fallbackJwtSecret = "nnauto-jwt-secret-key-2024";
+const JWT_SECRET =
+  process.env.JWT_SECRET || process.env.SESSION_SECRET || fallbackJwtSecret;
+
+if (
+  isProduction &&
+  (!process.env.JWT_SECRET || process.env.JWT_SECRET === fallbackJwtSecret) &&
+  !process.env.SESSION_SECRET
+) {
+  throw new Error(
+    "JWT_SECRET (or SESSION_SECRET) must be set in production",
+  );
+}
 const JWT_EXPIRES_IN: SignOptions["expiresIn"] =
   (process.env.JWT_EXPIRES_IN as SignOptions["expiresIn"]) || "24h";
 const AUTH_DEBUG_LOGS = process.env.AUTH_DEBUG_LOGS === "true";
