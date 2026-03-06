@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { db } from "./db";
+import { db, pool } from "./db";
 import fs from "fs";
 import path from "path";
 import {
@@ -232,6 +232,7 @@ const ensureListingsIndexes = async () => {
 
 type ListingsFastCacheEntry = {
   expiresAt: number;
+  staleUntil: number;
   payload: unknown;
 };
 
@@ -239,16 +240,27 @@ const LISTINGS_FAST_CACHE_TTL_MS = Math.max(
   0,
   Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "15000", 10) || 0,
 );
+const LISTINGS_FAST_CACHE_STALE_MS = Math.max(
+  LISTINGS_FAST_CACHE_TTL_MS,
+  Number.parseInt(process.env.LISTINGS_FAST_CACHE_STALE_MS || "300000", 10) || 0,
+);
 const LISTINGS_FAST_CACHE_MAX_ENTRIES = 300;
 const listingsFastCache = new Map<string, ListingsFastCacheEntry>();
 
-const getListingsFastCache = (key: string): unknown | null => {
+const getListingsFastCache = (
+  key: string,
+  options?: { allowStale?: boolean },
+): unknown | null => {
+  const allowStale = options?.allowStale ?? false;
   const entry = listingsFastCache.get(key);
   if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
+
+  const now = Date.now();
+  if (entry.staleUntil <= now) {
     listingsFastCache.delete(key);
     return null;
   }
+  if (!allowStale && entry.expiresAt <= now) return null;
   return entry.payload;
 };
 
@@ -257,6 +269,7 @@ const setListingsFastCache = (key: string, payload: unknown) => {
 
   listingsFastCache.set(key, {
     expiresAt: Date.now() + LISTINGS_FAST_CACHE_TTL_MS,
+    staleUntil: Date.now() + LISTINGS_FAST_CACHE_STALE_MS,
     payload,
   });
 
@@ -275,6 +288,41 @@ const setListingsFastCache = (key: string, payload: unknown) => {
 
 const clearListingsFastCache = () => {
   listingsFastCache.clear();
+};
+
+const TRANSIENT_DB_ERROR_CODES = new Set([
+  "57P01", // admin shutdown
+  "53300", // too many connections
+  "08001",
+  "08003",
+  "08006",
+  "08P01",
+  "ETIMEDOUT",
+  "ECONNRESET",
+  "ECONNREFUSED",
+]);
+
+const isTransientDbError = (error: unknown): boolean => {
+  const anyErr = error as any;
+  const code = String(anyErr?.code || "").trim();
+  const message = String(anyErr?.message || "").toLowerCase();
+  if (TRANSIENT_DB_ERROR_CODES.has(code)) return true;
+  return (
+    message.includes("timeout exceeded when trying to connect") ||
+    message.includes("connection terminated unexpectedly") ||
+    message.includes("too many clients")
+  );
+};
+
+const withDbRetry = async <T>(label: string, fn: () => Promise<T>): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (!isTransientDbError(error)) throw error;
+    console.warn(`[DB][retry] ${label} transient error, retrying once...`);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    return await fn();
+  }
 };
 
 const recordListingAnalyticsEvent = async (
@@ -1788,6 +1836,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       environment: nodeEnv || "development",
       isProduction: isProduction,
     });
+  });
+
+  // Lightweight pool diagnostics for production incidents.
+  app.get("/api/health/db-pool", async (_req, res) => {
+    try {
+      const max =
+        Number.parseInt(process.env.PGPOOL_MAX || "", 10) ||
+        (pool as any)?.options?.max ||
+        null;
+      const waitingCount = (pool as any)?.waitingCount ?? null;
+      const idleCount = (pool as any)?.idleCount ?? null;
+      const totalCount = (pool as any)?.totalCount ?? null;
+
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({
+        status: "ok",
+        pool: {
+          max,
+          totalCount,
+          idleCount,
+          waitingCount,
+          utilizationPct:
+            typeof totalCount === "number" && typeof max === "number" && max > 0
+              ? Math.round((totalCount / max) * 100)
+              : null,
+        },
+      });
+    } catch (error: any) {
+      return res.status(500).json({ error: error?.message || "pool health error" });
+    }
   });
 
   // Auth endpoints - JWT-based for cross-domain production support
@@ -5074,6 +5152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
   app.get("/api/listings", async (req: Request, res: Response) => {
+    let fastCacheKeyForFallback: string | null = null;
     try {
       // ✅ у dev прибираємо кеш, щоб фільтри/сорт одразу відображались
       if (process.env.NODE_ENV === "development") {
@@ -5105,16 +5184,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!hasAnyFilters) {
         const fastCacheKey = `${sort}:${pageNum}:${limitNum}`;
+        fastCacheKeyForFallback = fastCacheKey;
         if (process.env.NODE_ENV === "production") {
           const cachedPayload = getListingsFastCache(fastCacheKey);
           if (cachedPayload) {
+            res.setHeader("X-Listings-Data-Source", "fresh-cache");
             return res.json(cachedPayload);
           }
         }
 
-        const totalRow = await db
-          .select({ count: sql<number>`count(*)::int` })
-          .from(listingsTable);
+        const totalRow = await withDbRetry("listings-total", () =>
+          db.select({ count: sql<number>`count(*)::int` }).from(listingsTable),
+        );
         const total = Number(totalRow?.[0]?.count ?? 0);
 
         const totalPages = Math.max(1, Math.ceil(total / limitNum));
@@ -5152,12 +5233,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Stable tiebreaker
         orderBy.push(desc(listingsTable.createdAt));
 
-        const paginated = await db
-          .select()
-          .from(listingsTable)
-          .orderBy(...orderBy)
-          .limit(limitNum)
-          .offset(start);
+        const paginated = await withDbRetry("listings-page", () =>
+          db
+            .select()
+            .from(listingsTable)
+            .orderBy(...orderBy)
+            .limit(limitNum)
+            .offset(start),
+        );
 
         const payload = {
           listings: paginated,
@@ -5172,6 +5255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         if (process.env.NODE_ENV === "production") {
           setListingsFastCache(fastCacheKey, payload);
+          res.setHeader("X-Listings-Data-Source", "db");
         }
 
         return res.json(payload);
@@ -5528,6 +5612,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
     } catch (error: any) {
+      if (process.env.NODE_ENV === "production" && fastCacheKeyForFallback) {
+        const stalePayload = getListingsFastCache(fastCacheKeyForFallback, {
+          allowStale: true,
+        });
+        if (stalePayload) {
+          console.warn(
+            `[LISTINGS] Serving stale cache after DB error: ${error?.message || error}`,
+          );
+          res.setHeader("X-Listings-Data-Source", "stale-cache");
+          res.setHeader("Warning", '110 - "Response is Stale"');
+          return res.json(stalePayload);
+        }
+      }
       return res.status(500).json({ error: error?.message || "Server error" });
     }
   });
