@@ -2597,6 +2597,23 @@ function Hero() {
     ? getModelsForVehicleType(filters.brand, filters.vehicleType)
     : [];
 
+  const handleVehicleTypeToggle = (type: string) => {
+    setFilters((prev) => {
+      const currentTypes = prev.vehicleType
+        ? prev.vehicleType.split(",").filter(Boolean)
+        : [];
+      const isAlreadySelected = currentTypes.includes(type);
+      const nextVehicleType = isAlreadySelected ? "" : type;
+
+      return {
+        ...prev,
+        vehicleType: nextVehicleType,
+        model: undefined, // clear stale model from another vehicle type
+        bodyType: undefined,
+      };
+    });
+  };
+
   const filteredHeroBrands = useMemo(
     () =>
       carBrands
@@ -2760,20 +2777,7 @@ function Hero() {
                   >
                     <button
                       type="button"
-                      onClick={() => {
-                        const currentTypes = filters.vehicleType
-                          ? filters.vehicleType.split(",").filter(Boolean)
-                          : [];
-                        const isSelected = currentTypes.includes("osobni-auta");
-                        const newTypes = isSelected
-                          ? currentTypes.filter((t) => t !== "osobni-auta")
-                          : [...currentTypes, "osobni-auta"];
-                        setFilters((prev) => ({
-                          ...prev,
-                          vehicleType: newTypes.join(",") || "",
-                          bodyType: undefined,
-                        }));
-                      }}
+                      onClick={() => handleVehicleTypeToggle("osobni-auta")}
                       data-testid="button-vehicle-cars"
                       className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
                         filters.vehicleType?.split(",").includes("osobni-auta")
@@ -2790,20 +2794,7 @@ function Hero() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const currentTypes = filters.vehicleType
-                          ? filters.vehicleType.split(",").filter(Boolean)
-                          : [];
-                        const isSelected = currentTypes.includes("dodavky");
-                        const newTypes = isSelected
-                          ? currentTypes.filter((t) => t !== "dodavky")
-                          : [...currentTypes, "dodavky"];
-                        setFilters((prev) => ({
-                          ...prev,
-                          vehicleType: newTypes.join(",") || "",
-                          bodyType: undefined,
-                        }));
-                      }}
+                      onClick={() => handleVehicleTypeToggle("dodavky")}
                       data-testid="button-vehicle-dodavky"
                       className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
                         filters.vehicleType?.split(",").includes("dodavky")
@@ -2820,21 +2811,7 @@ function Hero() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const currentTypes = filters.vehicleType
-                          ? filters.vehicleType.split(",").filter(Boolean)
-                          : [];
-                        const isSelected =
-                          currentTypes.includes("nakladni-vozy");
-                        const newTypes = isSelected
-                          ? currentTypes.filter((t) => t !== "nakladni-vozy")
-                          : [...currentTypes, "nakladni-vozy"];
-                        setFilters((prev) => ({
-                          ...prev,
-                          vehicleType: newTypes.join(",") || "",
-                          bodyType: undefined,
-                        }));
-                      }}
+                      onClick={() => handleVehicleTypeToggle("nakladni-vozy")}
                       data-testid="button-vehicle-trucks"
                       className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
                         filters.vehicleType?.split(",").includes("nakladni-vozy")
@@ -2851,20 +2828,7 @@ function Hero() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const currentTypes = filters.vehicleType
-                          ? filters.vehicleType.split(",").filter(Boolean)
-                          : [];
-                        const isSelected = currentTypes.includes("motorky");
-                        const newTypes = isSelected
-                          ? currentTypes.filter((t) => t !== "motorky")
-                          : [...currentTypes, "motorky"];
-                        setFilters((prev) => ({
-                          ...prev,
-                          vehicleType: newTypes.join(",") || "",
-                          bodyType: undefined,
-                        }));
-                      }}
+                      onClick={() => handleVehicleTypeToggle("motorky")}
                       data-testid="button-vehicle-motorky"
                       className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
                         filters.vehicleType?.split(",").includes("motorky")
@@ -2881,20 +2845,7 @@ function Hero() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const currentTypes = filters.vehicleType
-                          ? filters.vehicleType.split(",").filter(Boolean)
-                          : [];
-                        const isSelected = currentTypes.includes("suv-offroad");
-                        const newTypes = isSelected
-                          ? currentTypes.filter((t) => t !== "suv-offroad")
-                          : [...currentTypes, "suv-offroad"];
-                        setFilters((prev) => ({
-                          ...prev,
-                          vehicleType: newTypes.join(",") || "",
-                          bodyType: undefined,
-                        }));
-                      }}
+                      onClick={() => handleVehicleTypeToggle("suv-offroad")}
                       data-testid="button-vehicle-suv-offroad"
                       className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
                         filters.vehicleType?.split(",").includes("suv-offroad")
@@ -2911,20 +2862,7 @@ function Hero() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const currentTypes = filters.vehicleType
-                          ? filters.vehicleType.split(",").filter(Boolean)
-                          : [];
-                        const isSelected = currentTypes.includes("elektro");
-                        const newTypes = isSelected
-                          ? currentTypes.filter((t) => t !== "elektro")
-                          : [...currentTypes, "elektro"];
-                        setFilters((prev) => ({
-                          ...prev,
-                          vehicleType: newTypes.join(",") || "",
-                          bodyType: undefined,
-                        }));
-                      }}
+                      onClick={() => handleVehicleTypeToggle("elektro")}
                       data-testid="button-vehicle-elektro"
                       className={`w-20 h-20 sm:w-[88px] sm:h-[88px] lg:w-24 lg:h-24 rounded-md font-medium border-2 flex flex-col items-center justify-center gap-1 sm:gap-1.5 flex-shrink-0 p-2 cursor-pointer transition-colors hover-elevate active-elevate-2 ${
                         filters.vehicleType?.split(",").includes("elektro")

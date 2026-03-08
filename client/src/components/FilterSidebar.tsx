@@ -2673,11 +2673,18 @@ function FilterSidebar() {
   };
 
   const handleVehicleTypeToggle = (type: string) => {
-    setFilters((prev) => ({
-      ...prev,
-      vehicleType: toggleInCommaList(prev.vehicleType, type) || "",
-      bodyType: undefined, // при зміні типу авто — скидаємо кузов
-    }));
+    setFilters((prev) => {
+      const currentTypes = splitComma(prev.vehicleType);
+      const isAlreadySelected = currentTypes.includes(type);
+      const nextVehicleType = isAlreadySelected ? "" : type;
+
+      return {
+        ...prev,
+        vehicleType: nextVehicleType,
+        model: undefined, // clear stale model from another vehicle type
+        bodyType: undefined, // при зміні типу авто — скидаємо кузов
+      };
+    });
   };
 
   const handleBodyTypeToggle = (bodyType: string) => {
