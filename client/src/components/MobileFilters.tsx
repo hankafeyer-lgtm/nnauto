@@ -2933,16 +2933,9 @@ function MobileFilters({
     return base.map((b) => ({ ...b, icon: brandIcons[b.value] }));
   }, [selectedVehicleTypes]);
 
-  const primaryVehicleTypeForModels = useMemo(() => {
-    // якщо вибрано кілька типів — беремо перший для getModelsForVehicleType
-    return selectedVehicleTypes[0] || filters.vehicleType || "";
-  }, [selectedVehicleTypes, filters.vehicleType]);
-
   const availableModels = useMemo(() => {
-    return filters.brand
-      ? getModelsForVehicleType(filters.brand, primaryVehicleTypeForModels)
-      : [];
-  }, [filters.brand, primaryVehicleTypeForModels]);
+    return filters.brand ? getModelsForVehicleType(filters.brand) : [];
+  }, [filters.brand]);
 
   const priceMin = filters.priceMin;
   const priceMax = filters.priceMax;

@@ -2364,7 +2364,7 @@ export default function HomePage() {
   const pagination = data?.pagination;
   const totalPages = pagination?.totalPages ?? 1;
   const total = pagination?.total ?? listings.length;
-  const homeCebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen !== false;
+  const homeCebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen === true;
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const visiblePages = useMemo(() => {
     const max = 5;

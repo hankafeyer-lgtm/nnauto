@@ -3260,7 +3260,7 @@ export default function ListingDetailPage() {
     queryKey: ["/api/cebia/config"],
   });
 
-  const cebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen !== false; // default: frozen
+  const cebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen === true;
   const listingVin = (listing?.vin || "").trim().toUpperCase();
   const listingVinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(listingVin);
 

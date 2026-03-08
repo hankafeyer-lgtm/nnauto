@@ -2594,7 +2594,7 @@ function Hero() {
   };
 
   const availableModels = filters.brand
-    ? getModelsForVehicleType(filters.brand, filters.vehicleType)
+    ? getModelsForVehicleType(filters.brand)
     : [];
 
   const filteredHeroBrands = useMemo(
