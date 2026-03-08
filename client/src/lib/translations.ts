@@ -4964,6 +4964,19 @@ export function getModelsForVehicleType(
       : effectiveType;
 
   const getPassengerCarModels = () => {
+    // Explicit split points for mixed catalogs where one brand contains
+    // both car and motorcycle lines in a single source list.
+    const passengerSplitMarkers: Record<string, string> = {
+      bmw: "C 400 GT",
+    };
+    const splitMarker = passengerSplitMarkers[brand];
+    if (splitMarker) {
+      const splitIndex = allModels.indexOf(splitMarker);
+      if (splitIndex > 0) {
+        return allModels.slice(0, splitIndex);
+      }
+    }
+
     const nonPassenger = Object.keys(vehicleTypeModels).filter(
       (type) => type !== "osobni-auta",
     );
