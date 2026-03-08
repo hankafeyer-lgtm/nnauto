@@ -2934,8 +2934,10 @@ function MobileFilters({
   }, [selectedVehicleTypes]);
 
   const availableModels = useMemo(() => {
-    return filters.brand ? getModelsForVehicleType(filters.brand) : [];
-  }, [filters.brand]);
+    return filters.brand
+      ? getModelsForVehicleType(filters.brand, filters.vehicleType)
+      : [];
+  }, [filters.brand, filters.vehicleType]);
 
   const priceMin = filters.priceMin;
   const priceMax = filters.priceMax;

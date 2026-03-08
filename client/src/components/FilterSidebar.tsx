@@ -2615,8 +2615,10 @@ function FilterSidebar() {
   };
 
   const availableModels = useMemo(() => {
-    return filters.brand ? getModelsForVehicleType(filters.brand) : [];
-  }, [filters.brand]);
+    return filters.brand
+      ? getModelsForVehicleType(filters.brand, filters.vehicleType)
+      : [];
+  }, [filters.brand, filters.vehicleType]);
 
   const trimLevels = useMemo(
     () => [

@@ -4933,17 +4933,56 @@ export function getModelsForVehicleType(
   if (!brand) return [];
 
   const allModels = carModels[brand] || [];
+  const selectedTypes = (vehicleType || "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
 
-  if (!vehicleType || vehicleType === "osobni-auta") {
+  if (!selectedTypes.length) {
     return allModels;
   }
 
-  const vehicleTypeModelList = vehicleTypeModels[vehicleType];
-  if (!vehicleTypeModelList || !vehicleTypeModelList[brand]) {
+  const getPassengerCarModels = () => {
+    const nonPassenger = Object.keys(vehicleTypeModels).filter(
+      (type) => type !== "osobni-auta",
+    );
+    const excluded = new Set<string>();
+
+    for (const type of nonPassenger) {
+      const models = vehicleTypeModels[type]?.[brand] || [];
+      for (const model of models) excluded.add(model);
+    }
+
+    const passengerModels = allModels.filter((model) => !excluded.has(model));
+    return passengerModels.length ? passengerModels : allModels;
+  };
+
+  const getModelsByType = (type: string): string[] => {
+    if (type === "osobni-auta") {
+      return getPassengerCarModels();
+    }
+
+    const typedModels = vehicleTypeModels[type]?.[brand];
+    if (typedModels?.length) {
+      return typedModels;
+    }
+
+    return [];
+  };
+
+  const mergedSet = new Set<string>();
+  for (const type of selectedTypes) {
+    const models = getModelsByType(type);
+    for (const model of models) mergedSet.add(model);
+  }
+
+  if (!mergedSet.size) {
     return allModels;
   }
 
-  return vehicleTypeModelList[brand];
+  const merged = allModels.filter((model) => mergedSet.has(model));
+  const extras = [...mergedSet].filter((model) => !allModels.includes(model));
+  return [...merged, ...extras];
 }
 
 export function useLocalizedOptions() {
