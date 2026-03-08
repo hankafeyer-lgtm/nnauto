@@ -4942,6 +4942,27 @@ export function getModelsForVehicleType(
     return allModels;
   }
 
+  // Model dropdown should represent one concrete category at a time.
+  // If URL/state contains multiple vehicle types, prefer cars over moto,
+  // then continue with commercial categories.
+  const modelTypePriority = [
+    "osobni-auta",
+    "motorky",
+    "dodavky",
+    "nakladni-vozy",
+    "suv-offroad",
+    "elektro",
+  ];
+  const selectedSet = new Set(selectedTypes);
+  const prioritizedType = modelTypePriority.find((type) => selectedSet.has(type));
+  const effectiveType = prioritizedType || selectedTypes[0];
+
+  // SUV/offroad and electric types use passenger-car model catalog.
+  const normalizedType =
+    effectiveType === "suv-offroad" || effectiveType === "elektro"
+      ? "osobni-auta"
+      : effectiveType;
+
   const getPassengerCarModels = () => {
     const nonPassenger = Object.keys(vehicleTypeModels).filter(
       (type) => type !== "osobni-auta",
@@ -4970,19 +4991,14 @@ export function getModelsForVehicleType(
     return [];
   };
 
-  const mergedSet = new Set<string>();
-  for (const type of selectedTypes) {
-    const models = getModelsByType(type);
-    for (const model of models) mergedSet.add(model);
-  }
-
-  if (!mergedSet.size) {
+  const modelsForType = getModelsByType(normalizedType);
+  if (!modelsForType.length) {
     return allModels;
   }
-
-  const merged = allModels.filter((model) => mergedSet.has(model));
-  const extras = [...mergedSet].filter((model) => !allModels.includes(model));
-  return [...merged, ...extras];
+  const modelSet = new Set(modelsForType);
+  const ordered = allModels.filter((model) => modelSet.has(model));
+  const extras = modelsForType.filter((model) => !allModels.includes(model));
+  return [...ordered, ...extras];
 }
 
 export function useLocalizedOptions() {
