@@ -2743,7 +2743,7 @@ function FilterSidebar() {
   // ✅ AUTO APPLY (без кнопки)
   // =========================
   const APPLY_DEBOUNCE_MS = 350;
-  const AUTO_APPLY_FILTERS = false;
+  const AUTO_APPLY_FILTERS = true;
 
   const applyRef = useRef(applyFilters);
   useEffect(() => {
@@ -2764,7 +2764,15 @@ function FilterSidebar() {
     }
 
     const id = window.setTimeout(() => {
+      const preservedScrollY = window.scrollY;
       applyRef.current();
+      // Keep user in the current filter area after auto-apply.
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
+      });
+      window.setTimeout(() => {
+        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
+      }, 120);
     }, APPLY_DEBOUNCE_MS);
 
     return () => window.clearTimeout(id);
