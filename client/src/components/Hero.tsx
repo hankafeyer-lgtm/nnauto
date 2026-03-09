@@ -2097,7 +2097,7 @@ function Hero() {
     setEuroEmission,
     setStkValidUntil,
     setHasServiceBook,
-  } = useFilterParams({ autoNavigate: !isMobile });
+  } = useFilterParams({ autoNavigate: false });
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [showAllConditions, setShowAllConditions] = useState(false);
   const [desktopConditionDraft, setDesktopConditionDraft] = useState<string[]>(
