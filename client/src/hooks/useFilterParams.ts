@@ -477,6 +477,21 @@ export interface FilterParams {
 
 const FILTERS_URL_CHANGE_EVENT = "nnauto:filters-url-change";
 
+const isReloadNavigation = (): boolean => {
+  if (typeof window === "undefined") return false;
+
+  const navigationEntries = window.performance
+    ?.getEntriesByType?.("navigation") as PerformanceNavigationTiming[] | undefined;
+  if (navigationEntries && navigationEntries.length > 0) {
+    return navigationEntries[0].type === "reload";
+  }
+
+  const legacyNavigation = (window.performance as Performance & {
+    navigation?: { type?: number };
+  })?.navigation;
+  return legacyNavigation?.type === 1;
+};
+
 const normalizeFilters = (filters: FilterParams): Record<string, unknown> => {
   const normalized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(filters)) {
@@ -630,8 +645,10 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     };
   }, []);
 
-  const [filters, setFiltersState] =
-    useState<FilterParams>(parseFiltersFromURL);
+  const shouldResetFiltersAfterReloadRef = useRef(isReloadNavigation());
+  const [filters, setFiltersState] = useState<FilterParams>(() =>
+    shouldResetFiltersAfterReloadRef.current ? {} : parseFiltersFromURL(),
+  );
 
   // Listen for browser URL changes
   useEffect(() => {
@@ -650,6 +667,10 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
   // Re-parse filters when URL changes
   useEffect(() => {
+    if (shouldResetFiltersAfterReloadRef.current) {
+      shouldResetFiltersAfterReloadRef.current = false;
+      return;
+    }
     const updatedFilters = parseFiltersFromURL();
     setFiltersState((prev) =>
       areFiltersEqual(prev, updatedFilters) ? prev : updatedFilters,
