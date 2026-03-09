@@ -2772,8 +2772,7 @@ function FilterSidebar() {
     <Card
       className={[
         "rounded-2xl shadow-xl bg-white dark:bg-background flex flex-col",
-        "overflow-hidden",
-        "max-h-[calc(100vh-1px)]",
+        "overflow-visible",
       ].join(" ")}
     >
       <CardHeader className="shrink-0 flex flex-row items-center justify-between gap-2 space-y-0 pb-6">
@@ -2792,7 +2791,7 @@ function FilterSidebar() {
         </Button>
       </CardHeader>
 
-      <CardContent className="flex-1 overflow-y-auto space-y-6 pr-4 pb-6 filters-scrollbar">
+      <CardContent className="flex-1 overflow-visible space-y-6 pr-4 pb-6">
         {/* CONDITION */}
         <Collapsible
           open={openSections.condition}
