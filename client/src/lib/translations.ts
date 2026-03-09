@@ -4987,8 +4987,7 @@ export function getModelsForVehicleType(
       for (const model of models) excluded.add(model);
     }
 
-    const passengerModels = allModels.filter((model) => !excluded.has(model));
-    return passengerModels.length ? passengerModels : allModels;
+    return allModels.filter((model) => !excluded.has(model));
   };
 
   const getModelsByType = (type: string): string[] => {
@@ -5006,7 +5005,7 @@ export function getModelsForVehicleType(
 
   const modelsForType = getModelsByType(normalizedType);
   if (!modelsForType.length) {
-    return allModels;
+    return [];
   }
   const modelSet = new Set(modelsForType);
   const ordered = allModels.filter((model) => modelSet.has(model));
