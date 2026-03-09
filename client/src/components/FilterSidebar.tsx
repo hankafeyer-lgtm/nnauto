@@ -2785,12 +2785,11 @@ function FilterSidebar() {
   }, [stableFiltersKey, AUTO_APPLY_FILTERS]);
 
   const handleApplyButtonClick = () => {
-    const preservedScrollY = window.scrollY;
     // Let pending state updates flush before applying URL filters.
     window.setTimeout(() => {
       applyRef.current();
       requestAnimationFrame(() => {
-        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
       });
     }, 0);
   };
