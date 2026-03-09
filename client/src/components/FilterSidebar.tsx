@@ -2602,7 +2602,7 @@ function FilterSidebar() {
     region: true,
   });
 
-  const [showAllConditions, setShowAllConditions] = useState(false);
+  const [showAllConditions, setShowAllConditions] = useState(true);
 
   useEffect(() => {
     // Legacy hidden category may remain in URL and force 0 results.
@@ -2611,7 +2611,13 @@ function FilterSidebar() {
   }, [filters.category, setFilters]);
 
   const toggleSection = (section: keyof typeof openSections) => {
-    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+    setOpenSections((prev) => {
+      // Keep key search sections from collapsing in desktop sidebar.
+      if (section === "condition" || section === "vehicleType") {
+        return { ...prev, [section]: true };
+      }
+      return { ...prev, [section]: !prev[section] };
+    });
   };
 
   const availableModels = useMemo(() => {
