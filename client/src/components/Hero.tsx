@@ -2100,6 +2100,9 @@ function Hero() {
   } = useFilterParams({ autoNavigate: !isMobile });
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [showAllConditions, setShowAllConditions] = useState(false);
+  const [desktopConditionDraft, setDesktopConditionDraft] = useState<string[]>(
+    filters.condition ?? [],
+  );
   const [mileageFilterType, setMileageFilterType] = useState<
     "50k" | "100k" | "250k" | "custom" | ""
   >("");
@@ -2209,6 +2212,11 @@ function Hero() {
       setPriceMaxValue(priceMax < 20000000 ? formatNumber(priceMax) : "");
     }
   }, [filters.priceMin, filters.priceMax, language]);
+
+  useEffect(() => {
+    if (isMobile) return;
+    setDesktopConditionDraft(filters.condition ?? []);
+  }, [isMobile, filters.condition]);
 
   const bodyTypeIcons: Record<string, any> = {
     sedan: SedanIcon,
@@ -2548,6 +2556,9 @@ function Hero() {
     e.preventDefault();
 
     if (isMobile && !force) return;
+    const conditionValues = isMobile
+      ? (filters.condition ?? [])
+      : desktopConditionDraft;
 
     const params = new URLSearchParams();
     if (filters.vehicleType) params.set("vehicleType", filters.vehicleType);
@@ -2583,8 +2594,8 @@ function Hero() {
       params.set("ownersMin", filters.ownersMin.toString());
     if (filters.ownersMax)
       params.set("ownersMax", filters.ownersMax.toString());
-    if (filters.condition?.length)
-      params.set("condition", filters.condition.join(","));
+    if (conditionValues.length)
+      params.set("condition", conditionValues.join(","));
     if (filters.extras?.length) params.set("extras", filters.extras.join(","));
     if (filters.equipment?.length)
       params.set("equipment", filters.equipment.join(","));
@@ -2613,6 +2624,21 @@ function Hero() {
       };
     });
   };
+
+  const handleTopConditionToggle = (value: string) => {
+    if (isMobile) {
+      handleCheckboxChange("condition", value);
+      return;
+    }
+
+    setDesktopConditionDraft((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+    );
+  };
+
+  const conditionValuesForCards = isMobile
+    ? (filters.condition ?? [])
+    : desktopConditionDraft;
 
   const filteredHeroBrands = useMemo(
     () =>
@@ -2718,8 +2744,9 @@ function Hero() {
                       ]
                     : []),
                 ].map((condition) => {
-                  const isSelected =
-                    filters.condition?.includes(condition.key) || false;
+                  const isSelected = conditionValuesForCards.includes(
+                    condition.key,
+                  );
                   const Icon = condition.icon;
                   const CustomIcon = condition.customIcon;
                   return (
@@ -2728,9 +2755,7 @@ function Hero() {
                       type="button"
                       variant={isSelected ? "default" : "outline"}
                       className={`h-auto py-3 px-3 lg:py-4 lg:px-5 flex flex-col items-center gap-1.5 lg:gap-2.5 text-center bg-background/80 backdrop-blur-sm border-primary/30 hover:border-primary/50 ${!isSelected ? "text-black dark:text-white" : ""} ${isSelected ? "toggle-elevated bg-primary text-primary-foreground" : ""} toggle-elevate`}
-                      onClick={() =>
-                        handleCheckboxChange("condition", condition.key)
-                      }
+                      onClick={() => handleTopConditionToggle(condition.key)}
                       data-testid={`button-condition-${condition.key.toLowerCase().replace(/\s+/g, "-")}`}
                     >
                       {CustomIcon ? (
