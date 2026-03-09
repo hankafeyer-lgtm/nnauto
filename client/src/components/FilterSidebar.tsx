@@ -2773,6 +2773,12 @@ function FilterSidebar() {
       window.setTimeout(() => {
         window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
       }, 120);
+      window.setTimeout(() => {
+        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
+      }, 260);
+      window.setTimeout(() => {
+        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
+      }, 420);
     }, APPLY_DEBOUNCE_MS);
 
     return () => window.clearTimeout(id);
