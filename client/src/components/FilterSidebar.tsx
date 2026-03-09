@@ -2784,6 +2784,17 @@ function FilterSidebar() {
     return () => window.clearTimeout(id);
   }, [stableFiltersKey, AUTO_APPLY_FILTERS]);
 
+  const handleApplyButtonClick = () => {
+    const preservedScrollY = window.scrollY;
+    // Let pending state updates flush before applying URL filters.
+    window.setTimeout(() => {
+      applyRef.current();
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
+      });
+    }, 0);
+  };
+
   return (
     <Card
       className={[
@@ -3843,7 +3854,7 @@ function FilterSidebar() {
         <Button
           type="button"
           className="w-full h-12 rounded-xl shadow-md"
-          onClick={applyFilters}
+          onClick={handleApplyButtonClick}
           data-testid="button-apply-filters-desktop"
         >
           {t("hero.search")}
