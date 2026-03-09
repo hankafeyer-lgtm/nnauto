@@ -2589,7 +2589,7 @@ function FilterSidebar() {
     setHasServiceBook,
     resetFilters,
     applyFilters,
-  } = useFilterParams();
+  } = useFilterParams({ autoNavigate: false });
 
   const [openSections, setOpenSections] = useState({
     vehicleType: true,
@@ -2743,6 +2743,7 @@ function FilterSidebar() {
   // ✅ AUTO APPLY (без кнопки)
   // =========================
   const APPLY_DEBOUNCE_MS = 350;
+  const AUTO_APPLY_FILTERS = false;
 
   const applyRef = useRef(applyFilters);
   useEffect(() => {
@@ -2756,6 +2757,7 @@ function FilterSidebar() {
 
   const firstRenderRef = useRef(true);
   useEffect(() => {
+    if (!AUTO_APPLY_FILTERS) return;
     if (firstRenderRef.current) {
       firstRenderRef.current = false;
       return;
@@ -2766,7 +2768,7 @@ function FilterSidebar() {
     }, APPLY_DEBOUNCE_MS);
 
     return () => window.clearTimeout(id);
-  }, [stableFiltersKey]);
+  }, [stableFiltersKey, AUTO_APPLY_FILTERS]);
 
   return (
     <Card
