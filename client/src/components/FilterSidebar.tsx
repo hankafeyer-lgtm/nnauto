@@ -2559,7 +2559,7 @@ function FilterSidebar() {
   const colors = localizedOptions.getColors();
   const driveTypes = localizedOptions.getDriveTypes();
   const regions = localizedOptions.getRegions();
-  const bodyTypes = localizedOptions.getBodyTypes();
+  const bodyTypes = localizedOptions.getBodyTypes(filters.vehicleType);
 
   const {
     filters,
