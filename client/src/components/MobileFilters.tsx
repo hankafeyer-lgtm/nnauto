@@ -2859,7 +2859,7 @@ function MobileFilters({
     applyFilters,
   } = useFilterParams({ autoNavigate: autoApply });
 
-  const bodyTypes = localizedOptions.getBodyTypes(filters.vehicleType);
+  const bodyTypes = localizedOptions.getBodyTypes();
   const colors = localizedOptions.getColors();
   const driveTypes = localizedOptions.getDriveTypes();
   const regions = localizedOptions.getRegions();

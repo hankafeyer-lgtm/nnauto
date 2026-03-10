@@ -2187,7 +2187,7 @@ function Hero() {
     { value: "raptor", label: "Raptor" },
   ];
 
-  const bodyTypes = localizedOptions.getBodyTypes(filters.vehicleType);
+  const bodyTypes = localizedOptions.getBodyTypes();
   const colors = localizedOptions.getColors();
   const regions = localizedOptions.getRegions();
   const driveTypes = localizedOptions.getDriveTypes();
