@@ -5018,9 +5018,41 @@ export function useLocalizedOptions() {
 
   return {
     getBodyTypes: (vehicleType?: string) => {
+      const normalizeVehicleTypeKey = (rawType?: string): string | undefined => {
+        if (!rawType) return undefined;
+        const parts = rawType
+          .split(",")
+          .map((part) => part.trim().toLowerCase())
+          .filter(Boolean);
+        const candidate = (parts[parts.length - 1] || "").replace(
+          /[\s_/]+/g,
+          "-",
+        );
+        if (!candidate) return undefined;
+
+        const aliases: Record<string, string> = {
+          "osobni-auta": "osobni-auta",
+          "osobni-auta-": "osobni-auta",
+          "osobni-auta/": "osobni-auta",
+          "nakladni-vozy": "nakladni-vozy",
+          "nakladni-vozy-": "nakladni-vozy",
+          "motorky": "motorky",
+          "dodavky": "dodavky",
+          "suv-offroad": "suv-offroad",
+          "suv-off-road": "suv-offroad",
+          "elektro": "elektro",
+        };
+
+        return aliases[candidate] || candidate;
+      };
+
       let bodyTypes: string[];
-      if (vehicleType && vehicleTypeBodyTypes[vehicleType]) {
-        bodyTypes = vehicleTypeBodyTypes[vehicleType];
+      const normalizedVehicleType = normalizeVehicleTypeKey(vehicleType);
+      if (
+        normalizedVehicleType &&
+        vehicleTypeBodyTypes[normalizedVehicleType]
+      ) {
+        bodyTypes = vehicleTypeBodyTypes[normalizedVehicleType];
       } else {
         bodyTypes = [
           "sedan",
