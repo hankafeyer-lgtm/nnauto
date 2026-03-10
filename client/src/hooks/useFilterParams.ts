@@ -477,6 +477,19 @@ export interface FilterParams {
 
 const FILTERS_URL_CHANGE_EVENT = "nnauto:filters-url-change";
 
+const normalizeSingleVehicleType = (
+  vehicleType?: string | null,
+): string | undefined => {
+  if (!vehicleType) return undefined;
+  const parts = vehicleType
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (!parts.length) return undefined;
+  // Keep the most recently selected type when legacy comma lists are present.
+  return parts[parts.length - 1];
+};
+
 const isReloadNavigation = (): boolean => {
   if (typeof window === "undefined") return false;
 
@@ -555,7 +568,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       search: params.get("search") || undefined,
       // Legacy category filter is no longer used in UI filtering flow.
       category: undefined,
-      vehicleType: params.get("vehicleType") || undefined,
+      vehicleType: normalizeSingleVehicleType(params.get("vehicleType")),
       brand: params.get("brand") || undefined,
       model: params.get("model") || undefined,
       priceMin: params.get("priceMin")
@@ -692,8 +705,11 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       if (userId) params.set("userId", userId);
 
       if (newFilters.search) params.set("search", newFilters.search);
-      if (newFilters.vehicleType)
-        params.set("vehicleType", newFilters.vehicleType);
+      const normalizedVehicleType = normalizeSingleVehicleType(
+        newFilters.vehicleType,
+      );
+      if (normalizedVehicleType)
+        params.set("vehicleType", normalizedVehicleType);
       if (newFilters.brand) params.set("brand", newFilters.brand);
       if (newFilters.model) params.set("model", newFilters.model);
       if (newFilters.priceMin !== undefined && !isNaN(newFilters.priceMin))
@@ -857,7 +873,10 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
   const setVehicleType = useCallback(
     (vehicleType: string) => {
-      setFilters((prev) => ({ ...prev, vehicleType }));
+      setFilters((prev) => ({
+        ...prev,
+        vehicleType: normalizeSingleVehicleType(vehicleType),
+      }));
     },
     [setFilters],
   );
@@ -1060,7 +1079,9 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     if (userId) params.set("userId", userId);
 
     if (filters.search) params.set("search", filters.search);
-    if (filters.vehicleType) params.set("vehicleType", filters.vehicleType);
+    const normalizedVehicleType = normalizeSingleVehicleType(filters.vehicleType);
+    if (normalizedVehicleType)
+      params.set("vehicleType", normalizedVehicleType);
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);
     if (filters.priceMin !== undefined && !isNaN(filters.priceMin))
