@@ -3,7 +3,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertListingSchema, type InsertListing } from "@shared/schema";
 import { carBrands, carModels } from "@shared/carDatabase";
-import { useTranslation, useLocalizedOptions, getModelsForVehicleType } from "@/lib/translations";
+import {
+  useTranslation,
+  useLocalizedOptions,
+  vehicleTypeBrands,
+  getModelsForVehicleType,
+} from "@/lib/translations";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -144,6 +149,12 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
   const selectedVehicleType = form.watch("vehicleType");
   const isTopListing = form.watch("isTopListing");
   const bodyTypes = localizedOptions.getBodyTypes(selectedVehicleType ?? undefined);
+  const filteredBrands = carBrands.filter((brand) => {
+    if (selectedVehicleType && vehicleTypeBrands[selectedVehicleType]) {
+      return vehicleTypeBrands[selectedVehicleType].includes(brand.value);
+    }
+    return true;
+  });
   const availableModels = selectedBrand ? getModelsForVehicleType(selectedBrand, selectedVehicleType ?? undefined) : [];
 
   const onSubmit = async (data: InsertListing) => {
@@ -284,7 +295,7 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {carBrands.map((brand) => (
+                          {filteredBrands.map((brand) => (
                             <SelectItem key={brand.value} value={brand.value}>
                               {brand.label}
                             </SelectItem>

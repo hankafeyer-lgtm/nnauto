@@ -789,6 +789,7 @@ import { carBrands } from "@shared/carDatabase";
 import {
   useTranslation,
   useLocalizedOptions,
+  vehicleTypeBrands,
   getModelsForVehicleType,
 } from "@/lib/translations";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -1036,6 +1037,14 @@ export default function EditListingDialog({
     ? asString(selectedVehicleType)
     : undefined;
   const bodyTypes = localizedOptions.getBodyTypes(vehicleTypeValue);
+  const filteredBrands = useMemo(() => {
+    return carBrands.filter((brand) => {
+      if (vehicleTypeValue && vehicleTypeBrands[vehicleTypeValue]) {
+        return vehicleTypeBrands[vehicleTypeValue].includes(brand.value);
+      }
+      return true;
+    });
+  }, [vehicleTypeValue]);
 
   const availableModels = useMemo(() => {
     if (!brandValue) return [];
@@ -1323,7 +1332,7 @@ export default function EditListingDialog({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            {carBrands.map((brand) => (
+                            {filteredBrands.map((brand) => (
                               <SelectItem key={brand.value} value={brand.value}>
                                 {brand.label}
                               </SelectItem>
