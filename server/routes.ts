@@ -1604,6 +1604,36 @@ const normalizeText = (str: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+const normalizeVehicleTypeFilterKey = (value: string) => {
+  const normalized = normalizeText(value)
+    .replace(/[\s_/]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  const aliases: Record<string, string> = {
+    "osobni-auta": "osobni-auta",
+    "osobni-auto": "osobni-auta",
+    osobni: "osobni-auta",
+    dodavky: "dodavky",
+    dodavka: "dodavky",
+    "nakladni-vozy": "nakladni-vozy",
+    "nakladni-vuz": "nakladni-vozy",
+    nakladni: "nakladni-vozy",
+    motorky: "motorky",
+    motorka: "motorky",
+    moto: "motorky",
+    "suv-offroad": "suv-offroad",
+    "suv-off-road": "suv-offroad",
+    suv: "suv-offroad",
+    offroad: "suv-offroad",
+    elektro: "elektro",
+    elektricke: "elektro",
+    electric: "elektro",
+  };
+
+  return aliases[normalized] || normalized;
+};
+
 const slugify = (str: string) =>
   normalizeText(str)
     .replace(/\s+/g, "-")
@@ -5360,9 +5390,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (typeof q.vehicleType === "string" && q.vehicleType.trim()) {
-        const wanted = parseCsv(q.vehicleType).map(normalizeText);
+        const wanted = parseCsv(q.vehicleType).map(normalizeVehicleTypeFilterKey);
         allListings = allListings.filter((l) =>
-          wanted.includes(normalizeText(l.vehicleType || "")),
+          wanted.includes(normalizeVehicleTypeFilterKey(l.vehicleType || "")),
         );
       }
 

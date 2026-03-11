@@ -481,13 +481,47 @@ const normalizeSingleVehicleType = (
   vehicleType?: string | null,
 ): string | undefined => {
   if (!vehicleType) return undefined;
+  const normalizeVehicleTypeKey = (rawType: string): string => {
+    const normalized = rawType
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[\s_/]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    const aliases: Record<string, string> = {
+      "osobni-auta": "osobni-auta",
+      "osobni-auto": "osobni-auta",
+      "osobni": "osobni-auta",
+      "dodavky": "dodavky",
+      "dodavka": "dodavky",
+      "nakladni-vozy": "nakladni-vozy",
+      "nakladni-vuz": "nakladni-vozy",
+      "nakladni": "nakladni-vozy",
+      "motorky": "motorky",
+      "motorka": "motorky",
+      moto: "motorky",
+      "suv-offroad": "suv-offroad",
+      "suv-off-road": "suv-offroad",
+      suv: "suv-offroad",
+      offroad: "suv-offroad",
+      elektro: "elektro",
+      elektricke: "elektro",
+      electric: "elektro",
+    };
+
+    return aliases[normalized] || normalized;
+  };
+
   const parts = vehicleType
     .split(",")
     .map((part) => part.trim())
     .filter(Boolean);
   if (!parts.length) return undefined;
   // Keep the most recently selected type when legacy comma lists are present.
-  return parts[parts.length - 1];
+  return normalizeVehicleTypeKey(parts[parts.length - 1]);
 };
 
 const isReloadNavigation = (): boolean => {
