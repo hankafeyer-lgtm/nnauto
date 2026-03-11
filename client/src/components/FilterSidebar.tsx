@@ -2787,12 +2787,6 @@ function FilterSidebar() {
   const handleApplyButtonClick = () => {
     // Let pending state updates flush before applying URL filters.
     window.setTimeout(() => {
-      if (typeof window !== "undefined") {
-        const ttq = (window as typeof window & { ttq?: { track?: Function } }).ttq;
-        if (typeof ttq !== "undefined" && typeof ttq.track === "function") {
-          ttq.track("Search");
-        }
-      }
       applyRef.current();
       requestAnimationFrame(() => {
         window.scrollTo({ top: 0, left: 0, behavior: "smooth" });

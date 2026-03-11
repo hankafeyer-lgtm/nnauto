@@ -191,18 +191,10 @@ function HeaderContent({
     setDarkMode(!darkMode);
   };
 
-  const trackTikTokSearch = () => {
-    if (typeof window === "undefined") return;
-    const ttq = (window as typeof window & { ttq?: { track?: Function } }).ttq;
-    if (typeof ttq === "undefined" || typeof ttq.track !== "function") return;
-    ttq.track("Search");
-  };
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       setShowSuggestions(false);
-      trackTikTokSearch();
       // If already on listings page, use filter update instead of navigation
       if (location.startsWith("/listings")) {
         setSearch(searchQuery.trim());
@@ -224,7 +216,6 @@ function HeaderContent({
         ? `${suggestion.brand} ${suggestion.value}`
         : suggestion.value;
 
-    trackTikTokSearch();
     if (location.startsWith("/listings")) {
       setSearch(searchTerm);
     } else {

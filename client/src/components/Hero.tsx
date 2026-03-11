@@ -2552,13 +2552,6 @@ function Hero() {
   //   const url = queryString ? `/listings?${queryString}` : "/listings";
   //   setLocation(url);
   // };
-  const trackTikTokSearch = () => {
-    if (typeof window === "undefined") return;
-    const ttq = (window as typeof window & { ttq?: { track?: Function } }).ttq;
-    if (typeof ttq === "undefined" || typeof ttq.track !== "function") return;
-    ttq.track("Search");
-  };
-
   const handleSearch = (e: React.FormEvent, force = false) => {
     e.preventDefault();
 
@@ -2608,7 +2601,6 @@ function Hero() {
       params.set("equipment", filters.equipment.join(","));
 
     const queryString = params.toString();
-    trackTikTokSearch();
     setLocation(queryString ? `/listings?${queryString}` : "/listings");
   };
 
