@@ -3946,6 +3946,20 @@ export default function ListingDetailPage() {
     [listingId, canSeeListingAnalytics],
   );
 
+  const trackTikTokContact = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const ttq = (window as typeof window & { ttq?: { track?: Function } }).ttq;
+    if (typeof ttq === "undefined" || typeof ttq.track !== "function") return;
+    ttq.track("Contact");
+  }, []);
+
+  const trackTikTokSearch = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const ttq = (window as typeof window & { ttq?: { track?: Function } }).ttq;
+    if (typeof ttq === "undefined" || typeof ttq.track !== "function") return;
+    ttq.track("Search");
+  }, []);
+
   useEffect(() => {
     if (!listingId || !listing) return;
     const sessionKey = `listing-analytics:view:${listingId}`;
@@ -3988,6 +4002,7 @@ export default function ListingDetailPage() {
       const target = term
         ? `/listings?search=${encodeURIComponent(term)}`
         : "/listings";
+      trackTikTokSearch();
 
       if (isEmbedded && window.parent && window.parent !== window) {
         window.parent.location.assign(target);
@@ -3995,7 +4010,7 @@ export default function ListingDetailPage() {
       }
       window.location.assign(target);
     },
-    [embeddedSearchQuery, isEmbedded],
+    [embeddedSearchQuery, isEmbedded, trackTikTokSearch],
   );
 
   // Match browser-style back swipe: left-edge swipe should trigger the same flow as "zpět".
@@ -5150,6 +5165,7 @@ export default function ListingDetailPage() {
                       size="lg"
                       onClick={() => {
                         void trackListingAnalyticsEvent("contact_click");
+                        trackTikTokContact();
                         setShowContactDialog(true);
                       }}
                       data-testid="button-contact-seller"
@@ -5212,9 +5228,11 @@ export default function ListingDetailPage() {
                         tgText={t("detail.writeTelegram") || "Telegram"}
                         className="pt-2"
                         toastFn={toast}
-                        onWhatsAppClick={() =>
-                          void trackListingAnalyticsEvent("whatsapp_click")
-                        }
+                        onWhatsAppClick={() => {
+                          void trackListingAnalyticsEvent("whatsapp_click");
+                          trackTikTokContact();
+                        }}
+                        onTelegramClick={trackTikTokContact}
                       />
                     ) : null}
 
@@ -5594,6 +5612,7 @@ function ContactChatButtons({
   className = "",
   toastFn,
   onWhatsAppClick,
+  onTelegramClick,
 }: {
   phone?: string | null;
   carTitle: string;
@@ -5606,6 +5625,7 @@ function ContactChatButtons({
     variant?: "default" | "destructive";
   }) => void;
   onWhatsAppClick?: () => void;
+  onTelegramClick?: () => void;
 }) {
   const digits = phoneToDigits(phone);
   if (!digits) return null;
@@ -5653,6 +5673,7 @@ function ContactChatButtons({
         size="lg"
         className={`${btn} border-[#B8860B]/30 hover:border-[#B8860B] hover:bg-[#B8860B]/5`}
         onClick={async () => {
+          onTelegramClick?.();
           // 1) копіюємо текст (і перевіряємо чи реально скопіювало)
           const ok = await copyToClipboard(message);
 

@@ -4203,6 +4203,12 @@ function MobileFilters({
               <Button
                 className="w-full h-12 rounded-xl shadow-md"
                 onClick={() => {
+                  if (typeof window !== "undefined") {
+                    const ttq = (window as typeof window & { ttq?: { track?: Function } }).ttq;
+                    if (typeof ttq !== "undefined" && typeof ttq.track === "function") {
+                      ttq.track("Search");
+                    }
+                  }
                   applyFilters();
                   setOpen(false);
                 }}
