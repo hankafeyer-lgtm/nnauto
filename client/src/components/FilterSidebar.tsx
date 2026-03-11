@@ -2664,22 +2664,7 @@ function FilterSidebar() {
   const powerMin = filters.powerMin ?? 0;
   const powerMax = filters.powerMax ?? 1000;
 
-  const preserveCurrentScroll = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const preservedScrollY = window.scrollY;
-    requestAnimationFrame(() => {
-      window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
-    });
-    window.setTimeout(() => {
-      window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
-    }, 120);
-    window.setTimeout(() => {
-      window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
-    }, 260);
-  }, []);
-
   const handleConditionToggle = (value: string) => {
-    preserveCurrentScroll();
     setFilters((prev) => ({
       ...prev,
       condition: toggleInArray(prev.condition, value) ?? [],
