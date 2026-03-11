@@ -2624,8 +2624,10 @@ function Hero() {
     : [];
 
   const handleVehicleTypeToggle = (type: string) => {
-    const currentTypes = filters.vehicleType
-      ? filters.vehicleType.split(",").filter(Boolean)
+    const currentVehicleType =
+      pendingVehicleTypeRef.current || filters.vehicleType || "";
+    const currentTypes = currentVehicleType
+      ? currentVehicleType.split(",").filter(Boolean)
       : [];
     const isAlreadySelected = currentTypes.includes(type);
     const nextVehicleType = isAlreadySelected ? "" : type;
@@ -2645,7 +2647,8 @@ function Hero() {
     const isMotorcyclesQuickFilter = value === "motorky";
 
     if (isMotorcyclesQuickFilter) {
-      const shouldClearMotorcycles = filters.vehicleType === "motorky";
+      const shouldClearMotorcycles =
+        (pendingVehicleTypeRef.current || filters.vehicleType) === "motorky";
       pendingConditionRef.current = [];
       setCondition([]);
       if (!isMobile) setDesktopConditionDraft([]);
@@ -2669,7 +2672,7 @@ function Hero() {
       : [value];
     pendingConditionRef.current = nextConditionValues;
 
-    if (filters.vehicleType === "motorky") {
+    if ((pendingVehicleTypeRef.current || filters.vehicleType) === "motorky") {
       pendingVehicleTypeRef.current = undefined;
       setFilters((prev) => ({
         ...prev,
