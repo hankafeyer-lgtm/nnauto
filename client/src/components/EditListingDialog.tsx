@@ -981,7 +981,6 @@ export default function EditListingDialog({
     [t],
   );
 
-  const bodyTypes = localizedOptions.getBodyTypes();
   const colors = localizedOptions.getColors();
   const driveTypes = localizedOptions.getDriveTypes();
   const regions = localizedOptions.getRegions();
@@ -1036,6 +1035,7 @@ export default function EditListingDialog({
   const vehicleTypeValue = selectedVehicleType
     ? asString(selectedVehicleType)
     : undefined;
+  const bodyTypes = localizedOptions.getBodyTypes(vehicleTypeValue);
 
   const availableModels = useMemo(() => {
     if (!brandValue) return [];
@@ -1377,7 +1377,17 @@ export default function EditListingDialog({
                       <FormItem>
                         <FormLabel>{t("listing.vehicleType")}</FormLabel>
                         <Select
-                          onValueChange={field.onChange}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            form.setValue("model", "" as any, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                            form.setValue("bodyType", undefined as any, {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
+                          }}
                           value={asString(field.value) || ""}
                         >
                           <FormControl>

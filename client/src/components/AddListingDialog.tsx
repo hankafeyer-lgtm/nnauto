@@ -101,7 +101,6 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
     { value: "cvt", label: t("filters.cvt") },
   ];
 
-  const bodyTypes = localizedOptions.getBodyTypes();
   const colors = localizedOptions.getColors();
   const driveTypes = localizedOptions.getDriveTypes();
   const regions = localizedOptions.getRegions();
@@ -144,6 +143,7 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
   const selectedBrand = form.watch("brand");
   const selectedVehicleType = form.watch("vehicleType");
   const isTopListing = form.watch("isTopListing");
+  const bodyTypes = localizedOptions.getBodyTypes(selectedVehicleType ?? undefined);
   const availableModels = selectedBrand ? getModelsForVehicleType(selectedBrand, selectedVehicleType ?? undefined) : [];
 
   const onSubmit = async (data: InsertListing) => {
@@ -331,7 +331,14 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>{t("listing.vehicleType")}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value || ""}>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          form.setValue("model", "");
+                          form.setValue("bodyType", undefined as any);
+                        }}
+                        value={field.value || ""}
+                      >
                         <FormControl>
                           <SelectTrigger data-testid="select-vehicle-type">
                             <SelectValue placeholder={t("listing.selectVehicleType")} />

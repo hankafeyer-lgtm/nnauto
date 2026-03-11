@@ -792,7 +792,6 @@ export default function AddListingPage() {
     { value: "exchange", label: t("filters.exchange") },
   ];
 
-  const bodyTypes = localizedOptions.getBodyTypes();
   const colors = localizedOptions.getColors();
   const driveTypes = localizedOptions.getDriveTypes();
   const regions = localizedOptions.getRegions();
@@ -856,6 +855,7 @@ export default function AddListingPage() {
   const selectedVehicleType = form.watch("vehicleType");
   const isTopListing = form.watch("isTopListing");
   const isImported = form.watch("isImported");
+  const bodyTypes = localizedOptions.getBodyTypes(selectedVehicleType ?? undefined);
   const availableModels = selectedBrand ? getModelsForVehicleType(selectedBrand, selectedVehicleType ?? undefined) : [];
 
   useEffect(() => {
@@ -1442,9 +1442,13 @@ export default function AddListingPage() {
                                           onClick={() => {
                                             if (isSelected) {
                                               form.setValue("vehicleType", "" as any);
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             } else {
                                               form.setValue("vehicleType", "osobni-auta");
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             }
                                           }}
@@ -1466,9 +1470,13 @@ export default function AddListingPage() {
                                           onClick={() => {
                                             if (isSelected) {
                                               form.setValue("vehicleType", "" as any);
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             } else {
                                               form.setValue("vehicleType", "dodavky");
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             }
                                           }}
@@ -1490,9 +1498,13 @@ export default function AddListingPage() {
                                           onClick={() => {
                                             if (isSelected) {
                                               form.setValue("vehicleType", "" as any);
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             } else {
                                               form.setValue("vehicleType", "nakladni-vozy");
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             }
                                           }}
@@ -1514,9 +1526,13 @@ export default function AddListingPage() {
                                           onClick={() => {
                                             if (isSelected) {
                                               form.setValue("vehicleType", "" as any);
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             } else {
                                               form.setValue("vehicleType", "motorky");
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             }
                                           }}
@@ -1538,9 +1554,13 @@ export default function AddListingPage() {
                                           onClick={() => {
                                             if (isSelected) {
                                               form.setValue("vehicleType", "" as any);
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             } else {
                                               form.setValue("vehicleType", "suv-offroad");
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             }
                                           }}
@@ -1562,9 +1582,13 @@ export default function AddListingPage() {
                                           onClick={() => {
                                             if (isSelected) {
                                               form.setValue("vehicleType", "" as any);
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             } else {
                                               form.setValue("vehicleType", "elektro");
+                                              form.setValue("model", "" as any);
+                                              form.setValue("bodyType", undefined as any);
                                               field.onChange(undefined);
                                             }
                                           }}
