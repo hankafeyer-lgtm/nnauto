@@ -3485,6 +3485,7 @@ export default function ListingsPage() {
     if (filters.vehicleType) p.set("vehicleType", filters.vehicleType);
     if (filters.brand) p.set("brand", filters.brand);
     if (filters.model) p.set("model", filters.model);
+    if (filters.generation) p.set("generation", filters.generation);
 
     if (filters.priceMin !== undefined)
       p.set("priceMin", String(filters.priceMin));

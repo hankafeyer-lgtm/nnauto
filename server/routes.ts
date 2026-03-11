@@ -8,6 +8,7 @@ import {
   listings as listingsTable,
   brands as brandsTable,
   models as modelsTable,
+  modelGenerations as modelGenerationsTable,
   insertListingSchema,
   updateListingSchema,
   insertUserSchema,
@@ -18,6 +19,8 @@ import {
   changeEmailSchema,
 } from "@shared/schema";
 import { POPULAR_BRAND_MODEL_CATALOG } from "@shared/brandModelCatalog";
+import { MODEL_GENERATION_CATALOG } from "@shared/modelGenerationCatalog";
+import { carBrands, carModels } from "@shared/carDatabase";
 import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import "./types";
@@ -300,15 +303,64 @@ const ensureBrandModelCatalog = async () => {
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS models_name_idx ON models (name)
   `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS model_generations (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      model_id VARCHAR NOT NULL REFERENCES models(id) ON DELETE CASCADE,
+      slug VARCHAR(180) NOT NULL,
+      name TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      updated_at TIMESTAMP NOT NULL DEFAULT now(),
+      CONSTRAINT model_generations_model_slug_unique UNIQUE (model_id, slug)
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS model_generations_model_idx ON model_generations (model_id)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS model_generations_name_idx ON model_generations (name)
+  `);
+
+  const catalogByBrand = new Map<
+    string,
+    { name: string; models: Set<string> }
+  >();
+
+  for (const brand of carBrands) {
+    const brandSlug = slugify(brand.value);
+    if (!brandSlug) continue;
+    const bucket = catalogByBrand.get(brandSlug) || {
+      name: brand.label,
+      models: new Set<string>(),
+    };
+    bucket.name = bucket.name || brand.label;
+    for (const modelName of carModels[brand.value] || []) {
+      const trimmed = String(modelName || "").trim();
+      if (trimmed) bucket.models.add(trimmed);
+    }
+    catalogByBrand.set(brandSlug, bucket);
+  }
 
   for (const entry of POPULAR_BRAND_MODEL_CATALOG) {
     const brandSlug = slugify(entry.slug);
     const brandName = entry.name.trim();
-    if (!brandSlug || !brandName) continue;
+    if (!brandSlug) continue;
+    const bucket = catalogByBrand.get(brandSlug) || {
+      name: brandName || entry.slug,
+      models: new Set<string>(),
+    };
+    if (brandName) bucket.name = brandName;
+    for (const modelName of entry.models) {
+      const trimmed = String(modelName || "").trim();
+      if (trimmed) bucket.models.add(trimmed);
+    }
+    catalogByBrand.set(brandSlug, bucket);
+  }
 
+  for (const [brandSlug, bucket] of catalogByBrand) {
     const brandRows = await db.execute<{ id: string }>(sql`
       INSERT INTO brands (slug, name, updated_at)
-      VALUES (${brandSlug}, ${brandName}, now())
+      VALUES (${brandSlug}, ${bucket.name}, now())
       ON CONFLICT (slug) DO UPDATE
       SET name = EXCLUDED.name, updated_at = now()
       RETURNING id
@@ -316,17 +368,41 @@ const ensureBrandModelCatalog = async () => {
     const brandId = brandRows.rows[0]?.id;
     if (!brandId) continue;
 
-    for (const modelNameRaw of entry.models) {
-      const modelName = modelNameRaw.trim();
+    for (const modelNameRaw of bucket.models) {
+      const modelName = String(modelNameRaw || "").trim();
       const modelSlug = slugify(modelName);
       if (!modelName || !modelSlug) continue;
 
-      await db.execute(sql`
+      const modelRows = await db.execute<{ id: string }>(sql`
         INSERT INTO models (brand_id, slug, name, updated_at)
         VALUES (${brandId}, ${modelSlug}, ${modelName}, now())
         ON CONFLICT (brand_id, slug) DO UPDATE
         SET name = EXCLUDED.name, updated_at = now()
+        RETURNING id
       `);
+      const modelId = modelRows.rows[0]?.id;
+      if (!modelId) continue;
+
+      const generationSeed =
+        MODEL_GENERATION_CATALOG[brandSlug]?.[modelSlug] || ["Standard"];
+      const uniqueGenerations = Array.from(
+        new Set(
+          generationSeed
+            .map((item) => String(item || "").trim())
+            .filter(Boolean),
+        ),
+      );
+
+      for (const generationName of uniqueGenerations) {
+        const generationSlug = slugify(generationName);
+        if (!generationSlug) continue;
+        await db.execute(sql`
+          INSERT INTO model_generations (model_id, slug, name, updated_at)
+          VALUES (${modelId}, ${generationSlug}, ${generationName}, now())
+          ON CONFLICT (model_id, slug) DO UPDATE
+          SET name = EXCLUDED.name, updated_at = now()
+        `);
+      }
     }
   }
 };
@@ -1842,6 +1918,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("[catalog][models] failed:", error);
       return res.status(500).json({ error: "Failed to load models catalog" });
+    }
+  });
+
+  app.get("/api/catalog/generations", async (req: Request, res: Response) => {
+    try {
+      const brandRaw =
+        typeof req.query.brand === "string" ? req.query.brand.trim() : "";
+      const modelRaw =
+        typeof req.query.model === "string" ? req.query.model.trim() : "";
+      if (!brandRaw || !modelRaw) {
+        return res.json({ generations: [] });
+      }
+
+      const wantedBrandSlug = slugify(brandRaw);
+      const [brand] = await db
+        .select({ id: brandsTable.id })
+        .from(brandsTable)
+        .where(
+          or(
+            eq(brandsTable.slug, wantedBrandSlug),
+            eq(brandsTable.id, brandRaw),
+            ilike(brandsTable.name, brandRaw),
+          )!,
+        )
+        .limit(1);
+      if (!brand) {
+        return res.json({ generations: [] });
+      }
+
+      const wantedModelSlug = slugify(modelRaw);
+      const [model] = await db
+        .select({ id: modelsTable.id })
+        .from(modelsTable)
+        .where(
+          and(
+            eq(modelsTable.brandId, brand.id),
+            or(
+              eq(modelsTable.slug, wantedModelSlug),
+              eq(modelsTable.id, modelRaw),
+              ilike(modelsTable.name, modelRaw),
+            )!,
+          ),
+        )
+        .limit(1);
+      if (!model) {
+        return res.json({ generations: [] });
+      }
+
+      const generations = await db
+        .select({
+          id: modelGenerationsTable.id,
+          slug: modelGenerationsTable.slug,
+          name: modelGenerationsTable.name,
+        })
+        .from(modelGenerationsTable)
+        .where(eq(modelGenerationsTable.modelId, model.id))
+        .orderBy(asc(modelGenerationsTable.name));
+
+      return res.json({ generations });
+    } catch (error: any) {
+      console.error("[catalog][generations] failed:", error);
+      return res.status(500).json({ error: "Failed to load generations catalog" });
     }
   });
 
@@ -5423,6 +5561,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (typeof q.model === "string" && q.model.trim()) {
         const wanted = slugify(q.model);
         allListings = allListings.filter((l) => slugify(l.model || "") === wanted);
+      }
+
+      if (typeof q.generation === "string" && q.generation.trim()) {
+        const wanted = slugify(q.generation);
+        allListings = allListings.filter((l) => {
+          const generationSource =
+            ((l as Record<string, unknown>).generation as string | undefined) ||
+            l.trim ||
+            "";
+          return slugify(generationSource) === wanted;
+        });
       }
 
       const priceMin = toNumber(q.priceMin);

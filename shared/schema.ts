@@ -136,6 +136,25 @@ export const models = pgTable(
   ],
 );
 
+export const modelGenerations = pgTable(
+  "model_generations",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    modelId: varchar("model_id")
+      .notNull()
+      .references(() => models.id, { onDelete: "cascade" }),
+    slug: varchar("slug", { length: 180 }).notNull(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    uniqueIndex("model_generations_model_slug_unique").on(t.modelId, t.slug),
+    index("model_generations_model_idx").on(t.modelId),
+    index("model_generations_name_idx").on(t.name),
+  ],
+);
+
 export const listings = pgTable(
   "listings",
   {
@@ -257,6 +276,7 @@ export type UpdateListing = z.infer<typeof updateListingSchema>;
 export type Listing = typeof listings.$inferSelect;
 export type Brand = typeof brands.$inferSelect;
 export type Model = typeof models.$inferSelect;
+export type ModelGeneration = typeof modelGenerations.$inferSelect;
 
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

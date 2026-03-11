@@ -438,6 +438,7 @@ export interface FilterParams {
   vehicleType?: string;
   brand?: string;
   model?: string;
+  generation?: string;
   priceMin?: number;
   priceMax?: number;
   yearMin?: number;
@@ -607,6 +608,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       ),
       brand: params.get("brand") || undefined,
       model: params.get("model") || undefined,
+      generation: params.get("generation") || undefined,
       priceMin: params.get("priceMin")
         ? parseInt(params.get("priceMin")!)
         : undefined,
@@ -748,6 +750,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
         params.set("vehicleType", normalizedVehicleType);
       if (newFilters.brand) params.set("brand", newFilters.brand);
       if (newFilters.model) params.set("model", newFilters.model);
+      if (newFilters.generation) params.set("generation", newFilters.generation);
       if (newFilters.priceMin !== undefined && !isNaN(newFilters.priceMin))
         params.set("priceMin", String(newFilters.priceMin));
       if (newFilters.priceMax !== undefined && !isNaN(newFilters.priceMax))
@@ -871,14 +874,26 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
   const setBrand = useCallback(
     (brand: string) => {
-      setFilters((prev) => ({ ...prev, brand, model: undefined }));
+      setFilters((prev) => ({
+        ...prev,
+        brand,
+        model: undefined,
+        generation: undefined,
+      }));
     },
     [setFilters],
   );
 
   const setModel = useCallback(
     (model: string) => {
-      setFilters((prev) => ({ ...prev, model }));
+      setFilters((prev) => ({ ...prev, model, generation: undefined }));
+    },
+    [setFilters],
+  );
+
+  const setGeneration = useCallback(
+    (generation: string) => {
+      setFilters((prev) => ({ ...prev, generation: generation || undefined }));
     },
     [setFilters],
   );
@@ -1120,6 +1135,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       params.set("vehicleType", normalizedVehicleType);
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);
+    if (filters.generation) params.set("generation", filters.generation);
     if (filters.priceMin !== undefined && !isNaN(filters.priceMin))
       params.set("priceMin", String(filters.priceMin));
     if (filters.priceMax !== undefined && !isNaN(filters.priceMax))
@@ -1199,6 +1215,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     setVehicleType,
     setBrand,
     setModel,
+    setGeneration,
     setPriceRange,
     setYearRange,
     setMileageRange,

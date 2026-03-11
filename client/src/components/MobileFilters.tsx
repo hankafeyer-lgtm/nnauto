@@ -2704,6 +2704,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { useBrandModels } from "@/hooks/useBrandModels";
+import { useModelGenerations } from "@/hooks/useModelGenerations";
 import {
   useTranslation,
   useLocalizedOptions,
@@ -2827,6 +2828,7 @@ function MobileFilters({
 
     setBrand,
     setModel,
+    setGeneration,
 
     setPriceRange,
     setYearRange,
@@ -2934,6 +2936,10 @@ function MobileFilters({
     return base.map((b) => ({ ...b, icon: brandIcons[b.value] }));
   }, [selectedVehicleTypes]);
   const { models: catalogModels } = useBrandModels(filters.brand);
+  const { generations: availableGenerations } = useModelGenerations(
+    filters.brand,
+    filters.model,
+  );
 
   const availableModels = useMemo(() => {
     if (!filters.brand) return [];
@@ -2970,6 +2976,7 @@ function MobileFilters({
         ...prev,
         vehicleType: nextVehicleType,
         model: undefined, // clear stale model from another vehicle type
+        generation: undefined,
         bodyType: undefined, // при зміні типу авто — скидаємо кузов
       };
     });
@@ -3424,6 +3431,26 @@ function MobileFilters({
                       }
                       emptyMessage={t("hero.noModelsFound")}
                       testId="select-mobile-filter-model"
+                    />
+                  </div>
+
+                  <div className="space-y-4">
+                    <Label className="text-base font-medium">
+                      Generace / Version
+                    </Label>
+
+                    <ModelCombobox
+                      models={availableGenerations}
+                      value={filters.generation || ""}
+                      onValueChange={setGeneration}
+                      disabled={!filters.model}
+                      placeholder={
+                        filters.model
+                          ? "Generace / Version"
+                          : "Nejdříve vyberte model"
+                      }
+                      emptyMessage="Generace / Version nenalezena"
+                      testId="select-mobile-filter-generation"
                     />
                   </div>
                 </CollapsibleContent>
