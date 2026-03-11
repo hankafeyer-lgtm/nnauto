@@ -3190,7 +3190,6 @@ export default function ListingDetailPage() {
   const [cebiaDialogOpen, setCebiaDialogOpen] = useState(false);
   const swipeStartXRef = useRef<number | null>(null);
   const swipeStartYRef = useRef<number | null>(null);
-  const tiktokTrackedListingRef = useRef<string | null>(null);
   const [cebiaGuest, setCebiaGuest] = useState<{ reportId: string; token: string } | null>(
     null,
   );
@@ -3240,23 +3239,6 @@ export default function ListingDetailPage() {
     queryKey: [`/api/users/${listing?.userId}`],
     enabled: !!listing?.userId,
   });
-
-  useEffect(() => {
-    if (!listing?.id) return;
-    if (tiktokTrackedListingRef.current === listing.id) return;
-    if (typeof window === "undefined") return;
-
-    const ttq = (window as typeof window & { ttq?: { track?: Function } }).ttq;
-    if (typeof ttq === "undefined" || typeof ttq.track !== "function") return;
-
-    ttq.track("ViewContent", {
-      content_type: "product",
-      content_category: "car",
-      content_name: document.title,
-      currency: "CZK",
-    });
-    tiktokTrackedListingRef.current = listing.id;
-  }, [listing?.id]);
 
   const canSeeListingAnalytics =
     !!listing && !!user && (user.isAdmin || user.id === listing.userId);
