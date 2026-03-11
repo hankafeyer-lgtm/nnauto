@@ -602,7 +602,9 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       search: params.get("search") || undefined,
       // Legacy category filter is no longer used in UI filtering flow.
       category: undefined,
-      vehicleType: normalizeSingleVehicleType(params.get("vehicleType")),
+      vehicleType: normalizeSingleVehicleType(
+        params.get("vehicleType") || params.get("vehicle_type"),
+      ),
       brand: params.get("brand") || undefined,
       model: params.get("model") || undefined,
       priceMin: params.get("priceMin")

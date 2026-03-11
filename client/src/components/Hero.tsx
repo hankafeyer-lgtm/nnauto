@@ -2257,7 +2257,10 @@ function Hero() {
     const topConditionValues = pendingConditionRef.current;
     const effectiveVehicleType =
       pendingVehicleTypeRef.current || filters.vehicleType;
-    if (effectiveVehicleType) params.set("vehicleType", effectiveVehicleType);
+    if (effectiveVehicleType) {
+      params.set("vehicleType", effectiveVehicleType);
+      params.set("vehicle_type", effectiveVehicleType);
+    }
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);
     if (filters.priceMin) params.set("priceMin", filters.priceMin.toString());
@@ -2576,7 +2579,10 @@ function Hero() {
       pendingVehicleTypeRef.current || filters.vehicleType;
 
     const params = new URLSearchParams();
-    if (effectiveVehicleType) params.set("vehicleType", effectiveVehicleType);
+    if (effectiveVehicleType) {
+      params.set("vehicleType", effectiveVehicleType);
+      params.set("vehicle_type", effectiveVehicleType);
+    }
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);
     if (filters.priceMin) params.set("priceMin", filters.priceMin.toString());
@@ -2738,6 +2744,13 @@ function Hero() {
             onSubmit={handleSearch}
             className="bg-background/95 backdrop-blur-2xl rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 shadow-2xl border border-white/10"
           >
+            <input
+              type="hidden"
+              name="vehicle_type"
+              id="vehicleType"
+              value={pendingVehicleTypeRef.current || filters.vehicleType || ""}
+              readOnly
+            />
             <div className="mb-3 sm:mb-4 lg:mb-5">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 lg:gap-3 mb-4">
                 {[

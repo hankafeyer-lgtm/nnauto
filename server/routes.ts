@@ -5389,8 +5389,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      if (typeof q.vehicleType === "string" && q.vehicleType.trim()) {
-        const wanted = parseCsv(q.vehicleType).map(normalizeVehicleTypeFilterKey);
+      const rawVehicleTypeQuery =
+        typeof q.vehicleType === "string" && q.vehicleType.trim()
+          ? q.vehicleType
+          : typeof (q as Record<string, unknown>).vehicle_type === "string" &&
+              (q as Record<string, string>).vehicle_type.trim()
+            ? (q as Record<string, string>).vehicle_type
+            : undefined;
+      if (rawVehicleTypeQuery) {
+        const wanted = parseCsv(rawVehicleTypeQuery).map(
+          normalizeVehicleTypeFilterKey,
+        );
         allListings = allListings.filter((l) =>
           wanted.includes(normalizeVehicleTypeFilterKey(l.vehicleType || "")),
         );
