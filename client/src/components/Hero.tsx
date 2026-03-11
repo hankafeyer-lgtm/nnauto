@@ -2624,21 +2624,21 @@ function Hero() {
     : [];
 
   const handleVehicleTypeToggle = (type: string) => {
-    setFilters((prev) => {
-      const currentTypes = prev.vehicleType
-        ? prev.vehicleType.split(",").filter(Boolean)
-        : [];
-      const isAlreadySelected = currentTypes.includes(type);
-      const nextVehicleType = isAlreadySelected ? "" : type;
-      pendingVehicleTypeRef.current = nextVehicleType || undefined;
+    const currentTypes = filters.vehicleType
+      ? filters.vehicleType.split(",").filter(Boolean)
+      : [];
+    const isAlreadySelected = currentTypes.includes(type);
+    const nextVehicleType = isAlreadySelected ? "" : type;
 
-      return {
-        ...prev,
-        vehicleType: nextVehicleType,
-        model: undefined, // clear stale model from another vehicle type
-        bodyType: undefined,
-      };
-    });
+    // Keep selected vehicle type immediately available for Vyhledat query.
+    pendingVehicleTypeRef.current = nextVehicleType || undefined;
+
+    setFilters((prev) => ({
+      ...prev,
+      vehicleType: nextVehicleType,
+      model: undefined, // clear stale model from another vehicle type
+      bodyType: undefined,
+    }));
   };
 
   const handleTopConditionToggle = (value: string) => {
