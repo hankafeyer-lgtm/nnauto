@@ -2633,8 +2633,8 @@ function Hero() {
 
     if (isMotorcyclesQuickFilter) {
       const shouldClearMotorcycles = filters.vehicleType === "motorky";
+      setCondition([]);
       if (!isMobile) setDesktopConditionDraft([]);
-      else setCondition([]);
 
       setFilters((prev) => ({
         ...prev,
@@ -2660,12 +2660,9 @@ function Hero() {
       }));
     }
 
-    if (isMobile) {
-      setCondition(nextConditionValues);
-      return;
-    }
-
-    setDesktopConditionDraft(nextConditionValues);
+    // Keep quick category in shared filter state so search query always has it.
+    setCondition(nextConditionValues);
+    if (!isMobile) setDesktopConditionDraft(nextConditionValues);
   };
 
   const conditionValuesForCards = isMobile
