@@ -2242,6 +2242,9 @@ function Hero() {
   // Build query params for listings count
   const buildQueryParams = () => {
     const params = new URLSearchParams();
+    const topConditionValues = isMobile
+      ? (filters.condition ?? [])
+      : desktopConditionDraft;
     if (filters.vehicleType) params.set("vehicleType", filters.vehicleType);
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);
@@ -2275,8 +2278,8 @@ function Hero() {
       params.set("ownersMin", filters.ownersMin.toString());
     if (filters.ownersMax)
       params.set("ownersMax", filters.ownersMax.toString());
-    if (filters.condition && filters.condition.length > 0)
-      params.set("condition", filters.condition.join(","));
+    if (topConditionValues.length)
+      params.set("condition", topConditionValues.join(","));
     if (filters.extras && filters.extras.length > 0)
       params.set("extras", filters.extras.join(","));
     if (filters.equipment && filters.equipment.length > 0)
@@ -2626,14 +2629,43 @@ function Hero() {
   };
 
   const handleTopConditionToggle = (value: string) => {
-    if (isMobile) {
-      handleCheckboxChange("condition", value);
+    const isMotorcyclesQuickFilter = value === "motorky";
+
+    if (isMotorcyclesQuickFilter) {
+      const shouldClearMotorcycles = filters.vehicleType === "motorky";
+      if (!isMobile) setDesktopConditionDraft([]);
+      else setCondition([]);
+
+      setFilters((prev) => ({
+        ...prev,
+        vehicleType: shouldClearMotorcycles ? "" : "motorky",
+        model: undefined,
+        bodyType: undefined,
+      }));
       return;
     }
 
-    setDesktopConditionDraft((prev) =>
-      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
-    );
+    // Any non-motorcycles quick condition should replace previous quick choice.
+    const nextConditionValues = (isMobile ? filters.condition : desktopConditionDraft)
+      ?.includes(value)
+      ? []
+      : [value];
+
+    if (filters.vehicleType === "motorky") {
+      setFilters((prev) => ({
+        ...prev,
+        vehicleType: "",
+        model: undefined,
+        bodyType: undefined,
+      }));
+    }
+
+    if (isMobile) {
+      setCondition(nextConditionValues);
+      return;
+    }
+
+    setDesktopConditionDraft(nextConditionValues);
   };
 
   const conditionValuesForCards = isMobile
@@ -2744,9 +2776,10 @@ function Hero() {
                       ]
                     : []),
                 ].map((condition) => {
-                  const isSelected = conditionValuesForCards.includes(
-                    condition.key,
-                  );
+                  const isSelected =
+                    condition.key === "motorky"
+                      ? filters.vehicleType === "motorky"
+                      : conditionValuesForCards.includes(condition.key);
                   const Icon = condition.icon;
                   const CustomIcon = condition.customIcon;
                   return (
