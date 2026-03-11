@@ -2457,6 +2457,7 @@ import {
 import { carBrands } from "@shared/carDatabase";
 
 import { useFilterParams } from "@/hooks/useFilterParams";
+import { useBrandModels } from "@/hooks/useBrandModels";
 import {
   useTranslation,
   useLocalizedOptions,
@@ -2590,6 +2591,7 @@ function FilterSidebar() {
     applyFilters,
   } = useFilterParams({ autoNavigate: false });
   const bodyTypes = localizedOptions.getBodyTypes(filters.vehicleType);
+  const { models: catalogModels } = useBrandModels(filters.brand);
 
   const [openSections, setOpenSections] = useState({
     vehicleType: true,
@@ -2621,10 +2623,10 @@ function FilterSidebar() {
   };
 
   const availableModels = useMemo(() => {
-    return filters.brand
-      ? getModelsForVehicleType(filters.brand, filters.vehicleType)
-      : [];
-  }, [filters.brand, filters.vehicleType]);
+    if (!filters.brand) return [];
+    if (catalogModels.length > 0) return catalogModels;
+    return getModelsForVehicleType(filters.brand, filters.vehicleType);
+  }, [catalogModels, filters.brand, filters.vehicleType]);
 
   const trimLevels = useMemo(
     () => [

@@ -2703,6 +2703,7 @@ import {
 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFilterParams } from "@/hooks/useFilterParams";
+import { useBrandModels } from "@/hooks/useBrandModels";
 import {
   useTranslation,
   useLocalizedOptions,
@@ -2932,12 +2933,13 @@ function MobileFilters({
 
     return base.map((b) => ({ ...b, icon: brandIcons[b.value] }));
   }, [selectedVehicleTypes]);
+  const { models: catalogModels } = useBrandModels(filters.brand);
 
   const availableModels = useMemo(() => {
-    return filters.brand
-      ? getModelsForVehicleType(filters.brand, filters.vehicleType)
-      : [];
-  }, [filters.brand, filters.vehicleType]);
+    if (!filters.brand) return [];
+    if (catalogModels.length > 0) return catalogModels;
+    return getModelsForVehicleType(filters.brand, filters.vehicleType);
+  }, [catalogModels, filters.brand, filters.vehicleType]);
 
   const priceMin = filters.priceMin;
   const priceMax = filters.priceMax;

@@ -6,6 +6,8 @@ import fs from "fs";
 import path from "path";
 import {
   listings as listingsTable,
+  brands as brandsTable,
+  models as modelsTable,
   insertListingSchema,
   updateListingSchema,
   insertUserSchema,
@@ -15,6 +17,7 @@ import {
   verifyEmailSchema,
   changeEmailSchema,
 } from "@shared/schema";
+import { POPULAR_BRAND_MODEL_CATALOG } from "@shared/brandModelCatalog";
 import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import "./types";
@@ -265,6 +268,67 @@ const ensureListingsIndexes = async () => {
     CREATE INDEX IF NOT EXISTS listings_user_id_idx
     ON listings (user_id)
   `);
+};
+
+const ensureBrandModelCatalog = async () => {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS brands (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      slug VARCHAR(120) NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      updated_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS models (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      brand_id VARCHAR NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+      slug VARCHAR(160) NOT NULL,
+      name TEXT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      updated_at TIMESTAMP NOT NULL DEFAULT now(),
+      CONSTRAINT models_brand_slug_unique UNIQUE (brand_id, slug)
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS brands_name_idx ON brands (name)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS models_brand_idx ON models (brand_id)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS models_name_idx ON models (name)
+  `);
+
+  for (const entry of POPULAR_BRAND_MODEL_CATALOG) {
+    const brandSlug = slugify(entry.slug);
+    const brandName = entry.name.trim();
+    if (!brandSlug || !brandName) continue;
+
+    const brandRows = await db.execute<{ id: string }>(sql`
+      INSERT INTO brands (slug, name, updated_at)
+      VALUES (${brandSlug}, ${brandName}, now())
+      ON CONFLICT (slug) DO UPDATE
+      SET name = EXCLUDED.name, updated_at = now()
+      RETURNING id
+    `);
+    const brandId = brandRows.rows[0]?.id;
+    if (!brandId) continue;
+
+    for (const modelNameRaw of entry.models) {
+      const modelName = modelNameRaw.trim();
+      const modelSlug = slugify(modelName);
+      if (!modelName || !modelSlug) continue;
+
+      await db.execute(sql`
+        INSERT INTO models (brand_id, slug, name, updated_at)
+        VALUES (${brandId}, ${modelSlug}, ${modelName}, now())
+        ON CONFLICT (brand_id, slug) DO UPDATE
+        SET name = EXCLUDED.name, updated_at = now()
+      `);
+    }
+  }
 };
 
 type ListingsFastCacheEntry = {
@@ -1721,7 +1785,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   await ensureListingAnalyticsTable();
   await ensureListingsIndexes();
+  await ensureBrandModelCatalog();
   app.set("etag", "weak");
+
+  app.get("/api/catalog/brands", async (_req: Request, res: Response) => {
+    try {
+      const brands = await db
+        .select({
+          id: brandsTable.id,
+          slug: brandsTable.slug,
+          name: brandsTable.name,
+        })
+        .from(brandsTable)
+        .orderBy(asc(brandsTable.name));
+      return res.json({ brands });
+    } catch (error: any) {
+      console.error("[catalog][brands] failed:", error);
+      return res.status(500).json({ error: "Failed to load brands catalog" });
+    }
+  });
+
+  app.get("/api/catalog/models", async (req: Request, res: Response) => {
+    try {
+      const brandRaw =
+        typeof req.query.brand === "string" ? req.query.brand.trim() : "";
+      if (!brandRaw) {
+        return res.json({ models: [] });
+      }
+
+      const wantedSlug = slugify(brandRaw);
+      const [brand] = await db
+        .select({ id: brandsTable.id })
+        .from(brandsTable)
+        .where(
+          or(
+            eq(brandsTable.slug, wantedSlug),
+            eq(brandsTable.id, brandRaw),
+            ilike(brandsTable.name, brandRaw),
+          )!,
+        )
+        .limit(1);
+      if (!brand) {
+        return res.json({ models: [] });
+      }
+
+      const models = await db
+        .select({
+          id: modelsTable.id,
+          slug: modelsTable.slug,
+          name: modelsTable.name,
+        })
+        .from(modelsTable)
+        .where(eq(modelsTable.brandId, brand.id))
+        .orderBy(asc(modelsTable.name));
+      return res.json({ models });
+    } catch (error: any) {
+      console.error("[catalog][models] failed:", error);
+      return res.status(500).json({ error: "Failed to load models catalog" });
+    }
+  });
+
   // Test session save endpoint - comprehensive session diagnostics
   app.get("/api/health/test-session", async (req, res) => {
     const replitDeployment = process.env.REPLIT_DEPLOYMENT;

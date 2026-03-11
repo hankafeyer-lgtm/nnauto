@@ -1866,6 +1866,7 @@ import usedCarIcon from "@assets/ABAF6CAB-50AC-450D-8FE8-342C0DF354D6_1763451176
 import orderCarIcon from "@assets/A6BE7880-928D-4532-BCB1-3FA4A34F89CE_1763451456108.png";
 import { carBrands, carModels } from "@shared/carDatabase";
 import { useFilterParams } from "@/hooks/useFilterParams";
+import { useBrandModels } from "@/hooks/useBrandModels";
 import {
   useTranslation,
   useLocalizedOptions,
@@ -2625,9 +2626,13 @@ function Hero() {
     setLocation(queryString ? `/listings?${queryString}` : "/listings");
   };
 
-  const availableModels = filters.brand
-    ? getModelsForVehicleType(filters.brand, filters.vehicleType)
-    : [];
+  const { models: catalogModels } = useBrandModels(filters.brand);
+  const availableModels =
+    catalogModels.length > 0
+      ? catalogModels
+      : filters.brand
+        ? getModelsForVehicleType(filters.brand, filters.vehicleType)
+        : [];
 
   const handleVehicleTypeToggle = (type: string) => {
     const currentVehicleType =

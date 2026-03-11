@@ -1,5 +1,16 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  integer,
+  decimal,
+  boolean,
+  timestamp,
+  jsonb,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -90,6 +101,40 @@ export type ChangePasswordRequest = z.infer<typeof changePasswordSchema>;
 export type VerifyEmailRequest = z.infer<typeof verifyEmailSchema>;
 export type ChangeEmailRequest = z.infer<typeof changeEmailSchema>;
 export type User = typeof users.$inferSelect;
+
+export const brands = pgTable(
+  "brands",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    slug: varchar("slug", { length: 120 }).notNull(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    uniqueIndex("brands_slug_unique").on(t.slug),
+    index("brands_name_idx").on(t.name),
+  ],
+);
+
+export const models = pgTable(
+  "models",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    brandId: varchar("brand_id")
+      .notNull()
+      .references(() => brands.id, { onDelete: "cascade" }),
+    slug: varchar("slug", { length: 160 }).notNull(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    uniqueIndex("models_brand_slug_unique").on(t.brandId, t.slug),
+    index("models_brand_idx").on(t.brandId),
+    index("models_name_idx").on(t.name),
+  ],
+);
 
 export const listings = pgTable(
   "listings",
@@ -210,6 +255,8 @@ export const updateListingSchema = insertListingSchema.extend({
 export type InsertListing = z.infer<typeof insertListingSchema>;
 export type UpdateListing = z.infer<typeof updateListingSchema>;
 export type Listing = typeof listings.$inferSelect;
+export type Brand = typeof brands.$inferSelect;
+export type Model = typeof models.$inferSelect;
 
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
