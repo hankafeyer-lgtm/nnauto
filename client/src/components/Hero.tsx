@@ -2103,6 +2103,10 @@ function Hero() {
   const [desktopConditionDraft, setDesktopConditionDraft] = useState<string[]>(
     filters.condition ?? [],
   );
+  const pendingVehicleTypeRef = useRef<string | undefined>(
+    filters.vehicleType || undefined,
+  );
+  const pendingConditionRef = useRef<string[]>(filters.condition ?? []);
   const [mileageFilterType, setMileageFilterType] = useState<
     "50k" | "100k" | "250k" | "custom" | ""
   >("");
@@ -2218,6 +2222,14 @@ function Hero() {
     setDesktopConditionDraft(filters.condition ?? []);
   }, [isMobile, filters.condition]);
 
+  useEffect(() => {
+    pendingVehicleTypeRef.current = filters.vehicleType || undefined;
+  }, [filters.vehicleType]);
+
+  useEffect(() => {
+    pendingConditionRef.current = filters.condition ?? [];
+  }, [filters.condition]);
+
   const bodyTypeIcons: Record<string, any> = {
     sedan: SedanIcon,
     hatchback: HatchbackIcon,
@@ -2242,10 +2254,10 @@ function Hero() {
   // Build query params for listings count
   const buildQueryParams = () => {
     const params = new URLSearchParams();
-    const topConditionValues = isMobile
-      ? (filters.condition ?? [])
-      : desktopConditionDraft;
-    if (filters.vehicleType) params.set("vehicleType", filters.vehicleType);
+    const topConditionValues = pendingConditionRef.current;
+    const effectiveVehicleType =
+      pendingVehicleTypeRef.current || filters.vehicleType;
+    if (effectiveVehicleType) params.set("vehicleType", effectiveVehicleType);
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);
     if (filters.priceMin) params.set("priceMin", filters.priceMin.toString());
@@ -2559,12 +2571,12 @@ function Hero() {
     e.preventDefault();
 
     if (isMobile && !force) return;
-    const conditionValues = isMobile
-      ? (filters.condition ?? [])
-      : desktopConditionDraft;
+    const conditionValues = pendingConditionRef.current;
+    const effectiveVehicleType =
+      pendingVehicleTypeRef.current || filters.vehicleType;
 
     const params = new URLSearchParams();
-    if (filters.vehicleType) params.set("vehicleType", filters.vehicleType);
+    if (effectiveVehicleType) params.set("vehicleType", effectiveVehicleType);
     if (filters.brand) params.set("brand", filters.brand);
     if (filters.model) params.set("model", filters.model);
     if (filters.priceMin) params.set("priceMin", filters.priceMin.toString());
@@ -2618,6 +2630,7 @@ function Hero() {
         : [];
       const isAlreadySelected = currentTypes.includes(type);
       const nextVehicleType = isAlreadySelected ? "" : type;
+      pendingVehicleTypeRef.current = nextVehicleType || undefined;
 
       return {
         ...prev,
@@ -2633,9 +2646,13 @@ function Hero() {
 
     if (isMotorcyclesQuickFilter) {
       const shouldClearMotorcycles = filters.vehicleType === "motorky";
+      pendingConditionRef.current = [];
       setCondition([]);
       if (!isMobile) setDesktopConditionDraft([]);
 
+      pendingVehicleTypeRef.current = shouldClearMotorcycles
+        ? undefined
+        : "motorky";
       setFilters((prev) => ({
         ...prev,
         vehicleType: shouldClearMotorcycles ? "" : "motorky",
@@ -2650,8 +2667,10 @@ function Hero() {
       ?.includes(value)
       ? []
       : [value];
+    pendingConditionRef.current = nextConditionValues;
 
     if (filters.vehicleType === "motorky") {
+      pendingVehicleTypeRef.current = undefined;
       setFilters((prev) => ({
         ...prev,
         vehicleType: "",
