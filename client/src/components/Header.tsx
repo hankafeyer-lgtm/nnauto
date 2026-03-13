@@ -340,7 +340,7 @@ function HeaderContent({
         >
           <div
             onClick={handleLogoClick}
-            className="cursor-pointer"
+            className="relative z-20 cursor-pointer shrink-0"
             data-testid="link-home"
           >
             <div
@@ -350,15 +350,24 @@ function HeaderContent({
                   : "px-3 sm:px-4 -ml-3 sm:-ml-4 gap-3 sm:gap-4"
               }`}
             >
-              <img
-                src={logoImage}
-                alt="NNAuto"
-                className={`object-contain ${
-                  compactMobile
-                    ? "w-9 h-9 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
-                    : "w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
-                }`}
-              />
+              <div
+                className="relative z-30 shrink-0 pointer-events-auto"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleLogoClick();
+                }}
+                data-testid="favicon-wrapper"
+              >
+                <img
+                  src={logoImage}
+                  alt="NNAuto"
+                  className={`object-contain ${
+                    compactMobile
+                      ? "w-9 h-9 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
+                      : "w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
+                  }`}
+                />
+              </div>
               <span
                 className={`font-bold tracking-tight ${
                   compactMobile
