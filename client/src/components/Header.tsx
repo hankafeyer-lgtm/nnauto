@@ -446,16 +446,16 @@ function HeaderContent({
             </div>
           </form>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
             <Button
               onClick={handleAddListingRequest}
               variant="outline"
               size="sm"
-              className={`gap-1.5 px-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
+              className={`gap-1 px-1.5 min-[390px]:gap-1.5 min-[390px]:px-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
               data-testid="button-open-add-listing"
             >
               <Plus className="w-4 h-4" />
-              <span className="text-sm whitespace-nowrap">{t("header.addListing")}</span>
+              <span className="text-[13px] min-[390px]:text-sm whitespace-nowrap">{t("header.addListing")}</span>
             </Button>
             <Button
               variant="outline"
