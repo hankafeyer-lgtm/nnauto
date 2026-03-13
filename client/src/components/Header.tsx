@@ -331,7 +331,7 @@ function HeaderContent({
       }`}
     >
       <div
-        className={`container mx-auto ${compactMobile ? "px-3 sm:px-6 lg:px-8" : "px-3 sm:px-6 lg:px-8"}`}
+        className={`container mx-auto ${compactMobile ? "px-3 sm:px-6 lg:px-8" : "px-4 sm:px-6 lg:px-8"}`}
       >
         <div
           className={`flex items-center justify-between gap-2 sm:gap-4 lg:gap-8 ${
@@ -347,7 +347,7 @@ function HeaderContent({
               className={`hover-elevate active-elevate-2 rounded-xl py-2 flex items-center cursor-pointer ${
                 compactMobile
                   ? "px-1.5 sm:px-4 -ml-1.5 sm:-ml-4 gap-2 sm:gap-4"
-                  : "px-1.5 min-[390px]:px-2.5 sm:px-4 -ml-1.5 min-[390px]:-ml-2.5 sm:-ml-4 gap-1.5 min-[390px]:gap-2.5 sm:gap-4"
+                  : "px-3 sm:px-4 -ml-3 sm:-ml-4 gap-3 sm:gap-4"
               }`}
             >
               <img
@@ -356,14 +356,14 @@ function HeaderContent({
                 className={`object-contain ${
                   compactMobile
                     ? "w-9 h-9 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
-                    : "w-9 h-9 min-[390px]:w-10 min-[390px]:h-10 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
+                    : "w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
                 }`}
               />
               <span
                 className={`font-bold tracking-tight ${
                   compactMobile
                     ? "text-[1.65rem] leading-none sm:text-2xl md:text-3xl lg:text-4xl"
-                    : "text-lg min-[390px]:text-xl sm:text-2xl md:text-3xl lg:text-4xl"
+                    : "text-xl sm:text-2xl md:text-3xl lg:text-4xl"
                 } whitespace-nowrap truncate`}
               >
                 <span className="text-[#B8860B]">NN</span>
@@ -446,16 +446,16 @@ function HeaderContent({
             </div>
           </form>
 
-          <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 shrink-0">
             <Button
               onClick={handleAddListingRequest}
               variant="outline"
               size="sm"
-              className={`gap-1 px-1.5 min-[390px]:gap-1.5 min-[390px]:px-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
+              className={`gap-1.5 px-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
               data-testid="button-open-add-listing"
             >
               <Plus className="w-4 h-4" />
-              <span className="text-[13px] min-[390px]:text-sm whitespace-nowrap">{t("header.addListing")}</span>
+              <span className="text-sm max-[430px]:hidden">{t("header.addListing")}</span>
             </Button>
             <Button
               variant="outline"
