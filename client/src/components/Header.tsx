@@ -340,7 +340,7 @@ function HeaderContent({
         >
           <div
             onClick={handleLogoClick}
-            className="cursor-pointer"
+            className="cursor-pointer min-w-0 flex-1"
             data-testid="link-home"
           >
             <div
@@ -364,7 +364,7 @@ function HeaderContent({
                   compactMobile
                     ? "text-[1.65rem] leading-none sm:text-2xl md:text-3xl lg:text-4xl"
                     : "text-xl sm:text-2xl md:text-3xl lg:text-4xl"
-                }`}
+                } whitespace-nowrap truncate`}
               >
                 <span className="text-[#B8860B]">NN</span>
                 <span className="text-black dark:text-white">Auto</span>
@@ -446,7 +446,7 @@ function HeaderContent({
             </div>
           </form>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 shrink-0">
             <Button
               onClick={handleAddListingRequest}
               variant="outline"
@@ -455,7 +455,7 @@ function HeaderContent({
               data-testid="button-open-add-listing"
             >
               <Plus className="w-4 h-4" />
-              <span className="text-sm">{t("header.addListing")}</span>
+              <span className="text-sm max-[430px]:hidden">{t("header.addListing")}</span>
             </Button>
             <Button
               variant="outline"
