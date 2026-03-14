@@ -2937,8 +2937,8 @@ export default function HomePage() {
                 </div>
               </aside>
 
-              <div className="self-stretch">
-                <div className="sticky top-1/2 z-30 -translate-y-1/2">
+              <div className="self-stretch flex justify-center">
+                <div className="sticky top-24 z-30">
                   <button
                     onClick={toggleSidebar}
                     className="bg-background-secondary flex h-[72px] w-9 items-center justify-center shadow-lg transition-colors hover:opacity-90"
