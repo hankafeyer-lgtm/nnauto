@@ -1867,6 +1867,7 @@ import orderCarIcon from "@assets/A6BE7880-928D-4532-BCB1-3FA4A34F89CE_176345145
 import { carBrands, carModels } from "@shared/carDatabase";
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { useBrandModels } from "@/hooks/useBrandModels";
+import { useModelGenerations } from "@/hooks/useModelGenerations";
 import {
   useTranslation,
   useLocalizedOptions,
@@ -2075,6 +2076,7 @@ function Hero() {
     setVehicleType,
     setBrand,
     setModel,
+    setGeneration,
     setPriceRange,
     setYearRange,
     setMileageRange,
@@ -2629,6 +2631,10 @@ function Hero() {
   };
 
   const { models: catalogModels } = useBrandModels(filters.brand);
+  const { generations: availableGenerations } = useModelGenerations(
+    filters.brand,
+    filters.model,
+  );
   const availableModels =
     catalogModels.length > 0
       ? catalogModels
@@ -3093,6 +3099,19 @@ function Hero() {
                   emptyMessage={t("hero.noModelsFound")}
                   className="w-full"
                   testId="select-model"
+                />
+
+                <ModelCombobox
+                  models={availableGenerations}
+                  value={filters.generation || ""}
+                  onValueChange={setGeneration}
+                  disabled={!filters.model}
+                  placeholder={
+                    filters.model ? "Generace / Version" : "Nejdříve vyberte model"
+                  }
+                  emptyMessage="Generace / Version nenalezena"
+                  className="w-full"
+                  testId="select-generation"
                 />
 
                 <Button

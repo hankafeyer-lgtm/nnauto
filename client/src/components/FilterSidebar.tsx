@@ -2458,6 +2458,7 @@ import { carBrands } from "@shared/carDatabase";
 
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { useBrandModels } from "@/hooks/useBrandModels";
+import { useModelGenerations } from "@/hooks/useModelGenerations";
 import {
   useTranslation,
   useLocalizedOptions,
@@ -2566,6 +2567,7 @@ function FilterSidebar() {
     setFilters,
     setBrand,
     setModel,
+    setGeneration,
     setPriceRange,
     setYearRange,
     setMileageRange,
@@ -2592,6 +2594,10 @@ function FilterSidebar() {
   } = useFilterParams({ autoNavigate: false });
   const bodyTypes = localizedOptions.getBodyTypes(filters.vehicleType);
   const { models: catalogModels } = useBrandModels(filters.brand);
+  const { generations: availableGenerations } = useModelGenerations(
+    filters.brand,
+    filters.model,
+  );
 
   const [openSections, setOpenSections] = useState({
     vehicleType: true,
@@ -3122,6 +3128,20 @@ function FilterSidebar() {
               />
             </div>
 
+            <div className="space-y-4">
+              <Label className="text-base font-medium">Generace / Version</Label>
+              <ModelCombobox
+                models={availableGenerations}
+                value={filters.generation || ""}
+                onValueChange={setGeneration}
+                disabled={!filters.model}
+                placeholder={
+                  filters.model ? "Generace / Version" : "Nejdříve vyberte model"
+                }
+                emptyMessage="Generace / Version nenalezena"
+                testId="select-filter-generation"
+              />
+            </div>
           </CollapsibleContent>
         </Collapsible>
 
