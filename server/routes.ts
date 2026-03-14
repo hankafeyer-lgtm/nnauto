@@ -1866,6 +1866,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/catalog/brands", async (_req: Request, res: Response) => {
     try {
+      res.setHeader("Cache-Control", "public, max-age=3600, stale-while-revalidate=86400");
       const brands = await db
         .select({
           id: brandsTable.id,
@@ -1883,6 +1884,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/catalog/models", async (req: Request, res: Response) => {
     try {
+      res.setHeader("Cache-Control", "public, max-age=1800, stale-while-revalidate=43200");
       const brandRaw =
         typeof req.query.brand === "string" ? req.query.brand.trim() : "";
       if (!brandRaw) {
@@ -1923,6 +1925,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/catalog/generations", async (req: Request, res: Response) => {
     try {
+      res.setHeader("Cache-Control", "public, max-age=1800, stale-while-revalidate=43200");
       const brandRaw =
         typeof req.query.brand === "string" ? req.query.brand.trim() : "";
       const modelRaw =
