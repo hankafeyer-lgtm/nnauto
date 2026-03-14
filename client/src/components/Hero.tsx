@@ -3144,25 +3144,33 @@ function Hero() {
                   testId="select-generation"
                 />
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full h-10 sm:h-11 lg:h-11 rounded-md sm:rounded-lg text-sm sm:text-base lg:text-sm font-medium bg-white/10 backdrop-blur-sm border-primary text-primary hover:bg-white/15"
-                  onClick={() => setShowMoreFilters(!showMoreFilters)}
-                  data-testid="button-more-filters"
+                <div
+                  className={
+                    showMoreFilters
+                      ? "sticky top-20 z-20 bg-background/95 backdrop-blur-sm py-1"
+                      : ""
+                  }
                 >
-                  {showMoreFilters ? (
-                    <>
-                      <ChevronUp className="mr-2 h-4 w-4 lg:h-5 lg:w-5" />
-                      {t("hero.lessFilters")}
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown className="mr-2 h-4 w-4 lg:h-5 lg:w-5" />
-                      {t("hero.moreFilters")}
-                    </>
-                  )}
-                </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full h-10 sm:h-11 lg:h-11 rounded-md sm:rounded-lg text-sm sm:text-base lg:text-sm font-medium bg-white/10 backdrop-blur-sm border-primary text-primary hover:bg-white/15"
+                    onClick={() => setShowMoreFilters(!showMoreFilters)}
+                    data-testid="button-more-filters"
+                  >
+                    {showMoreFilters ? (
+                      <>
+                        <ChevronUp className="mr-2 h-4 w-4 lg:h-5 lg:w-5" />
+                        {t("hero.lessFilters")}
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="mr-2 h-4 w-4 lg:h-5 lg:w-5" />
+                        {t("hero.moreFilters")}
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
 
