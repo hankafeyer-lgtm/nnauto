@@ -525,21 +525,6 @@ const normalizeSingleVehicleType = (
   return normalizeVehicleTypeKey(parts[parts.length - 1]);
 };
 
-const isReloadNavigation = (): boolean => {
-  if (typeof window === "undefined") return false;
-
-  const navigationEntries = window.performance
-    ?.getEntriesByType?.("navigation") as PerformanceNavigationTiming[] | undefined;
-  if (navigationEntries && navigationEntries.length > 0) {
-    return navigationEntries[0].type === "reload";
-  }
-
-  const legacyNavigation = (window.performance as Performance & {
-    navigation?: { type?: number };
-  })?.navigation;
-  return legacyNavigation?.type === 1;
-};
-
 const normalizeFilters = (filters: FilterParams): Record<string, unknown> => {
   const normalized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(filters)) {
@@ -696,10 +681,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     };
   }, []);
 
-  const shouldResetFiltersAfterReloadRef = useRef(isReloadNavigation());
-  const initialFilters = shouldResetFiltersAfterReloadRef.current
-    ? {}
-    : parseFiltersFromURL();
+  const initialFilters = parseFiltersFromURL();
   const [filters, setFiltersState] = useState<FilterParams>(() => initialFilters);
   const latestFiltersRef = useRef<FilterParams>(initialFilters);
 
@@ -720,10 +702,6 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
   // Re-parse filters when URL changes
   useEffect(() => {
-    if (shouldResetFiltersAfterReloadRef.current) {
-      shouldResetFiltersAfterReloadRef.current = false;
-      return;
-    }
     const updatedFilters = parseFiltersFromURL();
     latestFiltersRef.current = updatedFilters;
     setFiltersState((prev) =>
