@@ -235,7 +235,7 @@ export const translations: Record<Language, Record<string, string>> = {
     "filters.condition": "Stav",
     "filters.conditionNew": "Nové",
     "filters.conditionUsed": "Ojeté",
-    "filters.conditionOrder": "Na objednávku",
+    "filters.conditionOrder": "Auta z Německa",
     "filters.conditionParts": "Na náhradní díly",
     "filters.conditionDamaged": "Havarované",
     "filters.conditionHistoric": "Historické",
