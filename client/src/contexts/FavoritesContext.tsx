@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useMemo,
-  ReactNode,
-} from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface FavoritesContextType {
   favorites: string[];
@@ -36,45 +28,38 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('zlateauto_favorites', JSON.stringify(favorites));
   }, [favorites]);
 
-  const favoriteIds = useMemo(() => new Set(favorites), [favorites]);
-
-  const addToFavorites = useCallback((listingId: string) => {
+  const addToFavorites = (listingId: string) => {
     setFavorites(prev => {
       if (prev.includes(listingId)) return prev;
       return [...prev, listingId];
     });
-  }, []);
+  };
 
-  const removeFromFavorites = useCallback((listingId: string) => {
+  const removeFromFavorites = (listingId: string) => {
     setFavorites(prev => prev.filter(id => id !== listingId));
-  }, []);
+  };
 
-  const isFavorite = useCallback((listingId: string) => favoriteIds.has(listingId), [
-    favoriteIds,
-  ]);
+  const isFavorite = (listingId: string) => {
+    return favorites.includes(listingId);
+  };
 
-  const toggleFavorite = useCallback((listingId: string) => {
+  const toggleFavorite = (listingId: string) => {
     if (isFavorite(listingId)) {
       removeFromFavorites(listingId);
     } else {
       addToFavorites(listingId);
     }
-  }, [addToFavorites, isFavorite, removeFromFavorites]);
-
-  const contextValue = useMemo(
-    () => ({
-      favorites,
-      addToFavorites,
-      removeFromFavorites,
-      isFavorite,
-      toggleFavorite,
-    }),
-    [favorites, addToFavorites, removeFromFavorites, isFavorite, toggleFavorite],
-  );
+  };
 
   return (
     <FavoritesContext.Provider
-      value={contextValue}
+      value={{
+        favorites,
+        addToFavorites,
+        removeFromFavorites,
+        isFavorite,
+        toggleFavorite,
+      }}
     >
       {children}
     </FavoritesContext.Provider>

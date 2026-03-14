@@ -92,18 +92,14 @@ function HeaderContent({
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchVisible, setIsSearchVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchMobileInputRef = useRef<HTMLInputElement>(null);
-  const lastScrollYRef = useRef(0);
-  const scrollRafRef = useRef<number | null>(null);
 
   // Fetch listings for autocomplete suggestions
   const { data: listingsData } = useQuery<{ listings: Listing[] }>({
     queryKey: ["/api/listings"],
-    enabled: showSuggestions || searchQuery.trim().length > 0,
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
   });
 
   // Safely extract listings array and total count
@@ -174,32 +170,22 @@ function HeaderContent({
 
   useEffect(() => {
     const handleScroll = () => {
-      if (scrollRafRef.current !== null) return;
-      scrollRafRef.current = window.requestAnimationFrame(() => {
-        const currentScrollY = window.scrollY;
-        const previousScrollY = lastScrollYRef.current;
+      const currentScrollY = window.scrollY;
 
-        if (currentScrollY < 10) {
-          setIsSearchVisible(true);
-        } else if (currentScrollY > previousScrollY) {
-          setIsSearchVisible(false);
-        } else {
-          setIsSearchVisible(true);
-        }
+      if (currentScrollY < 10) {
+        setIsSearchVisible(true);
+      } else if (currentScrollY > lastScrollY) {
+        setIsSearchVisible(false);
+      } else {
+        setIsSearchVisible(true);
+      }
 
-        lastScrollYRef.current = currentScrollY;
-        scrollRafRef.current = null;
-      });
+      setLastScrollY(currentScrollY);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      if (scrollRafRef.current !== null) {
-        window.cancelAnimationFrame(scrollRafRef.current);
-      }
-    };
-  }, []);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);

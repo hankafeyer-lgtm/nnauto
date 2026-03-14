@@ -2343,9 +2343,9 @@ function Hero() {
       if (!res.ok) throw new Error(`Failed to load listings: ${res.status}`);
       return res.json();
     },
-    staleTime: 60_000,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // const baseListingsCount =
