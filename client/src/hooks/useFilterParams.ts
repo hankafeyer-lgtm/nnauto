@@ -846,25 +846,23 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       updater: FilterParams | ((prev: FilterParams) => FilterParams),
       shouldDebounce = false,
     ) => {
-      setFiltersState((prev) => {
-        const newFilters =
-          typeof updater === "function" ? updater(prev) : updater;
-        latestFiltersRef.current = newFilters;
-        if (!autoNavigate) return newFilters;
+      const prevFilters = latestFiltersRef.current;
+      const newFilters =
+        typeof updater === "function" ? updater(prevFilters) : updater;
+      latestFiltersRef.current = newFilters;
+      setFiltersState(newFilters);
+      if (!autoNavigate) return;
 
-        if (shouldDebounce) {
-          if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-          }
-          debounceTimerRef.current = setTimeout(() => {
-            updateURL(newFilters);
-          }, 300);
-        } else {
-          updateURL(newFilters);
+      if (shouldDebounce) {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
         }
-
-        return newFilters;
-      });
+        debounceTimerRef.current = setTimeout(() => {
+          updateURL(newFilters);
+        }, 300);
+      } else {
+        updateURL(newFilters);
+      }
     },
     [autoNavigate, updateURL],
   );
