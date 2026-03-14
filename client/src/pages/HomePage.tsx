@@ -2937,8 +2937,8 @@ export default function HomePage() {
                 </div>
               </aside>
 
-              <div className="hidden lg:block w-0">
-                <div className="sticky top-1/2 -translate-y-1/2 z-40">
+              <div className="hidden lg:block w-0 self-start">
+                <div className="sticky self-start top-1/2 -translate-y-1/2 z-40">
                   <button
                     type="button"
                     onClick={toggleSidebar}
