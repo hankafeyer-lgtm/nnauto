@@ -2071,6 +2071,7 @@ function Hero() {
 
   const {
     filters,
+    getLatestFilters,
     setFilters,
     setCategory,
     setVehicleType,
@@ -2256,53 +2257,67 @@ function Hero() {
 
   // Build query params for listings count
   const buildQueryParams = () => {
+    const currentFilters = getLatestFilters();
     const params = new URLSearchParams();
     const topConditionValues = pendingConditionRef.current;
     const effectiveVehicleType =
-      pendingVehicleTypeRef.current || filters.vehicleType;
+      pendingVehicleTypeRef.current || currentFilters.vehicleType;
     if (effectiveVehicleType) {
       params.set("vehicleType", effectiveVehicleType);
       params.set("vehicle_type", effectiveVehicleType);
     }
-    if (filters.brand) params.set("brand", filters.brand);
-    if (filters.model) params.set("model", filters.model);
-    if (filters.generation) params.set("generation", filters.generation);
-    if (filters.priceMin) params.set("priceMin", filters.priceMin.toString());
-    if (filters.priceMax) params.set("priceMax", filters.priceMax.toString());
-    if (filters.yearMin) params.set("yearMin", filters.yearMin.toString());
-    if (filters.yearMax) params.set("yearMax", filters.yearMax.toString());
-    if (filters.mileageMin)
-      params.set("mileageMin", filters.mileageMin.toString());
-    if (filters.mileageMax)
-      params.set("mileageMax", filters.mileageMax.toString());
-    if (filters.fuel) params.set("fuel", filters.fuel);
-    if (filters.bodyType && filters.bodyType.length > 0)
-      params.set("bodyType", filters.bodyType.join(","));
-    if (filters.transmission) params.set("transmission", filters.transmission);
-    if (filters.color) params.set("color", filters.color);
-    if (filters.trim) params.set("trim", filters.trim);
-    if (filters.region) params.set("region", filters.region);
-    if (filters.driveType) params.set("driveType", filters.driveType);
-    if (filters.engineMin)
-      params.set("engineMin", filters.engineMin.toString());
-    if (filters.engineMax)
-      params.set("engineMax", filters.engineMax.toString());
-    if (filters.powerMin) params.set("powerMin", filters.powerMin.toString());
-    if (filters.powerMax) params.set("powerMax", filters.powerMax.toString());
-    if (filters.doorsMin) params.set("doorsMin", filters.doorsMin.toString());
-    if (filters.doorsMax) params.set("doorsMax", filters.doorsMax.toString());
-    if (filters.seatsMin) params.set("seatsMin", filters.seatsMin.toString());
-    if (filters.seatsMax) params.set("seatsMax", filters.seatsMax.toString());
-    if (filters.ownersMin)
-      params.set("ownersMin", filters.ownersMin.toString());
-    if (filters.ownersMax)
-      params.set("ownersMax", filters.ownersMax.toString());
+    if (currentFilters.brand) params.set("brand", currentFilters.brand);
+    if (currentFilters.model) params.set("model", currentFilters.model);
+    if (currentFilters.generation)
+      params.set("generation", currentFilters.generation);
+    if (currentFilters.priceMin)
+      params.set("priceMin", currentFilters.priceMin.toString());
+    if (currentFilters.priceMax)
+      params.set("priceMax", currentFilters.priceMax.toString());
+    if (currentFilters.yearMin)
+      params.set("yearMin", currentFilters.yearMin.toString());
+    if (currentFilters.yearMax)
+      params.set("yearMax", currentFilters.yearMax.toString());
+    if (currentFilters.mileageMin)
+      params.set("mileageMin", currentFilters.mileageMin.toString());
+    if (currentFilters.mileageMax)
+      params.set("mileageMax", currentFilters.mileageMax.toString());
+    if (currentFilters.fuel) params.set("fuel", currentFilters.fuel);
+    if (currentFilters.bodyType && currentFilters.bodyType.length > 0)
+      params.set("bodyType", currentFilters.bodyType.join(","));
+    if (currentFilters.transmission)
+      params.set("transmission", currentFilters.transmission);
+    if (currentFilters.color) params.set("color", currentFilters.color);
+    if (currentFilters.trim) params.set("trim", currentFilters.trim);
+    if (currentFilters.region) params.set("region", currentFilters.region);
+    if (currentFilters.driveType)
+      params.set("driveType", currentFilters.driveType);
+    if (currentFilters.engineMin)
+      params.set("engineMin", currentFilters.engineMin.toString());
+    if (currentFilters.engineMax)
+      params.set("engineMax", currentFilters.engineMax.toString());
+    if (currentFilters.powerMin)
+      params.set("powerMin", currentFilters.powerMin.toString());
+    if (currentFilters.powerMax)
+      params.set("powerMax", currentFilters.powerMax.toString());
+    if (currentFilters.doorsMin)
+      params.set("doorsMin", currentFilters.doorsMin.toString());
+    if (currentFilters.doorsMax)
+      params.set("doorsMax", currentFilters.doorsMax.toString());
+    if (currentFilters.seatsMin)
+      params.set("seatsMin", currentFilters.seatsMin.toString());
+    if (currentFilters.seatsMax)
+      params.set("seatsMax", currentFilters.seatsMax.toString());
+    if (currentFilters.ownersMin)
+      params.set("ownersMin", currentFilters.ownersMin.toString());
+    if (currentFilters.ownersMax)
+      params.set("ownersMax", currentFilters.ownersMax.toString());
     if (topConditionValues.length)
       params.set("condition", topConditionValues.join(","));
-    if (filters.extras && filters.extras.length > 0)
-      params.set("extras", filters.extras.join(","));
-    if (filters.equipment && filters.equipment.length > 0)
-      params.set("equipment", filters.equipment.join(","));
+    if (currentFilters.extras && currentFilters.extras.length > 0)
+      params.set("extras", currentFilters.extras.join(","));
+    if (currentFilters.equipment && currentFilters.equipment.length > 0)
+      params.set("equipment", currentFilters.equipment.join(","));
     return params.toString();
   };
 
@@ -2578,53 +2593,68 @@ function Hero() {
     e.preventDefault();
 
     if (isMobile && !force) return;
+    const currentFilters = getLatestFilters();
     const conditionValues = pendingConditionRef.current;
     const effectiveVehicleType =
-      pendingVehicleTypeRef.current || filters.vehicleType;
+      pendingVehicleTypeRef.current || currentFilters.vehicleType;
 
     const params = new URLSearchParams();
     if (effectiveVehicleType) {
       params.set("vehicleType", effectiveVehicleType);
       params.set("vehicle_type", effectiveVehicleType);
     }
-    if (filters.brand) params.set("brand", filters.brand);
-    if (filters.model) params.set("model", filters.model);
-    if (filters.generation) params.set("generation", filters.generation);
-    if (filters.priceMin) params.set("priceMin", filters.priceMin.toString());
-    if (filters.priceMax) params.set("priceMax", filters.priceMax.toString());
-    if (filters.yearMin) params.set("yearMin", filters.yearMin.toString());
-    if (filters.yearMax) params.set("yearMax", filters.yearMax.toString());
-    if (filters.mileageMin)
-      params.set("mileageMin", filters.mileageMin.toString());
-    if (filters.mileageMax)
-      params.set("mileageMax", filters.mileageMax.toString());
-    if (filters.fuel) params.set("fuel", filters.fuel);
-    if (filters.bodyType?.length)
-      params.set("bodyType", filters.bodyType.join(","));
-    if (filters.transmission) params.set("transmission", filters.transmission);
-    if (filters.color) params.set("color", filters.color);
-    if (filters.trim) params.set("trim", filters.trim);
-    if (filters.region) params.set("region", filters.region);
-    if (filters.driveType) params.set("driveType", filters.driveType);
-    if (filters.engineMin)
-      params.set("engineMin", filters.engineMin.toString());
-    if (filters.engineMax)
-      params.set("engineMax", filters.engineMax.toString());
-    if (filters.powerMin) params.set("powerMin", filters.powerMin.toString());
-    if (filters.powerMax) params.set("powerMax", filters.powerMax.toString());
-    if (filters.doorsMin) params.set("doorsMin", filters.doorsMin.toString());
-    if (filters.doorsMax) params.set("doorsMax", filters.doorsMax.toString());
-    if (filters.seatsMin) params.set("seatsMin", filters.seatsMin.toString());
-    if (filters.seatsMax) params.set("seatsMax", filters.seatsMax.toString());
-    if (filters.ownersMin)
-      params.set("ownersMin", filters.ownersMin.toString());
-    if (filters.ownersMax)
-      params.set("ownersMax", filters.ownersMax.toString());
+    if (currentFilters.brand) params.set("brand", currentFilters.brand);
+    if (currentFilters.model) params.set("model", currentFilters.model);
+    if (currentFilters.generation)
+      params.set("generation", currentFilters.generation);
+    if (currentFilters.priceMin)
+      params.set("priceMin", currentFilters.priceMin.toString());
+    if (currentFilters.priceMax)
+      params.set("priceMax", currentFilters.priceMax.toString());
+    if (currentFilters.yearMin)
+      params.set("yearMin", currentFilters.yearMin.toString());
+    if (currentFilters.yearMax)
+      params.set("yearMax", currentFilters.yearMax.toString());
+    if (currentFilters.mileageMin)
+      params.set("mileageMin", currentFilters.mileageMin.toString());
+    if (currentFilters.mileageMax)
+      params.set("mileageMax", currentFilters.mileageMax.toString());
+    if (currentFilters.fuel) params.set("fuel", currentFilters.fuel);
+    if (currentFilters.bodyType?.length)
+      params.set("bodyType", currentFilters.bodyType.join(","));
+    if (currentFilters.transmission)
+      params.set("transmission", currentFilters.transmission);
+    if (currentFilters.color) params.set("color", currentFilters.color);
+    if (currentFilters.trim) params.set("trim", currentFilters.trim);
+    if (currentFilters.region) params.set("region", currentFilters.region);
+    if (currentFilters.driveType)
+      params.set("driveType", currentFilters.driveType);
+    if (currentFilters.engineMin)
+      params.set("engineMin", currentFilters.engineMin.toString());
+    if (currentFilters.engineMax)
+      params.set("engineMax", currentFilters.engineMax.toString());
+    if (currentFilters.powerMin)
+      params.set("powerMin", currentFilters.powerMin.toString());
+    if (currentFilters.powerMax)
+      params.set("powerMax", currentFilters.powerMax.toString());
+    if (currentFilters.doorsMin)
+      params.set("doorsMin", currentFilters.doorsMin.toString());
+    if (currentFilters.doorsMax)
+      params.set("doorsMax", currentFilters.doorsMax.toString());
+    if (currentFilters.seatsMin)
+      params.set("seatsMin", currentFilters.seatsMin.toString());
+    if (currentFilters.seatsMax)
+      params.set("seatsMax", currentFilters.seatsMax.toString());
+    if (currentFilters.ownersMin)
+      params.set("ownersMin", currentFilters.ownersMin.toString());
+    if (currentFilters.ownersMax)
+      params.set("ownersMax", currentFilters.ownersMax.toString());
     if (conditionValues.length)
       params.set("condition", conditionValues.join(","));
-    if (filters.extras?.length) params.set("extras", filters.extras.join(","));
-    if (filters.equipment?.length)
-      params.set("equipment", filters.equipment.join(","));
+    if (currentFilters.extras?.length)
+      params.set("extras", currentFilters.extras.join(","));
+    if (currentFilters.equipment?.length)
+      params.set("equipment", currentFilters.equipment.join(","));
 
     const queryString = params.toString();
     setLocation(queryString ? `/listings?${queryString}` : "/listings");

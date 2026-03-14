@@ -1265,8 +1265,11 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
   }, [setLocation]);
 
+  const getLatestFilters = useCallback(() => latestFiltersRef.current, []);
+
   return {
     filters,
+    getLatestFilters,
     setFilters,
     setSearch,
     setCategory,
