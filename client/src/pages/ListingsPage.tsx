@@ -4025,53 +4025,55 @@ export default function ListingsPage() {
 
       <div className="flex-1 container mx-auto px-4 py-6">
         <div className="flex gap-6">
-          <aside
-            className={[
-              "hidden lg:block shrink-0 transition-[width] duration-300",
-              sidebarCollapsed ? "w-0 overflow-hidden" : "w-72",
-            ].join(" ")}
-          >
-            <div
+          <div className="hidden lg:flex shrink-0 items-start">
+            <aside
               className={[
-                "transition-opacity duration-200",
-                sidebarCollapsed
-                  ? "opacity-0 pointer-events-none"
-                  : "opacity-100",
+                "shrink-0 transition-[width] duration-300",
+                sidebarCollapsed ? "w-0 overflow-hidden" : "w-72",
               ].join(" ")}
             >
-              <FilterSidebar />
-            </div>
-          </aside>
-
-          <div className="hidden lg:flex w-0 self-stretch items-center justify-center">
-            <div className="z-40">
-              <button
-                type="button"
-                onClick={() => setSidebarCollapsed((v) => !v)}
+              <div
                 className={[
-                  "h-16 w-9",
-                  "rounded-xl border bg-background shadow-md",
-                  "flex items-center justify-center",
-                  "hover:bg-muted transition",
-                  "-translate-x-1/2",
+                  "transition-opacity duration-200",
+                  sidebarCollapsed
+                    ? "opacity-0 pointer-events-none"
+                    : "opacity-100",
                 ].join(" ")}
-                title={
-                  sidebarCollapsed
-                    ? t("filters.showFilters")
-                    : t("filters.hideFilters")
-                }
-                aria-label={
-                  sidebarCollapsed
-                    ? t("filters.showFilters")
-                    : t("filters.hideFilters")
-                }
               >
-                {sidebarCollapsed ? (
-                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-                )}
-              </button>
+                <FilterSidebar />
+              </div>
+            </aside>
+
+            <div className="w-0 self-start">
+              <div className="sticky top-1/2 -translate-y-1/2 z-40">
+                <button
+                  type="button"
+                  onClick={() => setSidebarCollapsed((v) => !v)}
+                  className={[
+                    "h-16 w-9",
+                    "rounded-xl border bg-background shadow-md",
+                    "flex items-center justify-center",
+                    "hover:bg-muted transition",
+                    "-translate-x-1/2",
+                  ].join(" ")}
+                  title={
+                    sidebarCollapsed
+                      ? t("filters.showFilters")
+                      : t("filters.hideFilters")
+                  }
+                  aria-label={
+                    sidebarCollapsed
+                      ? t("filters.showFilters")
+                      : t("filters.hideFilters")
+                  }
+                >
+                  {sidebarCollapsed ? (
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 
