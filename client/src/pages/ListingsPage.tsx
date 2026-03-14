@@ -4043,8 +4043,8 @@ export default function ListingsPage() {
             </div>
           </aside>
 
-          <div className="hidden lg:flex w-0 self-stretch items-center justify-center">
-            <div className="z-40">
+          <div className="hidden lg:block w-0 self-start">
+            <div className="sticky self-start top-1/2 -translate-y-1/2 z-40">
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed((v) => !v)}
