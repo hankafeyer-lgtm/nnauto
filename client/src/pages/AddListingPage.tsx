@@ -46,6 +46,7 @@ import { CarPhotoUploader } from "@/components/CarPhotoUploader";
 import { VideoUploader } from "@/components/VideoUploader";
 import { BrandCombobox } from "@/components/BrandCombobox";
 import { ModelCombobox } from "@/components/ModelCombobox";
+import { useModelGenerations } from "@/hooks/useModelGenerations";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Sparkles, Car, Package, Wrench, CircleDot, Zap, Bot, Activity, ArrowUp, ArrowDown, Grid3x3, Compass, Key, MapPin } from "lucide-react";
@@ -820,6 +821,7 @@ export default function AddListingPage() {
       price: "",
       brand: "",
       model: "",
+      trim: undefined,
       year: undefined,
       mileage: 0,
       fuelType: [],
@@ -852,11 +854,16 @@ export default function AddListingPage() {
   });
 
   const selectedBrand = form.watch("brand");
+  const selectedModel = form.watch("model");
   const selectedVehicleType = form.watch("vehicleType");
   const isTopListing = form.watch("isTopListing");
   const isImported = form.watch("isImported");
   const bodyTypes = localizedOptions.getBodyTypes(selectedVehicleType ?? undefined);
   const availableModels = selectedBrand ? getModelsForVehicleType(selectedBrand, selectedVehicleType ?? undefined) : [];
+  const { generations: availableGenerations } = useModelGenerations(
+    selectedBrand,
+    selectedModel,
+  );
 
   useEffect(() => {
     if (!showRegionSuggestions) return;
@@ -1235,6 +1242,7 @@ export default function AddListingPage() {
                                 onValueChange={(value) => {
                                   field.onChange(value);
                                   form.setValue("model", "");
+                                  form.setValue("trim", undefined as any);
                                 }}
                                 placeholder={t("hero.allBrands")}
                                 emptyMessage={t("hero.noBrandsFound") || "Značka nenalezena"}
@@ -1257,7 +1265,10 @@ export default function AddListingPage() {
                               <ModelCombobox
                                 models={availableModels}
                                 value={field.value}
-                                onValueChange={field.onChange}
+                                onValueChange={(value) => {
+                                  field.onChange(value);
+                                  form.setValue("trim", undefined as any);
+                                }}
                                 disabled={!selectedBrand}
                                 placeholder={selectedBrand ? t("hero.allModels") : t("hero.selectBrand")}
                                 emptyMessage={t("hero.noModelsFound") || "Model nenalezen"}
@@ -1265,6 +1276,44 @@ export default function AddListingPage() {
                                 testId="select-model"
                               />
                             </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="trim"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Generace / Version</FormLabel>
+                            <Select
+                              value={field.value || "all"}
+                              onValueChange={(value) =>
+                                field.onChange(value === "all" ? undefined : value)
+                              }
+                              disabled={!selectedModel}
+                            >
+                              <FormControl>
+                                <SelectTrigger data-testid="select-generation-add-listing">
+                                  <SelectValue
+                                    placeholder={
+                                      selectedModel
+                                        ? "Generace / Version"
+                                        : "Nejdříve vyberte model"
+                                    }
+                                  />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent className="max-h-72 overflow-y-auto">
+                                <SelectItem value="all">Generace / Version</SelectItem>
+                                {availableGenerations.map((generation) => (
+                                  <SelectItem key={generation} value={generation}>
+                                    {generation}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}

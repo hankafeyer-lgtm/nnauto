@@ -2940,6 +2940,14 @@ function MobileFilters({
     filters.brand,
     filters.model,
   );
+  const generationOptions = useMemo(
+    () =>
+      (availableGenerations || []).map((generation) => ({
+        label: generation,
+        value: generation.toLowerCase().replace(/\s+/g, "-"),
+      })),
+    [availableGenerations],
+  );
 
   const availableModels = useMemo(() => {
     if (!filters.brand) return [];
@@ -3439,19 +3447,40 @@ function MobileFilters({
                       Generace / Version
                     </Label>
 
-                    <ModelCombobox
-                      models={availableGenerations}
-                      value={filters.generation || ""}
-                      onValueChange={setGeneration}
-                      disabled={!filters.model}
-                      placeholder={
-                        filters.model
-                          ? "Generace / Version"
-                          : "Nejdříve vyberte model"
+                    <Select
+                      value={filters.generation || "all"}
+                      onValueChange={(value) =>
+                        setGeneration(value === "all" ? "" : value)
                       }
-                      emptyMessage="Generace / Version nenalezena"
-                      testId="select-mobile-filter-generation"
-                    />
+                      disabled={!filters.model}
+                    >
+                      <SelectTrigger
+                        className="h-12 rounded-xl text-black dark:text-white"
+                        data-testid="select-mobile-filter-generation"
+                      >
+                        <SelectValue
+                          placeholder={
+                            filters.model
+                              ? "Generace / Version"
+                              : "Nejdříve vyberte model"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-72 overflow-y-auto">
+                        <SelectItem value="all" className="text-black dark:text-white">
+                          Generace / Version
+                        </SelectItem>
+                        {generationOptions.map((generation) => (
+                          <SelectItem
+                            key={generation.value}
+                            value={generation.value}
+                            className="text-black dark:text-white"
+                          >
+                            {generation.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </CollapsibleContent>
               </Collapsible>

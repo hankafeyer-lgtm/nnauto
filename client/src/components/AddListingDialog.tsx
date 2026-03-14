@@ -44,6 +44,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { CarPhotoUploader } from "@/components/CarPhotoUploader";
 import { VideoUploader } from "@/components/VideoUploader";
+import { useModelGenerations } from "@/hooks/useModelGenerations";
 
 interface AddListingDialogProps {
   open: boolean;
@@ -146,6 +147,7 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
   });
 
   const selectedBrand = form.watch("brand");
+  const selectedModel = form.watch("model");
   const selectedVehicleType = form.watch("vehicleType");
   const isTopListing = form.watch("isTopListing");
   const bodyTypes = localizedOptions.getBodyTypes(selectedVehicleType ?? undefined);
@@ -156,6 +158,10 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
     return true;
   });
   const availableModels = selectedBrand ? getModelsForVehicleType(selectedBrand, selectedVehicleType ?? undefined) : [];
+  const { generations: availableGenerations } = useModelGenerations(
+    selectedBrand,
+    selectedModel,
+  );
 
   const onSubmit = async (data: InsertListing) => {
     if (!userId) {
@@ -286,6 +292,7 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
                         onValueChange={(value) => {
                           field.onChange(value);
                           form.setValue("model", "");
+                          form.setValue("trim", undefined as any);
                         }}
                         value={field.value}
                       >
@@ -314,7 +321,10 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
                     <FormItem>
                       <FormLabel>{t("hero.model")}</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          form.setValue("trim", undefined as any);
+                        }}
                         value={field.value}
                         disabled={!selectedBrand}
                       >
@@ -338,6 +348,44 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
 
                 <FormField
                   control={form.control}
+                  name="trim"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Generace / Version</FormLabel>
+                      <Select
+                        value={field.value || "all"}
+                        onValueChange={(value) =>
+                          field.onChange(value === "all" ? undefined : value)
+                        }
+                        disabled={!selectedModel}
+                      >
+                        <FormControl>
+                          <SelectTrigger data-testid="select-generation">
+                            <SelectValue
+                              placeholder={
+                                selectedModel
+                                  ? "Generace / Version"
+                                  : "Nejdříve vyberte model"
+                              }
+                            />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="max-h-72 overflow-y-auto">
+                          <SelectItem value="all">Generace / Version</SelectItem>
+                          {availableGenerations.map((generation) => (
+                            <SelectItem key={generation} value={generation}>
+                              {generation}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="vehicleType"
                   render={({ field }) => (
                     <FormItem>
@@ -346,6 +394,7 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
                         onValueChange={(value) => {
                           field.onChange(value);
                           form.setValue("model", "");
+                          form.setValue("trim", undefined as any);
                           form.setValue("bodyType", undefined as any);
                         }}
                         value={field.value || ""}
@@ -505,25 +554,6 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
                           ))}
                         </SelectContent>
                       </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="trim"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("listing.trim")}</FormLabel>
-                      <FormControl>
-                        <Input
-                          data-testid="input-trim"
-                          placeholder="e.g. M Sport, Ambition, Elegance"
-                          {...field}
-                          value={field.value || ""}
-                        />
-                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
