@@ -697,9 +697,11 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
   }, []);
 
   const shouldResetFiltersAfterReloadRef = useRef(isReloadNavigation());
-  const [filters, setFiltersState] = useState<FilterParams>(() =>
-    shouldResetFiltersAfterReloadRef.current ? {} : parseFiltersFromURL(),
-  );
+  const initialFilters = shouldResetFiltersAfterReloadRef.current
+    ? {}
+    : parseFiltersFromURL();
+  const [filters, setFiltersState] = useState<FilterParams>(() => initialFilters);
+  const latestFiltersRef = useRef<FilterParams>(initialFilters);
 
   // Listen for browser URL changes
   useEffect(() => {
@@ -723,6 +725,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       return;
     }
     const updatedFilters = parseFiltersFromURL();
+    latestFiltersRef.current = updatedFilters;
     setFiltersState((prev) =>
       areFiltersEqual(prev, updatedFilters) ? prev : updatedFilters,
     );
@@ -846,6 +849,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       setFiltersState((prev) => {
         const newFilters =
           typeof updater === "function" ? updater(prev) : updater;
+        latestFiltersRef.current = newFilters;
         if (!autoNavigate) return newFilters;
 
         if (shouldDebounce) {
@@ -1122,6 +1126,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
   }, [setFilters]);
 
   const applyFilters = useCallback(() => {
+    const currentFilters = latestFiltersRef.current;
     const currentParams = new URLSearchParams(window.location.search);
     const userId = currentParams.get("userId");
     const params = new URLSearchParams();
@@ -1129,73 +1134,128 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     // Preserve user cabinet context when applying filters on "moje inzeraty".
     if (userId) params.set("userId", userId);
 
-    if (filters.search) params.set("search", filters.search);
-    const normalizedVehicleType = normalizeSingleVehicleType(filters.vehicleType);
+    if (currentFilters.search) params.set("search", currentFilters.search);
+    const normalizedVehicleType = normalizeSingleVehicleType(
+      currentFilters.vehicleType,
+    );
     if (normalizedVehicleType)
       params.set("vehicleType", normalizedVehicleType);
-    if (filters.brand) params.set("brand", filters.brand);
-    if (filters.model) params.set("model", filters.model);
-    if (filters.generation) params.set("generation", filters.generation);
-    if (filters.priceMin !== undefined && !isNaN(filters.priceMin))
-      params.set("priceMin", String(filters.priceMin));
-    if (filters.priceMax !== undefined && !isNaN(filters.priceMax))
-      params.set("priceMax", String(filters.priceMax));
-    if (filters.yearMin !== undefined && !isNaN(filters.yearMin))
-      params.set("yearMin", String(filters.yearMin));
-    if (filters.yearMax !== undefined && !isNaN(filters.yearMax))
-      params.set("yearMax", String(filters.yearMax));
-    if (filters.mileageMin !== undefined && !isNaN(filters.mileageMin))
-      params.set("mileageMin", String(filters.mileageMin));
-    if (filters.mileageMax !== undefined && !isNaN(filters.mileageMax))
-      params.set("mileageMax", String(filters.mileageMax));
-    if (filters.fuel) params.set("fuel", filters.fuel);
-    if (filters.bodyType && filters.bodyType.length > 0)
-      params.set("bodyType", filters.bodyType.join(","));
-    if (filters.transmission) params.set("transmission", filters.transmission);
-    if (filters.color) params.set("color", filters.color);
-    if (filters.trim) params.set("trim", filters.trim);
-    if (filters.region) params.set("region", filters.region);
-    if (filters.driveType) params.set("driveType", filters.driveType);
-    if (filters.engineMin !== undefined && !isNaN(filters.engineMin))
-      params.set("engineMin", String(filters.engineMin));
-    if (filters.engineMax !== undefined && !isNaN(filters.engineMax))
-      params.set("engineMax", String(filters.engineMax));
-    if (filters.powerMin !== undefined && !isNaN(filters.powerMin))
-      params.set("powerMin", String(filters.powerMin));
-    if (filters.powerMax !== undefined && !isNaN(filters.powerMax))
-      params.set("powerMax", String(filters.powerMax));
-    if (filters.doorsMin !== undefined && !isNaN(filters.doorsMin))
-      params.set("doorsMin", String(filters.doorsMin));
-    if (filters.doorsMax !== undefined && !isNaN(filters.doorsMax))
-      params.set("doorsMax", String(filters.doorsMax));
-    if (filters.seatsMin !== undefined && !isNaN(filters.seatsMin))
-      params.set("seatsMin", String(filters.seatsMin));
-    if (filters.seatsMax !== undefined && !isNaN(filters.seatsMax))
-      params.set("seatsMax", String(filters.seatsMax));
-    if (filters.ownersMin !== undefined && !isNaN(filters.ownersMin))
-      params.set("ownersMin", String(filters.ownersMin));
-    if (filters.ownersMax !== undefined && !isNaN(filters.ownersMax))
-      params.set("ownersMax", String(filters.ownersMax));
-    if (filters.airbagsMin !== undefined && !isNaN(filters.airbagsMin))
-      params.set("airbagsMin", String(filters.airbagsMin));
-    if (filters.airbagsMax !== undefined && !isNaN(filters.airbagsMax))
-      params.set("airbagsMax", String(filters.airbagsMax));
-    if (filters.sellerType) params.set("sellerType", filters.sellerType);
-    if (filters.listingAgeMin !== undefined && !isNaN(filters.listingAgeMin))
-      params.set("listingAgeMin", String(filters.listingAgeMin));
-    if (filters.listingAgeMax !== undefined && !isNaN(filters.listingAgeMax))
-      params.set("listingAgeMax", String(filters.listingAgeMax));
-    if (filters.condition && filters.condition.length > 0)
-      params.set("condition", filters.condition.join(","));
-    if (filters.extras && filters.extras.length > 0)
-      params.set("extras", filters.extras.join(","));
-    if (filters.equipment && filters.equipment.length > 0)
-      params.set("equipment", filters.equipment.join(","));
-    if (filters.vatDeductible) params.set("vatDeductible", "true");
-    if (filters.euroEmission) params.set("euroEmission", filters.euroEmission);
-    if (filters.stkValidUntil)
-      params.set("stkValidUntil", filters.stkValidUntil);
-    if (filters.hasServiceBook) params.set("hasServiceBook", "true");
+    if (currentFilters.brand) params.set("brand", currentFilters.brand);
+    if (currentFilters.model) params.set("model", currentFilters.model);
+    if (currentFilters.generation)
+      params.set("generation", currentFilters.generation);
+    if (currentFilters.priceMin !== undefined && !isNaN(currentFilters.priceMin))
+      params.set("priceMin", String(currentFilters.priceMin));
+    if (currentFilters.priceMax !== undefined && !isNaN(currentFilters.priceMax))
+      params.set("priceMax", String(currentFilters.priceMax));
+    if (currentFilters.yearMin !== undefined && !isNaN(currentFilters.yearMin))
+      params.set("yearMin", String(currentFilters.yearMin));
+    if (currentFilters.yearMax !== undefined && !isNaN(currentFilters.yearMax))
+      params.set("yearMax", String(currentFilters.yearMax));
+    if (
+      currentFilters.mileageMin !== undefined &&
+      !isNaN(currentFilters.mileageMin)
+    )
+      params.set("mileageMin", String(currentFilters.mileageMin));
+    if (
+      currentFilters.mileageMax !== undefined &&
+      !isNaN(currentFilters.mileageMax)
+    )
+      params.set("mileageMax", String(currentFilters.mileageMax));
+    if (currentFilters.fuel) params.set("fuel", currentFilters.fuel);
+    if (currentFilters.bodyType && currentFilters.bodyType.length > 0)
+      params.set("bodyType", currentFilters.bodyType.join(","));
+    if (currentFilters.transmission)
+      params.set("transmission", currentFilters.transmission);
+    if (currentFilters.color) params.set("color", currentFilters.color);
+    if (currentFilters.trim) params.set("trim", currentFilters.trim);
+    if (currentFilters.region) params.set("region", currentFilters.region);
+    if (currentFilters.driveType)
+      params.set("driveType", currentFilters.driveType);
+    if (
+      currentFilters.engineMin !== undefined &&
+      !isNaN(currentFilters.engineMin)
+    )
+      params.set("engineMin", String(currentFilters.engineMin));
+    if (
+      currentFilters.engineMax !== undefined &&
+      !isNaN(currentFilters.engineMax)
+    )
+      params.set("engineMax", String(currentFilters.engineMax));
+    if (
+      currentFilters.powerMin !== undefined &&
+      !isNaN(currentFilters.powerMin)
+    )
+      params.set("powerMin", String(currentFilters.powerMin));
+    if (
+      currentFilters.powerMax !== undefined &&
+      !isNaN(currentFilters.powerMax)
+    )
+      params.set("powerMax", String(currentFilters.powerMax));
+    if (
+      currentFilters.doorsMin !== undefined &&
+      !isNaN(currentFilters.doorsMin)
+    )
+      params.set("doorsMin", String(currentFilters.doorsMin));
+    if (
+      currentFilters.doorsMax !== undefined &&
+      !isNaN(currentFilters.doorsMax)
+    )
+      params.set("doorsMax", String(currentFilters.doorsMax));
+    if (
+      currentFilters.seatsMin !== undefined &&
+      !isNaN(currentFilters.seatsMin)
+    )
+      params.set("seatsMin", String(currentFilters.seatsMin));
+    if (
+      currentFilters.seatsMax !== undefined &&
+      !isNaN(currentFilters.seatsMax)
+    )
+      params.set("seatsMax", String(currentFilters.seatsMax));
+    if (
+      currentFilters.ownersMin !== undefined &&
+      !isNaN(currentFilters.ownersMin)
+    )
+      params.set("ownersMin", String(currentFilters.ownersMin));
+    if (
+      currentFilters.ownersMax !== undefined &&
+      !isNaN(currentFilters.ownersMax)
+    )
+      params.set("ownersMax", String(currentFilters.ownersMax));
+    if (
+      currentFilters.airbagsMin !== undefined &&
+      !isNaN(currentFilters.airbagsMin)
+    )
+      params.set("airbagsMin", String(currentFilters.airbagsMin));
+    if (
+      currentFilters.airbagsMax !== undefined &&
+      !isNaN(currentFilters.airbagsMax)
+    )
+      params.set("airbagsMax", String(currentFilters.airbagsMax));
+    if (currentFilters.sellerType)
+      params.set("sellerType", currentFilters.sellerType);
+    if (
+      currentFilters.listingAgeMin !== undefined &&
+      !isNaN(currentFilters.listingAgeMin)
+    )
+      params.set("listingAgeMin", String(currentFilters.listingAgeMin));
+    if (
+      currentFilters.listingAgeMax !== undefined &&
+      !isNaN(currentFilters.listingAgeMax)
+    )
+      params.set("listingAgeMax", String(currentFilters.listingAgeMax));
+    if (currentFilters.condition && currentFilters.condition.length > 0)
+      params.set("condition", currentFilters.condition.join(","));
+    if (currentFilters.extras && currentFilters.extras.length > 0)
+      params.set("extras", currentFilters.extras.join(","));
+    if (currentFilters.equipment && currentFilters.equipment.length > 0)
+      params.set("equipment", currentFilters.equipment.join(","));
+    if (currentFilters.vatDeductible) params.set("vatDeductible", "true");
+    if (currentFilters.euroEmission)
+      params.set("euroEmission", currentFilters.euroEmission);
+    if (currentFilters.stkValidUntil)
+      params.set("stkValidUntil", currentFilters.stkValidUntil);
+    if (currentFilters.hasServiceBook) params.set("hasServiceBook", "true");
 
     const queryString = params.toString();
     const targetUrl = queryString ? `/listings?${queryString}` : "/listings";
@@ -1205,7 +1265,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     }
     setLocation(targetUrl);
     window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
-  }, [filters, setLocation]);
+  }, [setLocation]);
 
   return {
     filters,
