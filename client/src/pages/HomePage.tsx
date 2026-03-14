@@ -2937,12 +2937,24 @@ export default function HomePage() {
                 </div>
               </aside>
 
-              <div className="self-stretch flex justify-center">
-                <div className="sticky top-24 z-30">
+              <div className="hidden lg:block w-0">
+                <div className="sticky top-1/2 -translate-y-1/2 z-40">
                   <button
+                    type="button"
                     onClick={toggleSidebar}
-                    className="bg-background-secondary flex h-[72px] w-9 items-center justify-center shadow-lg transition-colors hover:opacity-90"
+                    className={[
+                      "h-16 w-9",
+                      "rounded-xl border bg-background shadow-md",
+                      "flex items-center justify-center",
+                      "hover:bg-muted transition",
+                      "-translate-x-1/2",
+                    ].join(" ")}
                     title={
+                      sidebarCollapsed
+                        ? t("filters.showFilters")
+                        : t("filters.hideFilters")
+                    }
+                    aria-label={
                       sidebarCollapsed
                         ? t("filters.showFilters")
                         : t("filters.hideFilters")
@@ -2950,9 +2962,9 @@ export default function HomePage() {
                     data-testid="button-toggle-sidebar-home"
                   >
                     {sidebarCollapsed ? (
-                      <ChevronLeft className="h-6 w-6" />
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
                     ) : (
-                      <ChevronRight className="h-6 w-6" />
+                      <ChevronLeft className="w-5 h-5 text-muted-foreground" />
                     )}
                   </button>
                 </div>
