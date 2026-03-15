@@ -1859,9 +1859,14 @@ const compareBySort = (a: any, b: any, sort: SortKey) => {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupAuth(app);
-  await ensureListingAnalyticsTable();
-  await ensureListingsIndexes();
-  await ensureBrandModelCatalog();
+
+  try {
+    await ensureListingAnalyticsTable();
+    await ensureListingsIndexes();
+    await ensureBrandModelCatalog();
+  } catch (error) {
+    console.error("[startup] Non-blocking catalog/index bootstrap failed:", error);
+  }
   app.set("etag", "weak");
 
   app.get("/api/catalog/brands", async (_req: Request, res: Response) => {
