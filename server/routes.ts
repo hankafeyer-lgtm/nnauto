@@ -1860,13 +1860,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupAuth(app);
 
-  try {
-    await ensureListingAnalyticsTable();
-    await ensureListingsIndexes();
-    await ensureBrandModelCatalog();
-  } catch (error) {
-    console.error("[startup] Non-blocking catalog/index bootstrap failed:", error);
-  }
+  void (async () => {
+    try {
+      await ensureListingAnalyticsTable();
+      await ensureListingsIndexes();
+      await ensureBrandModelCatalog();
+    } catch (error) {
+      console.error("[startup] Non-blocking catalog/index bootstrap failed:", error);
+    }
+  })();
   app.set("etag", "weak");
 
   app.get("/api/catalog/brands", async (_req: Request, res: Response) => {
