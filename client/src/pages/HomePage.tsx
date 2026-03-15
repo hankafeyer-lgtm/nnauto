@@ -2910,58 +2910,61 @@ export default function HomePage() {
           </div>
 
           {/* Desktop sidebar toggle between filters and cards */}
-          <div className="relative hidden lg:block">
-            <div
-              className="grid gap-4 xl:gap-6 transition-[grid-template-columns] duration-300"
-              style={{
-                gridTemplateColumns: sidebarCollapsed
-                  ? "0px 36px 1fr"
-                  : "minmax(260px, 300px) 36px 1fr",
-              }}
+          <div className="hidden lg:flex gap-6">
+            <aside
+              className={[
+                "hidden lg:block shrink-0 transition-[width] duration-300",
+                sidebarCollapsed ? "w-0 overflow-hidden" : "w-72",
+              ].join(" ")}
             >
-              {/* Filters (фон тягнеться донизу: self-stretch + h-full) */}
-              <aside
+              <div
                 className={[
-                  "self-stretch min-w-0",
-                  sidebarCollapsed ? "overflow-hidden" : "overflow-visible",
+                  "rounded-2xl bg-white dark:bg-background border border-black/5 dark:border-white/10 shadow-sm",
+                  "transition-opacity duration-200",
+                  sidebarCollapsed
+                    ? "opacity-0 pointer-events-none"
+                    : "opacity-100",
                 ].join(" ")}
               >
-                <div
-                  className={[
-                    "rounded-2xl bg-white dark:bg-background border border-black/5 dark:border-white/10 shadow-sm",
-                    "transition-all duration-300",
-                    sidebarCollapsed
-                      ? "invisible opacity-0 pointer-events-none"
-                      : "visible opacity-100",
-                  ].join(" ")}
-                >
-                  <FilterSidebar />
-                </div>
-              </aside>
-
-              <div className="hidden lg:block w-0">
-                <div className="sticky top-1/2 z-40 -translate-y-1/2">
-                  <button
-                    onClick={toggleSidebar}
-                    className="h-16 w-9 -translate-x-1/2 rounded-xl border bg-background shadow-md flex items-center justify-center hover:bg-muted transition"
-                    title={
-                      sidebarCollapsed
-                        ? t("filters.showFilters")
-                        : t("filters.hideFilters")
-                    }
-                    data-testid="button-toggle-sidebar-home"
-                  >
-                    {sidebarCollapsed ? (
-                      <ChevronRight className="h-6 w-6" />
-                    ) : (
-                      <ChevronLeft className="h-6 w-6" />
-                    )}
-                  </button>
-                </div>
+                <FilterSidebar />
               </div>
+            </aside>
 
-              {/* Products */}
-              <div className="min-w-0">
+            <div className="hidden lg:block w-0">
+              <div className="sticky top-1/2 -translate-y-1/2 z-40">
+                <button
+                  type="button"
+                  onClick={toggleSidebar}
+                  className={[
+                    "h-16 w-9",
+                    "rounded-xl border bg-background shadow-md",
+                    "flex items-center justify-center",
+                    "hover:bg-muted transition",
+                    "-translate-x-1/2",
+                  ].join(" ")}
+                  title={
+                    sidebarCollapsed
+                      ? t("filters.showFilters")
+                      : t("filters.hideFilters")
+                  }
+                  aria-label={
+                    sidebarCollapsed
+                      ? t("filters.showFilters")
+                      : t("filters.hideFilters")
+                  }
+                  data-testid="button-toggle-sidebar-home"
+                >
+                  {sidebarCollapsed ? (
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Products */}
+            <div className="min-w-0 flex-1">
                 {isLoading && !data ? (
                   <PageLoader />
                 ) : (
@@ -3079,7 +3082,6 @@ export default function HomePage() {
                     )}
                   </>
                 )}
-              </div>
             </div>
           </div>
 

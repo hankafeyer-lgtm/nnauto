@@ -222,12 +222,12 @@ function CarCard({
     didPrefetchRef.current = true;
     prefetchListing(id);
     prefetchListingDocument(id);
+    warmListingFrame(id);
   }, [id]);
 
   const handlePrimeOpen = useCallback(() => {
     handlePrefetch();
-    warmListingFrame(id);
-  }, [handlePrefetch, id]);
+  }, [handlePrefetch]);
 
   useEffect(() => {
     didPrefetchRef.current = false;
