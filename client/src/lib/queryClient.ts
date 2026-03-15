@@ -139,16 +139,38 @@ export const queryClient = new QueryClient({
   },
 });
 
+export function canPrefetchHeavyResources() {
+  if (typeof window === "undefined") return false;
+
+  const connection = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+      mozConnection?: { saveData?: boolean; effectiveType?: string };
+      webkitConnection?: { saveData?: boolean; effectiveType?: string };
+    }
+  ).connection ||
+    (navigator as any).mozConnection ||
+    (navigator as any).webkitConnection;
+
+  if (connection?.saveData) return false;
+
+  const effectiveType = String(connection?.effectiveType || "").toLowerCase();
+  if (effectiveType.includes("2g") || effectiveType.includes("3g")) return false;
+
+  return true;
+}
+
 // Prefetch listings data for faster navigation
 export function prefetchListings() {
   return queryClient.prefetchQuery({
-    queryKey: ['/api/listings?limit=1000'],
+    queryKey: ['/api/listings?limit=20'],
     staleTime: 10 * 60 * 1000,
   });
 }
 
 // Prefetch a single listing for faster navigation
 export function prefetchListing(id: string) {
+  if (!canPrefetchHeavyResources()) return Promise.resolve();
   return queryClient.prefetchQuery({
     queryKey: [`/api/listings/${id}`],
     staleTime: 10 * 60 * 1000,
@@ -161,6 +183,7 @@ const prefetchedListingDocs = new Set<string>();
 export function prefetchListingDocument(id: string) {
   if (typeof window === "undefined") return;
   if (!id) return;
+  if (!canPrefetchHeavyResources()) return;
   const url = `/listing/${id}?embedded=1`;
   if (prefetchedListingDocs.has(url)) return;
   prefetchedListingDocs.add(url);

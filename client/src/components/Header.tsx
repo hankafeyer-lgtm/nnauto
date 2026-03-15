@@ -36,8 +36,7 @@ import { apiRequest, queryClient, setSessionId } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import LoginModal from "@/components/LoginModal";
 import { useFilterParams } from "@/hooks/useFilterParams";
-
-import { Listing } from "@shared/schema";
+import { carBrands, carModels } from "@shared/carDatabase";
 import logoImage from "@assets/ADEE73F1-9859-4FA3-9185-00DC43A78326_1764497749332.png";
 
 const FavoritesModal = lazy(() =>
@@ -50,6 +49,29 @@ type HeaderProps = {
   compactMobile?: boolean;
   showMobileSearch?: boolean;
 };
+
+type SearchSuggestion = {
+  type: "brand" | "model";
+  value: string;
+  brand?: string;
+  score: number;
+};
+
+const normalizeSearchText = (value: string) =>
+  String(value)
+    .toLowerCase()
+    .trim()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const brandLabelByValue = new Map(carBrands.map((brand) => [brand.value, brand.label]));
+
+const staticModelSuggestions = Object.entries(carModels).flatMap(([brandValue, models]) =>
+  models.map((model) => ({
+    brand: brandLabelByValue.get(brandValue) ?? brandValue,
+    model,
+  })),
+);
 
 export default function Header(props: HeaderProps) {
   return <HeaderContent {...props} />;
@@ -92,62 +114,66 @@ function HeaderContent({
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchVisible, setIsSearchVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchMobileInputRef = useRef<HTMLInputElement>(null);
+  const lastScrollYRef = useRef(0);
+  const scrollRafRef = useRef<number | null>(null);
 
-  // Fetch listings for autocomplete suggestions
-  const { data: listingsData } = useQuery<{ listings: Listing[] }>({
-    queryKey: ["/api/listings"],
+  const { data: listingsCountData } = useQuery<{
+    listings: [];
+    pagination?: { total: number };
+  }>({
+    queryKey: ["/api/listings?countOnly=1&limit=1"],
+    staleTime: 15 * 60 * 1000,
   });
 
-  // Safely extract listings array and total count
-  const listings = listingsData?.listings || [];
-  const totalListingsCount =
-    ((listingsData as any)?.pagination?.total ?? listings.length) + 98;
+  const totalListingsCount = listingsCountData?.pagination?.total ?? 0;
 
-  // Generate search suggestions based on input (works with 1+ letters)
   const suggestions = useMemo(() => {
     const trimmedQuery = searchQuery.trim();
     if (!trimmedQuery || trimmedQuery.length < 1) return [];
 
-    const query = trimmedQuery.toLowerCase();
-    const results: {
-      type: "brand" | "model" | "listing";
-      value: string;
-      brand?: string;
-    }[] = [];
+    const query = normalizeSearchText(trimmedQuery);
+    const results: SearchSuggestion[] = [];
     const seenBrands = new Set<string>();
     const seenModels = new Set<string>();
 
-    if (!Array.isArray(listings)) return [];
+    for (const brand of carBrands) {
+      const brandQuery = normalizeSearchText(brand.label);
+      if (!brandQuery.includes(query) || seenBrands.has(brandQuery)) continue;
 
-    listings.forEach((listing) => {
-      if (!listing?.brand || !listing?.model) return;
+      seenBrands.add(brandQuery);
+      results.push({
+        type: "brand",
+        value: brand.label,
+        score: brandQuery.startsWith(query) ? 0 : 1,
+      });
+    }
 
-      // Add brand suggestions
-      const brandLower = listing.brand.toLowerCase();
-      if (brandLower.includes(query) && !seenBrands.has(brandLower)) {
-        seenBrands.add(brandLower);
-        results.push({ type: "brand", value: listing.brand });
-      }
+    for (const entry of staticModelSuggestions) {
+      const brandQuery = normalizeSearchText(entry.brand);
+      const modelQuery = normalizeSearchText(entry.model);
+      const modelKey = `${brandQuery}-${modelQuery}`;
+      const fullQuery = `${brandQuery} ${modelQuery}`;
 
-      // Add model suggestions
-      const modelLower = listing.model.toLowerCase();
-      const modelKey = `${brandLower}-${modelLower}`;
-      if (modelLower.includes(query) && !seenModels.has(modelKey)) {
-        seenModels.add(modelKey);
-        results.push({
-          type: "model",
-          value: listing.model,
-          brand: listing.brand,
-        });
-      }
-    });
+      if (seenModels.has(modelKey)) continue;
+      if (!modelQuery.includes(query) && !fullQuery.includes(query)) continue;
 
-    return results.slice(0, 8);
-  }, [searchQuery, listings]);
+      seenModels.add(modelKey);
+      results.push({
+        type: "model",
+        value: entry.model,
+        brand: entry.brand,
+        score: modelQuery.startsWith(query) ? 2 : fullQuery.startsWith(query) ? 3 : 4,
+      });
+    }
+
+    return results
+      .sort((a, b) => a.score - b.score || a.value.localeCompare(b.value))
+      .slice(0, 8)
+      .map(({ score: _score, ...suggestion }) => suggestion);
+  }, [searchQuery]);
 
   const languageNames = {
     cs: "Čeština",
@@ -170,22 +196,33 @@ function HeaderContent({
 
   useEffect(() => {
     const handleScroll = () => {
-      const currentScrollY = window.scrollY;
+      if (scrollRafRef.current !== null) return;
 
-      if (currentScrollY < 10) {
-        setIsSearchVisible(true);
-      } else if (currentScrollY > lastScrollY) {
-        setIsSearchVisible(false);
-      } else {
-        setIsSearchVisible(true);
-      }
+      scrollRafRef.current = window.requestAnimationFrame(() => {
+        const currentScrollY = window.scrollY;
 
-      setLastScrollY(currentScrollY);
+        if (currentScrollY < 10) {
+          setIsSearchVisible(true);
+        } else if (currentScrollY > lastScrollYRef.current) {
+          setIsSearchVisible(false);
+        } else {
+          setIsSearchVisible(true);
+        }
+
+        lastScrollYRef.current = currentScrollY;
+        scrollRafRef.current = null;
+      });
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [lastScrollY]);
+
+    return () => {
+      if (scrollRafRef.current !== null) {
+        window.cancelAnimationFrame(scrollRafRef.current);
+      }
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);

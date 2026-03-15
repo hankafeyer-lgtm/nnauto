@@ -1833,7 +1833,6 @@ import {
   Key,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import type { Listing } from "@shared/schema";
 import { PriceRangeInput } from "@/components/PriceRangeInput";
 import { MileageRangeInput } from "@/components/MileageRangeInput";
 import { YearRangeInput } from "@/components/YearRangeInput";
@@ -2322,6 +2321,15 @@ function Hero() {
   };
 
   const queryString = buildQueryParams();
+  const [debouncedQueryString, setDebouncedQueryString] = useState(queryString);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedQueryString(queryString);
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [queryString]);
 
   // Query to get listings count for current filters
   // const { data: listingsData } = useQuery<{
@@ -2331,21 +2339,19 @@ function Hero() {
   //   queryKey: ["/api/listings", queryString],
   //   staleTime: 5 * 60 * 1000, // 5 minutes - reduce API calls
   // });
-  const listingsApiUrl = `/api/listings${queryString ? `?${queryString}` : ""}`;
+  const listingsApiUrl = `/api/listings?countOnly=1&limit=1${
+    debouncedQueryString ? `&${debouncedQueryString}` : ""
+  }`;
   const { data: listingsData } = useQuery<{
-    listings: Listing[];
+    listings: [];
     pagination?: { total: number };
     total?: number;
   }>({
     queryKey: [listingsApiUrl],
-    queryFn: async () => {
-      const res = await fetch(listingsApiUrl, { credentials: "include" });
-      if (!res.ok) throw new Error(`Failed to load listings: ${res.status}`);
-      return res.json();
-    },
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
+    staleTime: 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    placeholderData: (previousData) => previousData,
   });
 
   // const baseListingsCount =
@@ -2360,8 +2366,7 @@ function Hero() {
     0;
 
   const listingsCount = baseListingsCount > 0 ? baseListingsCount : 0;
-  const heroSearchDisplayCount =
-    listingsCount > 0 ? listingsCount + 98 : 0;
+  const heroSearchDisplayCount = listingsCount;
   const handleCheckboxChange = (
     category: "condition" | "extras" | "equipment",
     value: string,

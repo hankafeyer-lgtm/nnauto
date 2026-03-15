@@ -5368,9 +5368,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const pageNum = Math.max(1, toInt(q.page) ?? 1);
       const limitNum = Math.min(100, Math.max(1, toInt(q.limit) ?? 20));
+      const countOnly = toBool(q.countOnly);
 
       // ✅ Fast path: no filters => DB pagination/sort (avoids loading ALL listings into memory)
-      const allowedNonFilterKeys = new Set(["page", "limit", "sort"]);
+      const allowedNonFilterKeys = new Set(["page", "limit", "sort", "countOnly"]);
       const hasAnyFilters = Object.keys(q).some((k) => !allowedNonFilterKeys.has(k));
 
       if (!hasAnyFilters) {
@@ -5392,6 +5393,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const totalPages = Math.max(1, Math.ceil(total / limitNum));
         const safePage = Math.min(pageNum, totalPages);
         const start = (safePage - 1) * limitNum;
+
+        if (countOnly) {
+          const payload = {
+            listings: [],
+            pagination: {
+              total,
+              page: safePage,
+              limit: limitNum,
+              totalPages,
+              hasMore: safePage * limitNum < total,
+            },
+          };
+
+          if (process.env.NODE_ENV === "production") {
+            res.setHeader("X-Listings-Data-Source", "db-count");
+          }
+
+          return res.json(payload);
+        }
 
         const orderBy = [desc(listingsTable.isTopListing)];
         switch (sort) {
@@ -5789,6 +5809,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allListings = allListings.filter((l) => l.hasServiceBook === true);
       }
 
+      const total = allListings.length;
+      const totalPages = Math.max(1, Math.ceil(total / limitNum));
+      const safePage = Math.min(pageNum, totalPages);
+
+      if (countOnly) {
+        return res.json({
+          listings: [],
+          pagination: {
+            total,
+            page: safePage,
+            limit: limitNum,
+            totalPages,
+            hasMore: safePage * limitNum < total,
+          },
+        });
+      }
+
       // --- sort: TOP first, потім сортування усередині ---
       allListings.sort((a, b) => {
         const aTop = !!a.isTopListing;
@@ -5802,11 +5839,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // fallback: newest
         return dateMs(b.createdAt) - dateMs(a.createdAt);
       });
-
-      // --- pagination ---
-      const total = allListings.length;
-      const totalPages = Math.max(1, Math.ceil(total / limitNum));
-      const safePage = Math.min(pageNum, totalPages);
 
       const start = (safePage - 1) * limitNum;
       const end = start + limitNum;
@@ -6587,6 +6619,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     <lastmod>${currentDate}</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
+  </url>
+
+  <url>
+    <loc>${baseUrl}/pricing</loc>
+    <lastmod>${currentDate}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
 
 ${listings

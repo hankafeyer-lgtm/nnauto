@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { apiRequest, parseApiError } from "@/lib/queryClient";
@@ -177,6 +178,12 @@ export default function CebiaReturnPage() {
 
   return (
     <div className="container max-w-3xl py-4 sm:py-8 lg:py-10 px-3 sm:px-4">
+      <SEO
+        title="Cebia návrat"
+        description="Technická návratová stránka pro dokončení a doručení Cebia reportu."
+        url="https://nnauto.cz/cebia/return"
+        noindex
+      />
       <Card className="overflow-hidden">
         <CardContent className="p-4 sm:p-6 space-y-4">
           <div className="space-y-1">

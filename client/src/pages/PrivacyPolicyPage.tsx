@@ -1,11 +1,17 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title="Ochrana osobních údajů"
+        description="Informace o zpracování osobních údajů, cookies a právech uživatelů na NNAuto."
+        url="https://nnauto.cz/privacy"
+      />
       <Header />
       
       <main className="flex-1 bg-muted/30">

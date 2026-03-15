@@ -1075,6 +1075,7 @@ import React, {
 import { X, ChevronLeft, ChevronRight, Video } from "lucide-react";
 import { useTranslation } from "@/lib/translations";
 import { getThumbnailUrl, getOptimizedImageUrl } from "@/lib/imageOptimizer";
+import { canPrefetchHeavyResources } from "@/lib/queryClient";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
 
 interface MediaLightboxProps {
@@ -1252,6 +1253,7 @@ export function MediaLightbox({
   useEffect(() => {
     if (!isOpen) return;
     if (photoKeys.length === 0) return;
+    if (!canPrefetchHeavyResources()) return;
 
     const idx = clamp(currentIndex, 0, photoKeys.length - 1);
 

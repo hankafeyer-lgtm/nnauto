@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Camera, FileText, DollarSign, Users, CheckCircle, AlertCircle, Clock, TrendingUp } from "lucide-react";
 import { useTranslation } from "@/lib/translations";
@@ -9,6 +10,11 @@ export default function TipsPage() {
   
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title={t("tips.title")}
+        description={t("tips.subtitle")}
+        url="https://nnauto.cz/tips"
+      />
       <Header />
       
       <main className="flex-1 bg-muted/30">

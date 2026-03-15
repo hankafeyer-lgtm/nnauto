@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { canPrefetchHeavyResources } from "@/lib/queryClient";
 
 type ResponsiveImageProps = Omit<
   React.ImgHTMLAttributes<HTMLImageElement>,
@@ -37,6 +38,7 @@ export function ResponsiveImage({
   useEffect(() => {
     if (!upgrade) return;
     if (typeof window === "undefined") return;
+    if (!canPrefetchHeavyResources()) return;
 
     // якщо не ПК — лишаємось на mobile
     if (!shouldUseDesktop) return;

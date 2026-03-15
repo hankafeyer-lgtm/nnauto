@@ -1,5 +1,6 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Car, Shield, Heart, Users, Award, TrendingUp } from "lucide-react";
@@ -10,6 +11,11 @@ export default function AboutPage() {
   
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO
+        title={t("about.title")}
+        description={t("about.subtitle")}
+        url="https://nnauto.cz/about"
+      />
       <Header />
       
       <main className="flex-1 bg-muted/30">

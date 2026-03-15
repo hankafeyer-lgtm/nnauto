@@ -20,7 +20,11 @@ import { useFavorites } from "@/contexts/FavoritesContext";
 import { useTranslation } from "@/lib/translations";
 import { useState, memo, useRef, useEffect, useCallback, useMemo } from "react";
 import { saveScrollPosition } from "@/components/ScrollToTop";
-import { prefetchListing, prefetchListingDocument } from "@/lib/queryClient";
+import {
+  canPrefetchHeavyResources,
+  prefetchListing,
+  prefetchListingDocument,
+} from "@/lib/queryClient";
 import {
   getCardImageUrl,
   getThumbnailUrl,
@@ -106,7 +110,9 @@ function CarCard({
 
   // Preload next and previous images for instant navigation
   useEffect(() => {
-    if (!hasMultiplePhotos || !shouldPreloadGallery) return;
+    if (!hasMultiplePhotos || !shouldPreloadGallery || !canPrefetchHeavyResources()) {
+      return;
+    }
 
     const preloadIndices = [
       (currentPhotoIndex + 1) % optimizedPhotos.length,
@@ -211,7 +217,7 @@ function CarCard({
 
   // Prefetch listing data on hover for faster navigation
   const handlePrefetch = useCallback(() => {
-    if (didPrefetchRef.current) return;
+    if (didPrefetchRef.current || !canPrefetchHeavyResources()) return;
     didPrefetchRef.current = true;
     prefetchListing(id);
     prefetchListingDocument(id);
@@ -275,8 +281,8 @@ function CarCard({
                 /> */}
                 <img
                   src={getOptimizedImageUrl(image, {
-                    width: 640,
-                    quality: 74,
+                    width: 560,
+                    quality: 62,
                     format: "webp",
                   })}
                   srcSet={getCardSrcSet(image)}

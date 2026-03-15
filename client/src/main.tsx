@@ -47,6 +47,36 @@ const initClarity = async () => {
   }
 };
 
-void initClarity();
+const scheduleClarityInit = () => {
+  if (typeof window === "undefined") return;
+
+  const start = () => {
+    void initClarity();
+  };
+
+  const requestIdleCallback = (
+    window as Window & {
+      requestIdleCallback?: (
+        callback: () => void,
+        options?: { timeout: number },
+      ) => void;
+    }
+  ).requestIdleCallback;
+
+  if (typeof requestIdleCallback === "function") {
+    requestIdleCallback(start, { timeout: 2000 });
+    return;
+  }
+
+  window.setTimeout(start, 1200);
+};
+
+if (typeof window !== "undefined") {
+  if (document.readyState === "complete") {
+    scheduleClarityInit();
+  } else {
+    window.addEventListener("load", scheduleClarityInit, { once: true });
+  }
+}
 
 createRoot(document.getElementById("root")!).render(<App />);
