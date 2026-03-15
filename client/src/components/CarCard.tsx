@@ -253,6 +253,8 @@ function CarCard({
           data-testid={`link-car-${id}`}
           className="touch-manipulation"
           onClick={handleListingClick}
+          onMouseDown={handlePrefetch}
+          onPointerDown={handlePrefetch}
           onTouchStart={handlePrefetch}
           onFocus={handlePrefetch}
         >
@@ -438,6 +440,8 @@ function CarCard({
         data-testid={`link-car-${id}`}
         className="block h-full touch-manipulation"
         onClick={handleListingClick}
+        onMouseDown={handlePrefetch}
+        onPointerDown={handlePrefetch}
         onTouchStart={handlePrefetch}
         onFocus={handlePrefetch}
       >
@@ -450,6 +454,7 @@ function CarCard({
           <div
             className="relative bg-muted group/photo touch-pan-y min-w-0 shrink-0 h-[240px] sm:h-[260px] lg:h-[220px] overflow-hidden"
             onMouseEnter={() => setShouldPreloadGallery(true)}
+            onPointerDown={handlePrefetch}
             onTouchStart={hasMultiplePhotos ? handleTouchStart : undefined}
             onTouchMove={hasMultiplePhotos ? handleTouchMove : undefined}
             onTouchEnd={hasMultiplePhotos ? handleTouchEnd : undefined}

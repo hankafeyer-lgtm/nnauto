@@ -155,7 +155,7 @@ export function canPrefetchHeavyResources() {
   if (connection?.saveData) return false;
 
   const effectiveType = String(connection?.effectiveType || "").toLowerCase();
-  if (effectiveType.includes("2g") || effectiveType.includes("3g")) return false;
+  if (effectiveType.includes("slow-2g") || effectiveType.includes("2g")) return false;
 
   return true;
 }
@@ -178,23 +178,34 @@ export function prefetchListing(id: string) {
 }
 
 const prefetchedListingDocs = new Set<string>();
+const prefetchedListingDocLinks = new Set<string>();
 
 // Warm listing page document cache (helps iframe open faster on mobile)
 export function prefetchListingDocument(id: string) {
   if (typeof window === "undefined") return;
   if (!id) return;
-  if (!canPrefetchHeavyResources()) return;
   const url = `/listing/${id}?embedded=1`;
+
+  if (!prefetchedListingDocLinks.has(url)) {
+    prefetchedListingDocLinks.add(url);
+    const link = document.createElement("link");
+    link.rel = "prefetch";
+    link.as = "document";
+    link.href = url;
+    document.head.appendChild(link);
+  }
+
   if (prefetchedListingDocs.has(url)) return;
   prefetchedListingDocs.add(url);
 
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 1500);
+  const timeout = window.setTimeout(() => controller.abort(), 6000);
 
   fetch(url, {
     method: "GET",
     credentials: "include",
     signal: controller.signal,
+    cache: "force-cache",
   })
     .catch(() => {
       // Ignore warmup failures; real navigation still handles loading/errors.

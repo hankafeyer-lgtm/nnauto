@@ -3442,8 +3442,8 @@ export default function ListingDetailPage() {
     neighbors.add(photoKeys[(idx + 2) % len]);
     neighbors.add(photoKeys[(idx - 2 + len) % len]);
     const isDesktop = w.innerWidth >= 1024;
-    const preloadWidth = isDesktop ? 1280 : 640;
-    const preloadQuality = isDesktop ? 80 : 76;
+    const preloadWidth = isDesktop ? 1120 : 560;
+    const preloadQuality = isDesktop ? 68 : 58;
 
     for (const key of neighbors) {
       const img = new Image();
@@ -4276,18 +4276,18 @@ export default function ListingDetailPage() {
                               <ResponsiveImage
                                 // було 400px → робимо 768px, щоб на мобільному/retina було чітко
                                 mobileSrc={getOptimizedImageUrl(key, {
-                                  width: 640,
-                                  quality: 76,
+                                  width: 560,
+                                  quality: 62,
                                   format: "webp",
                                 })}
                                 // було 1200px → робимо 1600px для деталки (виглядає значно різкіше)
                                 desktopSrc={getOptimizedImageUrl(key, {
-                                  width: 1280,
-                                  quality: 80,
+                                  width: 1120,
+                                  quality: 68,
                                   format: "webp",
                                 })}
                                 desktopMinWidth={1024}
-                                upgrade={Math.abs(index - currentCarouselIndex) <= 1}
+                                upgrade={index === currentCarouselIndex}
                                 alt={`${getListingMainTitle(listing)} - ${index + 1}`}
                                 loading={index === 0 ? "eager" : "lazy"}
                                 decoding="async"
@@ -4467,21 +4467,19 @@ export default function ListingDetailPage() {
                           >
                             <ResponsiveImage
                               mobileSrc={getOptimizedImageUrl(key, {
-                                width: 96,
-                                quality: 66,
+                                width: 80,
+                                quality: 54,
                                 format: "webp",
                               })}
                               desktopSrc={getOptimizedImageUrl(key, {
-                                width: 192,
-                                quality: 72,
+                                width: 144,
+                                quality: 60,
                                 format: "webp",
                               })}
                               desktopMinWidth={1024}
-                              upgrade={
-                                Math.abs(index - currentCarouselIndex) <= 2
-                              }
+                              upgrade={index === currentCarouselIndex}
                               alt={`Thumbnail ${index + 1}`}
-                              loading={index < 2 ? "eager" : "lazy"}
+                              loading={index === 0 ? "eager" : "lazy"}
                               decoding="async"
                               sizes="64px"
                               className="w-full h-full object-cover"

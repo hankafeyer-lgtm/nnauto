@@ -4398,6 +4398,8 @@ export default function ListingsPage() {
           ) : null}
           <iframe
             src={`/listing/${openListingId}?embedded=1`}
+            loading="eager"
+            fetchPriority="high"
             className={`w-full h-full border-0 bg-background transition-opacity duration-150 ${
               isOpenListingOverlayLoading ? "opacity-0" : "opacity-100"
             }`}

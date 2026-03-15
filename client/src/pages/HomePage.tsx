@@ -2907,7 +2907,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* ✅ Desktop (кнопка як у першому варіанті: між aside і картками, sticky по центру) */}
+          {/* Desktop sidebar toggle between filters and cards */}
           <div className="relative hidden lg:block">
             <div
               className="grid gap-4 xl:gap-6 transition-[grid-template-columns] duration-300"
@@ -2937,8 +2937,8 @@ export default function HomePage() {
                 </div>
               </aside>
 
-              <div className="self-stretch">
-                <div className="sticky top-1/2 z-30 -translate-y-1/2">
+              <div className="self-start">
+                <div className="sticky top-24 z-30">
                   <button
                     onClick={toggleSidebar}
                     className="bg-background-secondary flex h-[72px] w-9 items-center justify-center shadow-lg transition-colors hover:opacity-90"
@@ -2950,9 +2950,9 @@ export default function HomePage() {
                     data-testid="button-toggle-sidebar-home"
                   >
                     {sidebarCollapsed ? (
-                      <ChevronLeft className="h-6 w-6" />
-                    ) : (
                       <ChevronRight className="h-6 w-6" />
+                    ) : (
+                      <ChevronLeft className="h-6 w-6" />
                     )}
                   </button>
                 </div>
@@ -3177,6 +3177,8 @@ export default function HomePage() {
             ) : null}
             <iframe
               src={`/listing/${openListingId}?embedded=1`}
+              loading="eager"
+              fetchPriority="high"
               className={`w-full h-full border-0 bg-background transition-opacity duration-150 ${
                 isOpenListingOverlayLoading ? "opacity-0" : "opacity-100"
               }`}

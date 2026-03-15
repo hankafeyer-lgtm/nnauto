@@ -1092,10 +1092,10 @@ const clamp = (n: number, min: number, max: number) =>
 const DESKTOP_MIN_WIDTH = 1024;
 
 // ✅ Тюнінг під швидкість/якість
-const MOBILE_MAX_W = 900; // smaller render target improves decode/transfer time
-const MOBILE_Q = 76; // keep clarity while still reducing payload
-const DESKTOP_W = 1600; // avoid heavy 2400px transforms on each swipe
-const DESKTOP_Q = 82;
+const MOBILE_MAX_W = 760; // smaller render target improves decode/transfer time
+const MOBILE_Q = 64; // prioritize speed when opening full-screen galleries
+const DESKTOP_W = 1280; // avoid heavy transforms on each swipe
+const DESKTOP_Q = 70;
 
 export function MediaLightbox({
   photos,
@@ -1253,7 +1253,6 @@ export function MediaLightbox({
   useEffect(() => {
     if (!isOpen) return;
     if (photoKeys.length === 0) return;
-    if (!canPrefetchHeavyResources()) return;
 
     const idx = clamp(currentIndex, 0, photoKeys.length - 1);
 

@@ -2366,7 +2366,8 @@ function Hero() {
     0;
 
   const listingsCount = baseListingsCount > 0 ? baseListingsCount : 0;
-  const heroSearchDisplayCount = listingsCount;
+  const heroSearchDisplayCount =
+    listingsCount > 0 ? listingsCount + 98 : 0;
   const handleCheckboxChange = (
     category: "condition" | "extras" | "equipment",
     value: string,
