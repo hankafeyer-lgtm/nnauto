@@ -455,7 +455,6 @@ function CarCard({
               src={currentOptimizedImage}
               alt={title}
               loading={priority ? "eager" : "lazy"}
-              fetchPriority={priority ? "high" : "low"}
               decoding="async"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
               onLoad={() => setImageLoaded(true)}
