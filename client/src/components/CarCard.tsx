@@ -24,6 +24,7 @@ import {
   canPrefetchHeavyResources,
   prefetchListing,
   prefetchListingDocument,
+  warmListingFrame,
 } from "@/lib/queryClient";
 import {
   getCardImageUrl,
@@ -223,6 +224,11 @@ function CarCard({
     prefetchListingDocument(id);
   }, [id]);
 
+  const handlePrimeOpen = useCallback(() => {
+    handlePrefetch();
+    warmListingFrame(id);
+  }, [handlePrefetch, id]);
+
   useEffect(() => {
     didPrefetchRef.current = false;
   }, [id]);
@@ -253,8 +259,8 @@ function CarCard({
           data-testid={`link-car-${id}`}
           className="touch-manipulation"
           onClick={handleListingClick}
-          onMouseDown={handlePrefetch}
-          onPointerDown={handlePrefetch}
+          onMouseDown={handlePrimeOpen}
+          onPointerDown={handlePrimeOpen}
           onTouchStart={handlePrefetch}
           onFocus={handlePrefetch}
         >
@@ -440,8 +446,8 @@ function CarCard({
         data-testid={`link-car-${id}`}
         className="block h-full touch-manipulation"
         onClick={handleListingClick}
-        onMouseDown={handlePrefetch}
-        onPointerDown={handlePrefetch}
+        onMouseDown={handlePrimeOpen}
+        onPointerDown={handlePrimeOpen}
         onTouchStart={handlePrefetch}
         onFocus={handlePrefetch}
       >
@@ -454,7 +460,7 @@ function CarCard({
           <div
             className="relative bg-muted group/photo touch-pan-y min-w-0 shrink-0 h-[240px] sm:h-[260px] lg:h-[220px] overflow-hidden"
             onMouseEnter={() => setShouldPreloadGallery(true)}
-            onPointerDown={handlePrefetch}
+            onPointerDown={handlePrimeOpen}
             onTouchStart={hasMultiplePhotos ? handleTouchStart : undefined}
             onTouchMove={hasMultiplePhotos ? handleTouchMove : undefined}
             onTouchEnd={hasMultiplePhotos ? handleTouchEnd : undefined}

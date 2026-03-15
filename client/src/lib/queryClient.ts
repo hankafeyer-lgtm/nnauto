@@ -179,6 +179,39 @@ export function prefetchListing(id: string) {
 
 const prefetchedListingDocs = new Set<string>();
 const prefetchedListingDocLinks = new Set<string>();
+const warmedListingFrames = new Set<string>();
+
+export function warmListingFrame(id: string) {
+  if (typeof window === "undefined") return;
+  if (!id) return;
+  if (!canPrefetchHeavyResources()) return;
+
+  const url = `/listing/${id}?embedded=1`;
+  if (warmedListingFrames.has(url)) return;
+  warmedListingFrames.add(url);
+
+  const iframe = document.createElement("iframe");
+  iframe.src = url;
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.tabIndex = -1;
+  iframe.style.position = "absolute";
+  iframe.style.width = "1px";
+  iframe.style.height = "1px";
+  iframe.style.opacity = "0";
+  iframe.style.pointerEvents = "none";
+  iframe.style.left = "-9999px";
+  iframe.style.top = "-9999px";
+
+  const cleanup = () => {
+    window.clearTimeout(timeout);
+    iframe.remove();
+  };
+
+  const timeout = window.setTimeout(cleanup, 5000);
+  iframe.addEventListener("load", cleanup, { once: true });
+  iframe.addEventListener("error", cleanup, { once: true });
+  document.body.appendChild(iframe);
+}
 
 // Warm listing page document cache (helps iframe open faster on mobile)
 export function prefetchListingDocument(id: string) {

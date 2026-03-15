@@ -2050,6 +2050,7 @@ import {
   prefetchListing,
   prefetchListingDocument,
   queryClient,
+  warmListingFrame,
 } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getListingMainTitle } from "@/lib/listingTitle";
@@ -2249,6 +2250,7 @@ export default function HomePage() {
   const openListingOverlay = useCallback((id: string) => {
     void prefetchListing(id);
     prefetchListingDocument(id);
+    warmListingFrame(id);
     const url = new URL(window.location.href);
     url.searchParams.set("openListing", id);
     window.history.pushState(window.history.state, "", url.toString());
@@ -2937,11 +2939,11 @@ export default function HomePage() {
                 </div>
               </aside>
 
-              <div className="self-start">
-                <div className="sticky top-24 z-30">
+              <div className="hidden lg:block w-0">
+                <div className="sticky top-1/2 z-40 -translate-y-1/2">
                   <button
                     onClick={toggleSidebar}
-                    className="bg-background-secondary flex h-[72px] w-9 items-center justify-center shadow-lg transition-colors hover:opacity-90"
+                    className="h-16 w-9 -translate-x-1/2 rounded-xl border bg-background shadow-md flex items-center justify-center hover:bg-muted transition"
                     title={
                       sidebarCollapsed
                         ? t("filters.showFilters")

@@ -2949,6 +2949,7 @@ import {
   prefetchListing,
   prefetchListingDocument,
   queryClient,
+  warmListingFrame,
 } from "@/lib/queryClient";
 
 import { useAuth } from "@/hooks/useAuth";
@@ -3216,6 +3217,7 @@ export default function ListingsPage() {
   const openListingOverlay = useCallback((id: string) => {
     void prefetchListing(id);
     prefetchListingDocument(id);
+    warmListingFrame(id);
     pushUrlParams((p) => {
       p.set("openListing", id);
     });
