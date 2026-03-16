@@ -4232,7 +4232,11 @@ export default function ListingDetailPage() {
 
       <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
 
-      <div className={`min-h-screen bg-background ${isEmbedded ? "pb-24 md:pb-0" : ""}`}>
+      <div
+        className={`min-h-screen bg-background overflow-x-hidden ${
+          isEmbedded ? "pb-24 md:pb-0" : ""
+        }`}
+      >
         {isEmbedded && (
           <div className="md:hidden border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="px-4 py-3 flex items-center gap-2">
