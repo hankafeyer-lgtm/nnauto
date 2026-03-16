@@ -55,24 +55,12 @@ export type BrandIconEntry =
     }
   | { type: "image"; src: string; alt: string };
 
-export const BrandIconRenderer = ({
-  icon,
-  className = "w-4 h-4",
-}: {
-  icon?: BrandIconEntry;
-  className?: string;
-}) => {
+export const BrandIconRenderer = ({ icon, className = "w-4 h-4" }: { icon?: BrandIconEntry; className?: string }) => {
   if (!icon) return null;
   
   if (icon.type === "component") {
     const Icon = icon.component;
-    // react-icons використовують currentColor; явно прокидаємо color, щоб не
-    // залежати від кольору тексту батьківського елемента.
-    return icon.color ? (
-      <Icon className={className} color={icon.color} />
-    ) : (
-      <Icon className={className} />
-    );
+    return <Icon className={className} style={icon.color ? { color: icon.color } : undefined} />;
   }
   
   return (
