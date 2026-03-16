@@ -1,6 +1,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 
-export type Language = "cs" | "uk" | "en";
+export type Language = "cs" | "uk" | "en" | "de";
+
+const supportedLanguages: Language[] = ["cs", "uk", "en", "de"];
+
+const isLanguage = (value: string | null): value is Language =>
+  !!value && supportedLanguages.includes(value as Language);
 
 interface LanguageContextType {
   language: Language;
@@ -11,8 +16,14 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(() => {
+    const urlLanguage =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("lang")
+        : null;
+    if (isLanguage(urlLanguage)) return urlLanguage;
+
     const saved = localStorage.getItem("language");
-    return (saved as Language) || "cs";
+    return isLanguage(saved) ? saved : "cs";
   });
 
   const setLanguage = (lang: Language) => {
@@ -25,7 +36,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     const localeMap: Record<Language, string> = {
       cs: 'cs-CZ',
       uk: 'uk-UA', 
-      en: 'en-US'
+      en: 'en-US',
+      de: 'de-DE',
     };
     document.documentElement.lang = localeMap[language] || language;
   }, [language]);

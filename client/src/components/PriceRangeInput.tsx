@@ -339,7 +339,13 @@ export function PriceRangeInput({
   const [canTypeMax, setCanTypeMax] = useState(false);
 
   const locale =
-    language === "cs" ? "cs-CZ" : language === "uk" ? "uk-UA" : "en-US";
+    language === "cs"
+      ? "cs-CZ"
+      : language === "uk"
+        ? "uk-UA"
+        : language === "de"
+          ? "de-DE"
+          : "en-US";
 
   const formatNumber = (value: number): string => {
     if (value === 0) return "";
@@ -457,7 +463,9 @@ export function PriceRangeInput({
       ? "vlastní výběr"
       : language === "uk"
         ? "власний вибір"
-        : "custom";
+        : language === "de"
+          ? "eigene Auswahl"
+          : "custom";
 
   return (
     <div className={`space-y-2 ${className}`}>

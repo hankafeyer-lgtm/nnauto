@@ -6598,6 +6598,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     <xhtml:link rel="alternate" hreflang="cs" href="${baseUrl}/" />
     <xhtml:link rel="alternate" hreflang="uk" href="${baseUrl}/?lang=uk" />
     <xhtml:link rel="alternate" hreflang="en" href="${baseUrl}/?lang=en" />
+    <xhtml:link rel="alternate" hreflang="de" href="${baseUrl}/?lang=de" />
   </url>
 
   <url>

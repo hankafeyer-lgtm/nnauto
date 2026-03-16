@@ -2958,7 +2958,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useFilterParams } from "@/hooks/useFilterParams";
 
 import { formatDistanceToNow } from "date-fns";
-import { cs, uk, enUS } from "date-fns/locale";
+import { cs, uk, enUS, de } from "date-fns/locale";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -3808,7 +3808,8 @@ export default function ListingsPage() {
   }, []);
 
   /* ----- UI helpers ----- */
-  const dateLocale = language === "cs" ? cs : language === "uk" ? uk : enUS;
+  const dateLocale =
+    language === "cs" ? cs : language === "uk" ? uk : language === "de" ? de : enUS;
 
   const displayListings = useMemo(() => {
     if (isFetching && accumulated.length === 0) return listings;
@@ -3953,18 +3954,21 @@ export default function ListingsPage() {
     cs: `Prohlédněte si ${listingsCount || ""} inzerátů aut, motocyklů a nákladních vozidel. Pokročilé filtry, snadné vyhledávání. NNAuto - prémiový marketplace vozidel.`,
     uk: `Перегляньте ${listingsCount || ""} оголошень авто, мотоциклів та вантажівок. Розширені фільтри, легкий пошук. NNAuto - преміальний маркетплейс авто.`,
     en: `Browse ${listingsCount || ""} car, motorcycle and truck listings. Advanced filters, easy search. NNAuto - premium vehicle marketplace.`,
+    de: `Entdecken Sie ${listingsCount || ""} Inserate für Autos, Motorräder und Nutzfahrzeuge. Erweiterte Filter, einfache Suche. NNAuto - Premium-Fahrzeugmarktplatz.`,
   };
 
   const seoTitles = {
     cs: "Inzeráty vozidel - Auta, Motocykly, Nákladní vozy | NNAuto",
     uk: "Оголошення автомобілів - Авто, Мотоцикли, Вантажівки | NNAuto",
     en: "Vehicle Listings - Cars, Motorcycles, Trucks | NNAuto",
+    de: "Fahrzeuginserate - Autos, Motorräder, Nutzfahrzeuge | NNAuto",
   };
 
   const seoKeywords = {
     cs: "inzeráty aut, prodej aut, bazar aut, ojetá auta, auto inzeráty, automobily na prodej, motocykly, nákladní vozy, autobazar, NNAuto",
     uk: "оголошення авто, продаж авто, авторинок, вживані авто, автомобілі, мотоцикли, вантажівки, NNAuto",
     en: "car listings, car sales, used cars, automobiles for sale, motorcycles, trucks, car market, NNAuto",
+    de: "Autoanzeigen, Autoverkauf, Gebrauchtwagen, Fahrzeuge zu verkaufen, Motorräder, Nutzfahrzeuge, Automarkt, NNAuto",
   };
 
   const listingsSchema =
@@ -3994,12 +3998,19 @@ export default function ListingsPage() {
         }
         url="https://nnauto.cz/listings"
         locale={
-          language === "cs" ? "cs_CZ" : language === "uk" ? "uk_UA" : "en_US"
+          language === "cs"
+            ? "cs_CZ"
+            : language === "uk"
+              ? "uk_UA"
+              : language === "de"
+                ? "de_DE"
+                : "en_US"
         }
         alternateLanguages={[
           { lang: "cs", url: "https://nnauto.cz/listings" },
           { lang: "uk", url: "https://nnauto.cz/listings" },
           { lang: "en", url: "https://nnauto.cz/listings" },
+          { lang: "de", url: "https://nnauto.cz/listings" },
         ]}
         structuredData={listingsSchema}
       />

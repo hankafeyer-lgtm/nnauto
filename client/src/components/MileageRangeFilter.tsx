@@ -33,7 +33,15 @@ export default function MileageRangeFilter({
   const [maxValue, setMaxValue] = useState("");
 
   const formatNumber = (value: number): string => {
-    return new Intl.NumberFormat(language === "cs" ? "cs-CZ" : language === "uk" ? "uk-UA" : "en-US").format(value);
+    return new Intl.NumberFormat(
+      language === "cs"
+        ? "cs-CZ"
+        : language === "uk"
+          ? "uk-UA"
+          : language === "de"
+            ? "de-DE"
+            : "en-US",
+    ).format(value);
   };
 
   const parseNumber = (value: string): number => {

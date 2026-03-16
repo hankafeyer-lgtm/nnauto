@@ -179,6 +179,7 @@ function HeaderContent({
     cs: "Čeština",
     uk: "Українська",
     en: "English",
+    de: "Deutsch",
   };
 
   useEffect(() => {
@@ -530,7 +531,7 @@ function HeaderContent({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56 p-2">
                 <DropdownMenuLabel className="text-base font-semibold px-3 py-2.5 text-black dark:text-white">
-                  Jazyk / Мова / Language
+                  Jazyk / Мова / Language / Sprache
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
@@ -572,6 +573,20 @@ function HeaderContent({
                 >
                   <span className="font-medium">{languageNames.en}</span>
                   {language === "en" && (
+                    <span className="ml-auto text-sm">✓</span>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setLanguage("de")}
+                  className={`px-3 py-3 text-base rounded-lg border border-transparent text-black dark:text-white ${
+                    language === "de"
+                      ? "bg-accent border-accent-border"
+                      : "hover:border-border"
+                  }`}
+                  data-testid="language-de"
+                >
+                  <span className="font-medium">{languageNames.de}</span>
+                  {language === "de" && (
                     <span className="ml-auto text-sm">✓</span>
                   )}
                 </DropdownMenuItem>

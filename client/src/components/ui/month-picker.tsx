@@ -21,6 +21,10 @@ const monthNames = {
   en: [
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"
+  ],
+  de: [
+    "Januar", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember"
   ]
 };
 
@@ -58,7 +62,7 @@ export function MonthPicker({ value, onChange, minDate, className, "data-testid"
           className="flex-1 h-12 rounded-xl text-black dark:text-white" 
           data-testid={testId ? `${testId}-month` : undefined}
         >
-          <SelectValue placeholder={language === "uk" ? "Місяць" : language === "en" ? "Month" : "Měsíc"} />
+          <SelectValue placeholder={language === "uk" ? "Місяць" : language === "en" ? "Month" : language === "de" ? "Monat" : "Měsíc"} />
         </SelectTrigger>
         <SelectContent>
           {months.map((month, index) => (
@@ -78,7 +82,7 @@ export function MonthPicker({ value, onChange, minDate, className, "data-testid"
           className="w-24 h-12 rounded-xl text-black dark:text-white"
           data-testid={testId ? `${testId}-year` : undefined}
         >
-          <SelectValue placeholder={language === "uk" ? "Рік" : language === "en" ? "Year" : "Rok"} />
+          <SelectValue placeholder={language === "uk" ? "Рік" : language === "en" ? "Year" : language === "de" ? "Jahr" : "Rok"} />
         </SelectTrigger>
         <SelectContent>
           {years.map((year) => (

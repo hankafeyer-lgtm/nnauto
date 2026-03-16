@@ -2029,7 +2029,7 @@ import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 import { keepPreviousData, useMutation, useQuery } from "@tanstack/react-query";
 
 import { formatDistanceToNow } from "date-fns";
-import { cs, uk, enUS } from "date-fns/locale";
+import { cs, uk, enUS, de } from "date-fns/locale";
 
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useLocation } from "wouter";
@@ -2302,7 +2302,8 @@ export default function HomePage() {
   }, [closeListingOverlay]);
 
   const recommendedSectionRef = useRef<HTMLElement>(null);
-  const dateLocale = language === "cs" ? cs : language === "uk" ? uk : enUS;
+  const dateLocale =
+    language === "cs" ? cs : language === "uk" ? uk : language === "de" ? de : enUS;
 
   const fuelLabels = useMemo(
     () => ({
@@ -2519,18 +2520,21 @@ export default function HomePage() {
     cs: "NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání.",
     uk: "NNAuto - преміальний маркетплейс для купівлі та продажу автомобілів, мотоциклів та вантажівок у Чеській Республіці. Тисячі перевірених оголошень, розширені фільтри, легкий пошук.",
     en: "NNAuto is a premium marketplace for buying and selling cars, motorcycles and trucks in the Czech Republic. Thousands of verified listings, advanced filters, easy search.",
+    de: "NNAuto ist ein Premium-Marktplatz für den Kauf und Verkauf von Autos, Motorrädern und Nutzfahrzeugen in der Tschechischen Republik. Tausende verifizierte Inserate, erweiterte Filter und einfache Suche.",
   };
 
   const seoTitles = {
     cs: "NNAuto - Prémiový Marketplace Aut | Prodej a Nákup Vozidel v ČR",
     uk: "NNAuto - Преміальний Маркетплейс Авто | Продаж та Покупка Автомобілів",
     en: "NNAuto - Premium Car Marketplace | Buy & Sell Vehicles in Czech Republic",
+    de: "NNAuto - Premium-Automarkt | Fahrzeuge in Tschechien kaufen und verkaufen",
   };
 
   const seoKeywords = {
     cs: "prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, nákladní vozy, autobazar, Česká republika, NNAuto, autobazar online, auto inzeráty, výkup aut, prodej vozidel, auta na prodej",
     uk: "продаж авто, купівля авто, авторинок, вживані авто, нові авто, автомобілі, мотоцикли, вантажівки, автобазар, Чехія, NNAuto",
     en: "car sales, buy cars, used cars, new cars, automobiles, motorcycles, trucks, car market, Czech Republic, NNAuto, car listings",
+    de: "Autoverkauf, Auto kaufen, Gebrauchtwagen, Neuwagen, Automobile, Motorräder, Nutzfahrzeuge, Automarkt, Tschechien, NNAuto, Autoanzeigen",
   };
 
   const organizationSchema = generateOrganizationSchema();
@@ -2749,12 +2753,19 @@ export default function HomePage() {
         }
         url="https://nnauto.cz/"
         locale={
-          language === "cs" ? "cs_CZ" : language === "uk" ? "uk_UA" : "en_US"
+          language === "cs"
+            ? "cs_CZ"
+            : language === "uk"
+              ? "uk_UA"
+              : language === "de"
+                ? "de_DE"
+                : "en_US"
         }
         alternateLanguages={[
           { lang: "cs", url: "https://nnauto.cz/" },
           { lang: "uk", url: "https://nnauto.cz/" },
           { lang: "en", url: "https://nnauto.cz/" },
+          { lang: "de", url: "https://nnauto.cz/" },
         ]}
         structuredData={{
           "@context": "https://schema.org",
@@ -2913,7 +2924,7 @@ export default function HomePage() {
           <div className="hidden lg:flex gap-6">
             <aside
               className={[
-                "hidden lg:block shrink-0 transition-[width] duration-300",
+                "hidden lg:block shrink-0 self-start transition-[width] duration-300",
                 sidebarCollapsed ? "w-0 overflow-hidden" : "w-72",
               ].join(" ")}
             >
@@ -2930,8 +2941,8 @@ export default function HomePage() {
               </div>
             </aside>
 
-            <div className="hidden lg:block w-0">
-              <div className="sticky top-1/2 -translate-y-1/2 z-40">
+            <div className="hidden lg:block w-0 self-start">
+              <div className="sticky self-start top-1/2 -translate-y-1/2 z-40">
                 <button
                   type="button"
                   onClick={toggleSidebar}

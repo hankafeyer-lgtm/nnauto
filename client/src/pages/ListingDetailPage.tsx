@@ -4100,7 +4100,13 @@ export default function ListingDetailPage() {
   const seoTitle = useMemo(() => {
     if (!listing) return "";
     const price = Number(listing.price).toLocaleString(
-      language === "cs" ? "cs-CZ" : language === "uk" ? "uk-UA" : "en-US",
+      language === "cs"
+        ? "cs-CZ"
+        : language === "uk"
+          ? "uk-UA"
+          : language === "de"
+            ? "de-DE"
+            : "en-US",
     );
     return `${listing.year} ${listing.brand} ${listing.model} - ${price} ${
       language === "en" ? "CZK" : "Kč"
@@ -4201,12 +4207,19 @@ export default function ListingDetailPage() {
         url={listingUrl}
         type="product"
         locale={
-          language === "cs" ? "cs_CZ" : language === "uk" ? "uk_UA" : "en_US"
+          language === "cs"
+            ? "cs_CZ"
+            : language === "uk"
+              ? "uk_UA"
+              : language === "de"
+                ? "de_DE"
+                : "en_US"
         }
         alternateLanguages={[
           { lang: "cs", url: listingUrl },
           { lang: "uk", url: listingUrl },
           { lang: "en", url: listingUrl },
+          { lang: "de", url: listingUrl },
         ]}
         structuredData={{
           "@context": "https://schema.org",

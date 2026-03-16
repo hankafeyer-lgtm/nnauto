@@ -396,7 +396,13 @@ export default function AddListingPage() {
   const formatNumber = (value: number): string => {
     if (value === 0) return "";
     return new Intl.NumberFormat(
-      language === "cs" ? "cs-CZ" : language === "uk" ? "uk-UA" : "en-US"
+      language === "cs"
+        ? "cs-CZ"
+        : language === "uk"
+          ? "uk-UA"
+          : language === "de"
+            ? "de-DE"
+            : "en-US"
     ).format(value);
   };
   

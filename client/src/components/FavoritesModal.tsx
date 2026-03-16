@@ -11,7 +11,7 @@ import { Listing } from "@shared/schema";
 import CarCard from "./CarCard";
 import { getListingMainTitle } from "@/lib/listingTitle";
 import { formatDistanceToNow } from "date-fns";
-import { cs, uk, enUS } from "date-fns/locale";
+import { cs, uk, enUS, de } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Heart } from "lucide-react";
 import sedanImage from "@assets/generated_images/Featured_car_sedan_3670cf96.png";
@@ -67,6 +67,7 @@ export function FavoritesModal({ isOpen, onClose }: FavoritesModalProps) {
     cs: cs,
     uk: uk,
     en: enUS,
+    de: de,
   };
 
   return (
