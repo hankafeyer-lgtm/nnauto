@@ -47,12 +47,8 @@ import {
   SiVolvo,
 } from "react-icons/si";
 
-export type BrandIconEntry =
-  | {
-      type: "component";
-      component: ComponentType<{ className?: string }>;
-      color?: string;
-    }
+export type BrandIconEntry = 
+  | { type: "component"; component: ComponentType<{ className?: string }> }
   | { type: "image"; src: string; alt: string };
 
 export const BrandIconRenderer = ({ icon, className = "w-4 h-4" }: { icon?: BrandIconEntry; className?: string }) => {
@@ -60,7 +56,7 @@ export const BrandIconRenderer = ({ icon, className = "w-4 h-4" }: { icon?: Bran
   
   if (icon.type === "component") {
     const Icon = icon.component;
-    return <Icon className={className} style={icon.color ? { color: icon.color } : undefined} />;
+    return <Icon className={className} />;
   }
   
   return (
@@ -124,64 +120,59 @@ const genericIcon = (brand: string): BrandIconEntry => {
   return { type: "component", component: Car };
 };
 
-const componentIcons: Record<
-  string,
-  { component: ComponentType<{ className?: string }>; color?: string }
-> = {
-  acura: { component: SiAcura, color: "#000000" },
-  "alfa-romeo": { component: SiAlfaromeo, color: "#981E32" },
-  "aston-martin": { component: SiAstonmartin, color: "#005A2B" },
-  audi: { component: SiAudi, color: "#BB0A30" },
-  bentley: { component: SiBentley, color: "#000000" },
-  bmw: { component: SiBmw, color: "#0066B1" },
-  bugatti: { component: SiBugatti, color: "#D71A28" },
-  cadillac: { component: SiCadillac, color: "#000000" },
-  chevrolet: { component: SiChevrolet, color: "#F3C800" },
-  chrysler: { component: SiChrysler, color: "#000000" },
-  citroen: { component: SiCitroen, color: "#DA291C" },
-  dacia: { component: SiDacia, color: "#004481" },
-  ferrari: { component: SiFerrari, color: "#FF0000" },
-  fiat: { component: SiFiat, color: "#931E38" },
-  ford: { component: SiFord, color: "#003399" },
-  honda: { component: SiHonda, color: "#E40521" },
-  hyundai: { component: SiHyundai, color: "#002C5F" },
-  infiniti: { component: SiInfiniti, color: "#330000" },
-  jaguar: { component: SiJaguar, color: "#006633" },
-  jeep: { component: SiJeep, color: "#4C4C4C" },
-  kia: { component: SiKia, color: "#C4172C" },
-  lamborghini: { component: SiLamborghini, color: "#DDB321" },
-  "land-rover": { component: SiLandrover, color: "#005A2B" },
-  maserati: { component: SiMaserati, color: "#0C2340" },
-  mazda: { component: SiMazda, color: "#101010" },
-  mclaren: { component: SiMclaren, color: "#FF7F00" },
-  "mercedes-benz": { component: SiMercedes, color: "#00ADEF" },
-  mini: { component: SiMini, color: "#000000" },
-  mitsubishi: { component: SiMitsubishi, color: "#E60012" },
-  nissan: { component: SiNissan, color: "#C3002F" },
-  opel: { component: SiOpel, color: "#FFCB05" },
-  peugeot: { component: SiPeugeot, color: "#002155" },
-  porsche: { component: SiPorsche, color: "#B12B28" },
-  ram: { component: SiRam, color: "#000000" },
-  renault: { component: SiRenault, color: "#FFCC33" },
-  "rolls-royce": { component: SiRollsroyce, color: "#2E2E2E" },
-  seat: { component: SiSeat, color: "#AB1A1F" },
-  skoda: { component: SiSkoda, color: "#00800D" },
-  subaru: { component: SiSubaru, color: "#013C74" },
-  suzuki: { component: SiSuzuki, color: "#E30613" },
-  tesla: { component: SiTesla, color: "#CC0000" },
-  toyota: { component: SiToyota, color: "#EB0A1E" },
-  volkswagen: { component: SiVolkswagen, color: "#001E50" },
-  volvo: { component: SiVolvo, color: "#003057" },
+const componentIcons: Record<string, ComponentType<{ className?: string }>> = {
+  acura: SiAcura,
+  "alfa-romeo": SiAlfaromeo,
+  "aston-martin": SiAstonmartin,
+  audi: SiAudi,
+  bentley: SiBentley,
+  bmw: SiBmw,
+  bugatti: SiBugatti,
+  cadillac: SiCadillac,
+  chevrolet: SiChevrolet,
+  chrysler: SiChrysler,
+  citroen: SiCitroen,
+  dacia: SiDacia,
+  ferrari: SiFerrari,
+  fiat: SiFiat,
+  ford: SiFord,
+  honda: SiHonda,
+  hyundai: SiHyundai,
+  infiniti: SiInfiniti,
+  jaguar: SiJaguar,
+  jeep: SiJeep,
+  kia: SiKia,
+  lamborghini: SiLamborghini,
+  "land-rover": SiLandrover,
+  maserati: SiMaserati,
+  mazda: SiMazda,
+  mclaren: SiMclaren,
+  "mercedes-benz": SiMercedes,
+  mini: SiMini,
+  mitsubishi: SiMitsubishi,
+  nissan: SiNissan,
+  opel: SiOpel,
+  peugeot: SiPeugeot,
+  porsche: SiPorsche,
+  ram: SiRam,
+  renault: SiRenault,
+  "rolls-royce": SiRollsroyce,
+  seat: SiSeat,
+  skoda: SiSkoda,
+  subaru: SiSubaru,
+  suzuki: SiSuzuki,
+  tesla: SiTesla,
+  toyota: SiToyota,
+  volkswagen: SiVolkswagen,
+  volvo: SiVolvo,
 };
 
 export const brandIcons: Record<string, BrandIconEntry> = new Proxy(
   {},
   {
     get: (_target, brand: string) => {
-      const entry = componentIcons[brand];
-      return entry
-        ? { type: "component", component: entry.component, color: entry.color }
-        : genericIcon(brand);
+      const icon = componentIcons[brand];
+      return icon ? { type: "component", component: icon } : genericIcon(brand);
     },
   },
 ) as Record<string, BrandIconEntry>;
