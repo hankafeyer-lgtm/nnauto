@@ -86,7 +86,7 @@ function HeaderContent({
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [location, navigate] = useLocation();
-  const { setSearch } = useFilterParams();
+  const { setSearch, filters } = useFilterParams();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalTab, setLoginModalTab] = useState<"login" | "register">(
     "login",
@@ -120,15 +120,72 @@ function HeaderContent({
   const lastScrollYRef = useRef(0);
   const scrollRafRef = useRef<number | null>(null);
 
+  const listingsCountQueryString = useMemo(() => {
+    const params = new URLSearchParams();
+    const appendIfPresent = (key: string, value: unknown) => {
+      if (value === undefined || value === null) return;
+      if (typeof value === "string" && value.trim() === "") return;
+      if (Array.isArray(value)) {
+        if (!value.length) return;
+        params.set(key, value.join(","));
+        return;
+      }
+      if (typeof value === "boolean") {
+        if (!value) return;
+        params.set(key, "true");
+        return;
+      }
+      params.set(key, String(value));
+    };
+
+    appendIfPresent("vehicleType", filters.vehicleType);
+    appendIfPresent("brand", filters.brand);
+    appendIfPresent("model", filters.model);
+    appendIfPresent("generation", filters.generation);
+    appendIfPresent("priceMin", filters.priceMin);
+    appendIfPresent("priceMax", filters.priceMax);
+    appendIfPresent("yearMin", filters.yearMin);
+    appendIfPresent("yearMax", filters.yearMax);
+    appendIfPresent("mileageMin", filters.mileageMin);
+    appendIfPresent("mileageMax", filters.mileageMax);
+    appendIfPresent("fuel", filters.fuel);
+    appendIfPresent("bodyType", filters.bodyType);
+    appendIfPresent("transmission", filters.transmission);
+    appendIfPresent("color", filters.color);
+    appendIfPresent("trim", filters.trim);
+    appendIfPresent("region", filters.region);
+    appendIfPresent("driveType", filters.driveType);
+    appendIfPresent("engineMin", filters.engineMin);
+    appendIfPresent("engineMax", filters.engineMax);
+    appendIfPresent("powerMin", filters.powerMin);
+    appendIfPresent("powerMax", filters.powerMax);
+    appendIfPresent("doorsMin", filters.doorsMin);
+    appendIfPresent("doorsMax", filters.doorsMax);
+    appendIfPresent("seatsMin", filters.seatsMin);
+    appendIfPresent("seatsMax", filters.seatsMax);
+    appendIfPresent("ownersMin", filters.ownersMin);
+    appendIfPresent("ownersMax", filters.ownersMax);
+    appendIfPresent("condition", filters.condition);
+    appendIfPresent("extras", filters.extras);
+    appendIfPresent("equipment", filters.equipment);
+
+    return params.toString();
+  }, [filters]);
+
+  const listingsCountApiUrl = `/api/listings?${
+    listingsCountQueryString ? `${listingsCountQueryString}&` : ""
+  }countOnly=1&limit=1`;
+
   const { data: listingsCountData } = useQuery<{
     listings: [];
     pagination?: { total: number };
   }>({
-    queryKey: ["/api/listings?countOnly=1&limit=1"],
+    queryKey: [listingsCountApiUrl],
     staleTime: 15 * 60 * 1000,
   });
 
-  const totalListingsCount = listingsCountData?.pagination?.total ?? 0;
+  const baseListingsCount = listingsCountData?.pagination?.total ?? 0;
+  const totalListingsCount = baseListingsCount > 0 ? baseListingsCount + 98 : 0;
 
   const suggestions = useMemo(() => {
     const trimmedQuery = searchQuery.trim();
