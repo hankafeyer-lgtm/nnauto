@@ -2,7 +2,24 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
-const INTERNAL_OPEN_LISTING_KEY = "nnauto:internal-open-listing";
+const OVERLAY_HISTORY_STATE_KEY = "nnautoOverlayOpen";
+
+const readOverlayHistoryState = () => {
+  if (typeof window === "undefined") return null;
+  const state = window.history.state;
+  if (!state || typeof state !== "object") return null;
+  const value = (state as Record<string, unknown>)[OVERLAY_HISTORY_STATE_KEY];
+  return typeof value === "string" && value.trim() ? value : null;
+};
+
+const clearOverlayHistoryState = () => {
+  if (typeof window === "undefined") return;
+  const state = window.history.state;
+  if (!state || typeof state !== "object") return;
+  const nextState = { ...(state as Record<string, unknown>) };
+  delete nextState[OVERLAY_HISTORY_STATE_KEY];
+  window.history.replaceState(nextState, "", window.location.href);
+};
 
 const handleInitialOpenListingDeepLink = () => {
   if (typeof window === "undefined") return false;
@@ -14,14 +31,7 @@ const handleInitialOpenListingDeepLink = () => {
   const opened = url.searchParams.get("openListing");
   if (!opened) return false;
 
-  let internalOpenListingId: string | null = null;
-  try {
-    internalOpenListingId = window.sessionStorage.getItem(INTERNAL_OPEN_LISTING_KEY);
-  } catch {
-    internalOpenListingId = null;
-  }
-
-  const isInternalOverlayOpen = internalOpenListingId === opened;
+  const isInternalOverlayOpen = readOverlayHistoryState() === opened;
   const navEntry = performance.getEntriesByType("navigation")[0] as
     | PerformanceNavigationTiming
     | undefined;
@@ -31,11 +41,7 @@ const handleInitialOpenListingDeepLink = () => {
   if (isReload && isInternalOverlayOpen) {
     url.searchParams.delete("openListing");
     window.history.replaceState(window.history.state, "", url.toString());
-    try {
-      window.sessionStorage.removeItem(INTERNAL_OPEN_LISTING_KEY);
-    } catch {
-      // ignore sessionStorage issues
-    }
+    clearOverlayHistoryState();
     return false;
   }
 

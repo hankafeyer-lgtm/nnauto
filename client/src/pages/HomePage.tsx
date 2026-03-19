@@ -2125,6 +2125,7 @@ function setPageToUrl(page: number, mode: "replace" | "push" = "replace") {
 }
 
 export default function HomePage() {
+  const overlayHistoryStateKey = "nnautoOverlayOpen";
   const t = useTranslation();
   const { language } = useLanguage();
   const localizedOptions = useLocalizedOptions();
@@ -2157,7 +2158,6 @@ export default function HomePage() {
     if (typeof window === "undefined") return false;
     return !!new URLSearchParams(window.location.search).get("openListing");
   });
-  const internalOpenListingKey = "nnauto:internal-open-listing";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2170,27 +2170,26 @@ export default function HomePage() {
       | undefined;
     const isReload = navEntry?.type === "reload";
 
-    let internalOpenListingId: string | null = null;
-    let hasInternalMarker = false;
+    let overlayOpenedId: string | null = null;
     let shouldKeepOverlayFlow = false;
 
-    try {
-      internalOpenListingId = window.sessionStorage.getItem(internalOpenListingKey);
-    } catch {
-      internalOpenListingId = null;
+    const historyState = window.history.state;
+    if (historyState && typeof historyState === "object") {
+      const value = (historyState as Record<string, unknown>)[overlayHistoryStateKey];
+      overlayOpenedId =
+        typeof value === "string" && value.trim().length > 0 ? value : null;
     }
-    hasInternalMarker = internalOpenListingId === opened;
-    shouldKeepOverlayFlow = hasInternalMarker;
+    shouldKeepOverlayFlow = overlayOpenedId === opened;
 
     // Keep refresh behavior on homepage: do not reopen previous card after reload.
     if (isReload && shouldKeepOverlayFlow) {
       url.searchParams.delete("openListing");
       window.history.replaceState(window.history.state, "", url.toString());
       setOpenListingId(null);
-      try {
-        window.sessionStorage.removeItem(internalOpenListingKey);
-      } catch {
-        // ignore sessionStorage issues
+      if (historyState && typeof historyState === "object") {
+        const nextState = { ...(historyState as Record<string, unknown>) };
+        delete nextState[overlayHistoryStateKey];
+        window.history.replaceState(nextState, "", url.toString());
       }
       return;
     }
@@ -2200,7 +2199,7 @@ export default function HomePage() {
 
     // External shared links with openListing should open the listing page directly.
     window.location.assign(`/listing/${opened}`);
-  }, [internalOpenListingKey, navigate]);
+  }, [navigate, overlayHistoryStateKey]);
 
   // ✅ page state synced with URL
   const [currentPage, setCurrentPage] = useState<number>(() =>
@@ -2287,29 +2286,35 @@ export default function HomePage() {
     void prefetchListing(id);
     prefetchListingDocument(id);
     warmListingFrame(id);
-    try {
-      window.sessionStorage.setItem(internalOpenListingKey, id);
-    } catch {
-      // ignore sessionStorage issues
-    }
     const url = new URL(window.location.href);
     url.searchParams.set("openListing", id);
-    window.history.pushState(window.history.state, "", url.toString());
+    const currentState =
+      window.history.state && typeof window.history.state === "object"
+        ? (window.history.state as Record<string, unknown>)
+        : {};
+    window.history.pushState(
+      { ...currentState, [overlayHistoryStateKey]: id },
+      "",
+      url.toString(),
+    );
     setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
-  }, [internalOpenListingKey]);
+  }, [overlayHistoryStateKey]);
   const closeListingOverlay = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete("openListing");
-    window.history.replaceState(window.history.state, "", url.toString());
-    try {
-      window.sessionStorage.removeItem(internalOpenListingKey);
-    } catch {
-      // ignore sessionStorage issues
-    }
+    const currentState =
+      window.history.state && typeof window.history.state === "object"
+        ? ({ ...(window.history.state as Record<string, unknown>) } as Record<
+            string,
+            unknown
+          >)
+        : {};
+    delete currentState[overlayHistoryStateKey];
+    window.history.replaceState(currentState, "", url.toString());
     setIsOpenListingOverlayLoading(false);
     setOpenListingId(null);
-  }, [internalOpenListingKey]);
+  }, [overlayHistoryStateKey]);
 
   useEffect(() => {
     if (!openListingId) return;
