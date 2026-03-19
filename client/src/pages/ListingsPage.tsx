@@ -3180,35 +3180,6 @@ export default function ListingsPage() {
   useEffect(() => {
     const w = safeWindow();
     if (!w) return;
-    const url = new URL(w.location.href);
-    const opened = url.searchParams.get("openListing");
-    if (!opened) return;
-
-    const navEntry = performance.getEntriesByType("navigation")[0] as
-      | PerformanceNavigationTiming
-      | undefined;
-    const isReload = navEntry?.type === "reload";
-
-    let isInternalReferrer = false;
-    if (document.referrer) {
-      try {
-        isInternalReferrer =
-          new URL(document.referrer).origin === w.location.origin;
-      } catch {
-        isInternalReferrer = false;
-      }
-    }
-
-    // For shared links that land on listings with openListing, open real listing page.
-    // Keep in-site reload/back behavior unchanged.
-    if (isReload || isInternalReferrer) return;
-
-    w.location.assign(`/listing/${opened}`);
-  }, []);
-
-  useEffect(() => {
-    const w = safeWindow();
-    if (!w) return;
     const onPopState = () => {
       historyNavigationRef.current = true;
     };
