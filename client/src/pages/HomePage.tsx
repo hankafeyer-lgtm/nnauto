@@ -2172,6 +2172,7 @@ export default function HomePage() {
 
     let overlayOpenedId: string | null = null;
     let shouldKeepOverlayFlow = false;
+    let isSameOriginReferrer = false;
 
     const historyState = window.history.state;
     if (historyState && typeof historyState === "object") {
@@ -2179,7 +2180,15 @@ export default function HomePage() {
       overlayOpenedId =
         typeof value === "string" && value.trim().length > 0 ? value : null;
     }
-    shouldKeepOverlayFlow = overlayOpenedId === opened;
+    if (document.referrer) {
+      try {
+        isSameOriginReferrer =
+          new URL(document.referrer).origin === window.location.origin;
+      } catch {
+        isSameOriginReferrer = false;
+      }
+    }
+    shouldKeepOverlayFlow = overlayOpenedId === opened && isSameOriginReferrer;
 
     // Keep refresh behavior on homepage: do not reopen previous card after reload.
     if (isReload && shouldKeepOverlayFlow) {
