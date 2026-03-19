@@ -1021,6 +1021,17 @@ import { storage } from "./storage";
 const app = express();
 app.disable("x-powered-by");
 
+const BRAND_LOGOS_DIR = path.resolve(process.cwd(), "attached_assets", "generated_images");
+if (fs.existsSync(BRAND_LOGOS_DIR)) {
+  app.use(
+    "/brand-logos",
+    express.static(BRAND_LOGOS_DIR, {
+      immutable: true,
+      maxAge: "365d",
+    }),
+  );
+}
+
 // ВАЖЛИВО: BASE_URL має бути саме тим доменом, який ти шериш у месенджерах
 const BASE_URL = process.env.BASE_URL || "https://nnauto.cz";
 const SITE_NAME = "NNAuto";

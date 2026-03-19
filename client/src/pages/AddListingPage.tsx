@@ -45,7 +45,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CarPhotoUploader } from "@/components/CarPhotoUploader";
 import { VideoUploader } from "@/components/VideoUploader";
 import { BrandCombobox } from "@/components/BrandCombobox";
-import { BrandIconRenderer, brandIcons } from "@/lib/brandIcons";
+import { brandIcons } from "@/lib/brandIcons";
 import { ModelCombobox } from "@/components/ModelCombobox";
 import { useModelGenerations } from "@/hooks/useModelGenerations";
 import Header from "@/components/Header";
