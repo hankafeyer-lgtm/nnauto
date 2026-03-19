@@ -1025,6 +1025,16 @@ app.disable("x-powered-by");
 const BASE_URL = process.env.BASE_URL || "https://nnauto.cz";
 const SITE_NAME = "NNAuto";
 const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
+const OG_IMAGE_WIDTH = 1200;
+const OG_IMAGE_QUALITY = 82;
+const OG_HTML_CACHE_CONTROL = "public, max-age=120, stale-while-revalidate=300";
+const BASE_HOST = (() => {
+  try {
+    return new URL(BASE_URL).host.toLowerCase();
+  } catch {
+    return "nnauto.cz";
+  }
+})();
 
 // ---------- helpers ----------
 function escapeAttr(value: unknown) {
@@ -1187,10 +1197,33 @@ function buildListingPreviewMeta(listing: any, fallbackId: string) {
   const first = photos.find((p) => typeof p === "string" && p.trim() !== "");
   let image = DEFAULT_OG_IMAGE;
   if (first) {
-    const normalized = first.trim();
-    image = /^https?:\/\//i.test(normalized)
-      ? normalized
-      : `${BASE_URL}/objects/${normalizeKey(normalized)}`;
+    const raw = first.trim();
+    let objectKey = "";
+    if (/^https?:\/\//i.test(raw)) {
+      try {
+        const parsed = new URL(raw);
+        if (
+          parsed.host.toLowerCase() === BASE_HOST &&
+          parsed.pathname.startsWith("/objects/")
+        ) {
+          objectKey = normalizeKey(parsed.pathname.slice("/objects/".length));
+        } else {
+          image = raw;
+        }
+      } catch {
+        image = raw;
+      }
+    } else {
+      objectKey = normalizeKey(raw);
+    }
+
+    if (objectKey) {
+      const encodedKey = objectKey
+        .split("/")
+        .map((part) => encodeURIComponent(part))
+        .join("/");
+      image = `${BASE_URL}/img/${encodedKey}?w=${OG_IMAGE_WIDTH}&q=${OG_IMAGE_QUALITY}&f=jpeg`;
+    }
   }
 
   const priceNum = Number(listing?.price || 0);
@@ -1568,13 +1601,13 @@ app.use((req, res, next) => {
       const listing = await storage.getListing(openListingId);
 
       if (!listing) {
-        res.set("Cache-Control", "no-store");
+        res.set("Cache-Control", OG_HTML_CACHE_CONTROL);
         return res.status(200).type("html").send(baseHtml);
       }
 
       const meta = buildListingPreviewMeta(listing, openListingId);
       const html = injectListingOG(baseHtml, meta);
-      res.set("Cache-Control", "no-store");
+      res.set("Cache-Control", OG_HTML_CACHE_CONTROL);
       return res.status(200).type("html").send(html);
     } catch (e) {
       return next(e);
@@ -1596,13 +1629,13 @@ app.use((req, res, next) => {
 
       // якщо нема оголошення — віддай дефолтний index.html
       if (!listing) {
-        res.set("Cache-Control", "no-store");
+        res.set("Cache-Control", OG_HTML_CACHE_CONTROL);
         return res.status(200).type("html").send(baseHtml);
       }
       const meta = buildListingPreviewMeta(listing, id);
       const html = injectListingOG(baseHtml, meta);
 
-      res.set("Cache-Control", "no-store");
+      res.set("Cache-Control", OG_HTML_CACHE_CONTROL);
       return res.status(200).type("html").send(html);
     } catch (e) {
       next(e);
