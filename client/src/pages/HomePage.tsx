@@ -2159,12 +2159,37 @@ export default function HomePage() {
   });
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    if (!url.searchParams.has("openListing")) return;
-    url.searchParams.delete("openListing");
-    window.history.replaceState(window.history.state, "", url.toString());
-    setOpenListingId(null);
-  }, []);
+    const opened = url.searchParams.get("openListing");
+    if (!opened) return;
+
+    const navEntry = performance.getEntriesByType("navigation")[0] as
+      | PerformanceNavigationTiming
+      | undefined;
+    const isReload = navEntry?.type === "reload";
+
+    let isInternalReferrer = false;
+    if (document.referrer) {
+      try {
+        isInternalReferrer =
+          new URL(document.referrer).origin === window.location.origin;
+      } catch {
+        isInternalReferrer = false;
+      }
+    }
+
+    // Keep refresh behavior on homepage: do not reopen previous card after reload.
+    if (isReload || isInternalReferrer) {
+      url.searchParams.delete("openListing");
+      window.history.replaceState(window.history.state, "", url.toString());
+      setOpenListingId(null);
+      return;
+    }
+
+    // External shared links with openListing should open the listing page directly.
+    navigate(`/listing/${opened}`);
+  }, [navigate]);
 
   // ✅ page state synced with URL
   const [currentPage, setCurrentPage] = useState<number>(() =>
