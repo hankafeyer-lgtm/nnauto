@@ -2171,18 +2171,8 @@ export default function HomePage() {
     const isReload = navEntry?.type === "reload";
 
     let internalOpenListingId: string | null = null;
-    let isInternalReferrer = false;
     let hasInternalMarker = false;
     let shouldKeepOverlayFlow = false;
-
-    if (document.referrer) {
-      try {
-        isInternalReferrer =
-          new URL(document.referrer).origin === window.location.origin;
-      } catch {
-        isInternalReferrer = false;
-      }
-    }
 
     try {
       internalOpenListingId = window.sessionStorage.getItem(internalOpenListingKey);
@@ -2190,7 +2180,7 @@ export default function HomePage() {
       internalOpenListingId = null;
     }
     hasInternalMarker = internalOpenListingId === opened;
-    shouldKeepOverlayFlow = hasInternalMarker || isInternalReferrer;
+    shouldKeepOverlayFlow = hasInternalMarker;
 
     // Keep refresh behavior on homepage: do not reopen previous card after reload.
     if (isReload && shouldKeepOverlayFlow) {

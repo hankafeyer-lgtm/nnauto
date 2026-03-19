@@ -3191,17 +3191,8 @@ export default function ListingsPage() {
     const isReload = navEntry?.type === "reload";
 
     let internalOpenListingId: string | null = null;
-    let isInternalReferrer = false;
     let hasInternalMarker = false;
     let shouldKeepOverlayFlow = false;
-    if (document.referrer) {
-      try {
-        isInternalReferrer =
-          new URL(document.referrer).origin === w.location.origin;
-      } catch {
-        isInternalReferrer = false;
-      }
-    }
 
     try {
       internalOpenListingId = w.sessionStorage.getItem(internalOpenListingKey);
@@ -3209,7 +3200,7 @@ export default function ListingsPage() {
       internalOpenListingId = null;
     }
     hasInternalMarker = internalOpenListingId === opened;
-    shouldKeepOverlayFlow = hasInternalMarker || isInternalReferrer;
+    shouldKeepOverlayFlow = hasInternalMarker;
 
     // For shared links that land on listings with openListing, open real listing page.
     // Keep in-site reload/back behavior unchanged.
