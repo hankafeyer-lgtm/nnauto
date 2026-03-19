@@ -3219,6 +3219,7 @@ export default function ListingsPage() {
     // For shared links that land on listings with openListing, open real listing page.
     // Keep in-site reload/back behavior unchanged.
     if (isReload && shouldKeepOverlayFlow) return;
+    if (shouldKeepOverlayFlow) return;
 
     w.location.assign(`/listing/${opened}`);
   }, [overlayHistoryStateKey]);
