@@ -2157,7 +2157,6 @@ export default function HomePage() {
     if (typeof window === "undefined") return false;
     return !!new URLSearchParams(window.location.search).get("openListing");
   });
-  const internalOpenListingKey = "nnauto:internal-open-listing";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2170,11 +2169,7 @@ export default function HomePage() {
       | undefined;
     const isReload = navEntry?.type === "reload";
 
-    let internalOpenListingId: string | null = null;
     let isInternalReferrer = false;
-    let hasInternalMarker = false;
-    let shouldKeepOverlayFlow = false;
-
     if (document.referrer) {
       try {
         isInternalReferrer =
@@ -2184,33 +2179,20 @@ export default function HomePage() {
       }
     }
 
-    try {
-      internalOpenListingId = window.sessionStorage.getItem(internalOpenListingKey);
-    } catch {
-      internalOpenListingId = null;
-    }
-    hasInternalMarker = internalOpenListingId === opened;
-    shouldKeepOverlayFlow = hasInternalMarker || isInternalReferrer;
-
     // Keep refresh behavior on homepage: do not reopen previous card after reload.
-    if (isReload && shouldKeepOverlayFlow) {
+    if (isReload && isInternalReferrer) {
       url.searchParams.delete("openListing");
       window.history.replaceState(window.history.state, "", url.toString());
       setOpenListingId(null);
-      try {
-        window.sessionStorage.removeItem(internalOpenListingKey);
-      } catch {
-        // ignore sessionStorage issues
-      }
       return;
     }
 
     // Internal in-app navigations should keep overlay flow as-is.
-    if (shouldKeepOverlayFlow) return;
+    if (isInternalReferrer) return;
 
     // External shared links with openListing should open the listing page directly.
     window.location.assign(`/listing/${opened}`);
-  }, [internalOpenListingKey, navigate]);
+  }, [navigate]);
 
   // ✅ page state synced with URL
   const [currentPage, setCurrentPage] = useState<number>(() =>
@@ -2297,29 +2279,19 @@ export default function HomePage() {
     void prefetchListing(id);
     prefetchListingDocument(id);
     warmListingFrame(id);
-    try {
-      window.sessionStorage.setItem(internalOpenListingKey, id);
-    } catch {
-      // ignore sessionStorage issues
-    }
     const url = new URL(window.location.href);
     url.searchParams.set("openListing", id);
     window.history.pushState(window.history.state, "", url.toString());
     setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
-  }, [internalOpenListingKey]);
+  }, []);
   const closeListingOverlay = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete("openListing");
     window.history.replaceState(window.history.state, "", url.toString());
-    try {
-      window.sessionStorage.removeItem(internalOpenListingKey);
-    } catch {
-      // ignore sessionStorage issues
-    }
     setIsOpenListingOverlayLoading(false);
     setOpenListingId(null);
-  }, [internalOpenListingKey]);
+  }, []);
 
   useEffect(() => {
     if (!openListingId) return;

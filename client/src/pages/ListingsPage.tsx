@@ -3114,7 +3114,6 @@ export default function ListingsPage() {
     if (!w) return false;
     return !!new URLSearchParams(w.location.search).get("openListing");
   });
-  const internalOpenListingKey = "nnauto:internal-open-listing";
   const searchStringForListState = useMemo(() => {
     const p = new URLSearchParams(searchString);
     p.delete("openListing");
@@ -3190,10 +3189,7 @@ export default function ListingsPage() {
       | undefined;
     const isReload = navEntry?.type === "reload";
 
-    let internalOpenListingId: string | null = null;
     let isInternalReferrer = false;
-    let hasInternalMarker = false;
-    let shouldKeepOverlayFlow = false;
     if (document.referrer) {
       try {
         isInternalReferrer =
@@ -3203,21 +3199,13 @@ export default function ListingsPage() {
       }
     }
 
-    try {
-      internalOpenListingId = w.sessionStorage.getItem(internalOpenListingKey);
-    } catch {
-      internalOpenListingId = null;
-    }
-    hasInternalMarker = internalOpenListingId === opened;
-    shouldKeepOverlayFlow = hasInternalMarker || isInternalReferrer;
-
     // For shared links that land on listings with openListing, open real listing page.
     // Keep in-site reload/back behavior unchanged.
-    if (isReload && shouldKeepOverlayFlow) return;
-    if (shouldKeepOverlayFlow) return;
+    if (isReload && isInternalReferrer) return;
+    if (isInternalReferrer) return;
 
     w.location.assign(`/listing/${opened}`);
-  }, [internalOpenListingKey]);
+  }, []);
 
   useEffect(() => {
     const w = safeWindow();
@@ -3260,20 +3248,12 @@ export default function ListingsPage() {
     void prefetchListing(id);
     prefetchListingDocument(id);
     warmListingFrame(id);
-    const w = safeWindow();
-    if (w) {
-      try {
-        w.sessionStorage.setItem(internalOpenListingKey, id);
-      } catch {
-        // ignore sessionStorage issues
-      }
-    }
     pushUrlParams((p) => {
       p.set("openListing", id);
     });
     setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
-  }, [internalOpenListingKey]);
+  }, []);
 
   const closeListingOverlay = useCallback(() => {
     const w = safeWindow();
@@ -3281,14 +3261,9 @@ export default function ListingsPage() {
     replaceUrlParams((p) => {
       p.delete("openListing");
     });
-    try {
-      w.sessionStorage.removeItem(internalOpenListingKey);
-    } catch {
-      // ignore sessionStorage issues
-    }
     setIsOpenListingOverlayLoading(false);
     setOpenListingId(null);
-  }, [internalOpenListingKey]);
+  }, []);
 
   useEffect(() => {
     if (!openListingId) return;
@@ -3325,13 +3300,8 @@ export default function ListingsPage() {
     if (!url.searchParams.has("openListing")) return;
     url.searchParams.delete("openListing");
     w.history.replaceState(w.history.state, "", url.toString());
-    try {
-      w.sessionStorage.removeItem(internalOpenListingKey);
-    } catch {
-      // ignore sessionStorage issues
-    }
     setOpenListingId(null);
-  }, [internalOpenListingKey]);
+  }, []);
 
   useEffect(() => {
     const syncFromUrl = () => {
