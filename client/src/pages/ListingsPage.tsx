@@ -3055,29 +3055,23 @@ const dispatchPopStateSafely = (w: Window) => {
   }
 };
 
-const replaceUrlParams = (
-  mutate: (params: URLSearchParams) => void,
-  nextState: Record<string, unknown> = {},
-) => {
+const replaceUrlParams = (mutate: (params: URLSearchParams) => void) => {
   const w = safeWindow();
   if (!w) return;
 
   const url = new URL(w.location.href);
   mutate(url.searchParams);
-  w.history.replaceState(nextState, "", url.toString());
+  w.history.replaceState({}, "", url.toString());
   dispatchPopStateSafely(w);
 };
 
-const pushUrlParams = (
-  mutate: (params: URLSearchParams) => void,
-  nextState: Record<string, unknown> = {},
-) => {
+const pushUrlParams = (mutate: (params: URLSearchParams) => void) => {
   const w = safeWindow();
   if (!w) return;
 
   const url = new URL(w.location.href);
   mutate(url.searchParams);
-  w.history.pushState(nextState, "", url.toString());
+  w.history.pushState({}, "", url.toString());
   dispatchPopStateSafely(w);
 };
 
@@ -3120,7 +3114,7 @@ export default function ListingsPage() {
     if (!w) return false;
     return !!new URLSearchParams(w.location.search).get("openListing");
   });
-  const overlayHistoryStateKey = "nnautoOverlayOpen";
+  const internalOpenListingKey = "nnauto:internal-open-listing";
   const searchStringForListState = useMemo(() => {
     const p = new URLSearchParams(searchString);
     p.delete("openListing");
@@ -3196,16 +3190,17 @@ export default function ListingsPage() {
       | undefined;
     const isReload = navEntry?.type === "reload";
 
-    let overlayOpenedId: string | null = null;
+    let internalOpenListingId: string | null = null;
+    let hasInternalMarker = false;
     let shouldKeepOverlayFlow = false;
 
-    const historyState = w.history.state;
-    if (historyState && typeof historyState === "object") {
-      const value = (historyState as Record<string, unknown>)[overlayHistoryStateKey];
-      overlayOpenedId =
-        typeof value === "string" && value.trim().length > 0 ? value : null;
+    try {
+      internalOpenListingId = w.sessionStorage.getItem(internalOpenListingKey);
+    } catch {
+      internalOpenListingId = null;
     }
-    shouldKeepOverlayFlow = overlayOpenedId === opened;
+    hasInternalMarker = internalOpenListingId === opened;
+    shouldKeepOverlayFlow = hasInternalMarker;
 
     // For shared links that land on listings with openListing, open real listing page.
     // Keep in-site reload/back behavior unchanged.
@@ -3213,7 +3208,7 @@ export default function ListingsPage() {
     if (shouldKeepOverlayFlow) return;
 
     w.location.assign(`/listing/${opened}`);
-  }, [overlayHistoryStateKey]);
+  }, [internalOpenListingKey]);
 
   useEffect(() => {
     const w = safeWindow();
@@ -3257,34 +3252,34 @@ export default function ListingsPage() {
     prefetchListingDocument(id);
     warmListingFrame(id);
     const w = safeWindow();
-    const currentState =
-      w?.history.state && typeof w.history.state === "object"
-        ? (w.history.state as Record<string, unknown>)
-        : {};
+    if (w) {
+      try {
+        w.sessionStorage.setItem(internalOpenListingKey, id);
+      } catch {
+        // ignore sessionStorage issues
+      }
+    }
     pushUrlParams((p) => {
       p.set("openListing", id);
-    }, { ...currentState, [overlayHistoryStateKey]: id });
+    });
     setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
-  }, [overlayHistoryStateKey]);
+  }, [internalOpenListingKey]);
 
   const closeListingOverlay = useCallback(() => {
     const w = safeWindow();
     if (!w) return;
-    const currentState =
-      w.history.state && typeof w.history.state === "object"
-        ? ({ ...(w.history.state as Record<string, unknown>) } as Record<
-            string,
-            unknown
-          >)
-        : {};
-    delete currentState[overlayHistoryStateKey];
     replaceUrlParams((p) => {
       p.delete("openListing");
-    }, currentState);
+    });
+    try {
+      w.sessionStorage.removeItem(internalOpenListingKey);
+    } catch {
+      // ignore sessionStorage issues
+    }
     setIsOpenListingOverlayLoading(false);
     setOpenListingId(null);
-  }, [overlayHistoryStateKey]);
+  }, [internalOpenListingKey]);
 
   useEffect(() => {
     if (!openListingId) return;
@@ -3320,17 +3315,14 @@ export default function ListingsPage() {
     if (!url.searchParams.get("userId")) return;
     if (!url.searchParams.has("openListing")) return;
     url.searchParams.delete("openListing");
-    const currentState =
-      w.history.state && typeof w.history.state === "object"
-        ? ({ ...(w.history.state as Record<string, unknown>) } as Record<
-            string,
-            unknown
-          >)
-        : {};
-    delete currentState[overlayHistoryStateKey];
-    w.history.replaceState(currentState, "", url.toString());
+    w.history.replaceState(w.history.state, "", url.toString());
+    try {
+      w.sessionStorage.removeItem(internalOpenListingKey);
+    } catch {
+      // ignore sessionStorage issues
+    }
     setOpenListingId(null);
-  }, [overlayHistoryStateKey]);
+  }, [internalOpenListingKey]);
 
   useEffect(() => {
     const syncFromUrl = () => {
