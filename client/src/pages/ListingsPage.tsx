@@ -3221,7 +3221,7 @@ export default function ListingsPage() {
     if (isReload && shouldKeepOverlayFlow) return;
 
     w.location.assign(`/listing/${opened}`);
-  }, [overlayHistoryStateKey, searchString]);
+  }, [overlayHistoryStateKey]);
 
   useEffect(() => {
     const w = safeWindow();
