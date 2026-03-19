@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { BrandIconRenderer, type BrandIconEntry } from "@/lib/brandIcons";
+
+const preloadedBrandIcons = new Set<string>();
 
 interface BrandOption {
   value: string;
@@ -55,6 +57,30 @@ export function BrandCombobox({
   const [searchValue, setSearchValue] = useState("");
 
   const selectedBrand = brands.find((brand) => brand.value === value);
+  const renderBrandIcon = (icon?: BrandIconEntry, sizeClass = "h-5 w-5") => {
+    if (!icon) return null;
+
+    return (
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background shadow-sm">
+        <BrandIconRenderer icon={icon} className={sizeClass} />
+      </span>
+    );
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    for (const brand of brands) {
+      const icon = brand.icon;
+      if (!icon || icon.type !== "image") continue;
+      if (preloadedBrandIcons.has(icon.src)) continue;
+
+      preloadedBrandIcons.add(icon.src);
+      const img = new Image();
+      img.decoding = "async";
+      img.src = icon.src;
+    }
+  }, [brands]);
 
   return (
     // <Popover open={open} onOpenChange={setOpen} modal={true}>
@@ -90,12 +116,7 @@ export function BrandCombobox({
           >
             {selectedBrand ? (
               <>
-                {selectedBrand.icon && (
-                  <BrandIconRenderer
-                    icon={selectedBrand.icon}
-                    className="w-4 h-4"
-                  />
-                )}
+                {renderBrandIcon(selectedBrand.icon)}
                 {selectedBrand.label}
               </>
             ) : (
@@ -171,14 +192,9 @@ export function BrandCombobox({
                       value === brand.value ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <div className="flex items-center gap-2">
-                    {brand.icon && (
-                      <BrandIconRenderer
-                        icon={brand.icon}
-                        className="w-4 h-4"
-                      />
-                    )}
-                    <span>{brand.label}</span>
+                  <div className="flex items-center gap-3">
+                    {renderBrandIcon(brand.icon)}
+                    <span className="font-medium">{brand.label}</span>
                   </div>
                 </CommandItem>
               ))}
