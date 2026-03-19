@@ -3189,9 +3189,19 @@ export default function ListingsPage() {
       | undefined;
     const isReload = navEntry?.type === "reload";
 
+    let isInternalReferrer = false;
+    if (document.referrer) {
+      try {
+        isInternalReferrer =
+          new URL(document.referrer).origin === w.location.origin;
+      } catch {
+        isInternalReferrer = false;
+      }
+    }
+
     // For shared links that land on listings with openListing, open real listing page.
     // Keep in-site reload/back behavior unchanged.
-    if (isReload) return;
+    if (isReload || isInternalReferrer) return;
 
     w.location.assign(`/listing/${opened}`);
   }, []);
