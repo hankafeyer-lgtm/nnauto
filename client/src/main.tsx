@@ -57,9 +57,6 @@ const handleInitialOpenListingDeepLink = () => {
     return false;
   }
 
-  // Internal overlay navigation should keep current in-page flow.
-  if (isInternalOverlayOpen) return false;
-
   // External/opened share links should always land on dedicated listing detail route.
   window.location.replace(`/listing/${opened}`);
   return true;

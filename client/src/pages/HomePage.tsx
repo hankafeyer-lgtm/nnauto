@@ -2203,8 +2203,8 @@ export default function HomePage() {
       return;
     }
 
-    // Internal in-app navigations should keep overlay flow as-is.
-    if (shouldKeepOverlayFlow) return;
+    // Keep overlay flow only for explicit reload restoration case.
+    if (isReload && shouldKeepOverlayFlow) return;
 
     // External shared links with openListing should open the listing page directly.
     window.location.assign(`/listing/${opened}`);
