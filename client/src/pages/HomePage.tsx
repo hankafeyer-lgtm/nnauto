@@ -2169,16 +2169,29 @@ export default function HomePage() {
       | undefined;
     const isReload = navEntry?.type === "reload";
 
+    let isInternalReferrer = false;
+    if (document.referrer) {
+      try {
+        isInternalReferrer =
+          new URL(document.referrer).origin === window.location.origin;
+      } catch {
+        isInternalReferrer = false;
+      }
+    }
+
     // Keep refresh behavior on homepage: do not reopen previous card after reload.
-    if (isReload) {
+    if (isReload && isInternalReferrer) {
       url.searchParams.delete("openListing");
       window.history.replaceState(window.history.state, "", url.toString());
       setOpenListingId(null);
       return;
     }
 
+    // Internal in-app navigations should keep overlay flow as-is.
+    if (isInternalReferrer) return;
+
     // External shared links with openListing should open the listing page directly.
-    navigate(`/listing/${opened}`);
+    window.location.assign(`/listing/${opened}`);
   }, [navigate]);
 
   // ✅ page state synced with URL
