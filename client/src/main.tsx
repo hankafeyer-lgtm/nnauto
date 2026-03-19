@@ -2,51 +2,6 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 
-const INTERNAL_OPEN_LISTING_KEY = "nnauto:internal-open-listing";
-
-const handleInitialOpenListingDeepLink = () => {
-  if (typeof window === "undefined") return false;
-
-  const url = new URL(window.location.href);
-  const isOverlayHostRoute = url.pathname === "/" || url.pathname === "/listings";
-  if (!isOverlayHostRoute) return false;
-
-  const opened = url.searchParams.get("openListing");
-  if (!opened) return false;
-
-  let internalOpenListingId: string | null = null;
-  try {
-    internalOpenListingId = window.sessionStorage.getItem(INTERNAL_OPEN_LISTING_KEY);
-  } catch {
-    internalOpenListingId = null;
-  }
-
-  const isInternalOverlayOpen = internalOpenListingId === opened;
-  const navEntry = performance.getEntriesByType("navigation")[0] as
-    | PerformanceNavigationTiming
-    | undefined;
-  const isReload = navEntry?.type === "reload";
-
-  // Keep refresh invariant for internal overlay opens: don't reopen previous card.
-  if (isReload && isInternalOverlayOpen) {
-    url.searchParams.delete("openListing");
-    window.history.replaceState(window.history.state, "", url.toString());
-    try {
-      window.sessionStorage.removeItem(INTERNAL_OPEN_LISTING_KEY);
-    } catch {
-      // ignore sessionStorage issues
-    }
-    return false;
-  }
-
-  // Internal overlay navigation should keep current in-page flow.
-  if (isInternalOverlayOpen) return false;
-
-  // External/opened share links should always land on dedicated listing detail route.
-  window.location.replace(`/listing/${opened}`);
-  return true;
-};
-
 const initClarity = async () => {
   try {
     const response = await fetch("/api/analytics/config", {
@@ -124,8 +79,4 @@ if (typeof window !== "undefined") {
   }
 }
 
-const redirectedFromOpenListing = handleInitialOpenListingDeepLink();
-
-if (!redirectedFromOpenListing) {
-  createRoot(document.getElementById("root")!).render(<App />);
-}
+createRoot(document.getElementById("root")!).render(<App />);
