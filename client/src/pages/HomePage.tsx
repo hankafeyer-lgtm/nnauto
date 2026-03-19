@@ -2032,7 +2032,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cs, uk, enUS, de } from "date-fns/locale";
 
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 
 import {
   ChevronLeft,
@@ -2130,6 +2130,7 @@ export default function HomePage() {
   const { language } = useLanguage();
   const localizedOptions = useLocalizedOptions();
   const [location, navigate] = useLocation();
+  const searchString = useSearch();
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -2208,7 +2209,7 @@ export default function HomePage() {
 
     // External shared links with openListing should open the listing page directly.
     window.location.assign(`/listing/${opened}`);
-  }, [navigate, overlayHistoryStateKey]);
+  }, [navigate, overlayHistoryStateKey, searchString]);
 
   // ✅ page state synced with URL
   const [currentPage, setCurrentPage] = useState<number>(() =>
