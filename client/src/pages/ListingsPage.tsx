@@ -3198,7 +3198,6 @@ export default function ListingsPage() {
 
     let overlayOpenedId: string | null = null;
     let shouldKeepOverlayFlow = false;
-    let isSameOriginReferrer = false;
 
     const historyState = w.history.state;
     if (historyState && typeof historyState === "object") {
@@ -3206,15 +3205,7 @@ export default function ListingsPage() {
       overlayOpenedId =
         typeof value === "string" && value.trim().length > 0 ? value : null;
     }
-    if (document.referrer) {
-      try {
-        isSameOriginReferrer =
-          new URL(document.referrer).origin === w.location.origin;
-      } catch {
-        isSameOriginReferrer = false;
-      }
-    }
-    shouldKeepOverlayFlow = overlayOpenedId === opened && isSameOriginReferrer;
+    shouldKeepOverlayFlow = overlayOpenedId === opened;
 
     // For shared links that land on listings with openListing, open real listing page.
     // Keep in-site reload/back behavior unchanged.

@@ -21,17 +21,6 @@ const clearOverlayHistoryState = () => {
   window.history.replaceState(nextState, "", window.location.href);
 };
 
-const isSameOriginReferrer = () => {
-  if (typeof window === "undefined") return false;
-  const ref = document.referrer;
-  if (!ref) return false;
-  try {
-    return new URL(ref).origin === window.location.origin;
-  } catch {
-    return false;
-  }
-};
-
 const handleInitialOpenListingDeepLink = () => {
   if (typeof window === "undefined") return false;
 
@@ -42,8 +31,7 @@ const handleInitialOpenListingDeepLink = () => {
   const opened = url.searchParams.get("openListing");
   if (!opened) return false;
 
-  const hasInternalOverlayMarker = readOverlayHistoryState() === opened;
-  const isInternalOverlayOpen = hasInternalOverlayMarker && isSameOriginReferrer();
+  const isInternalOverlayOpen = readOverlayHistoryState() === opened;
   const navEntry = performance.getEntriesByType("navigation")[0] as
     | PerformanceNavigationTiming
     | undefined;
