@@ -2169,18 +2169,8 @@ export default function HomePage() {
       | undefined;
     const isReload = navEntry?.type === "reload";
 
-    let isInternalReferrer = false;
-    if (document.referrer) {
-      try {
-        isInternalReferrer =
-          new URL(document.referrer).origin === window.location.origin;
-      } catch {
-        isInternalReferrer = false;
-      }
-    }
-
     // Keep refresh behavior on homepage: do not reopen previous card after reload.
-    if (isReload || isInternalReferrer) {
+    if (isReload) {
       url.searchParams.delete("openListing");
       window.history.replaceState(window.history.state, "", url.toString());
       setOpenListingId(null);
