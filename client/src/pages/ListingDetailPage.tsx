@@ -3443,7 +3443,7 @@ export default function ListingDetailPage() {
     neighbors.add(photoKeys[(idx - 2 + len) % len]);
     const isDesktop = w.innerWidth >= 1024;
     const preloadWidth = isDesktop ? 1120 : 560;
-    const preloadQuality = isDesktop ? 68 : 58;
+    const preloadQuality = isDesktop ? 84 : 74;
 
     for (const key of neighbors) {
       const img = new Image();
@@ -4290,13 +4290,13 @@ export default function ListingDetailPage() {
                                 // було 400px → робимо 768px, щоб на мобільному/retina було чітко
                                 mobileSrc={getOptimizedImageUrl(key, {
                                   width: 560,
-                                  quality: 62,
+                                  quality: 78,
                                   format: "webp",
                                 })}
                                 // було 1200px → робимо 1600px для деталки (виглядає значно різкіше)
                                 desktopSrc={getOptimizedImageUrl(key, {
                                   width: 1120,
-                                  quality: 68,
+                                  quality: 84,
                                   format: "webp",
                                 })}
                                 desktopMinWidth={1024}
@@ -4481,12 +4481,12 @@ export default function ListingDetailPage() {
                             <ResponsiveImage
                               mobileSrc={getOptimizedImageUrl(key, {
                                 width: 80,
-                                quality: 54,
+                                quality: 70,
                                 format: "webp",
                               })}
                               desktopSrc={getOptimizedImageUrl(key, {
                                 width: 144,
-                                quality: 60,
+                                quality: 76,
                                 format: "webp",
                               })}
                               desktopMinWidth={1024}
