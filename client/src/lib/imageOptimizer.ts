@@ -4,11 +4,11 @@ export interface ImageOptimizationOptions {
   format?: "webp" | "avif" | "jpeg";
 }
 export function getCardSrcSet(photoPath: string): string {
-  const widths = [360, 640, 960, 1280];
+  const widths = [480, 768, 1080, 1440];
   return widths
     .map(
       (w) =>
-        `${getOptimizedImageUrl(photoPath, { width: w, quality: 76, format: "webp" })} ${w}w`,
+        `${getOptimizedImageUrl(photoPath, { width: w, quality: 82, format: "webp" })} ${w}w`,
     )
     .join(", ");
 }
@@ -35,7 +35,7 @@ export function getOptimizedImageUrl(
 }
 
 export function getCardImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 320, quality: 74 });
+  return getOptimizedImageUrl(photoPath, { width: 640, quality: 80 });
 }
 
 export function getThumbnailUrl(photoPath: string): string {
