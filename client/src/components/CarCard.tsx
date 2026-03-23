@@ -222,9 +222,23 @@ function CarCard({
     void loadListingDetailPage();
     if (didPrefetchRef.current || !canPrefetchHeavyResources()) return;
     didPrefetchRef.current = true;
-    prefetchListing(id);
-    prefetchListingDocument(id);
-    warmListingFrame(id);
+    const runNetworkWarmup = () => {
+      prefetchListing(id);
+      prefetchListingDocument(id);
+      warmListingFrame(id);
+    };
+    const idleApi = window as Window & {
+      requestIdleCallback?: (
+        cb: () => void,
+        opts?: { timeout: number },
+      ) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (idleApi.requestIdleCallback) {
+      idleApi.requestIdleCallback(runNetworkWarmup, { timeout: 180 });
+      return;
+    }
+    window.setTimeout(runNetworkWarmup, 60);
   }, [id]);
 
   const handlePrimeOpen = useCallback(() => {

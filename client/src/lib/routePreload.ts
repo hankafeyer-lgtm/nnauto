@@ -18,13 +18,27 @@ export function warmCoreRoutes() {
   if (didWarmCoreRoutes || typeof window === "undefined") return;
   didWarmCoreRoutes = true;
 
+  const connection = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }
+  ).connection;
+  const isConstrainedNetwork =
+    connection?.saveData === true ||
+    connection?.effectiveType === "slow-2g" ||
+    connection?.effectiveType === "2g";
+  const isMobileLikeViewport = window.innerWidth < 768;
+  const shouldUseLightWarmup = isConstrainedNetwork || isMobileLikeViewport;
+
   const warm = () => {
     // Warm the most frequently used routes first.
     void loadListingsPage();
     void loadListingDetailPage();
-    void loadAddListingPage();
-    void loadProfilePage();
-    void loadSettingsPage();
+    if (!shouldUseLightWarmup) {
+      void loadAddListingPage();
+      void loadProfilePage();
+      void loadSettingsPage();
+    }
   };
 
   const idleApi = window as Window & {

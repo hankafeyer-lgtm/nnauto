@@ -3255,9 +3255,11 @@ export default function ListingsPage() {
 
   useEffect(() => {
     if (!openListingId || !isOpenListingOverlayLoading) return;
+    const isMobile = window.innerWidth < 768;
+    const fallbackDelay = isMobile ? 900 : 1400;
     const timer = window.setTimeout(() => {
       setIsOpenListingOverlayLoading(false);
-    }, 1400);
+    }, fallbackDelay);
     return () => window.clearTimeout(timer);
   }, [isOpenListingOverlayLoading, openListingId]);
 
