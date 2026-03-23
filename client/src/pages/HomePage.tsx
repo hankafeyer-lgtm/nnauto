@@ -2161,6 +2161,14 @@ export default function HomePage() {
   useEffect(() => {
     const url = new URL(window.location.href);
     if (!url.searchParams.has("openListing")) return;
+    const navigationEntries = window.performance.getEntriesByType(
+      "navigation",
+    ) as PerformanceNavigationTiming[];
+    const isReloadNavigation =
+      navigationEntries[0]?.type === "reload" ||
+      (window.performance as Performance & { navigation?: { type?: number } })
+        .navigation?.type === 1;
+    if (!isReloadNavigation) return;
     url.searchParams.delete("openListing");
     window.history.replaceState(window.history.state, "", url.toString());
     setOpenListingId(null);
