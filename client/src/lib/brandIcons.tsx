@@ -5,7 +5,15 @@ export type BrandIconEntry =
   | { type: "component"; component: ComponentType<{ className?: string }> }
   | { type: "image"; src: string; alt: string };
 
-export const BrandIconRenderer = ({ icon, className = "w-4 h-4" }: { icon?: BrandIconEntry; className?: string }) => {
+export const BrandIconRenderer = ({
+  icon,
+  className = "w-4 h-4",
+  loading = "lazy",
+}: {
+  icon?: BrandIconEntry;
+  className?: string;
+  loading?: "lazy" | "eager";
+}) => {
   if (!icon) return null;
   
   if (icon.type === "component") {
@@ -18,7 +26,7 @@ export const BrandIconRenderer = ({ icon, className = "w-4 h-4" }: { icon?: Bran
       src={icon.src} 
       alt={icon.alt} 
       className={className}
-      loading="lazy"
+      loading={loading}
       decoding="async"
       draggable={false}
       style={{ objectFit: "contain" }}

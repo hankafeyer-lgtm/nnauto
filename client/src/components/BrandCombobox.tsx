@@ -55,12 +55,16 @@ export function BrandCombobox({
   const [searchValue, setSearchValue] = useState("");
 
   const selectedBrand = brands.find((brand) => brand.value === value);
-  const renderBrandIcon = (icon?: BrandIconEntry, sizeClass = "h-5 w-5") => {
+  const renderBrandIcon = (
+    icon?: BrandIconEntry,
+    sizeClass = "h-5 w-5",
+    loading: "lazy" | "eager" = "eager",
+  ) => {
     if (!icon) return null;
 
     return (
       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background shadow-sm">
-        <BrandIconRenderer icon={icon} className={sizeClass} />
+        <BrandIconRenderer icon={icon} className={sizeClass} loading={loading} />
       </span>
     );
   };
