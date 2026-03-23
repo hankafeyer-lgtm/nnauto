@@ -3410,6 +3410,7 @@ export default function ListingDetailPage() {
   const hasVideo = !!videoKey;
   const totalItems = photoKeys.length + (hasVideo ? 1 : 0);
   const hasMultipleItems = totalItems > 1;
+  const preloadedCarouselUrlsRef = useRef<Set<string>>(new Set());
 
   // Carousel state tracking
   useEffect(() => {
@@ -3427,8 +3428,7 @@ export default function ListingDetailPage() {
     };
   }, [carouselApi]);
 
-  // Preload nearby images with the same params we actually render.
-  // This avoids decoding oversized variants on mobile.
+  // Preload only immediate neighbors and dedupe URLs to reduce decode spikes on swipe.
   useEffect(() => {
     const len = photoKeys.length;
     if (!len) return;
@@ -3436,24 +3436,45 @@ export default function ListingDetailPage() {
     if (!w) return;
 
     const idx = Math.max(0, Math.min(currentCarouselIndex, len - 1));
-    const neighbors = new Set<string>();
-    neighbors.add(photoKeys[(idx + 1) % len]);
-    neighbors.add(photoKeys[(idx - 1 + len) % len]);
-    neighbors.add(photoKeys[(idx + 2) % len]);
-    neighbors.add(photoKeys[(idx - 2 + len) % len]);
+    const neighbors = new Set<string>([
+      photoKeys[(idx + 1) % len],
+      photoKeys[(idx - 1 + len) % len],
+    ]);
     const isDesktop = w.innerWidth >= 1024;
     const preloadWidth = isDesktop ? 1120 : 560;
     const preloadQuality = isDesktop ? 84 : 74;
 
-    for (const key of neighbors) {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = getOptimizedImageUrl(key, {
-        width: preloadWidth,
-        quality: preloadQuality,
-        format: "webp",
-      });
+    const preload = () => {
+      for (const key of neighbors) {
+        const url = getOptimizedImageUrl(key, {
+          width: preloadWidth,
+          quality: preloadQuality,
+          format: "webp",
+        });
+        if (preloadedCarouselUrlsRef.current.has(url)) continue;
+        preloadedCarouselUrlsRef.current.add(url);
+        const img = new Image();
+        img.decoding = "async";
+        img.src = url;
+        img.decode?.().catch(() => {
+          // ignore decode failures; browser still caches image bytes
+        });
+      }
+    };
+
+    const idleApi = w as Window & {
+      requestIdleCallback?: (
+        cb: () => void,
+        opts?: { timeout: number },
+      ) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (idleApi.requestIdleCallback) {
+      const idleId = idleApi.requestIdleCallback(preload, { timeout: 160 });
+      return () => idleApi.cancelIdleCallback?.(idleId);
     }
+    const timeoutId = w.setTimeout(preload, 40);
+    return () => w.clearTimeout(timeoutId);
   }, [currentCarouselIndex, photoKeys]);
 
   const scrollToCarouselItem = useCallback(

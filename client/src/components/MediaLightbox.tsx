@@ -1249,14 +1249,14 @@ export function MediaLightbox({
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose, handlePrev, handleNext]);
 
-  // ✅ PRELOAD: гріємо ОДРАЗУ next/prev тим же URL + decode()
+  // Preload immediate neighbors only to keep swipe smooth on weaker devices.
   useEffect(() => {
     if (!isOpen) return;
     if (photoKeys.length === 0) return;
 
     const idx = clamp(currentIndex, 0, photoKeys.length - 1);
 
-    const neighbors = [idx - 2, idx - 1, idx + 1, idx + 2].filter(
+    const neighbors = [idx - 1, idx + 1].filter(
       (i, pos, arr) => i >= 0 && i < photoKeys.length && arr.indexOf(i) === pos,
     );
 
@@ -1272,29 +1272,46 @@ export function MediaLightbox({
       img.onload = onDone;
     };
 
-    // mobile URLs — завжди
-    for (const i of neighbors) {
-      if (loadedMobileRef.current.has(i)) continue;
-      const url = getMobileUrl(photoKeys[i]);
-      preload(url, () => loadedMobileRef.current.add(i));
-    }
-
-    // desktop URLs — тільки якщо реально десктоп і upgrade дозволений
-    if (
-      allowUpgrade &&
-      typeof window !== "undefined" &&
-      window.innerWidth >= DESKTOP_MIN_WIDTH
-    ) {
-      const desktopCandidates = [idx, ...neighbors].filter(
-        (i) => i >= 0 && i < photoKeys.length,
-      );
-
-      for (const i of desktopCandidates) {
-        if (loadedDesktopRef.current.has(i)) continue;
-        const url = getDesktopUrl(photoKeys[i]);
-        preload(url, () => loadedDesktopRef.current.add(i));
+    const runPreload = () => {
+      // mobile URLs — always
+      for (const i of neighbors) {
+        if (loadedMobileRef.current.has(i)) continue;
+        const url = getMobileUrl(photoKeys[i]);
+        preload(url, () => loadedMobileRef.current.add(i));
       }
+
+      // desktop URLs — only on desktop when upgrade is enabled
+      if (
+        allowUpgrade &&
+        typeof window !== "undefined" &&
+        window.innerWidth >= DESKTOP_MIN_WIDTH
+      ) {
+        const desktopCandidates = [idx, ...neighbors].filter(
+          (i) => i >= 0 && i < photoKeys.length,
+        );
+
+        for (const i of desktopCandidates) {
+          if (loadedDesktopRef.current.has(i)) continue;
+          const url = getDesktopUrl(photoKeys[i]);
+          preload(url, () => loadedDesktopRef.current.add(i));
+        }
+      }
+    };
+
+    // Let active frame render first, then warm neighbors.
+    const idleApi = window as Window & {
+      requestIdleCallback?: (
+        cb: () => void,
+        opts?: { timeout: number },
+      ) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (idleApi.requestIdleCallback) {
+      const idleId = idleApi.requestIdleCallback(runPreload, { timeout: 180 });
+      return () => idleApi.cancelIdleCallback?.(idleId);
     }
+    const timeoutId = window.setTimeout(runPreload, 40);
+    return () => window.clearTimeout(timeoutId);
   }, [
     isOpen,
     currentIndex,
