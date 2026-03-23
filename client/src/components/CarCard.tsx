@@ -26,6 +26,7 @@ import {
   prefetchListingDocument,
   warmListingFrame,
 } from "@/lib/queryClient";
+import { loadListingDetailPage } from "@/lib/routePreload";
 import {
   getCardImageUrl,
   getThumbnailUrl,
@@ -218,6 +219,7 @@ function CarCard({
 
   // Prefetch listing data on hover for faster navigation
   const handlePrefetch = useCallback(() => {
+    void loadListingDetailPage();
     if (didPrefetchRef.current || !canPrefetchHeavyResources()) return;
     didPrefetchRef.current = true;
     prefetchListing(id);

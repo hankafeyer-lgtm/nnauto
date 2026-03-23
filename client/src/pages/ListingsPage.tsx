@@ -3257,7 +3257,7 @@ export default function ListingsPage() {
     if (!openListingId || !isOpenListingOverlayLoading) return;
     const timer = window.setTimeout(() => {
       setIsOpenListingOverlayLoading(false);
-    }, 3000);
+    }, 1400);
     return () => window.clearTimeout(timer);
   }, [isOpenListingOverlayLoading, openListingId]);
 

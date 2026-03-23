@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { lazy, Suspense, memo } from "react";
+import { lazy, Suspense, memo, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { HelmetProvider } from "react-helmet-async";
@@ -9,6 +9,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { FavoritesProvider } from "@/contexts/FavoritesContext";
 import { FavoritesButton } from "@/components/FavoritesButton";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import { warmCoreRoutes } from "@/lib/routePreload";
 
 const HomePage = lazy(() => import("@/pages/HomePage"));
 const ListingsPage = lazy(() => import("@/pages/ListingsPage"));
@@ -133,6 +134,10 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    warmCoreRoutes();
+  }, []);
+
   return (
     <HelmetProvider>
       <LanguageProvider>
