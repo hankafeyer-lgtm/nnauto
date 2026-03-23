@@ -255,6 +255,13 @@ function CarCard({
         e.preventDefault();
         e.stopPropagation();
         onOpenListing(id);
+        window.setTimeout(() => {
+          const overlayFrame = document.querySelector(
+            `iframe[src^="/listing/${id}"]`,
+          );
+          if (overlayFrame) return;
+          window.location.assign(`/listing/${id}`);
+        }, 160);
         return;
       }
       saveScrollPosition(id);
