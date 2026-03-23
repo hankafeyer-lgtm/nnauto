@@ -254,6 +254,12 @@ function CarCard({
       if (onOpenListing) {
         e.preventDefault();
         e.stopPropagation();
+        // Mobile browsers can swallow overlay-opening clicks on complex touch cards.
+        // Use direct navigation on mobile for reliable opening.
+        if (window.innerWidth < 768) {
+          window.location.assign(`/listing/${id}`);
+          return;
+        }
         onOpenListing(id);
         window.setTimeout(() => {
           const overlayFrame = document.querySelector(
