@@ -242,8 +242,13 @@ function CarCard({
   }, [id]);
 
   const handlePrimeOpen = useCallback(() => {
-    handlePrefetch();
-  }, [handlePrefetch]);
+    void loadListingDetailPage();
+    if (didPrefetchRef.current) return;
+    didPrefetchRef.current = true;
+    prefetchListing(id);
+    prefetchListingDocument(id);
+    warmListingFrame(id);
+  }, [id]);
 
   useEffect(() => {
     didPrefetchRef.current = false;
@@ -290,8 +295,8 @@ function CarCard({
           onClick={handleListingClick}
           onMouseDown={handlePrimeOpen}
           onPointerDown={handlePrimeOpen}
-          onTouchStart={handlePrefetch}
-          onFocus={handlePrefetch}
+          onTouchStart={handlePrimeOpen}
+          onFocus={handlePrimeOpen}
         >
           <Card
             className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-lg duration-300 rounded-xl"
@@ -477,8 +482,8 @@ function CarCard({
         onClick={handleListingClick}
         onMouseDown={handlePrimeOpen}
         onPointerDown={handlePrimeOpen}
-        onTouchStart={handlePrefetch}
-        onFocus={handlePrefetch}
+        onTouchStart={handlePrimeOpen}
+        onFocus={handlePrimeOpen}
       >
         <Card
           className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col"
