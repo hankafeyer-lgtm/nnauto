@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,8 @@ const normalizeSearchText = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
 
+const warmedBrandIconUrls = new Set<string>();
+
 export function BrandCombobox({
   brands,
   value,
@@ -53,6 +55,49 @@ export function BrandCombobox({
 }: BrandComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+
+  useEffect(() => {
+    const imageUrls = brands
+      .map((brand) => (brand.icon?.type === "image" ? brand.icon.src : null))
+      .filter((src): src is string => typeof src === "string" && src.length > 0)
+      .filter((src) => !warmedBrandIconUrls.has(src));
+
+    if (!imageUrls.length) return;
+
+    const warm = (url: string) => {
+      warmedBrandIconUrls.add(url);
+      const img = new Image();
+      img.decoding = "async";
+      img.src = url;
+    };
+
+    // Warm visible part quickly, rest in idle to avoid UI jank.
+    const immediate = imageUrls.slice(0, 18);
+    const deferred = imageUrls.slice(18);
+    immediate.forEach(warm);
+
+    if (!deferred.length) return;
+    const idleApi = window as Window & {
+      requestIdleCallback?: (
+        callback: () => void,
+        options?: { timeout: number },
+      ) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    if (idleApi.requestIdleCallback) {
+      const id = idleApi.requestIdleCallback(
+        () => {
+          deferred.forEach(warm);
+        },
+        { timeout: 250 },
+      );
+      return () => idleApi.cancelIdleCallback?.(id);
+    }
+    const timeout = window.setTimeout(() => {
+      deferred.forEach(warm);
+    }, 80);
+    return () => window.clearTimeout(timeout);
+  }, [brands]);
 
   const selectedBrand = brands.find((brand) => brand.value === value);
   const renderBrandIcon = (
