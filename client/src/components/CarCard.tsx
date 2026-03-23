@@ -262,6 +262,7 @@ function CarCard({
         // Mobile browsers can swallow overlay-opening clicks on complex touch cards.
         // Use direct navigation on mobile for reliable opening.
         if (window.innerWidth < 768) {
+          saveScrollPosition(id);
           window.location.assign(`/listing/${id}`);
           return;
         }
