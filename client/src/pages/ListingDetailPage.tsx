@@ -4006,6 +4006,47 @@ export default function ListingDetailPage() {
     window.location.assign("/listings");
   }, [isEmbedded]);
 
+  useEffect(() => {
+    if (isEmbedded) return;
+    if (typeof window === "undefined") return;
+    if (window.innerWidth >= 768) return;
+
+    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    if (!returnUrl) return;
+
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const currentState =
+      window.history.state && typeof window.history.state === "object"
+        ? window.history.state
+        : {};
+
+    if (!currentState.__nnautoMobileSwipeGuard) {
+      window.history.replaceState(
+        { ...currentState, __nnautoMobileSwipeBase: true },
+        "",
+        currentUrl,
+      );
+      window.history.pushState(
+        { __nnautoMobileSwipeGuard: true },
+        "",
+        currentUrl,
+      );
+    }
+
+    const handleMobileSwipeBack = (event: PopStateEvent) => {
+      const nextState =
+        event.state && typeof event.state === "object" ? event.state : {};
+      if (nextState.__nnautoMobileSwipeGuard) return;
+      window.removeEventListener("popstate", handleMobileSwipeBack);
+      window.location.replace(returnUrl);
+    };
+
+    window.addEventListener("popstate", handleMobileSwipeBack);
+    return () => {
+      window.removeEventListener("popstate", handleMobileSwipeBack);
+    };
+  }, [isEmbedded, listingId]);
+
   const handleEmbeddedSearchSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
