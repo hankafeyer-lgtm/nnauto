@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { setPostAuthRedirect } from "@/lib/authRedirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -549,7 +550,16 @@ function HeaderContent({
                 href="/add-listing"
                 data-testid="button-open-add-listing"
                 onClick={(e) => {
-                  if (isLoading) e.preventDefault();
+                  if (isLoading) {
+                    e.preventDefault();
+                    return;
+                  }
+                  if (!isAuthenticated || !user) {
+                    e.preventDefault();
+                    setPostAuthRedirect("/add-listing");
+                    setLoginModalTab("register");
+                    setLoginModalOpen(true);
+                  }
                 }}
               >
                 <Plus className="w-4 h-4" />
@@ -687,7 +697,16 @@ function HeaderContent({
                     className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border cursor-pointer flex items-center"
                     data-testid="menu-item-add-listing"
                     onClick={(e) => {
-                      if (isLoading) e.preventDefault();
+                      if (isLoading) {
+                        e.preventDefault();
+                        return;
+                      }
+                      if (!isAuthenticated || !user) {
+                        e.preventDefault();
+                        setPostAuthRedirect("/add-listing");
+                        setLoginModalTab("register");
+                        setLoginModalOpen(true);
+                      }
                     }}
                   >
                     <Plus className="mr-3 h-5 w-5" />

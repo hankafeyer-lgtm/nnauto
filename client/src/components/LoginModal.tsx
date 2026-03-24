@@ -19,6 +19,7 @@ import { Eye, EyeOff, Shield, CheckCircle } from "lucide-react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import Swal from "sweetalert2";
 import { useLocation } from "wouter";
+import { consumePostAuthRedirect } from "@/lib/authRedirect";
 interface LoginModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -145,6 +146,11 @@ export default function LoginModal({
       setLoginVerified(false);
       setLoginErrorMessage(null);
       loginTurnstileRef.current?.reset();
+      const next = consumePostAuthRedirect();
+      if (next) {
+        window.location.assign(next);
+        return;
+      }
       reloadAfterAuth();
     },
     onError: (error: any) => {
@@ -236,7 +242,11 @@ export default function LoginModal({
         confirmButtonText: t("auth.continue"),
       });
 
-      // ✅ редірект на сторінку додавання оголошення
+      const next = consumePostAuthRedirect();
+      if (next) {
+        window.location.assign(next);
+        return;
+      }
       setLocation("/add-listing");
     },
     onError: (error: any) => {

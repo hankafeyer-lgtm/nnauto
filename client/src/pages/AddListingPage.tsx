@@ -50,6 +50,7 @@ import { ModelCombobox } from "@/components/ModelCombobox";
 import { useModelGenerations } from "@/hooks/useModelGenerations";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import LoginModal from "@/components/LoginModal";
 import { Sparkles, Car, Package, Wrench, CircleDot, Zap, Bot, Activity, ArrowUp, ArrowDown, Grid3x3, Compass, Key, MapPin } from "lucide-react";
 import newCarIcon from "@assets/3AAF8DD0-3B6D-4DA3-8A1E-2858FCC004A1_1763451350424.png";
 import partsIcon from "@assets/62A9ABBD-0474-469C-8089-FA93C3E7C2B4_1763450942216.png";
@@ -388,6 +389,7 @@ export default function AddListingPage() {
   const [isPhotosUploading, setIsPhotosUploading] = useState(false);
   const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [topsPurchased, setTopsPurchased] = useState(1);
+  const [guestAuthModalOpen, setGuestAuthModalOpen] = useState(true);
   const submitLockRef = useRef(false);
   const submitLockToastTsRef = useRef(0);
   const { language } = useLanguage();
@@ -412,17 +414,6 @@ export default function AddListingPage() {
   const engineOptions = [0.8, 1.0, 1.2, 1.4, 1.5, 1.6, 1.8, 2.0, 2.2, 2.5, 3.0, 3.5, 4.0, 5.0, 6.0];
   const powerOptions = [50, 75, 100, 125, 150, 175, 200, 250, 300, 350, 400, 500, 600, 700, 800, 1000];
   const ownersOptions = [1, 2, 3, 4, 5];
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      toast({
-        variant: "destructive",
-        title: t("auth.loginRequired"),
-        description: t("auth.loginRequiredDescription"),
-      });
-      setLocation("/");
-    }
-  }, [isLoading, isAuthenticated, setLocation, toast, t]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
@@ -977,10 +968,27 @@ export default function AddListingPage() {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="text-lg">{t("common.redirecting") || "Přesměrování..."}</div>
+        <main className="flex-1 flex flex-col items-center justify-center gap-4 px-4 pb-12 text-center">
+          <h1 className="text-xl font-semibold text-foreground">
+            {t("auth.loginRequired")}
+          </h1>
+          <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
+            {t("auth.loginRequiredDescription")}
+          </p>
+          <Button
+            type="button"
+            onClick={() => setGuestAuthModalOpen(true)}
+            className="mt-1"
+          >
+            {t("auth.register")} / {t("auth.login")}
+          </Button>
         </main>
         <Footer />
+        <LoginModal
+          open={guestAuthModalOpen}
+          onOpenChange={setGuestAuthModalOpen}
+          initialTab="register"
+        />
       </div>
     );
   }
