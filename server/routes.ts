@@ -9,6 +9,7 @@ import {
   brands as brandsTable,
   models as modelsTable,
   modelGenerations as modelGenerationsTable,
+  users as usersTable,
   insertListingSchema,
   updateListingSchema,
   insertUserSchema,
@@ -2378,14 +2379,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/auth/forgot-password", authRateLimit, async (req, res) => {
     try {
-      const { email } = req.body;
+      const rawEmail = typeof req.body?.email === "string" ? req.body.email : "";
+      const email = rawEmail.trim().toLowerCase();
 
       if (!email) {
         return res.status(400).json({ error: "Email is required" });
       }
 
-      // Find user by email
-      const user = await storage.getUserByEmail(email);
+      // Find user by email (case-insensitive) without revealing if it exists.
+      const [user] = await db
+        .select()
+        .from(usersTable)
+        .where(ilike(usersTable.email, email));
 
       // Always return success to prevent email enumeration
       // If user doesn't exist, we silently fail but still return success
@@ -2397,7 +2402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Return success anyway to prevent enumeration
         return res.json({
           success: true,
-          message: "If the email exists, password has been sent",
+          message: "If the email is registered, recovery instructions have been sent",
         });
       }
 
@@ -2423,7 +2428,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("[INFO] Password reset successful for email:", email);
       res.json({
         success: true,
-        message: "If the email exists, password has been sent",
+        message: "If the email is registered, recovery instructions have been sent",
       });
     } catch (error: any) {
       console.error("[ERROR] Forgot password error:", error);

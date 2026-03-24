@@ -61,7 +61,7 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "auth.forgotPassword": "Zapomněli jste heslo?",
     "auth.forgotPasswordTitle": "Obnovit heslo",
     "auth.forgotPasswordDescription":
-      "Zadejte svůj email a my vám zašleme vaše heslo",
+      "Zadejte svůj email. Pokud je registrovaný, pošleme vám pokyny pro obnovení hesla.",
     "auth.sendPassword": "Odeslat heslo",
     "auth.sending": "Odesílání...",
     "auth.cancel": "Zrušit",
@@ -70,8 +70,9 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "auth.verificationRequired": "Ověření požadováno",
     "auth.pleaseVerify": "Prosím dokončete bezpečnostní ověření",
     "auth.verificationFailed": "Ověření se nezdařilo",
-    "auth.passwordSentSuccess": "Heslo odesláno",
-    "auth.passwordSentDescription": "Zkontrolujte svůj email pro heslo",
+    "auth.passwordSentSuccess": "Požadavek byl odeslán",
+    "auth.passwordSentDescription":
+      "Pokud je tento email registrovaný, poslali jsme vám pokyny pro obnovení hesla.",
     "auth.passwordSentError": "Chyba při odesílání",
     "auth.emailNotFound": "Email nebyl nalezen v systému",
 
@@ -1108,7 +1109,7 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "auth.forgotPassword": "Забули пароль?",
     "auth.forgotPasswordTitle": "Відновити пароль",
     "auth.forgotPasswordDescription":
-      "Введіть свій email і ми надішлемо вам пароль",
+      "Введіть свій email. Якщо він зареєстрований, ми надішлемо інструкції для відновлення пароля.",
     "auth.sendPassword": "Надіслати пароль",
     "auth.sending": "Відправка...",
     "auth.cancel": "Скасувати",
@@ -1117,8 +1118,9 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "auth.verificationRequired": "Потрібна перевірка",
     "auth.pleaseVerify": "Будь ласка, завершіть перевірку безпеки",
     "auth.verificationFailed": "Перевірка не вдалася",
-    "auth.passwordSentSuccess": "Пароль надіслано",
-    "auth.passwordSentDescription": "Перевірте свою пошту для отримання пароля",
+    "auth.passwordSentSuccess": "Запит надіслано",
+    "auth.passwordSentDescription":
+      "Якщо цей email зареєстрований, ми надіслали інструкції для відновлення пароля.",
     "auth.passwordSentError": "Помилка при відправці",
     "auth.emailNotFound": "Email не знайдено в системі",
 
@@ -2164,7 +2166,7 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "auth.forgotPassword": "Forgot password?",
     "auth.forgotPasswordTitle": "Reset Password",
     "auth.forgotPasswordDescription":
-      "Enter your email and we'll send you your password",
+      "Enter your email. If it is registered, we will send you password recovery instructions.",
     "auth.sendPassword": "Send Password",
     "auth.sending": "Sending...",
     "auth.cancel": "Cancel",
@@ -2173,8 +2175,9 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "auth.verificationRequired": "Verification Required",
     "auth.pleaseVerify": "Please complete the security verification",
     "auth.verificationFailed": "Verification failed",
-    "auth.passwordSentSuccess": "Password sent",
-    "auth.passwordSentDescription": "Check your email for your password",
+    "auth.passwordSentSuccess": "Request sent",
+    "auth.passwordSentDescription":
+      "If this email is registered, we have sent password recovery instructions.",
     "auth.passwordSentError": "Error sending",
     "auth.emailNotFound": "Email not found in the system",
 
