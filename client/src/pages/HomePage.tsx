@@ -3284,7 +3284,7 @@ export default function HomePage() {
         </section>
 
         {openListingId ? (
-          <div className="fixed inset-0 z-[100] bg-background overscroll-none">
+          <div className="fixed inset-0 z-[100] bg-background overscroll-none overflow-x-hidden w-full max-w-[100vw] touch-pan-y">
             {isOpenListingOverlayLoading ? (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/95">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />

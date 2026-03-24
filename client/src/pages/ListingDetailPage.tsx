@@ -4220,10 +4220,10 @@ export default function ListingDetailPage() {
 
   if (isLoading) {
     return (
-      <>
+      <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden overscroll-x-none touch-pan-y">
         <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
         <PageLoaderInline text={t("detail.loading")} />
-      </>
+      </div>
     );
   }
   function tuneImgUrl(url: string, w: number, dpr = 2) {
@@ -4246,7 +4246,7 @@ export default function ListingDetailPage() {
   }
   if (error || !listing) {
     return (
-      <>
+      <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden overscroll-x-none touch-pan-y">
         <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center space-y-4">
@@ -4260,12 +4260,12 @@ export default function ListingDetailPage() {
             </Link>
           </div>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden overscroll-x-none touch-pan-y">
       <SEO
         title={seoTitle}
         description={seoDescription}
@@ -4299,20 +4299,25 @@ export default function ListingDetailPage() {
 
       <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
 
-      <div className={`min-h-screen bg-background ${isEmbedded ? "pb-24 md:pb-0" : ""}`}>
+      <div
+        className={`min-h-screen bg-background ${isEmbedded ? "pb-24 md:pb-0" : ""}`}
+      >
         {isEmbedded && (
           <div className="md:hidden border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
             <div className="px-4 py-3 flex items-center gap-2">
               <div className="shrink-0">
-                <MobileFilters autoApply={false} applyButtonLabel="Vyhledat" />
+                <MobileFilters
+                  autoApply={false}
+                  applyButtonLabel={t("hero.search")}
+                />
               </div>
-              <form onSubmit={handleEmbeddedSearchSubmit} className="flex-1">
+              <form onSubmit={handleEmbeddedSearchSubmit} className="flex-1 min-w-0">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="search"
-                    placeholder="Hledat auto"
-                    className="pl-12 h-12 rounded-xl"
+                    placeholder={t("header.search")}
+                    className="pl-12 h-12 rounded-xl w-full min-w-0"
                     value={embeddedSearchQuery}
                     onChange={(e) => setEmbeddedSearchQuery(e.target.value)}
                     data-testid="input-embedded-search-mobile"
@@ -4530,7 +4535,7 @@ export default function ListingDetailPage() {
                 {/* Thumbnail strip */}
                 {hasMultipleItems && (
                   <div className="p-3 bg-muted/50">
-                    <div className="flex gap-2 overflow-x-auto pb-1">
+                    <div className="flex gap-2 overflow-x-auto overscroll-x-contain touch-pan-x pb-1">
                       {photoKeys.map((key, index) => {
                         const isActive = index === currentCarouselIndex;
                         return (
@@ -5628,7 +5633,7 @@ export default function ListingDetailPage() {
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
       />
-    </>
+    </div>
   );
 }
 
