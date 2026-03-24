@@ -3982,6 +3982,10 @@ export default function ListingDetailPage() {
     }
 
     const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    if (returnUrl && window.innerWidth < 768) {
+      window.location.replace(returnUrl);
+      return;
+    }
     if (window.history.length > 1) {
       const currentUrl = window.location.href;
       window.history.back();
