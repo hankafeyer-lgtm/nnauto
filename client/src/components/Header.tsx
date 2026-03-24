@@ -372,22 +372,6 @@ function HeaderContent({
     logoutMutation.mutate();
   };
 
-  const handleAddListingRequest = () => {
-    if (isLoading) {
-      return;
-    }
-    if (!isAuthenticated || !user) {
-      toast({
-        variant: "destructive",
-        title: t("auth.loginRequired"),
-        description: t("auth.loginRequiredDescription"),
-      });
-      setLoginModalTab("login");
-      setLoginModalOpen(true);
-    } else {
-      navigate("/add-listing");
-    }
-  };
   const handleLogoClick = () => {
     const isEmbeddedListing =
       new URLSearchParams(window.location.search).get("embedded") === "1";
@@ -556,14 +540,21 @@ function HeaderContent({
 
           <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
             <Button
-              onClick={handleAddListingRequest}
+              asChild
               variant="outline"
               size="sm"
               className={`gap-1.5 px-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
-              data-testid="button-open-add-listing"
             >
-              <Plus className="w-4 h-4" />
-              <span className="text-sm">{t("header.addListing")}</span>
+              <Link
+                href="/add-listing"
+                data-testid="button-open-add-listing"
+                onClick={(e) => {
+                  if (isLoading) e.preventDefault();
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                <span className="text-sm">{t("header.addListing")}</span>
+              </Link>
             </Button>
             <Button
               variant="outline"
@@ -690,13 +681,18 @@ function HeaderContent({
                   <Star className="mr-3 h-5 w-5" />
                   <span>{t("header.menu.newCars")}</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleAddListingRequest}
-                  className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
-                  data-testid="menu-item-add-listing"
-                >
-                  <Plus className="mr-3 h-5 w-5" />
-                  <span>{t("header.menu.addListing")}</span>
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/add-listing"
+                    className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border cursor-pointer flex items-center"
+                    data-testid="menu-item-add-listing"
+                    onClick={(e) => {
+                      if (isLoading) e.preventDefault();
+                    }}
+                  >
+                    <Plus className="mr-3 h-5 w-5" />
+                    <span>{t("header.menu.addListing")}</span>
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-2" />
                 {!isLoading && !isAuthenticated ? (
