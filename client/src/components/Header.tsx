@@ -433,7 +433,7 @@ function HeaderContent({
         }`}
       >
         <div
-          className={`flex items-center justify-between gap-1.5 sm:gap-4 lg:gap-8 min-w-0 ${
+          className={`flex items-center min-w-0 max-md:justify-start max-md:gap-2 md:justify-between md:gap-4 lg:gap-8 ${
             compactMobile ? "h-14 sm:h-20 lg:h-24" : "h-16 sm:h-20 lg:h-24"
           }`}
         >
