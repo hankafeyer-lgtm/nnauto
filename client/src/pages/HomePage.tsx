@@ -2015,6 +2015,11 @@ import FilterSidebar from "@/components/FilterSidebar";
 import MobileFilters from "@/components/MobileFilters";
 import CarCard from "@/components/CarCard";
 import Footer from "@/components/Footer";
+import {
+  LISTINGS_RETURN_URL_KEY,
+  LISTINGS_TARGET_ID_KEY,
+  SCROLL_POSITION_KEY,
+} from "@/components/ScrollToTop";
 
 import {
   SEO,
@@ -2124,6 +2129,22 @@ function setPageToUrl(page: number, mode: "replace" | "push" = "replace") {
   }
 }
 
+function getPendingHomeRestore() {
+  const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+  const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+  if (!savedPosition || !returnUrl) return null;
+
+  const currentPath = `${window.location.pathname}${window.location.search}`;
+  const [returnPath] = returnUrl.split("#");
+  const scrollY = Number.parseInt(savedPosition, 10);
+  if (returnPath !== currentPath || Number.isNaN(scrollY)) return null;
+
+  return {
+    scrollY: Math.max(0, scrollY),
+    targetId: sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
+  };
+}
+
 export default function HomePage() {
   const t = useTranslation();
   const { language } = useLanguage();
@@ -2147,6 +2168,9 @@ export default function HomePage() {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingListingId, setDeletingListingId] = useState<string | null>(
+    null,
+  );
+  const pendingRestoreRef = useRef<{ scrollY: number; targetId: string | null } | null>(
     null,
   );
   const [openListingId, setOpenListingId] = useState<string | null>(() => {
@@ -2239,6 +2263,14 @@ export default function HomePage() {
     const nextPage = getPageFromUrl();
     setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
   }, [location]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      pendingRestoreRef.current = null;
+      return;
+    }
+    pendingRestoreRef.current = getPendingHomeRestore();
+  }, [location, currentPage]);
 
   const goToPage = (page: number, totalPages?: number) => {
     const clamped =
@@ -2525,6 +2557,54 @@ export default function HomePage() {
       };
     });
   }, [listings, regions, dateLocale, t, fuelLabels, transmissionLabels, user]);
+
+  useEffect(() => {
+    const pendingRestore = pendingRestoreRef.current;
+    if (!pendingRestore || isFetching || openListingId || cards.length === 0) return;
+
+    const applyRestore = () => {
+      const maxScrollTop = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight,
+      );
+      const fallbackTop = Math.min(pendingRestore.scrollY, maxScrollTop);
+      const targetEl = pendingRestore.targetId
+        ? document.getElementById(`listing-${pendingRestore.targetId}`)
+        : null;
+
+      if (targetEl) {
+        const targetTop = Math.max(
+          0,
+          Math.min(
+            maxScrollTop,
+            window.scrollY + targetEl.getBoundingClientRect().top - 16,
+          ),
+        );
+        window.scrollTo({ top: targetTop, left: 0, behavior: "auto" });
+        return;
+      }
+
+      window.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+    };
+
+    const rafId = window.requestAnimationFrame(applyRestore);
+    const t1 = window.setTimeout(applyRestore, 120);
+    const t2 = window.setTimeout(applyRestore, 320);
+    const t3 = window.setTimeout(() => {
+      applyRestore();
+      pendingRestoreRef.current = null;
+      sessionStorage.removeItem(SCROLL_POSITION_KEY);
+      sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
+      sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
+    }, 700);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [cards, isFetching, openListingId]);
 
   const seoDescriptions = {
     cs: "NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání.",

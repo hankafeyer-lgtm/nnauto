@@ -17,10 +17,17 @@ export function ScrollToTop() {
   useEffect(() => {
     // Check if we should restore scroll position instead of resetting
     const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
 
     const pathname = (location || "").split("?")[0];
     // Listings page restores scroll after cards are loaded (handled in ListingsPage)
     if (pathname === "/listings") return;
+
+    if (savedPosition && pathname === "/" && returnUrl) {
+      const [returnPath] = returnUrl.split("#");
+      const currentPath = `${window.location.pathname}${window.location.search}`;
+      if (returnPath === currentPath) return;
+    }
 
     if (savedPosition && pathname === "/") {
       // Restore saved position after a short delay to ensure content is rendered
