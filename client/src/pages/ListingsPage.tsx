@@ -2939,6 +2939,11 @@ import MobileFilters from "@/components/MobileFilters";
 import SortBar from "@/components/SortBar";
 import CarCard from "@/components/CarCard";
 import Footer from "@/components/Footer";
+import {
+  LISTINGS_RETURN_URL_KEY,
+  LISTINGS_TARGET_ID_KEY,
+  SCROLL_POSITION_KEY,
+} from "@/components/ScrollToTop";
 
 import { SEO, generateListingsSchema } from "@/components/SEO";
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
@@ -3093,6 +3098,14 @@ const forceScrollToTop = () => {
   window.setTimeout(run, 120);
 };
 
+const hasPendingListingsRestore = (w: Window) => {
+  const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+  const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+  if (!savedPosition || !returnUrl) return false;
+  const [returnPath] = returnUrl.split("#");
+  return returnPath === `${w.location.pathname}${w.location.search}`;
+};
+
 
 /* ---------------- component ---------------- */
 export default function ListingsPage() {
@@ -3156,6 +3169,9 @@ export default function ListingsPage() {
   const hasSyncedUrlPageRef = useRef(false);
   const lastUrlPageRef = useRef(currentPage);
   const historyNavigationRef = useRef(false);
+  const pendingRestoreRef = useRef<{ scrollY: number; targetId: string | null } | null>(
+    null,
+  );
 
   useEffect(() => {
     const w = safeWindow();
@@ -3164,6 +3180,7 @@ export default function ListingsPage() {
       w.history.scrollRestoration = "manual";
     }
     const onPageShow = () => {
+      if (hasPendingListingsRestore(w)) return;
       if (readPageFromSearch(w.location.search) > 1) {
         forceScrollToTop();
       }
@@ -3208,11 +3225,37 @@ export default function ListingsPage() {
   useEffect(() => {
     if (!historyNavigationRef.current) return;
     historyNavigationRef.current = false;
+    if (pendingRestoreRef.current) return;
     // iOS swipe-back can restore previous scroll after render; re-apply top reset.
     forceScrollToTop();
     window.setTimeout(forceScrollToTop, 220);
     window.setTimeout(forceScrollToTop, 420);
   }, [currentPage]);
+
+  useEffect(() => {
+    const w = safeWindow();
+    if (!w) return;
+
+    const currentPath = `${w.location.pathname}${w.location.search}`;
+    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+    if (!returnUrl || !savedPosition) {
+      pendingRestoreRef.current = null;
+      return;
+    }
+
+    const [returnPath] = returnUrl.split("#");
+    const scrollY = Number.parseInt(savedPosition, 10);
+    if (returnPath !== currentPath || Number.isNaN(scrollY)) {
+      pendingRestoreRef.current = null;
+      return;
+    }
+
+    pendingRestoreRef.current = {
+      scrollY: Math.max(0, scrollY),
+      targetId: sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
+    };
+  }, [searchStringForListState]);
 
   const openListingOverlay = useCallback((id: string) => {
     void prefetchListing(id);
@@ -3825,6 +3868,56 @@ export default function ListingsPage() {
     const rest = displayListings.filter((l) => !l.isTopListing);
     return [...top, ...rest];
   }, [displayListings]);
+
+  useEffect(() => {
+    const pendingRestore = pendingRestoreRef.current;
+    if (!pendingRestore || isFetching || openListingId || sortedListings.length === 0) {
+      return;
+    }
+
+    const w = safeWindow();
+    if (!w) return;
+
+    const applyRestore = () => {
+      const maxScrollTop = Math.max(
+        0,
+        document.documentElement.scrollHeight - w.innerHeight,
+      );
+      const fallbackTop = Math.min(pendingRestore.scrollY, maxScrollTop);
+      const targetEl = pendingRestore.targetId
+        ? document.getElementById(`listing-${pendingRestore.targetId}`)
+        : null;
+
+      if (targetEl) {
+        const targetTop = Math.max(
+          0,
+          Math.min(maxScrollTop, w.scrollY + targetEl.getBoundingClientRect().top - 16),
+        );
+        w.scrollTo({ top: targetTop, left: 0, behavior: "auto" });
+        return;
+      }
+
+      w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+    };
+
+    const rafId = window.requestAnimationFrame(applyRestore);
+    const t1 = window.setTimeout(applyRestore, 120);
+    const t2 = window.setTimeout(applyRestore, 320);
+    const t3 = window.setTimeout(() => {
+      applyRestore();
+      pendingRestoreRef.current = null;
+      sessionStorage.removeItem(SCROLL_POSITION_KEY);
+      sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
+      sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
+    }, 700);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [isFetching, openListingId, sortedListings]);
 
   const listingsById = useMemo(() => {
     const map = new Map<string, Listing>();
