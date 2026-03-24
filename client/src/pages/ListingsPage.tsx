@@ -3172,6 +3172,7 @@ export default function ListingsPage() {
   const pendingRestoreRef = useRef<{ scrollY: number; targetId: string | null } | null>(
     null,
   );
+  const [restoreTick, setRestoreTick] = useState(0);
 
   useEffect(() => {
     const w = safeWindow();
@@ -3199,9 +3200,17 @@ export default function ListingsPage() {
     if (!w) return;
     const onPopState = () => {
       historyNavigationRef.current = true;
+      setRestoreTick((tick) => tick + 1);
+    };
+    const onPageShow = () => {
+      setRestoreTick((tick) => tick + 1);
     };
     w.addEventListener("popstate", onPopState);
-    return () => w.removeEventListener("popstate", onPopState);
+    w.addEventListener("pageshow", onPageShow);
+    return () => {
+      w.removeEventListener("popstate", onPopState);
+      w.removeEventListener("pageshow", onPageShow);
+    };
   }, []);
 
   /* ----- sync page + sort when url changes (back/forward, manual edit) ----- */
@@ -3220,7 +3229,7 @@ export default function ListingsPage() {
     setIsLoadingMore(false);
 
     if (shouldScrollToCards) forceScrollToTop();
-  }, [searchStringForListState]);
+  }, [searchStringForListState, restoreTick]);
 
   useEffect(() => {
     if (!historyNavigationRef.current) return;
@@ -3917,7 +3926,7 @@ export default function ListingsPage() {
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [isFetching, openListingId, sortedListings]);
+  }, [isFetching, openListingId, sortedListings, restoreTick]);
 
   const listingsById = useMemo(() => {
     const map = new Map<string, Listing>();

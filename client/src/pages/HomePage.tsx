@@ -2173,6 +2173,7 @@ export default function HomePage() {
   const pendingRestoreRef = useRef<{ scrollY: number; targetId: string | null } | null>(
     null,
   );
+  const [restoreTick, setRestoreTick] = useState(0);
   const [openListingId, setOpenListingId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return new URLSearchParams(window.location.search).get("openListing");
@@ -2211,9 +2212,17 @@ export default function HomePage() {
       const opened = new URLSearchParams(window.location.search).get("openListing");
       setIsOpenListingOverlayLoading(!!opened);
       setOpenListingId(opened);
+      setRestoreTick((tick) => tick + 1);
+    };
+    const onPageShow = () => {
+      setRestoreTick((tick) => tick + 1);
     };
     window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener("pageshow", onPageShow);
+    };
   }, []);
 
   useEffect(() => {
@@ -2270,7 +2279,7 @@ export default function HomePage() {
       return;
     }
     pendingRestoreRef.current = getPendingHomeRestore();
-  }, [location, currentPage]);
+  }, [location, currentPage, restoreTick]);
 
   const goToPage = (page: number, totalPages?: number) => {
     const clamped =
@@ -2604,7 +2613,7 @@ export default function HomePage() {
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [cards, isFetching, openListingId]);
+  }, [cards, isFetching, openListingId, restoreTick]);
 
   const seoDescriptions = {
     cs: "NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání.",
