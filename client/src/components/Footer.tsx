@@ -1,9 +1,12 @@
 import { Link } from "wouter";
-import { memo } from "react";
 import { SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 import logoImage from "@assets/ADEE73F1-9859-4FA3-9185-00DC43A78326_1764497749332.png";
+import { useAuth } from "@/hooks/useAuth";
+import { dispatchOpenAddListingAuth } from "@/lib/authRedirect";
 
 function Footer() {
+  const { isAuthenticated, isLoading } = useAuth();
+
   return (
     <footer className="border-t bg-muted/30 mt-12 sm:mt-16 lg:mt-24 pb-20 sm:pb-0">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
@@ -53,6 +56,16 @@ function Footer() {
                   href="/add-listing"
                   className="text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
                   data-testid="link-add-listing"
+                  onClick={(e) => {
+                    if (isLoading) {
+                      e.preventDefault();
+                      return;
+                    }
+                    if (!isAuthenticated) {
+                      e.preventDefault();
+                      dispatchOpenAddListingAuth();
+                    }
+                  }}
                 >
                   Přidat inzerát
                 </Link>
@@ -179,4 +192,4 @@ function Footer() {
   );
 }
 
-export default memo(Footer);
+export default Footer;

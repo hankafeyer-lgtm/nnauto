@@ -1,5 +1,8 @@
 import { Link, useLocation } from "wouter";
-import { setPostAuthRedirect } from "@/lib/authRedirect";
+import {
+  NNAUTO_OPEN_ADD_LISTING_AUTH_EVENT,
+  setPostAuthRedirect,
+} from "@/lib/authRedirect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -93,6 +96,17 @@ function HeaderContent({
     "login",
   );
   const [favoritesModalOpen, setFavoritesModalOpen] = useState(false);
+
+  useEffect(() => {
+    const openAddListingAuth = () => {
+      setPostAuthRedirect("/add-listing");
+      setLoginModalTab("register");
+      setLoginModalOpen(true);
+    };
+    window.addEventListener(NNAUTO_OPEN_ADD_LISTING_AUTH_EVENT, openAddListingAuth);
+    return () =>
+      window.removeEventListener(NNAUTO_OPEN_ADD_LISTING_AUTH_EVENT, openAddListingAuth);
+  }, []);
   const [darkMode, setDarkMode] = useState(() => {
     const THEME_VERSION = "v3_always_light_default";
     const savedVersion = localStorage.getItem("zlateauto_theme_version");
