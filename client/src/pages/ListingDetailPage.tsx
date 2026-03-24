@@ -3121,6 +3121,7 @@ import { MediaLightbox } from "@/components/MediaLightbox";
 import {
   LISTINGS_RETURN_URL_KEY,
 } from "@/components/ScrollToTop";
+import { isLgViewport, isMobileViewport } from "@/lib/viewport";
 import {
   SEO,
   generateVehicleSchema,
@@ -3440,7 +3441,7 @@ export default function ListingDetailPage() {
       photoKeys[(idx + 1) % len],
       photoKeys[(idx - 1 + len) % len],
     ]);
-    const isDesktop = w.innerWidth >= 1024;
+    const isDesktop = isLgViewport();
     const preloadWidth = isDesktop ? 1120 : 560;
     const preloadQuality = isDesktop ? 84 : 74;
 
@@ -3982,7 +3983,7 @@ export default function ListingDetailPage() {
     }
 
     const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
-    if (returnUrl && window.innerWidth < 768) {
+    if (returnUrl && isMobileViewport()) {
       window.location.replace(returnUrl);
       return;
     }
@@ -4009,7 +4010,7 @@ export default function ListingDetailPage() {
   useEffect(() => {
     if (isEmbedded) return;
     if (typeof window === "undefined") return;
-    if (window.innerWidth >= 768) return;
+    if (!isMobileViewport()) return;
 
     const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
     if (!returnUrl) return;

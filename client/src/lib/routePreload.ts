@@ -1,3 +1,5 @@
+import { isMobileViewport } from "@/lib/viewport";
+
 export const loadHomePage = () => import("@/pages/HomePage");
 export const loadListingsPage = () => import("@/pages/ListingsPage");
 export const loadListingDetailPage = () => import("@/pages/ListingDetailPage");
@@ -27,7 +29,7 @@ export function warmCoreRoutes() {
     connection?.saveData === true ||
     connection?.effectiveType === "slow-2g" ||
     connection?.effectiveType === "2g";
-  const isMobileLikeViewport = window.innerWidth < 768;
+  const isMobileLikeViewport = isMobileViewport();
   const shouldUseLightWarmup = isConstrainedNetwork || isMobileLikeViewport;
 
   const warm = () => {

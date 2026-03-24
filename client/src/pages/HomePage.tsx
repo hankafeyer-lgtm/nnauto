@@ -2059,6 +2059,7 @@ import {
 } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getListingMainTitle } from "@/lib/listingTitle";
+import { isMobileViewport } from "@/lib/viewport";
 
 import {
   AlertDialog,
@@ -2334,7 +2335,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!openListingId || !isOpenListingOverlayLoading) return;
-    const isMobile = window.innerWidth < 768;
+    const isMobile = isMobileViewport();
     const fallbackDelay = isMobile ? 900 : 1400;
     const timer = window.setTimeout(() => {
       setIsOpenListingOverlayLoading(false);

@@ -3004,6 +3004,7 @@ import sportsImage from "@assets/generated_images/Featured_car_sports_0787b41f.p
 import hatchbackImage from "@assets/generated_images/Featured_car_hatchback_89d0679c.png";
 import truckImage from "@assets/generated_images/Featured_car_truck_55bea7bf.png";
 import { getListingMainTitle } from "@/lib/listingTitle";
+import { isMobileViewport } from "@/lib/viewport";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
@@ -3307,7 +3308,7 @@ export default function ListingsPage() {
 
   useEffect(() => {
     if (!openListingId || !isOpenListingOverlayLoading) return;
-    const isMobile = window.innerWidth < 768;
+    const isMobile = isMobileViewport();
     const fallbackDelay = isMobile ? 900 : 1400;
     const timer = window.setTimeout(() => {
       setIsOpenListingOverlayLoading(false);

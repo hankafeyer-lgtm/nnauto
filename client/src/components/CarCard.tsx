@@ -33,6 +33,7 @@ import {
   getCardSrcSet,
   getOptimizedImageUrl,
 } from "@/lib/imageOptimizer";
+import { isMobileViewport } from "@/lib/viewport";
 
 interface CarCardProps {
   id: string;
@@ -261,7 +262,7 @@ function CarCard({
         e.stopPropagation();
         // Mobile browsers can swallow overlay-opening clicks on complex touch cards.
         // Use direct navigation on mobile for reliable opening.
-        if (window.innerWidth < 768) {
+        if (isMobileViewport()) {
           saveScrollPosition(id);
           window.location.assign(`/listing/${id}`);
           return;
