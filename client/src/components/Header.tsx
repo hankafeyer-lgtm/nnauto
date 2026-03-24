@@ -426,10 +426,14 @@ function HeaderContent({
       }`}
     >
       <div
-        className={`container mx-auto ${compactMobile ? "px-3 sm:px-6 lg:px-8" : "px-4 sm:px-6 lg:px-8"}`}
+        className={`container mx-auto ${
+          compactMobile
+            ? "pl-3 pr-[calc(0.875rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
+            : "pl-4 pr-[calc(1.125rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
+        }`}
       >
         <div
-          className={`flex items-center justify-between gap-2 sm:gap-4 lg:gap-8 ${
+          className={`flex items-center justify-between gap-1.5 sm:gap-4 lg:gap-8 min-w-0 ${
             compactMobile ? "h-14 sm:h-20 lg:h-24" : "h-16 sm:h-20 lg:h-24"
           }`}
         >
@@ -550,7 +554,7 @@ function HeaderContent({
             </div>
           </form>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3">
+          <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
             <Button
               onClick={handleAddListingRequest}
               variant="outline"
@@ -658,7 +662,7 @@ function HeaderContent({
                   className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 sm:h-12 sm:w-12"}`}
                   data-testid="button-menu"
                 >
-                  <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <Menu className="h-[1.2rem] w-[1.2rem] sm:h-5 sm:w-5" strokeWidth={2.25} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-72 p-2">
