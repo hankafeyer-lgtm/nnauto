@@ -18,8 +18,29 @@ export type ListingsRestoreState = {
   returnUrl: string;
   scrollY: number | null;
   listingId: string | null;
+  scrollMode?: "window" | "container";
   savedAt: number;
 };
+
+function getScrollableAncestor(el: Element | null): HTMLElement | null {
+  if (!el) return null;
+  let current: Element | null = el.parentElement;
+  while (current && current !== document.body) {
+    const cs = window.getComputedStyle(current);
+    const canScrollY =
+      (cs.overflowY === "auto" || cs.overflowY === "scroll") &&
+      current.scrollHeight > current.clientHeight + 4;
+    if (canScrollY) return current as HTMLElement;
+    current = current.parentElement;
+  }
+  return null;
+}
+
+export function getRestoreScrollContainer(listingId: string | null): HTMLElement | null {
+  if (!listingId) return null;
+  const target = document.getElementById(`listing-${listingId}`);
+  return getScrollableAncestor(target);
+}
 
 export function readListingsRestoreState(): ListingsRestoreState | null {
   const raw = sessionStorage.getItem(LISTINGS_RESTORE_STATE_KEY);
@@ -43,6 +64,13 @@ export function readListingsRestoreState(): ListingsRestoreState | null {
       return null;
     }
     if (typeof parsed.savedAt !== "number" || !Number.isFinite(parsed.savedAt)) {
+      return null;
+    }
+    if (
+      parsed.scrollMode !== undefined &&
+      parsed.scrollMode !== "window" &&
+      parsed.scrollMode !== "container"
+    ) {
       return null;
     }
     if (Date.now() - parsed.savedAt > RESTORE_STATE_MAX_AGE_MS) {
@@ -106,7 +134,10 @@ export function saveScrollPosition(listingId?: string) {
     listingId: listingId ?? null,
     scrollY: window.scrollY,
   });
-  const scrollY = Number.isFinite(window.scrollY) ? Math.max(0, window.scrollY) : 0;
+  const scrollContainer = getRestoreScrollContainer(listingId ?? null);
+  const useContainer = !!scrollContainer;
+  const rawScroll = useContainer ? scrollContainer.scrollTop : window.scrollY;
+  const scrollY = Number.isFinite(rawScroll) ? Math.max(0, rawScroll) : 0;
   sessionStorage.setItem(SCROLL_POSITION_KEY, String(scrollY));
   const anchor = listingId ? `#listing-${encodeURIComponent(listingId)}` : "";
   const returnUrl = `${window.location.pathname}${window.location.search}${anchor}`;
@@ -123,6 +154,7 @@ export function saveScrollPosition(listingId?: string) {
     returnUrl,
     scrollY,
     listingId: listingId ?? null,
+    scrollMode: useContainer ? "container" : "window",
     savedAt: Date.now(),
   };
   sessionStorage.setItem(LISTINGS_RESTORE_STATE_KEY, JSON.stringify(state));
@@ -130,6 +162,7 @@ export function saveScrollPosition(listingId?: string) {
     returnUrl,
     savedScrollY: scrollY,
     savedListingId: listingId ?? null,
+    scrollMode: state.scrollMode,
     savedAt: state.savedAt,
   });
 }

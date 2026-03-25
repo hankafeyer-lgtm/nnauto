@@ -2941,6 +2941,7 @@ import CarCard from "@/components/CarCard";
 import Footer from "@/components/Footer";
 import {
   clearListingsRestoreState,
+  getRestoreScrollContainer,
   LISTINGS_RETURN_URL_KEY,
   LISTINGS_TARGET_ID_KEY,
   readListingsRestoreState,
@@ -3184,9 +3185,11 @@ export default function ListingsPage() {
   const lastUrlPageRef = useRef(currentPage);
   const historyNavigationRef = useRef(false);
   const suppressFilterResetRef = useRef(false);
-  const pendingRestoreRef = useRef<{ scrollY: number | null; targetId: string | null } | null>(
-    null,
-  );
+  const pendingRestoreRef = useRef<{
+    scrollY: number | null;
+    targetId: string | null;
+    scrollMode: "window" | "container";
+  } | null>(null);
   const [restoreTick, setRestoreTick] = useState(0);
 
   useEffect(() => {
@@ -3287,7 +3290,11 @@ export default function ListingsPage() {
       : null;
     if (!returnUrl || !savedPosition) {
       if (hashTargetId) {
-        pendingRestoreRef.current = { scrollY: 0, targetId: hashTargetId };
+        pendingRestoreRef.current = {
+          scrollY: 0,
+          targetId: hashTargetId,
+          scrollMode: "window",
+        };
       } else {
         pendingRestoreRef.current = null;
       }
@@ -3306,7 +3313,11 @@ export default function ListingsPage() {
     const scrollY = Number.parseInt(savedPosition, 10);
     if (returnPath !== currentPath || Number.isNaN(scrollY)) {
       if (hashTargetId) {
-        pendingRestoreRef.current = { scrollY: 0, targetId: hashTargetId };
+        pendingRestoreRef.current = {
+          scrollY: 0,
+          targetId: hashTargetId,
+          scrollMode: "window",
+        };
       } else {
         pendingRestoreRef.current = null;
       }
@@ -3328,6 +3339,7 @@ export default function ListingsPage() {
           : Math.max(0, scrollY),
       targetId:
         restoreState?.listingId ?? sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
+      scrollMode: restoreState?.scrollMode === "container" ? "container" : "window",
     };
     restoreDebug("listings", "pending-restore-updated", {
       reason: "session-restore-ready",
@@ -4002,6 +4014,24 @@ export default function ListingsPage() {
         : null;
 
       if (fallbackTop !== null) {
+        if (pendingRestore.scrollMode === "container") {
+          const scrollContainer = getRestoreScrollContainer(pendingRestore.targetId);
+          if (scrollContainer) {
+            const maxContainerTop = Math.max(
+              0,
+              scrollContainer.scrollHeight - scrollContainer.clientHeight,
+            );
+            const containerTop = Math.min(fallbackTop, maxContainerTop);
+            scrollContainer.scrollTop = containerTop;
+            restoreDebug("listings", "scroll-restored-by-container-y", {
+              fallbackTop,
+              containerTop,
+              maxContainerTop,
+              targetId: pendingRestore.targetId,
+            });
+            return { restored: true, reason: "container-y" as const };
+          }
+        }
         w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
         restoreDebug("listings", "scroll-restored-by-y", {
           fallbackTop,
@@ -4048,7 +4078,7 @@ export default function ListingsPage() {
         suppressFilterResetRef.current = false;
         restoreDebug("listings", "restore-cleared", {
           reason:
-            result.reason === "y"
+            result.reason === "y" || result.reason === "container-y"
               ? "mobile-single-restore-by-scrollY"
               : "mobile-single-restore-by-target",
           targetId: pendingRestore.targetId,
@@ -4067,7 +4097,10 @@ export default function ListingsPage() {
         0,
         document.documentElement.scrollHeight - w.innerHeight,
       );
-      const fallbackTop = Math.min(pendingRestore.scrollY, maxScrollTop);
+      const fallbackTop =
+        typeof pendingRestore.scrollY === "number"
+          ? Math.min(pendingRestore.scrollY, maxScrollTop)
+          : null;
       const targetEl = pendingRestore.targetId
         ? document.getElementById(`listing-${pendingRestore.targetId}`)
         : null;

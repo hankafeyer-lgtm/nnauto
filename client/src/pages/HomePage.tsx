@@ -2017,6 +2017,7 @@ import CarCard from "@/components/CarCard";
 import Footer from "@/components/Footer";
 import {
   clearListingsRestoreState,
+  getRestoreScrollContainer,
   LISTINGS_RETURN_URL_KEY,
   LISTINGS_TARGET_ID_KEY,
   SCROLL_POSITION_KEY,
@@ -2134,7 +2135,13 @@ function setPageToUrl(page: number, mode: "replace" | "push" = "replace") {
   }
 }
 
-function getPendingHomeRestore() {
+type PendingHomeRestore = {
+  scrollY: number | null;
+  targetId: string | null;
+  scrollMode: "window" | "container";
+};
+
+function getPendingHomeRestore(): PendingHomeRestore | null {
   const restoreState = readListingsRestoreState();
   const hashTargetId = window.location.hash.startsWith("#listing-")
     ? decodeURIComponent(window.location.hash.slice("#listing-".length))
@@ -2146,6 +2153,7 @@ function getPendingHomeRestore() {
       return {
         scrollY: null,
         targetId: hashTargetId,
+        scrollMode: "window" as const,
       };
     }
     // Legacy fallback for old restore keys.
@@ -2158,6 +2166,7 @@ function getPendingHomeRestore() {
     return {
       scrollY: Math.max(0, scrollY),
       targetId: sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
+      scrollMode: "window" as const,
     };
   }
 
@@ -2167,6 +2176,7 @@ function getPendingHomeRestore() {
       return {
         scrollY: null,
         targetId: hashTargetId,
+        scrollMode: "window" as const,
       };
     }
     return null;
@@ -2178,6 +2188,7 @@ function getPendingHomeRestore() {
         ? Math.max(0, restoreState.scrollY)
         : null,
     targetId: restoreState.listingId,
+    scrollMode: restoreState.scrollMode === "container" ? "container" : "window",
   };
 }
 
@@ -2206,9 +2217,7 @@ export default function HomePage() {
   const [deletingListingId, setDeletingListingId] = useState<string | null>(
     null,
   );
-  const pendingRestoreRef = useRef<{ scrollY: number | null; targetId: string | null } | null>(
-    null,
-  );
+  const pendingRestoreRef = useRef<PendingHomeRestore | null>(null);
   const [restoreTick, setRestoreTick] = useState(0);
   const [openListingId, setOpenListingId] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
@@ -2674,6 +2683,24 @@ export default function HomePage() {
         : null;
 
       if (fallbackTop !== null) {
+        if (pendingRestore.scrollMode === "container") {
+          const scrollContainer = getRestoreScrollContainer(pendingRestore.targetId);
+          if (scrollContainer) {
+            const maxContainerTop = Math.max(
+              0,
+              scrollContainer.scrollHeight - scrollContainer.clientHeight,
+            );
+            const containerTop = Math.min(fallbackTop, maxContainerTop);
+            scrollContainer.scrollTop = containerTop;
+            restoreDebug("home", "scroll-restored-by-container-y", {
+              fallbackTop,
+              containerTop,
+              maxContainerTop,
+              targetId: pendingRestore.targetId,
+            });
+            return { restored: true, reason: "container-y" as const };
+          }
+        }
         window.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
         restoreDebug("home", "scroll-restored-by-y", {
           fallbackTop,
@@ -2721,7 +2748,7 @@ export default function HomePage() {
         clearListingsRestoreState();
         restoreDebug("home", "restore-cleared", {
           reason:
-            result.reason === "y"
+            result.reason === "y" || result.reason === "container-y"
               ? "mobile-single-restore-by-scrollY"
               : "mobile-single-restore-by-target",
           targetId: pendingRestore.targetId,
@@ -2739,7 +2766,10 @@ export default function HomePage() {
         0,
         document.documentElement.scrollHeight - window.innerHeight,
       );
-      const fallbackTop = Math.min(pendingRestore.scrollY, maxScrollTop);
+      const fallbackTop =
+        typeof pendingRestore.scrollY === "number"
+          ? Math.min(pendingRestore.scrollY, maxScrollTop)
+          : null;
       const targetEl = pendingRestore.targetId
         ? document.getElementById(`listing-${pendingRestore.targetId}`)
         : null;
