@@ -3216,8 +3216,21 @@ export default function ListingDetailPage() {
     if (fromParam && fromParam.startsWith("/")) return fromParam;
     const fromSession = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
     if (fromSession) return fromSession;
-    return null;
-  }, []);
+    if (!listingId) return null;
+
+    // Last-resort fallback: derive source route from same-origin referrer.
+    // This keeps back behavior deterministic even if storage/query context is lost.
+    try {
+      if (!document.referrer) return null;
+      const ref = new URL(document.referrer);
+      if (ref.origin !== window.location.origin) return null;
+      if (ref.pathname !== "/" && ref.pathname !== "/listings") return null;
+      const refPath = `${ref.pathname}${ref.search}`;
+      return `${refPath}#listing-${encodeURIComponent(listingId)}`;
+    } catch {
+      return null;
+    }
+  }, [listingId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
