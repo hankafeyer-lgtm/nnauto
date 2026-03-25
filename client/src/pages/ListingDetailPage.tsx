@@ -3982,18 +3982,7 @@ export default function ListingDetailPage() {
       return;
     }
 
-    const returnUrl =
-      sessionStorage.getItem(LISTINGS_RETURN_URL_KEY) ||
-      (() => {
-        const from = new URLSearchParams(window.location.search).get("from");
-        if (!from) return null;
-        try {
-          const decoded = decodeURIComponent(from);
-          return decoded.startsWith("/") ? decoded : null;
-        } catch {
-          return null;
-        }
-      })();
+    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
     if (returnUrl && isMobileViewport()) {
       window.location.replace(returnUrl);
       return;
@@ -4023,18 +4012,7 @@ export default function ListingDetailPage() {
     if (typeof window === "undefined") return;
     if (!isMobileViewport()) return;
 
-    const returnUrl =
-      sessionStorage.getItem(LISTINGS_RETURN_URL_KEY) ||
-      (() => {
-        const from = new URLSearchParams(window.location.search).get("from");
-        if (!from) return null;
-        try {
-          const decoded = decodeURIComponent(from);
-          return decoded.startsWith("/") ? decoded : null;
-        } catch {
-          return null;
-        }
-      })();
+    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
     if (!returnUrl) return;
 
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
