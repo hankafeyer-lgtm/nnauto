@@ -3103,6 +3103,11 @@ const forceScrollToTop = () => {
 };
 
 const hasPendingListingsRestore = (w: Window) => {
+  const restoreState = readListingsRestoreState();
+  if (restoreState) {
+    const [returnPath] = restoreState.returnUrl.split("#");
+    return returnPath === `${w.location.pathname}${w.location.search}`;
+  }
   const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
   const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
   if (!savedPosition || !returnUrl) return false;
@@ -3178,6 +3183,7 @@ export default function ListingsPage() {
   const hasSyncedUrlPageRef = useRef(false);
   const lastUrlPageRef = useRef(currentPage);
   const historyNavigationRef = useRef(false);
+  const suppressFilterResetRef = useRef(false);
   const pendingRestoreRef = useRef<{ scrollY: number | null; targetId: string | null } | null>(
     null,
   );
@@ -3209,14 +3215,22 @@ export default function ListingsPage() {
     if (!w) return;
     const onPopState = () => {
       historyNavigationRef.current = true;
+      if (hasListingsRestoreIntent(w)) {
+        suppressFilterResetRef.current = true;
+      }
       restoreDebug("listings", "on-popstate", {
         location: `${w.location.pathname}${w.location.search}${w.location.hash}`,
+        hasRestoreIntent: hasListingsRestoreIntent(w),
       });
       setRestoreTick((tick) => tick + 1);
     };
     const onPageShow = () => {
+      if (hasListingsRestoreIntent(w)) {
+        suppressFilterResetRef.current = true;
+      }
       restoreDebug("listings", "on-pageshow", {
         location: `${w.location.pathname}${w.location.search}${w.location.hash}`,
+        hasRestoreIntent: hasListingsRestoreIntent(w),
       });
       setRestoreTick((tick) => tick + 1);
     };
@@ -3850,6 +3864,15 @@ export default function ListingsPage() {
       didMountRef.current = true;
       return;
     }
+    if (suppressFilterResetRef.current) {
+      suppressFilterResetRef.current = false;
+      restoreDebug("listings", "skip-filter-reset-during-restore", {
+        filterOnlyKey,
+        currentPage,
+        pendingRestore: pendingRestoreRef.current,
+      });
+      return;
+    }
 
     setCurrentPage(1);
     setIsLoadingMore(false);
@@ -4022,6 +4045,7 @@ export default function ListingsPage() {
         }
         pendingRestoreRef.current = null;
         clearListingsRestoreState();
+        suppressFilterResetRef.current = false;
         restoreDebug("listings", "restore-cleared", {
           reason:
             result.reason === "y"
