@@ -2601,9 +2601,49 @@ export default function HomePage() {
   useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;
     if (!pendingRestore || isFetching || openListingId || cards.length === 0) return;
+    const isMobileRestore = isMobileViewport();
+
+    const applyRestore = () => {
+      const maxScrollTop = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight,
+      );
+      const fallbackTop = Math.min(pendingRestore.scrollY, maxScrollTop);
+      const targetEl = pendingRestore.targetId
+        ? document.getElementById(`listing-${pendingRestore.targetId}`)
+        : null;
+
+      if (targetEl) {
+        const targetTop = Math.max(
+          0,
+          Math.min(
+            maxScrollTop,
+            window.scrollY + targetEl.getBoundingClientRect().top - 16,
+          ),
+        );
+        window.scrollTo({ top: targetTop, left: 0, behavior: "smooth" });
+        return;
+      }
+
+      window.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+    };
+
+    if (isMobileRestore) {
+      const rafId = window.requestAnimationFrame(() => {
+        applyRestore();
+        pendingRestoreRef.current = null;
+        sessionStorage.removeItem(SCROLL_POSITION_KEY);
+        sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
+        sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(rafId);
+      };
+    }
 
     let didSmoothRestore = false;
-    const applyRestore = () => {
+    const applyDesktopRestore = () => {
       const maxScrollTop = Math.max(
         0,
         document.documentElement.scrollHeight - window.innerHeight,
@@ -2633,11 +2673,11 @@ export default function HomePage() {
       }
     };
 
-    const rafId = window.requestAnimationFrame(applyRestore);
-    const t1 = window.setTimeout(applyRestore, 160);
-    const t2 = window.setTimeout(applyRestore, 360);
+    const rafId = window.requestAnimationFrame(applyDesktopRestore);
+    const t1 = window.setTimeout(applyDesktopRestore, 160);
+    const t2 = window.setTimeout(applyDesktopRestore, 360);
     const t3 = window.setTimeout(() => {
-      applyRestore();
+      applyDesktopRestore();
       pendingRestoreRef.current = null;
       sessionStorage.removeItem(SCROLL_POSITION_KEY);
       sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);

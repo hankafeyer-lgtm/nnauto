@@ -3107,6 +3107,11 @@ const hasPendingListingsRestore = (w: Window) => {
   return returnPath === `${w.location.pathname}${w.location.search}`;
 };
 
+const hasListingsRestoreIntent = (w: Window) => {
+  if (hasPendingListingsRestore(w)) return true;
+  return w.location.hash.startsWith("#listing-");
+};
+
 
 /* ---------------- component ---------------- */
 export default function ListingsPage() {
@@ -3235,11 +3240,12 @@ export default function ListingsPage() {
   useEffect(() => {
     if (!historyNavigationRef.current) return;
     historyNavigationRef.current = false;
-    if (pendingRestoreRef.current) return;
-    // iOS swipe-back can restore previous scroll after render; re-apply top reset.
+    const w = safeWindow();
+    if (!w) return;
+    if (pendingRestoreRef.current || hasListingsRestoreIntent(w)) return;
+    // No restore target -> keep old "page navigation starts at top" behavior,
+    // but do it once to avoid janky multi-jump scrolling.
     forceScrollToTop();
-    window.setTimeout(forceScrollToTop, 220);
-    window.setTimeout(forceScrollToTop, 420);
   }, [currentPage]);
 
   useEffect(() => {
@@ -3898,9 +3904,46 @@ export default function ListingsPage() {
 
     const w = safeWindow();
     if (!w) return;
+    const isMobileRestore = isMobileViewport();
+
+    const applyRestore = () => {
+      const maxScrollTop = Math.max(
+        0,
+        document.documentElement.scrollHeight - w.innerHeight,
+      );
+      const fallbackTop = Math.min(pendingRestore.scrollY, maxScrollTop);
+      const targetEl = pendingRestore.targetId
+        ? document.getElementById(`listing-${pendingRestore.targetId}`)
+        : null;
+
+      if (targetEl) {
+        const targetTop = Math.max(
+          0,
+          Math.min(maxScrollTop, w.scrollY + targetEl.getBoundingClientRect().top - 16),
+        );
+        w.scrollTo({ top: targetTop, left: 0, behavior: "smooth" });
+        return;
+      }
+
+      w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+    };
+
+    if (isMobileRestore) {
+      const rafId = window.requestAnimationFrame(() => {
+        applyRestore();
+        pendingRestoreRef.current = null;
+        sessionStorage.removeItem(SCROLL_POSITION_KEY);
+        sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
+        sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
+      });
+
+      return () => {
+        window.cancelAnimationFrame(rafId);
+      };
+    }
 
     let didSmoothRestore = false;
-    const applyRestore = () => {
+    const applyDesktopRestore = () => {
       const maxScrollTop = Math.max(
         0,
         document.documentElement.scrollHeight - w.innerHeight,
@@ -3927,11 +3970,11 @@ export default function ListingsPage() {
       }
     };
 
-    const rafId = window.requestAnimationFrame(applyRestore);
-    const t1 = window.setTimeout(applyRestore, 160);
-    const t2 = window.setTimeout(applyRestore, 360);
+    const rafId = window.requestAnimationFrame(applyDesktopRestore);
+    const t1 = window.setTimeout(applyDesktopRestore, 160);
+    const t2 = window.setTimeout(applyDesktopRestore, 360);
     const t3 = window.setTimeout(() => {
-      applyRestore();
+      applyDesktopRestore();
       pendingRestoreRef.current = null;
       sessionStorage.removeItem(SCROLL_POSITION_KEY);
       sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
