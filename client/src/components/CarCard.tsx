@@ -255,13 +255,14 @@ function CarCard({
     didPrefetchRef.current = false;
   }, [id]);
 
-  const listingHref = useMemo(() => {
+  const buildListingHref = useCallback(() => {
     if (typeof window === "undefined") return `/listing/${id}`;
     const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
     const targetUrl = new URL(`/listing/${id}`, window.location.origin);
     targetUrl.searchParams.set("from", sourceUrl);
     return `${targetUrl.pathname}${targetUrl.search}`;
   }, [id]);
+  const listingHref = buildListingHref();
 
   const handleListingClick = useCallback(
     (e: React.MouseEvent) => {
@@ -272,7 +273,7 @@ function CarCard({
         // Use direct navigation on mobile for reliable opening.
         if (isMobileViewport()) {
           saveScrollPosition(id);
-          window.location.assign(listingHref);
+          window.location.assign(buildListingHref());
           return;
         }
         onOpenListing(id);
@@ -281,13 +282,13 @@ function CarCard({
             `iframe[src^="/listing/${id}"]`,
           );
           if (overlayFrame) return;
-          window.location.assign(listingHref);
+          window.location.assign(buildListingHref());
         }, 160);
         return;
       }
       saveScrollPosition(id);
     },
-    [id, listingHref, onOpenListing],
+    [buildListingHref, id, onOpenListing],
   );
 
   if (viewMode === "list") {
