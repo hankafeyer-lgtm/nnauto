@@ -2016,9 +2016,11 @@ import MobileFilters from "@/components/MobileFilters";
 import CarCard from "@/components/CarCard";
 import Footer from "@/components/Footer";
 import {
+  clearListingsRestoreState,
   LISTINGS_RETURN_URL_KEY,
   LISTINGS_TARGET_ID_KEY,
   SCROLL_POSITION_KEY,
+  readListingsRestoreState,
   saveScrollPosition,
 } from "@/components/ScrollToTop";
 
@@ -2061,6 +2063,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { getListingMainTitle } from "@/lib/listingTitle";
 import { isMobileViewport } from "@/lib/viewport";
+import { restoreDebug } from "@/lib/restoreDebug";
 
 import {
   AlertDialog,
@@ -2132,30 +2135,37 @@ function setPageToUrl(page: number, mode: "replace" | "push" = "replace") {
 }
 
 function getPendingHomeRestore() {
-  const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
-  const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+  const restoreState = readListingsRestoreState();
   const hashTargetId = window.location.hash.startsWith("#listing-")
     ? decodeURIComponent(window.location.hash.slice("#listing-".length))
     : null;
+  const currentPath = `${window.location.pathname}${window.location.search}`;
 
-  if (!savedPosition || !returnUrl) {
-    // Fallback when session restore is unavailable: keep URL hash restore deterministic.
+  if (!restoreState) {
     if (hashTargetId) {
       return {
-        scrollY: 0,
+        scrollY: null,
         targetId: hashTargetId,
       };
     }
-    return null;
+    // Legacy fallback for old restore keys.
+    const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    if (!savedPosition || !returnUrl) return null;
+    const [returnPath] = returnUrl.split("#");
+    const scrollY = Number.parseInt(savedPosition, 10);
+    if (returnPath !== currentPath || Number.isNaN(scrollY)) return null;
+    return {
+      scrollY: Math.max(0, scrollY),
+      targetId: sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
+    };
   }
 
-  const currentPath = `${window.location.pathname}${window.location.search}`;
-  const [returnPath] = returnUrl.split("#");
-  const scrollY = Number.parseInt(savedPosition, 10);
-  if (returnPath !== currentPath || Number.isNaN(scrollY)) {
+  const [returnPath] = restoreState.returnUrl.split("#");
+  if (returnPath !== currentPath) {
     if (hashTargetId) {
       return {
-        scrollY: 0,
+        scrollY: null,
         targetId: hashTargetId,
       };
     }
@@ -2163,8 +2173,11 @@ function getPendingHomeRestore() {
   }
 
   return {
-    scrollY: Math.max(0, scrollY),
-    targetId: sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
+    scrollY:
+      typeof restoreState.scrollY === "number"
+        ? Math.max(0, restoreState.scrollY)
+        : null,
+    targetId: restoreState.listingId,
   };
 }
 
@@ -2193,7 +2206,7 @@ export default function HomePage() {
   const [deletingListingId, setDeletingListingId] = useState<string | null>(
     null,
   );
-  const pendingRestoreRef = useRef<{ scrollY: number; targetId: string | null } | null>(
+  const pendingRestoreRef = useRef<{ scrollY: number | null; targetId: string | null } | null>(
     null,
   );
   const [restoreTick, setRestoreTick] = useState(0);
@@ -2230,14 +2243,24 @@ export default function HomePage() {
 
   // if user navigates back/forward, keep in sync
   useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
     const onPop = () => {
       setCurrentPage(getPageFromUrl());
       const opened = new URLSearchParams(window.location.search).get("openListing");
       setIsOpenListingOverlayLoading(!!opened);
       setOpenListingId(opened);
+      restoreDebug("home", "on-popstate", {
+        location: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+        opened,
+      });
       setRestoreTick((tick) => tick + 1);
     };
     const onPageShow = () => {
+      restoreDebug("home", "on-pageshow", {
+        location: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      });
       setRestoreTick((tick) => tick + 1);
     };
     window.addEventListener("popstate", onPop);
@@ -2245,6 +2268,9 @@ export default function HomePage() {
     return () => {
       window.removeEventListener("popstate", onPop);
       window.removeEventListener("pageshow", onPageShow);
+      if ("scrollRestoration" in window.history) {
+        window.history.scrollRestoration = "auto";
+      }
     };
   }, []);
 
@@ -2302,6 +2328,14 @@ export default function HomePage() {
       return;
     }
     pendingRestoreRef.current = getPendingHomeRestore();
+    restoreDebug("home", "pending-restore-updated", {
+      location,
+      currentPage,
+      pending: pendingRestoreRef.current,
+      savedScrollY: sessionStorage.getItem(SCROLL_POSITION_KEY),
+      savedTargetId: sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
+      savedReturnUrl: sessionStorage.getItem(LISTINGS_RETURN_URL_KEY),
+    });
   }, [location, currentPage, restoreTick]);
 
   const goToPage = (page: number, totalPages?: number) => {
@@ -2325,6 +2359,11 @@ export default function HomePage() {
       const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
       const targetUrl = new URL(`/listing/${id}`, window.location.origin);
       targetUrl.searchParams.set("from", sourceUrl);
+      restoreDebug("home", "navigate-to-detail-mobile", {
+        id,
+        sourceUrl,
+        targetUrl: `${targetUrl.pathname}${targetUrl.search}`,
+      });
       window.location.assign(`${targetUrl.pathname}${targetUrl.search}`);
       return;
     }
@@ -2599,19 +2638,50 @@ export default function HomePage() {
   }, [listings, regions, dateLocale, t, fuelLabels, transmissionLabels, user]);
 
   useEffect(() => {
+    restoreDebug("home", "list-mounted-or-data-updated", {
+      isFetching,
+      currentPage,
+      cardsCount: cards.length,
+      pendingRestore: pendingRestoreRef.current,
+    });
+  }, [cards.length, currentPage, isFetching]);
+
+  useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;
     if (!pendingRestore || isFetching || openListingId || cards.length === 0) return;
     const isMobileRestore = isMobileViewport();
+    restoreDebug("home", "restore-started", {
+      isMobileRestore,
+      pendingRestore,
+      cardsCount: cards.length,
+      isFetching,
+      openListingId,
+    });
 
     const applyRestore = () => {
       const maxScrollTop = Math.max(
         0,
         document.documentElement.scrollHeight - window.innerHeight,
       );
-      const fallbackTop = Math.min(pendingRestore.scrollY, maxScrollTop);
+      const hasSavedScrollY =
+        typeof pendingRestore.scrollY === "number" &&
+        Number.isFinite(pendingRestore.scrollY);
+      const fallbackTop = hasSavedScrollY
+        ? Math.min(Math.max(0, pendingRestore.scrollY as number), maxScrollTop)
+        : null;
       const targetEl = pendingRestore.targetId
         ? document.getElementById(`listing-${pendingRestore.targetId}`)
         : null;
+
+      if (fallbackTop !== null) {
+        window.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+        restoreDebug("home", "scroll-restored-by-y", {
+          fallbackTop,
+          maxScrollTop,
+          targetId: pendingRestore.targetId,
+        });
+        return { restored: true, reason: "y" as const };
+      }
 
       if (targetEl) {
         const targetTop = Math.max(
@@ -2621,20 +2691,41 @@ export default function HomePage() {
             window.scrollY + targetEl.getBoundingClientRect().top - 16,
           ),
         );
-        window.scrollTo({ top: targetTop, left: 0, behavior: "smooth" });
-        return;
+        window.scrollTo({
+          top: targetTop,
+          left: 0,
+          behavior: isMobileRestore ? "auto" : "smooth",
+        });
+        restoreDebug("home", "scroll-restored-by-element", {
+          targetId: pendingRestore.targetId,
+          targetTop,
+          maxScrollTop,
+        });
+        return { restored: true, reason: "element" as const };
       }
 
-      window.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+      return { restored: false, reason: "none" as const };
     };
 
     if (isMobileRestore) {
       const rafId = window.requestAnimationFrame(() => {
-        applyRestore();
+        const result = applyRestore();
+        if (!result.restored) {
+          restoreDebug("home", "mobile-restore-skipped", {
+            reason: "no-valid-scrollY-and-no-target",
+            pendingRestore,
+          });
+          return;
+        }
         pendingRestoreRef.current = null;
-        sessionStorage.removeItem(SCROLL_POSITION_KEY);
-        sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
-        sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
+        clearListingsRestoreState();
+        restoreDebug("home", "restore-cleared", {
+          reason:
+            result.reason === "y"
+              ? "mobile-single-restore-by-scrollY"
+              : "mobile-single-restore-by-target",
+          targetId: pendingRestore.targetId,
+        });
       });
 
       return () => {
@@ -2668,7 +2759,7 @@ export default function HomePage() {
         return;
       }
 
-      if (!didSmoothRestore) {
+      if (!didSmoothRestore && fallbackTop !== null) {
         window.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
       }
     };
@@ -2679,9 +2770,7 @@ export default function HomePage() {
     const t3 = window.setTimeout(() => {
       applyDesktopRestore();
       pendingRestoreRef.current = null;
-      sessionStorage.removeItem(SCROLL_POSITION_KEY);
-      sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
-      sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
+      clearListingsRestoreState();
     }, 650);
 
     return () => {

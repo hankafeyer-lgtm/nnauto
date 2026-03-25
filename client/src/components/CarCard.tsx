@@ -34,6 +34,7 @@ import {
   getOptimizedImageUrl,
 } from "@/lib/imageOptimizer";
 import { isMobileViewport } from "@/lib/viewport";
+import { restoreDebug } from "@/lib/restoreDebug";
 
 interface CarCardProps {
   id: string;
@@ -266,6 +267,13 @@ function CarCard({
 
   const handleListingClick = useCallback(
     (e: React.MouseEvent) => {
+      const href = buildListingHref();
+      restoreDebug("card", "before-navigate-to-detail", {
+        id,
+        hasOverlayHandler: !!onOpenListing,
+        isMobile: isMobileViewport(),
+        href,
+      });
       if (onOpenListing) {
         e.preventDefault();
         e.stopPropagation();
@@ -273,16 +281,23 @@ function CarCard({
         // Use direct navigation on mobile for reliable opening.
         if (isMobileViewport()) {
           saveScrollPosition(id);
-          window.location.assign(buildListingHref());
+          restoreDebug("card", "navigate-mobile-direct", { id, href });
+          window.location.assign(href);
           return;
         }
         onOpenListing(id);
+        restoreDebug("card", "open-overlay-desktop", { id });
         window.setTimeout(() => {
           const overlayFrame = document.querySelector(
             `iframe[src^="/listing/${id}"]`,
           );
           if (overlayFrame) return;
-          window.location.assign(buildListingHref());
+          const fallbackHref = buildListingHref();
+          restoreDebug("card", "overlay-fallback-direct-nav", {
+            id,
+            href: fallbackHref,
+          });
+          window.location.assign(fallbackHref);
         }, 160);
         return;
       }

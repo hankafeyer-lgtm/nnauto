@@ -2940,8 +2940,10 @@ import SortBar from "@/components/SortBar";
 import CarCard from "@/components/CarCard";
 import Footer from "@/components/Footer";
 import {
+  clearListingsRestoreState,
   LISTINGS_RETURN_URL_KEY,
   LISTINGS_TARGET_ID_KEY,
+  readListingsRestoreState,
   SCROLL_POSITION_KEY,
 } from "@/components/ScrollToTop";
 
@@ -3005,6 +3007,7 @@ import hatchbackImage from "@assets/generated_images/Featured_car_hatchback_89d0
 import truckImage from "@assets/generated_images/Featured_car_truck_55bea7bf.png";
 import { getListingMainTitle } from "@/lib/listingTitle";
 import { isMobileViewport } from "@/lib/viewport";
+import { restoreDebug } from "@/lib/restoreDebug";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
@@ -3175,7 +3178,7 @@ export default function ListingsPage() {
   const hasSyncedUrlPageRef = useRef(false);
   const lastUrlPageRef = useRef(currentPage);
   const historyNavigationRef = useRef(false);
-  const pendingRestoreRef = useRef<{ scrollY: number; targetId: string | null } | null>(
+  const pendingRestoreRef = useRef<{ scrollY: number | null; targetId: string | null } | null>(
     null,
   );
   const [restoreTick, setRestoreTick] = useState(0);
@@ -3206,9 +3209,15 @@ export default function ListingsPage() {
     if (!w) return;
     const onPopState = () => {
       historyNavigationRef.current = true;
+      restoreDebug("listings", "on-popstate", {
+        location: `${w.location.pathname}${w.location.search}${w.location.hash}`,
+      });
       setRestoreTick((tick) => tick + 1);
     };
     const onPageShow = () => {
+      restoreDebug("listings", "on-pageshow", {
+        location: `${w.location.pathname}${w.location.search}${w.location.hash}`,
+      });
       setRestoreTick((tick) => tick + 1);
     };
     w.addEventListener("popstate", onPopState);
@@ -3253,8 +3262,12 @@ export default function ListingsPage() {
     if (!w) return;
 
     const currentPath = `${w.location.pathname}${w.location.search}`;
-    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
-    const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+    const restoreState = readListingsRestoreState();
+    const returnUrl = restoreState?.returnUrl ?? sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    const savedPosition =
+      typeof restoreState?.scrollY === "number"
+        ? String(restoreState.scrollY)
+        : sessionStorage.getItem(SCROLL_POSITION_KEY);
     const hashTargetId = w.location.hash.startsWith("#listing-")
       ? decodeURIComponent(w.location.hash.slice("#listing-".length))
       : null;
@@ -3264,6 +3277,14 @@ export default function ListingsPage() {
       } else {
         pendingRestoreRef.current = null;
       }
+      restoreDebug("listings", "pending-restore-updated", {
+        reason: "missing-return-or-scroll",
+        currentPath,
+        returnUrl,
+        savedPosition,
+        hashTargetId,
+        pending: pendingRestoreRef.current,
+      });
       return;
     }
 
@@ -3275,13 +3296,32 @@ export default function ListingsPage() {
       } else {
         pendingRestoreRef.current = null;
       }
+      restoreDebug("listings", "pending-restore-updated", {
+        reason: "path-mismatch-or-invalid-scroll",
+        currentPath,
+        returnPath,
+        scrollY,
+        hashTargetId,
+        pending: pendingRestoreRef.current,
+      });
       return;
     }
 
     pendingRestoreRef.current = {
-      scrollY: Math.max(0, scrollY),
-      targetId: sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
+      scrollY:
+        typeof restoreState?.scrollY === "number"
+          ? Math.max(0, restoreState.scrollY)
+          : Math.max(0, scrollY),
+      targetId:
+        restoreState?.listingId ?? sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
     };
+    restoreDebug("listings", "pending-restore-updated", {
+      reason: "session-restore-ready",
+      currentPath,
+      returnPath,
+      scrollY,
+      pending: pendingRestoreRef.current,
+    });
   }, [searchStringForListState]);
 
   const openListingOverlay = useCallback((id: string) => {
@@ -3897,6 +3937,15 @@ export default function ListingsPage() {
   }, [displayListings]);
 
   useEffect(() => {
+    restoreDebug("listings", "list-mounted-or-data-updated", {
+      isFetching,
+      currentPage,
+      sortedListingsCount: sortedListings.length,
+      pendingRestore: pendingRestoreRef.current,
+    });
+  }, [currentPage, isFetching, sortedListings.length]);
+
+  useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;
     if (!pendingRestore || isFetching || openListingId || sortedListings.length === 0) {
       return;
@@ -3905,36 +3954,82 @@ export default function ListingsPage() {
     const w = safeWindow();
     if (!w) return;
     const isMobileRestore = isMobileViewport();
+    restoreDebug("listings", "restore-started", {
+      isMobileRestore,
+      pendingRestore,
+      sortedListingsCount: sortedListings.length,
+      isFetching,
+      openListingId,
+      currentPage,
+    });
 
     const applyRestore = () => {
       const maxScrollTop = Math.max(
         0,
         document.documentElement.scrollHeight - w.innerHeight,
       );
-      const fallbackTop = Math.min(pendingRestore.scrollY, maxScrollTop);
+      const hasSavedScrollY =
+        typeof pendingRestore.scrollY === "number" &&
+        Number.isFinite(pendingRestore.scrollY);
+      const fallbackTop = hasSavedScrollY
+        ? Math.min(Math.max(0, pendingRestore.scrollY as number), maxScrollTop)
+        : null;
       const targetEl = pendingRestore.targetId
         ? document.getElementById(`listing-${pendingRestore.targetId}`)
         : null;
+
+      if (fallbackTop !== null) {
+        w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+        restoreDebug("listings", "scroll-restored-by-y", {
+          fallbackTop,
+          maxScrollTop,
+          targetId: pendingRestore.targetId,
+        });
+        return { restored: true, reason: "y" as const };
+      }
 
       if (targetEl) {
         const targetTop = Math.max(
           0,
           Math.min(maxScrollTop, w.scrollY + targetEl.getBoundingClientRect().top - 16),
         );
-        w.scrollTo({ top: targetTop, left: 0, behavior: "smooth" });
-        return;
+        w.scrollTo({
+          top: targetTop,
+          left: 0,
+          behavior: isMobileRestore ? "auto" : "smooth",
+        });
+        restoreDebug("listings", "scroll-restored-by-element", {
+          targetId: pendingRestore.targetId,
+          targetTop,
+          maxScrollTop,
+        });
+        return { restored: true, reason: "element" as const };
       }
 
-      w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+      return { restored: false, reason: "none" as const };
     };
 
     if (isMobileRestore) {
       const rafId = window.requestAnimationFrame(() => {
-        applyRestore();
+        const result = applyRestore();
+        if (!result.restored) {
+          restoreDebug("listings", "mobile-restore-skipped", {
+            reason: "no-valid-scrollY-and-no-target",
+            pendingRestore,
+            currentPage,
+          });
+          return;
+        }
         pendingRestoreRef.current = null;
-        sessionStorage.removeItem(SCROLL_POSITION_KEY);
-        sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
-        sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
+        clearListingsRestoreState();
+        restoreDebug("listings", "restore-cleared", {
+          reason:
+            result.reason === "y"
+              ? "mobile-single-restore-by-scrollY"
+              : "mobile-single-restore-by-target",
+          targetId: pendingRestore.targetId,
+          currentPage,
+        });
       });
 
       return () => {
@@ -3965,7 +4060,7 @@ export default function ListingsPage() {
         return;
       }
 
-      if (!didSmoothRestore) {
+      if (!didSmoothRestore && fallbackTop !== null) {
         w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
       }
     };
@@ -3976,9 +4071,7 @@ export default function ListingsPage() {
     const t3 = window.setTimeout(() => {
       applyDesktopRestore();
       pendingRestoreRef.current = null;
-      sessionStorage.removeItem(SCROLL_POSITION_KEY);
-      sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
-      sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
+      clearListingsRestoreState();
     }, 650);
 
     return () => {

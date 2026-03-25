@@ -3123,6 +3123,7 @@ import {
   LISTINGS_TARGET_ID_KEY,
 } from "@/components/ScrollToTop";
 import { isLgViewport, isMobileViewport } from "@/lib/viewport";
+import { restoreDebug } from "@/lib/restoreDebug";
 import {
   SEO,
   generateVehicleSchema,
@@ -3213,9 +3214,21 @@ export default function ListingDetailPage() {
 
   const getReturnUrl = useCallback(() => {
     const fromParam = new URLSearchParams(window.location.search).get("from");
-    if (fromParam && fromParam.startsWith("/")) return fromParam;
+    if (fromParam && fromParam.startsWith("/")) {
+      restoreDebug("detail", "get-return-url:from-param", {
+        listingId,
+        returnUrl: fromParam,
+      });
+      return fromParam;
+    }
     const fromSession = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
-    if (fromSession) return fromSession;
+    if (fromSession) {
+      restoreDebug("detail", "get-return-url:session", {
+        listingId,
+        returnUrl: fromSession,
+      });
+      return fromSession;
+    }
     if (!listingId) return null;
 
     // Last-resort fallback: derive source route from same-origin referrer.
@@ -3226,8 +3239,14 @@ export default function ListingDetailPage() {
       if (ref.origin !== window.location.origin) return null;
       if (ref.pathname !== "/" && ref.pathname !== "/listings") return null;
       const refPath = `${ref.pathname}${ref.search}`;
-      return `${refPath}#listing-${encodeURIComponent(listingId)}`;
+      const fallbackUrl = `${refPath}#listing-${encodeURIComponent(listingId)}`;
+      restoreDebug("detail", "get-return-url:referrer-fallback", {
+        listingId,
+        returnUrl: fallbackUrl,
+      });
+      return fallbackUrl;
     } catch {
+      restoreDebug("detail", "get-return-url:none", { listingId });
       return null;
     }
   }, [listingId]);
@@ -3245,10 +3264,20 @@ export default function ListingDetailPage() {
     const targetId = fromParam.slice(hashIndex + "#listing-".length);
     if (!targetId) return;
     sessionStorage.setItem(LISTINGS_TARGET_ID_KEY, decodeURIComponent(targetId));
+    restoreDebug("detail", "canonicalized-from-to-session", {
+      listingId,
+      fromParam,
+      targetId: decodeURIComponent(targetId),
+    });
   }, [listingId]);
 
   const handleSwipeBack = useCallback(() => {
     const returnUrl = getReturnUrl();
+    restoreDebug("detail", "swipe-back-triggered", {
+      listingId,
+      returnUrl: returnUrl ?? null,
+      historyLength: window.history.length,
+    });
     if (returnUrl) {
       window.location.replace(returnUrl);
       return;
@@ -4033,6 +4062,12 @@ export default function ListingDetailPage() {
     }
 
     const returnUrl = getReturnUrl();
+    restoreDebug("detail", "button-back-triggered", {
+      listingId,
+      returnUrl: returnUrl ?? null,
+      historyLength: window.history.length,
+      isEmbedded,
+    });
     if (returnUrl) {
       window.location.replace(returnUrl);
       return;
@@ -4088,6 +4123,10 @@ export default function ListingDetailPage() {
       const nextState =
         event.state && typeof event.state === "object" ? event.state : {};
       if (nextState.__nnautoMobileSwipeGuard) return;
+      restoreDebug("detail", "mobile-popstate-back", {
+        listingId,
+        nextStateKeys: Object.keys(nextState),
+      });
       window.removeEventListener("popstate", handleMobileSwipeBack);
       handleSwipeBack();
     };
@@ -4148,6 +4187,11 @@ export default function ListingDetailPage() {
       swipeStartYRef.current = null;
 
       if (deltaX > minHorizontalDistance && deltaY < maxVerticalDrift) {
+        restoreDebug("detail", "touch-swipe-detected", {
+          listingId,
+          deltaX,
+          deltaY,
+        });
         handleSwipeBack();
       }
     };
