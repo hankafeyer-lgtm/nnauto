@@ -3218,6 +3218,19 @@ export default function ListingDetailPage() {
     return fromParam.startsWith("/") ? fromParam : null;
   }, []);
 
+  const handleSwipeBack = useCallback(() => {
+    const returnUrl = getReturnUrl();
+    if (returnUrl) {
+      window.location.replace(returnUrl);
+      return;
+    }
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    window.location.assign("/listings");
+  }, [getReturnUrl]);
+
   useEffect(() => {
     if (!listingId) return;
     try {
@@ -3992,7 +4005,12 @@ export default function ListingDetailPage() {
 
     const returnUrl = getReturnUrl();
     if (returnUrl && isMobileViewport()) {
-      window.location.replace(returnUrl);
+      const currentUrl = window.location.href;
+      window.history.back();
+      window.setTimeout(() => {
+        if (window.location.href !== currentUrl) return;
+        window.location.replace(returnUrl);
+      }, 220);
       return;
     }
     if (window.history.length > 1) {
@@ -4047,14 +4065,14 @@ export default function ListingDetailPage() {
         event.state && typeof event.state === "object" ? event.state : {};
       if (nextState.__nnautoMobileSwipeGuard) return;
       window.removeEventListener("popstate", handleMobileSwipeBack);
-      window.location.replace(returnUrl);
+      handleSwipeBack();
     };
 
     window.addEventListener("popstate", handleMobileSwipeBack);
     return () => {
       window.removeEventListener("popstate", handleMobileSwipeBack);
     };
-  }, [getReturnUrl, isEmbedded, listingId]);
+  }, [getReturnUrl, handleSwipeBack, isEmbedded, listingId]);
 
   const handleEmbeddedSearchSubmit = useCallback(
     (e: React.FormEvent) => {
@@ -4106,7 +4124,7 @@ export default function ListingDetailPage() {
       swipeStartYRef.current = null;
 
       if (deltaX > minHorizontalDistance && deltaY < maxVerticalDrift) {
-        handleBack();
+        handleSwipeBack();
       }
     };
 
@@ -4116,7 +4134,7 @@ export default function ListingDetailPage() {
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchend", onTouchEnd);
     };
-  }, [handleBack]);
+  }, [handleSwipeBack]);
 
   // (Cebia UI placeholder only for now)
 
