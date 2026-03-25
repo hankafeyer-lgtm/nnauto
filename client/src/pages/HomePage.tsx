@@ -2019,6 +2019,7 @@ import {
   LISTINGS_RETURN_URL_KEY,
   LISTINGS_TARGET_ID_KEY,
   SCROLL_POSITION_KEY,
+  saveScrollPosition,
 } from "@/components/ScrollToTop";
 
 import {
@@ -2298,6 +2299,14 @@ export default function HomePage() {
     });
   };
   const openListingOverlay = useCallback((id: string) => {
+    if (isMobileViewport()) {
+      saveScrollPosition(id);
+      const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
+      const targetUrl = new URL(`/listing/${id}`, window.location.origin);
+      targetUrl.searchParams.set("from", sourceUrl);
+      window.location.assign(`${targetUrl.pathname}${targetUrl.search}`);
+      return;
+    }
     void prefetchListing(id);
     prefetchListingDocument(id);
     warmListingFrame(id);
