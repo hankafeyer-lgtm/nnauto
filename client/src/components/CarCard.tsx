@@ -264,7 +264,10 @@ function CarCard({
         // Use direct navigation on mobile for reliable opening.
         if (isMobileViewport()) {
           saveScrollPosition(id);
-          window.location.assign(`/listing/${id}`);
+          const from = encodeURIComponent(
+            `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`,
+          );
+          window.location.assign(`/listing/${id}?from=${from}`);
           return;
         }
         onOpenListing(id);
