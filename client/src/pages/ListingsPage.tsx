@@ -3249,15 +3249,26 @@ export default function ListingsPage() {
     const currentPath = `${w.location.pathname}${w.location.search}`;
     const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
     const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+    const hashTargetId = w.location.hash.startsWith("#listing-")
+      ? decodeURIComponent(w.location.hash.slice("#listing-".length))
+      : null;
     if (!returnUrl || !savedPosition) {
-      pendingRestoreRef.current = null;
+      if (hashTargetId) {
+        pendingRestoreRef.current = { scrollY: 0, targetId: hashTargetId };
+      } else {
+        pendingRestoreRef.current = null;
+      }
       return;
     }
 
     const [returnPath] = returnUrl.split("#");
     const scrollY = Number.parseInt(savedPosition, 10);
     if (returnPath !== currentPath || Number.isNaN(scrollY)) {
-      pendingRestoreRef.current = null;
+      if (hashTargetId) {
+        pendingRestoreRef.current = { scrollY: 0, targetId: hashTargetId };
+      } else {
+        pendingRestoreRef.current = null;
+      }
       return;
     }
 
