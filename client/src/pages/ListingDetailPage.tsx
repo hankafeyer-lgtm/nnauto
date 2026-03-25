@@ -4067,7 +4067,8 @@ export default function ListingDetailPage() {
 
   // Match browser-style back swipe: left-edge swipe should trigger the same flow as "zpět".
   useEffect(() => {
-    if (!isEmbedded) return;
+    if (typeof window === "undefined") return;
+    if (!isMobileViewport()) return;
 
     const edgeThreshold = 28; // px from left edge
     const minHorizontalDistance = 70; // px
@@ -4107,7 +4108,7 @@ export default function ListingDetailPage() {
       window.removeEventListener("touchstart", onTouchStart);
       window.removeEventListener("touchend", onTouchEnd);
     };
-  }, [handleBack, isEmbedded]);
+  }, [handleBack]);
 
   // (Cebia UI placeholder only for now)
 
