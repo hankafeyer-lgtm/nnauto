@@ -3210,6 +3210,14 @@ export default function ListingDetailPage() {
     window.location.assign(url);
   }, []);
 
+  const getReturnUrl = useCallback(() => {
+    const fromSession = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    if (fromSession) return fromSession;
+    const fromParam = new URLSearchParams(window.location.search).get("from");
+    if (!fromParam) return null;
+    return fromParam.startsWith("/") ? fromParam : null;
+  }, []);
+
   useEffect(() => {
     if (!listingId) return;
     try {
@@ -3982,7 +3990,7 @@ export default function ListingDetailPage() {
       return;
     }
 
-    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    const returnUrl = getReturnUrl();
     if (returnUrl && isMobileViewport()) {
       window.location.replace(returnUrl);
       return;
@@ -4005,14 +4013,14 @@ export default function ListingDetailPage() {
       return;
     }
     window.location.assign("/listings");
-  }, [isEmbedded]);
+  }, [getReturnUrl, isEmbedded]);
 
   useEffect(() => {
     if (isEmbedded) return;
     if (typeof window === "undefined") return;
     if (!isMobileViewport()) return;
 
-    const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
+    const returnUrl = getReturnUrl();
     if (!returnUrl) return;
 
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -4046,7 +4054,7 @@ export default function ListingDetailPage() {
     return () => {
       window.removeEventListener("popstate", handleMobileSwipeBack);
     };
-  }, [isEmbedded, listingId]);
+  }, [getReturnUrl, isEmbedded, listingId]);
 
   const handleEmbeddedSearchSubmit = useCallback(
     (e: React.FormEvent) => {
