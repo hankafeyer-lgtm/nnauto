@@ -3120,6 +3120,7 @@ import MobileFilters from "@/components/MobileFilters";
 import { MediaLightbox } from "@/components/MediaLightbox";
 import {
   LISTINGS_RETURN_URL_KEY,
+  LISTINGS_TARGET_ID_KEY,
 } from "@/components/ScrollToTop";
 import { isLgViewport, isMobileViewport } from "@/lib/viewport";
 import {
@@ -3217,6 +3218,21 @@ export default function ListingDetailPage() {
     if (fromSession) return fromSession;
     return null;
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const fromParam = new URLSearchParams(window.location.search).get("from");
+    if (!fromParam || !fromParam.startsWith("/")) return;
+
+    // Keep one canonical return target per opened detail page.
+    sessionStorage.setItem(LISTINGS_RETURN_URL_KEY, fromParam);
+
+    const hashIndex = fromParam.indexOf("#listing-");
+    if (hashIndex === -1) return;
+    const targetId = fromParam.slice(hashIndex + "#listing-".length);
+    if (!targetId) return;
+    sessionStorage.setItem(LISTINGS_TARGET_ID_KEY, decodeURIComponent(targetId));
+  }, [listingId]);
 
   const handleSwipeBack = useCallback(() => {
     const returnUrl = getReturnUrl();
