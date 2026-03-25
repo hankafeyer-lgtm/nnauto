@@ -255,6 +255,14 @@ function CarCard({
     didPrefetchRef.current = false;
   }, [id]);
 
+  const listingHref = useMemo(() => {
+    if (typeof window === "undefined") return `/listing/${id}`;
+    const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
+    const targetUrl = new URL(`/listing/${id}`, window.location.origin);
+    targetUrl.searchParams.set("from", sourceUrl);
+    return `${targetUrl.pathname}${targetUrl.search}`;
+  }, [id]);
+
   const handleListingClick = useCallback(
     (e: React.MouseEvent) => {
       if (onOpenListing) {
@@ -264,10 +272,7 @@ function CarCard({
         // Use direct navigation on mobile for reliable opening.
         if (isMobileViewport()) {
           saveScrollPosition(id);
-          const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
-          const targetUrl = new URL(`/listing/${id}`, window.location.origin);
-          targetUrl.searchParams.set("from", sourceUrl);
-          window.location.assign(`${targetUrl.pathname}${targetUrl.search}`);
+          window.location.assign(listingHref);
           return;
         }
         onOpenListing(id);
@@ -276,16 +281,14 @@ function CarCard({
             `iframe[src^="/listing/${id}"]`,
           );
           if (overlayFrame) return;
-          window.location.assign(`/listing/${id}`);
+          window.location.assign(listingHref);
         }, 160);
         return;
       }
       saveScrollPosition(id);
     },
-    [id, onOpenListing],
+    [id, listingHref, onOpenListing],
   );
-
-  const listingHref = `/listing/${id}`;
 
   if (viewMode === "list") {
     return (
