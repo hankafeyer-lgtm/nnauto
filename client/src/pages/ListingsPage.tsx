@@ -3899,6 +3899,7 @@ export default function ListingsPage() {
     const w = safeWindow();
     if (!w) return;
 
+    let didSmoothRestore = false;
     const applyRestore = () => {
       const maxScrollTop = Math.max(
         0,
@@ -3914,23 +3915,28 @@ export default function ListingsPage() {
           0,
           Math.min(maxScrollTop, w.scrollY + targetEl.getBoundingClientRect().top - 16),
         );
-        w.scrollTo({ top: targetTop, left: 0, behavior: "auto" });
+        if (!didSmoothRestore) {
+          didSmoothRestore = true;
+          w.scrollTo({ top: targetTop, left: 0, behavior: "smooth" });
+        }
         return;
       }
 
-      w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+      if (!didSmoothRestore) {
+        w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+      }
     };
 
     const rafId = window.requestAnimationFrame(applyRestore);
-    const t1 = window.setTimeout(applyRestore, 120);
-    const t2 = window.setTimeout(applyRestore, 320);
+    const t1 = window.setTimeout(applyRestore, 160);
+    const t2 = window.setTimeout(applyRestore, 360);
     const t3 = window.setTimeout(() => {
       applyRestore();
       pendingRestoreRef.current = null;
       sessionStorage.removeItem(SCROLL_POSITION_KEY);
       sessionStorage.removeItem(LISTINGS_RETURN_URL_KEY);
       sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
-    }, 700);
+    }, 650);
 
     return () => {
       window.cancelAnimationFrame(rafId);
