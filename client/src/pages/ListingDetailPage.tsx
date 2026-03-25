@@ -3191,8 +3191,6 @@ export default function ListingDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [cebiaDialogOpen, setCebiaDialogOpen] = useState(false);
-  const swipeStartXRef = useRef<number | null>(null);
-  const swipeStartYRef = useRef<number | null>(null);
   const tiktokTrackedListingRef = useRef<string | null>(null);
   const [cebiaGuest, setCebiaGuest] = useState<{ reportId: string; token: string } | null>(
     null,
@@ -4154,55 +4152,9 @@ export default function ListingDetailPage() {
     [embeddedSearchQuery, isEmbedded],
   );
 
-  // Match browser-style back swipe: left-edge swipe should trigger the same flow as "zpět".
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!isMobileViewport()) return;
-
-    const edgeThreshold = 28; // px from left edge
-    const minHorizontalDistance = 70; // px
-    const maxVerticalDrift = 60; // px
-
-    const onTouchStart = (e: TouchEvent) => {
-      const t = e.touches[0];
-      if (!t) return;
-      if (t.clientX > edgeThreshold) {
-        swipeStartXRef.current = null;
-        swipeStartYRef.current = null;
-        return;
-      }
-      swipeStartXRef.current = t.clientX;
-      swipeStartYRef.current = t.clientY;
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      if (swipeStartXRef.current == null || swipeStartYRef.current == null) return;
-      const t = e.changedTouches[0];
-      if (!t) return;
-
-      const deltaX = t.clientX - swipeStartXRef.current;
-      const deltaY = Math.abs(t.clientY - swipeStartYRef.current);
-
-      swipeStartXRef.current = null;
-      swipeStartYRef.current = null;
-
-      if (deltaX > minHorizontalDistance && deltaY < maxVerticalDrift) {
-        restoreDebug("detail", "touch-swipe-detected", {
-          listingId,
-          deltaX,
-          deltaY,
-        });
-        handleSwipeBack();
-      }
-    };
-
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchend", onTouchEnd, { passive: true });
-    return () => {
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchend", onTouchEnd);
-    };
-  }, [handleSwipeBack]);
+  // Do not add custom touch-swipe handling here.
+  // Native browser swipe/back must be the single source of truth to avoid
+  // duplicate navigation paths (touch handler + browser back) and inconsistent restore.
 
   // (Cebia UI placeholder only for now)
 
