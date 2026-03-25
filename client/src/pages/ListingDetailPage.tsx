@@ -4004,13 +4004,8 @@ export default function ListingDetailPage() {
     }
 
     const returnUrl = getReturnUrl();
-    if (returnUrl && isMobileViewport()) {
-      const currentUrl = window.location.href;
-      window.history.back();
-      window.setTimeout(() => {
-        if (window.location.href !== currentUrl) return;
-        window.location.replace(returnUrl);
-      }, 220);
+    if (returnUrl) {
+      window.location.replace(returnUrl);
       return;
     }
     if (window.history.length > 1) {
