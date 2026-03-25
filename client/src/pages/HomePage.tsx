@@ -2134,12 +2134,33 @@ function setPageToUrl(page: number, mode: "replace" | "push" = "replace") {
 function getPendingHomeRestore() {
   const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
   const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
-  if (!savedPosition || !returnUrl) return null;
+  const hashTargetId = window.location.hash.startsWith("#listing-")
+    ? decodeURIComponent(window.location.hash.slice("#listing-".length))
+    : null;
+
+  if (!savedPosition || !returnUrl) {
+    // Fallback when session restore is unavailable: keep URL hash restore deterministic.
+    if (hashTargetId) {
+      return {
+        scrollY: 0,
+        targetId: hashTargetId,
+      };
+    }
+    return null;
+  }
 
   const currentPath = `${window.location.pathname}${window.location.search}`;
   const [returnPath] = returnUrl.split("#");
   const scrollY = Number.parseInt(savedPosition, 10);
-  if (returnPath !== currentPath || Number.isNaN(scrollY)) return null;
+  if (returnPath !== currentPath || Number.isNaN(scrollY)) {
+    if (hashTargetId) {
+      return {
+        scrollY: 0,
+        targetId: hashTargetId,
+      };
+    }
+    return null;
+  }
 
   return {
     scrollY: Math.max(0, scrollY),
