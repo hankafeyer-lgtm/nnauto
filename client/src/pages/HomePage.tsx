@@ -2149,9 +2149,10 @@ function getPendingHomeRestore(): PendingHomeRestore | null {
     ? decodeURIComponent(window.location.hash.slice("#listing-".length))
     : null;
   const currentPath = `${window.location.pathname}${window.location.search}`;
+  const isMobile = isMobileViewport();
 
   if (!restoreState) {
-    if (hashTargetId) {
+    if (hashTargetId && !isMobile) {
       return {
         scrollY: null,
         targetId: hashTargetId,
@@ -2174,7 +2175,7 @@ function getPendingHomeRestore(): PendingHomeRestore | null {
 
   const [returnPath] = restoreState.returnUrl.split("#");
   if (returnPath !== currentPath) {
-    if (hashTargetId) {
+    if (hashTargetId && !isMobile) {
       return {
         scrollY: null,
         targetId: hashTargetId,

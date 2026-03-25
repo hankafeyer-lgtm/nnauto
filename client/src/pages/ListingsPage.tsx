@@ -3290,8 +3290,9 @@ export default function ListingsPage() {
     const hashTargetId = w.location.hash.startsWith("#listing-")
       ? decodeURIComponent(w.location.hash.slice("#listing-".length))
       : null;
+    const isMobile = isMobileViewport();
     if (!returnUrl || !savedPosition) {
-      if (hashTargetId) {
+      if (hashTargetId && !isMobile) {
         pendingRestoreRef.current = {
           scrollY: 0,
           targetId: hashTargetId,
@@ -3314,7 +3315,7 @@ export default function ListingsPage() {
     const [returnPath] = returnUrl.split("#");
     const scrollY = Number.parseInt(savedPosition, 10);
     if (returnPath !== currentPath || Number.isNaN(scrollY)) {
-      if (hashTargetId) {
+      if (hashTargetId && !isMobile) {
         pendingRestoreRef.current = {
           scrollY: 0,
           targetId: hashTargetId,
