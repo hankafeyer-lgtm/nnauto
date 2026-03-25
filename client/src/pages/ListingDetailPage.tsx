@@ -3211,11 +3211,11 @@ export default function ListingDetailPage() {
   }, []);
 
   const getReturnUrl = useCallback(() => {
+    const fromParam = new URLSearchParams(window.location.search).get("from");
+    if (fromParam && fromParam.startsWith("/")) return fromParam;
     const fromSession = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
     if (fromSession) return fromSession;
-    const fromParam = new URLSearchParams(window.location.search).get("from");
-    if (!fromParam) return null;
-    return fromParam.startsWith("/") ? fromParam : null;
+    return null;
   }, []);
 
   const handleSwipeBack = useCallback(() => {
