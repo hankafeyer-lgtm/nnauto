@@ -3992,7 +3992,12 @@ export default function ListingDetailPage() {
 
     const returnUrl = getReturnUrl();
     if (returnUrl && isMobileViewport()) {
-      window.location.replace(returnUrl);
+      const currentUrl = window.location.href;
+      window.history.back();
+      window.setTimeout(() => {
+        if (window.location.href !== currentUrl) return;
+        window.location.replace(returnUrl);
+      }, 220);
       return;
     }
     if (window.history.length > 1) {
