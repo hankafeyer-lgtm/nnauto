@@ -2017,6 +2017,8 @@ import CarCard from "@/components/CarCard";
 import Footer from "@/components/Footer";
 import {
   clearListingsRestoreState,
+  getDocumentScrollTop,
+  setDocumentScrollTop,
   getRestoreScrollContainer,
   LISTINGS_RETURN_URL_KEY,
   LISTINGS_TARGET_ID_KEY,
@@ -2701,7 +2703,7 @@ export default function HomePage() {
             return { restored: true, reason: "container-y" as const };
           }
         }
-        window.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+        setDocumentScrollTop(fallbackTop);
         restoreDebug("home", "scroll-restored-by-y", {
           fallbackTop,
           maxScrollTop,
@@ -2715,14 +2717,10 @@ export default function HomePage() {
           0,
           Math.min(
             maxScrollTop,
-            window.scrollY + targetEl.getBoundingClientRect().top - 16,
+            getDocumentScrollTop() + targetEl.getBoundingClientRect().top - 16,
           ),
         );
-        window.scrollTo({
-          top: targetTop,
-          left: 0,
-          behavior: isMobileRestore ? "auto" : "smooth",
-        });
+        setDocumentScrollTop(targetTop);
         restoreDebug("home", "scroll-restored-by-element", {
           targetId: pendingRestore.targetId,
           targetTop,
@@ -2779,18 +2777,18 @@ export default function HomePage() {
           0,
           Math.min(
             maxScrollTop,
-            window.scrollY + targetEl.getBoundingClientRect().top - 16,
+            getDocumentScrollTop() + targetEl.getBoundingClientRect().top - 16,
           ),
         );
         if (!didSmoothRestore) {
           didSmoothRestore = true;
-          window.scrollTo({ top: targetTop, left: 0, behavior: "smooth" });
+          setDocumentScrollTop(targetTop);
         }
         return;
       }
 
       if (!didSmoothRestore && fallbackTop !== null) {
-        window.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+        setDocumentScrollTop(fallbackTop);
       }
     };
 

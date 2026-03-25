@@ -2941,6 +2941,8 @@ import CarCard from "@/components/CarCard";
 import Footer from "@/components/Footer";
 import {
   clearListingsRestoreState,
+  getDocumentScrollTop,
+  setDocumentScrollTop,
   getRestoreScrollContainer,
   LISTINGS_RETURN_URL_KEY,
   LISTINGS_TARGET_ID_KEY,
@@ -4032,7 +4034,7 @@ export default function ListingsPage() {
             return { restored: true, reason: "container-y" as const };
           }
         }
-        w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+        setDocumentScrollTop(fallbackTop);
         restoreDebug("listings", "scroll-restored-by-y", {
           fallbackTop,
           maxScrollTop,
@@ -4044,13 +4046,12 @@ export default function ListingsPage() {
       if (targetEl) {
         const targetTop = Math.max(
           0,
-          Math.min(maxScrollTop, w.scrollY + targetEl.getBoundingClientRect().top - 16),
+          Math.min(
+            maxScrollTop,
+            getDocumentScrollTop() + targetEl.getBoundingClientRect().top - 16,
+          ),
         );
-        w.scrollTo({
-          top: targetTop,
-          left: 0,
-          behavior: isMobileRestore ? "auto" : "smooth",
-        });
+        setDocumentScrollTop(targetTop);
         restoreDebug("listings", "scroll-restored-by-element", {
           targetId: pendingRestore.targetId,
           targetTop,
@@ -4108,17 +4109,20 @@ export default function ListingsPage() {
       if (targetEl) {
         const targetTop = Math.max(
           0,
-          Math.min(maxScrollTop, w.scrollY + targetEl.getBoundingClientRect().top - 16),
+          Math.min(
+            maxScrollTop,
+            getDocumentScrollTop() + targetEl.getBoundingClientRect().top - 16,
+          ),
         );
         if (!didSmoothRestore) {
           didSmoothRestore = true;
-          w.scrollTo({ top: targetTop, left: 0, behavior: "smooth" });
+          setDocumentScrollTop(targetTop);
         }
         return;
       }
 
       if (!didSmoothRestore && fallbackTop !== null) {
-        w.scrollTo({ top: fallbackTop, left: 0, behavior: "auto" });
+        setDocumentScrollTop(fallbackTop);
       }
     };
 

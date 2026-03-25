@@ -42,6 +42,20 @@ export function getRestoreScrollContainer(listingId: string | null): HTMLElement
   return getScrollableAncestor(target);
 }
 
+export function getDocumentScrollElement(): HTMLElement {
+  return (document.scrollingElement as HTMLElement) || document.documentElement;
+}
+
+export function getDocumentScrollTop(): number {
+  const el = getDocumentScrollElement();
+  return Number.isFinite(el.scrollTop) ? Math.max(0, el.scrollTop) : 0;
+}
+
+export function setDocumentScrollTop(top: number) {
+  const el = getDocumentScrollElement();
+  el.scrollTop = Math.max(0, top);
+}
+
 export function readListingsRestoreState(): ListingsRestoreState | null {
   const raw = sessionStorage.getItem(LISTINGS_RESTORE_STATE_KEY);
   if (!raw) return null;
@@ -136,7 +150,7 @@ export function saveScrollPosition(listingId?: string) {
   });
   const scrollContainer = getRestoreScrollContainer(listingId ?? null);
   const useContainer = !!scrollContainer;
-  const rawScroll = useContainer ? scrollContainer.scrollTop : window.scrollY;
+  const rawScroll = useContainer ? scrollContainer.scrollTop : getDocumentScrollTop();
   const scrollY = Number.isFinite(rawScroll) ? Math.max(0, rawScroll) : 0;
   sessionStorage.setItem(SCROLL_POSITION_KEY, String(scrollY));
   const anchor = listingId ? `#listing-${encodeURIComponent(listingId)}` : "";
