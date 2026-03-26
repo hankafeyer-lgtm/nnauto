@@ -3188,6 +3188,8 @@ export default function ListingsPage() {
   const historyNavigationRef = useRef(false);
   const suppressFilterResetRef = useRef(false);
   const didApplyScrollRestoreRef = useRef(false);
+  const desktopSidebarRef = useRef<HTMLElement | null>(null);
+  const filterToggleButtonRef = useRef<HTMLButtonElement | null>(null);
   const pendingRestoreRef = useRef<{
     scrollY: number | null;
     targetId: string | null;
@@ -3215,6 +3217,28 @@ export default function ListingsPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    const w = safeWindow();
+    if (!w) return;
+    const updateToggleLeft = () => {
+      const sidebar = desktopSidebarRef.current;
+      const button = filterToggleButtonRef.current;
+      if (!sidebar || !button) return;
+      const rect = sidebar.getBoundingClientRect();
+      const nextLeft = Math.max(16, Math.round(rect.right - 10));
+      button.style.left = `${nextLeft}px`;
+    };
+    updateToggleLeft();
+    const t1 = w.setTimeout(updateToggleLeft, 120);
+    const t2 = w.setTimeout(updateToggleLeft, 320);
+    w.addEventListener("resize", updateToggleLeft);
+    return () => {
+      w.clearTimeout(t1);
+      w.clearTimeout(t2);
+      w.removeEventListener("resize", updateToggleLeft);
+    };
+  }, [sidebarCollapsed]);
 
   useEffect(() => {
     const w = safeWindow();
@@ -4396,6 +4420,7 @@ export default function ListingsPage() {
       <div className="flex-1 container mx-auto px-4 py-6">
         <div className="flex gap-6">
           <aside
+            ref={desktopSidebarRef}
             className={[
               "filters-sidebar hidden lg:block shrink-0 self-start transition-[width] duration-300",
               sidebarCollapsed ? "w-0 overflow-visible" : "w-72",
@@ -4411,35 +4436,34 @@ export default function ListingsPage() {
             >
               <FilterSidebar />
             </div>
-            <div className="filter-toggle-wrapper">
-              <button
-                type="button"
-                onClick={() => setSidebarCollapsed((v) => !v)}
-                className={[
-                  "filter-toggle-button",
-                  "h-16 w-9",
-                  "rounded-xl border bg-background shadow-md",
-                  "flex items-center justify-center",
-                  "hover:bg-muted transition",
-                ].join(" ")}
-                title={
-                  sidebarCollapsed
-                    ? t("filters.showFilters")
-                    : t("filters.hideFilters")
-                }
-                aria-label={
-                  sidebarCollapsed
-                    ? t("filters.showFilters")
-                    : t("filters.hideFilters")
-                }
-              >
-                {sidebarCollapsed ? (
-                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-                )}
-              </button>
-            </div>
+            <button
+              ref={filterToggleButtonRef}
+              type="button"
+              onClick={() => setSidebarCollapsed((v) => !v)}
+              className={[
+                "filter-toggle-button",
+                "h-16 w-9",
+                "rounded-xl border bg-background shadow-md",
+                "hidden lg:flex items-center justify-center",
+                "hover:bg-muted transition",
+              ].join(" ")}
+              title={
+                sidebarCollapsed
+                  ? t("filters.showFilters")
+                  : t("filters.hideFilters")
+              }
+              aria-label={
+                sidebarCollapsed
+                  ? t("filters.showFilters")
+                  : t("filters.hideFilters")
+              }
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+              ) : (
+                <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+              )}
+            </button>
           </aside>
 
           {/* <main className="flex-1">

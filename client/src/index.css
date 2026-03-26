@@ -502,22 +502,11 @@
   }
 
   @media (min-width: 1024px) {
-    .filters-sidebar {
-      position: relative;
-    }
-
-    .filter-toggle-wrapper {
-      position: sticky;
+    .filter-toggle-button {
+      position: fixed;
       top: 50%;
       transform: translateY(-50%);
-      height: 0;
-      z-index: 10;
-    }
-
-    .filter-toggle-button {
-      position: absolute;
-      right: -20px;
-      z-index: 10;
+      z-index: 1000;
     }
   }
 }
