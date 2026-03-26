@@ -3221,22 +3221,47 @@ export default function ListingsPage() {
   useEffect(() => {
     const w = safeWindow();
     if (!w) return;
-    const updateToggleLeft = () => {
+    let rafId: number | null = null;
+    const updateTogglePosition = () => {
       const sidebar = desktopSidebarRef.current;
       const button = filterToggleButtonRef.current;
       if (!sidebar || !button) return;
       const rect = sidebar.getBoundingClientRect();
       const nextLeft = Math.max(16, Math.round(rect.right - 10));
+      const scrollTop = w.scrollY;
+      const sidebarTop = rect.top + scrollTop;
+      const sidebarBottom = rect.bottom + scrollTop;
+      const buttonHeight = button.offsetHeight || 0;
+      const centerOffset = w.innerHeight / 2;
+      let top = scrollTop + centerOffset - buttonHeight / 2;
+      if (top < sidebarTop) top = sidebarTop;
+      if (top + buttonHeight > sidebarBottom) {
+        top = sidebarBottom - buttonHeight;
+      }
       button.style.left = `${nextLeft}px`;
+      button.style.top = `${Math.max(0, Math.round(top))}px`;
+      button.style.transform = "none";
     };
-    updateToggleLeft();
-    const t1 = w.setTimeout(updateToggleLeft, 120);
-    const t2 = w.setTimeout(updateToggleLeft, 320);
-    w.addEventListener("resize", updateToggleLeft);
+    const scheduleUpdate = () => {
+      if (rafId !== null) return;
+      rafId = w.requestAnimationFrame(() => {
+        rafId = null;
+        updateTogglePosition();
+      });
+    };
+    updateTogglePosition();
+    const t1 = w.setTimeout(updateTogglePosition, 120);
+    const t2 = w.setTimeout(updateTogglePosition, 320);
+    w.addEventListener("resize", scheduleUpdate);
+    w.addEventListener("scroll", scheduleUpdate, { passive: true });
     return () => {
       w.clearTimeout(t1);
       w.clearTimeout(t2);
-      w.removeEventListener("resize", updateToggleLeft);
+      if (rafId !== null) {
+        w.cancelAnimationFrame(rafId);
+      }
+      w.removeEventListener("resize", scheduleUpdate);
+      w.removeEventListener("scroll", scheduleUpdate);
     };
   }, [sidebarCollapsed]);
 
