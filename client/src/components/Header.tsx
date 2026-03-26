@@ -387,6 +387,29 @@ function HeaderContent({
     logoutMutation.mutate();
   };
 
+  const handleAddListingClick = (e: React.MouseEvent) => {
+    const targetPath = "/add-listing";
+
+    // While auth is resolving, do not block the action: route handles loading/auth states itself.
+    if (isLoading) {
+      e.preventDefault();
+      navigate(targetPath);
+      return;
+    }
+
+    if (!isAuthenticated || !user) {
+      e.preventDefault();
+      setPostAuthRedirect(targetPath);
+      setLoginModalTab("register");
+      setLoginModalOpen(true);
+      return;
+    }
+
+    // Explicit SPA navigation keeps behavior deterministic across wrappers/menus.
+    e.preventDefault();
+    navigate(targetPath);
+  };
+
   const handleLogoClick = () => {
     const isEmbeddedListing =
       new URLSearchParams(window.location.search).get("embedded") === "1";
@@ -563,18 +586,7 @@ function HeaderContent({
               <Link
                 href="/add-listing"
                 data-testid="button-open-add-listing"
-                onClick={(e) => {
-                  if (isLoading) {
-                    e.preventDefault();
-                    return;
-                  }
-                  if (!isAuthenticated || !user) {
-                    e.preventDefault();
-                    setPostAuthRedirect("/add-listing");
-                    setLoginModalTab("register");
-                    setLoginModalOpen(true);
-                  }
-                }}
+                onClick={handleAddListingClick}
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-sm">{t("header.addListing")}</span>
@@ -710,18 +722,7 @@ function HeaderContent({
                     href="/add-listing"
                     className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border cursor-pointer flex items-center"
                     data-testid="menu-item-add-listing"
-                    onClick={(e) => {
-                      if (isLoading) {
-                        e.preventDefault();
-                        return;
-                      }
-                      if (!isAuthenticated || !user) {
-                        e.preventDefault();
-                        setPostAuthRedirect("/add-listing");
-                        setLoginModalTab("register");
-                        setLoginModalOpen(true);
-                      }
-                    }}
+                    onClick={handleAddListingClick}
                   >
                     <Plus className="mr-3 h-5 w-5" />
                     <span>{t("header.menu.addListing")}</span>
