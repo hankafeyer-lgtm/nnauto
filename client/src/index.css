@@ -500,4 +500,14 @@
   .dark .filters-scrollbar::-webkit-scrollbar-thumb:hover {
     background-color: rgba(212, 175, 55, 0.75);
   }
+
+  @media (min-width: 1024px) {
+    .filter-toggle-button {
+      position: fixed;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 1000;
+    }
+  }
 }

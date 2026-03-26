@@ -3253,11 +3253,11 @@ export default function HomePage() {
                   type="button"
                   onClick={toggleSidebar}
                   className={[
+                    "filter-toggle-button",
                     "h-16 w-9",
                     "rounded-xl border bg-background shadow-md",
                     "flex items-center justify-center",
                     "hover:bg-muted transition",
-                    "-translate-x-1/2",
                   ].join(" ")}
                   title={
                     sidebarCollapsed
