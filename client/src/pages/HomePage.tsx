@@ -3079,6 +3079,29 @@ export default function HomePage() {
         }}
       />
       <Header />
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        className={[
+          "filter-toggle-button",
+          "hidden lg:flex",
+          "h-16 w-9",
+          "rounded-xl border bg-background shadow-md",
+          "items-center justify-center",
+          "hover:bg-muted transition",
+        ].join(" ")}
+        title={sidebarCollapsed ? t("filters.showFilters") : t("filters.hideFilters")}
+        aria-label={
+          sidebarCollapsed ? t("filters.showFilters") : t("filters.hideFilters")
+        }
+        data-testid="button-toggle-sidebar-home"
+      >
+        {sidebarCollapsed ? (
+          <ChevronRight className="w-5 h-5 text-muted-foreground" />
+        ) : (
+          <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+        )}
+      </button>
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3 lg:pt-4 pb-1 sm:pb-2">
         <div
           className="w-full rounded-xl border border-primary/30 bg-white/95 dark:bg-background/90 px-3 py-2.5 sm:px-4 sm:py-3 shadow-sm"
@@ -3246,39 +3269,6 @@ export default function HomePage() {
                 <FilterSidebar />
               </div>
             </aside>
-
-            <div className="hidden lg:block w-0 self-start">
-              <div className="sticky self-start top-1/2 -translate-y-1/2 z-40">
-                <button
-                  type="button"
-                  onClick={toggleSidebar}
-                  className={[
-                    "filter-toggle-button",
-                    "h-16 w-9",
-                    "rounded-xl border bg-background shadow-md",
-                    "flex items-center justify-center",
-                    "hover:bg-muted transition",
-                  ].join(" ")}
-                  title={
-                    sidebarCollapsed
-                      ? t("filters.showFilters")
-                      : t("filters.hideFilters")
-                  }
-                  aria-label={
-                    sidebarCollapsed
-                      ? t("filters.showFilters")
-                      : t("filters.hideFilters")
-                  }
-                  data-testid="button-toggle-sidebar-home"
-                >
-                  {sidebarCollapsed ? (
-                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-                  )}
-                </button>
-              </div>
-            </div>
 
             {/* Products */}
             <div className="min-w-0 flex-1">
