@@ -3269,24 +3269,6 @@ export default function ListingDetailPage() {
     });
   }, [listingId]);
 
-  const handleSwipeBack = useCallback(() => {
-    const returnUrl = getReturnUrl();
-    restoreDebug("detail", "swipe-back-triggered", {
-      listingId,
-      returnUrl: returnUrl ?? null,
-      historyLength: window.history.length,
-    });
-    if (returnUrl) {
-      window.location.replace(returnUrl);
-      return;
-    }
-    if (window.history.length > 1) {
-      window.history.back();
-      return;
-    }
-    window.location.assign("/listings");
-  }, [getReturnUrl]);
-
   useEffect(() => {
     if (!listingId) return;
     try {
@@ -4126,14 +4108,14 @@ export default function ListingDetailPage() {
         nextStateKeys: Object.keys(nextState),
       });
       window.removeEventListener("popstate", handleMobileSwipeBack);
-      handleSwipeBack();
+      handleBack();
     };
 
     window.addEventListener("popstate", handleMobileSwipeBack);
     return () => {
       window.removeEventListener("popstate", handleMobileSwipeBack);
     };
-  }, [getReturnUrl, handleSwipeBack, isEmbedded, listingId]);
+  }, [getReturnUrl, handleBack, isEmbedded, listingId]);
 
   const handleEmbeddedSearchSubmit = useCallback(
     (e: React.FormEvent) => {
