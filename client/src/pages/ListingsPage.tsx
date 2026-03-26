@@ -4397,8 +4397,8 @@ export default function ListingsPage() {
         <div className="flex gap-6">
           <aside
             className={[
-              "hidden lg:block shrink-0 transition-[width] duration-300",
-              sidebarCollapsed ? "w-0 overflow-hidden" : "w-72",
+              "filters-sidebar hidden lg:block shrink-0 self-start transition-[width] duration-300",
+              sidebarCollapsed ? "w-0 overflow-visible" : "w-72",
             ].join(" ")}
           >
             <div
@@ -4411,10 +4411,7 @@ export default function ListingsPage() {
             >
               <FilterSidebar />
             </div>
-          </aside>
-
-          <div className="hidden lg:block w-0">
-            <div className="sticky top-1/2 -translate-y-1/2 z-40">
+            <div className="filter-toggle-wrapper">
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed((v) => !v)}
@@ -4443,7 +4440,7 @@ export default function ListingsPage() {
                 )}
               </button>
             </div>
-          </div>
+          </aside>
 
           {/* <main className="flex-1">
             {cars.length === 0 ? (
