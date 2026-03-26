@@ -2860,17 +2860,28 @@ export default function HomePage() {
       const button = filterToggleButtonRef.current;
       if (!sidebar || !button) return;
       const rect = sidebar.getBoundingClientRect();
-      const nextLeft = Math.max(16, Math.round(rect.right - 10));
-      button.style.left = `${nextLeft}px`;
+      const sidebarTop = rect.top;
+      const sidebarBottom = rect.bottom;
+      const viewportCenter = w.innerHeight / 2;
+      let top = viewportCenter;
+      if (viewportCenter < sidebarTop) {
+        top = sidebarTop + 20;
+      }
+      if (viewportCenter > sidebarBottom) {
+        top = sidebarBottom - 60;
+      }
+      button.style.left = `${Math.round(rect.right + 8)}px`;
+      button.style.top = `${Math.max(20, Math.round(top))}px`;
+      button.style.marginLeft = "4px";
     };
     updateTogglePosition();
     const t1 = w.setTimeout(updateTogglePosition, 120);
     const t2 = w.setTimeout(updateTogglePosition, 320);
-    w.addEventListener("resize", updateTogglePosition);
+    w.addEventListener("scroll", updateTogglePosition, { passive: true });
     return () => {
       w.clearTimeout(t1);
       w.clearTimeout(t2);
-      w.removeEventListener("resize", updateTogglePosition);
+      w.removeEventListener("scroll", updateTogglePosition);
     };
   }, [sidebarCollapsed]);
   const normalizedHomeCebiaVin = homeCebiaVin.trim().toUpperCase();
