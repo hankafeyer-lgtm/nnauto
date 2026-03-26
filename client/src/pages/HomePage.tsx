@@ -3281,35 +3281,37 @@ export default function HomePage() {
               >
                 <FilterSidebar />
               </div>
-              <button
-                ref={filterToggleButtonRef}
-                type="button"
-                onClick={toggleSidebar}
-                className={[
-                  "filter-toggle-button",
-                  "h-16 w-9",
-                  "rounded-xl border bg-background shadow-md",
-                  "hidden lg:flex items-center justify-center",
-                  "hover:bg-muted transition",
-                ].join(" ")}
-                title={
-                  sidebarCollapsed
-                    ? t("filters.showFilters")
-                    : t("filters.hideFilters")
-                }
-                aria-label={
-                  sidebarCollapsed
-                    ? t("filters.showFilters")
-                    : t("filters.hideFilters")
-                }
-                data-testid="button-toggle-sidebar-home"
-              >
-                {sidebarCollapsed ? (
-                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
-                ) : (
-                  <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-                )}
-              </button>
+              {!openListingId ? (
+                <button
+                  ref={filterToggleButtonRef}
+                  type="button"
+                  onClick={toggleSidebar}
+                  className={[
+                    "filter-toggle-button",
+                    "h-16 w-9",
+                    "rounded-xl border bg-background shadow-md",
+                    "hidden lg:flex items-center justify-center",
+                    "hover:bg-muted transition",
+                  ].join(" ")}
+                  title={
+                    sidebarCollapsed
+                      ? t("filters.showFilters")
+                      : t("filters.hideFilters")
+                  }
+                  aria-label={
+                    sidebarCollapsed
+                      ? t("filters.showFilters")
+                      : t("filters.hideFilters")
+                  }
+                  data-testid="button-toggle-sidebar-home"
+                >
+                  {sidebarCollapsed ? (
+                    <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+                  )}
+                </button>
+              ) : null}
             </aside>
 
             {/* Products */}
