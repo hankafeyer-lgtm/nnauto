@@ -4099,6 +4099,10 @@ export default function ListingDetailPage() {
     void trackListingAnalyticsEvent("view");
   }, [listingId, listing, trackListingAnalyticsEvent]);
 
+  // ⚠️ CRITICAL UX LOGIC
+  // Swipe/back + "zpět na inzeráty" must behave identically
+  // Preserves listing context (filters, page, scroll, item)
+  // DO NOT MODIFY without full regression testing
   const handleBack = useCallback(() => {
     if (isEmbedded && window.parent && window.parent !== window) {
       window.parent.postMessage({ type: "nnauto-close-listing-overlay" }, "*");
@@ -4141,6 +4145,7 @@ export default function ListingDetailPage() {
     if (typeof window === "undefined") return;
     if (!isMobileViewport()) return;
 
+    // Keep swipe-back on the exact same path as the button: call handleBack directly.
     const handleMobileSwipeBack = (event: PopStateEvent) => {
       restoreDebug("detail", "mobile-popstate-back", {
         listingId,
