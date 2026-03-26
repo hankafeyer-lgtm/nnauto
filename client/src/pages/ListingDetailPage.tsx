@@ -3049,7 +3049,7 @@
 //   );
 // }
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useRoute, Link } from "wouter";
+import { useRoute, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 import {
@@ -3119,6 +3119,7 @@ import Header from "@/components/Header";
 import MobileFilters from "@/components/MobileFilters";
 import { MediaLightbox } from "@/components/MediaLightbox";
 import {
+  LISTING_STATE_KEY,
   LISTINGS_RETURN_URL_KEY,
   LISTINGS_TARGET_ID_KEY,
 } from "@/components/ScrollToTop";
@@ -3176,6 +3177,7 @@ export default function ListingDetailPage() {
   const { toggleFavorite, isFavorite } = useFavorites();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [, navigate] = useLocation();
 
   const [, params] = useRoute("/listing/:id");
   const listingId = params?.id;
@@ -3211,6 +3213,37 @@ export default function ListingDetailPage() {
   }, []);
 
   const getReturnUrl = useCallback(() => {
+    const parseListingStateReturnUrl = () => {
+      try {
+        const raw = sessionStorage.getItem(LISTING_STATE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as {
+          listingId?: string | null;
+          returnUrl?: string;
+          savedAt?: number;
+        };
+        if (!parsed || typeof parsed.returnUrl !== "string") return null;
+        if (!parsed.returnUrl.startsWith("/")) return null;
+        if (
+          typeof parsed.savedAt === "number" &&
+          Number.isFinite(parsed.savedAt) &&
+          Date.now() - parsed.savedAt > 10 * 60 * 1000
+        ) {
+          return null;
+        }
+        if (
+          parsed.listingId &&
+          listingId &&
+          String(parsed.listingId) !== String(listingId)
+        ) {
+          return null;
+        }
+        return parsed.returnUrl;
+      } catch {
+        return null;
+      }
+    };
+
     const fromParam = new URLSearchParams(window.location.search).get("from");
     if (fromParam && fromParam.startsWith("/")) {
       restoreDebug("detail", "get-return-url:from-param", {
@@ -3218,6 +3251,14 @@ export default function ListingDetailPage() {
         returnUrl: fromParam,
       });
       return fromParam;
+    }
+    const fromListingState = parseListingStateReturnUrl();
+    if (fromListingState) {
+      restoreDebug("detail", "get-return-url:listing-state", {
+        listingId,
+        returnUrl: fromListingState,
+      });
+      return fromListingState;
     }
     const fromSession = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
     if (fromSession) {
@@ -3256,6 +3297,15 @@ export default function ListingDetailPage() {
 
     // Keep one canonical return target per opened detail page.
     sessionStorage.setItem(LISTINGS_RETURN_URL_KEY, fromParam);
+    sessionStorage.setItem(
+      LISTING_STATE_KEY,
+      JSON.stringify({
+        listingId: listingId ?? null,
+        returnUrl: fromParam,
+        scrollY: null,
+        savedAt: Date.now(),
+      }),
+    );
 
     const hashIndex = fromParam.indexOf("#listing-");
     if (hashIndex === -1) return;
@@ -4042,14 +4092,28 @@ export default function ListingDetailPage() {
     }
 
     const returnUrl = getReturnUrl();
+    let listingStateReturnUrl: string | null = null;
+    try {
+      const raw = sessionStorage.getItem(LISTING_STATE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as { returnUrl?: string };
+        if (typeof parsed.returnUrl === "string" && parsed.returnUrl.startsWith("/")) {
+          listingStateReturnUrl = parsed.returnUrl;
+        }
+      }
+    } catch {
+      listingStateReturnUrl = null;
+    }
+    const preferredReturnUrl = listingStateReturnUrl ?? returnUrl;
     restoreDebug("detail", "button-back-triggered", {
       listingId,
-      returnUrl: returnUrl ?? null,
+      returnUrl: preferredReturnUrl ?? null,
       historyLength: window.history.length,
       isEmbedded,
+      fromListingState: !!listingStateReturnUrl,
     });
-    if (returnUrl) {
-      window.location.replace(returnUrl);
+    if (preferredReturnUrl) {
+      navigate(preferredReturnUrl);
       return;
     }
     if (window.history.length > 1) {
@@ -4057,20 +4121,20 @@ export default function ListingDetailPage() {
       window.history.back();
       window.setTimeout(() => {
         if (window.location.href !== currentUrl) return;
-        if (returnUrl) {
-          window.location.assign(returnUrl);
+        if (preferredReturnUrl) {
+          navigate(preferredReturnUrl);
           return;
         }
-        window.location.assign("/listings");
+        navigate("/listings");
       }, 180);
       return;
     }
-    if (returnUrl) {
-      window.location.assign(returnUrl);
+    if (preferredReturnUrl) {
+      navigate(preferredReturnUrl);
       return;
     }
-    window.location.assign("/listings");
-  }, [getReturnUrl, isEmbedded]);
+    navigate("/listings");
+  }, [getReturnUrl, isEmbedded, navigate]);
 
   useEffect(() => {
     if (isEmbedded) return;

@@ -12,6 +12,7 @@ export const LISTINGS_RESTORE_ID_PARAM = "_restoreId";
 export const LISTINGS_RESTORE_Y_PARAM = "_restoreY";
 export const LISTINGS_RESTORE_TOKEN_PARAM = "_restoreToken";
 export const LISTINGS_RESTORE_STATE_KEY = "listings_restore_state_v2";
+export const LISTING_STATE_KEY = "listing_state";
 const RESTORE_STATE_MAX_AGE_MS = 10 * 60 * 1000;
 
 export type ListingsRestoreState = {
@@ -19,6 +20,13 @@ export type ListingsRestoreState = {
   scrollY: number | null;
   listingId: string | null;
   scrollMode?: "window" | "container";
+  savedAt: number;
+};
+
+type ListingNavigationState = {
+  listingId: string | null;
+  returnUrl: string;
+  scrollY: number | null;
   savedAt: number;
 };
 
@@ -172,6 +180,13 @@ export function saveScrollPosition(listingId?: string) {
     savedAt: Date.now(),
   };
   sessionStorage.setItem(LISTINGS_RESTORE_STATE_KEY, JSON.stringify(state));
+  const listingState: ListingNavigationState = {
+    listingId: listingId ?? null,
+    returnUrl,
+    scrollY,
+    savedAt: state.savedAt,
+  };
+  sessionStorage.setItem(LISTING_STATE_KEY, JSON.stringify(listingState));
   restoreDebug("save", "saved-restore-state", {
     returnUrl,
     savedScrollY: scrollY,
