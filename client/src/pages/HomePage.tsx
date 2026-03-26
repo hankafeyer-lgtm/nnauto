@@ -2870,7 +2870,7 @@ export default function HomePage() {
       if (viewportCenter > sidebarBottom) {
         top = sidebarBottom - 60;
       }
-      button.style.left = `${Math.round(rect.right + 16)}px`;
+      button.style.left = `${Math.round(rect.right - 20)}px`;
       button.style.top = `${Math.max(20, Math.round(top))}px`;
       button.style.marginLeft = "4px";
     };
