@@ -2371,12 +2371,24 @@ export default function HomePage() {
       const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
       const targetUrl = new URL(`/listing/${id}`, window.location.origin);
       targetUrl.searchParams.set("from", sourceUrl);
+      const targetPath = `${targetUrl.pathname}${targetUrl.search}`;
+      const from = `${window.location.pathname}${window.location.search}`;
+      const scrollY = Number.isFinite(window.scrollY) ? Math.max(0, window.scrollY) : 0;
       restoreDebug("home", "navigate-to-detail-mobile", {
         id,
         sourceUrl,
-        targetUrl: `${targetUrl.pathname}${targetUrl.search}`,
+        targetUrl: targetPath,
       });
-      window.location.assign(`${targetUrl.pathname}${targetUrl.search}`);
+      navigate(targetPath);
+      const currentState =
+        window.history.state && typeof window.history.state === "object"
+          ? window.history.state
+          : {};
+      window.history.replaceState(
+        { ...currentState, from, scrollY, listingId: id },
+        "",
+        targetPath,
+      );
       return;
     }
     void prefetchListing(id);
@@ -2387,7 +2399,7 @@ export default function HomePage() {
     window.history.pushState(window.history.state, "", url.toString());
     setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
-  }, []);
+  }, [navigate]);
   const closeListingOverlay = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete("openListing");

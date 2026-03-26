@@ -78,6 +78,24 @@ export default function CebiaReturnPage() {
       iframe.remove();
     }, 25000);
   }, [buildPdfUrl]);
+  const navigateToListingWithState = useCallback(
+    (listingId: string) => {
+      const target = `/listing/${listingId}`;
+      const from = `${window.location.pathname}${window.location.search}`;
+      const scrollY = Number.isFinite(window.scrollY) ? Math.max(0, window.scrollY) : 0;
+      setLocation(target);
+      const currentState =
+        window.history.state && typeof window.history.state === "object"
+          ? window.history.state
+          : {};
+      window.history.replaceState(
+        { ...currentState, from, scrollY, listingId },
+        "",
+        target,
+      );
+    },
+    [setLocation],
+  );
 
   const resolveGuest = useCallback(async (): Promise<LastGuest | null> => {
     if (resolvedGuest) return resolvedGuest;
@@ -224,9 +242,11 @@ export default function CebiaReturnPage() {
             {(resolvedGuest?.listingId || last?.listingId) ? (
               <Button
                 variant="outline"
-                onClick={() =>
-                  setLocation(`/listing/${resolvedGuest?.listingId || last?.listingId}`)
-                }
+                onClick={() => {
+                  const nextListingId = resolvedGuest?.listingId || last?.listingId;
+                  if (!nextListingId) return;
+                  navigateToListingWithState(nextListingId);
+                }}
                 disabled={isWorking}
                 className="w-full sm:w-auto whitespace-normal text-left sm:text-center"
               >

@@ -15,7 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useTranslation } from "@/lib/translations";
 import { useState, memo, useRef, useEffect, useCallback, useMemo } from "react";
@@ -85,6 +85,7 @@ function CarCard({
   vatDeductible = false,
   onOpenListing,
 }: CarCardProps) {
+  const [, navigate] = useLocation();
   const { isFavorite, toggleFavorite } = useFavorites();
   const t = useTranslation();
   const favorite = isFavorite(id);
@@ -264,6 +265,27 @@ function CarCard({
     return `${targetUrl.pathname}${targetUrl.search}`;
   }, [id]);
   const listingHref = buildListingHref();
+  const navigateToListingWithState = useCallback(
+    (href: string) => {
+      if (typeof window === "undefined") {
+        navigate(href);
+        return;
+      }
+      const from = `${window.location.pathname}${window.location.search}`;
+      const scrollY = Number.isFinite(window.scrollY) ? Math.max(0, window.scrollY) : 0;
+      navigate(href);
+      const currentState =
+        window.history.state && typeof window.history.state === "object"
+          ? window.history.state
+          : {};
+      window.history.replaceState(
+        { ...currentState, from, scrollY, listingId: id },
+        "",
+        href,
+      );
+    },
+    [id, navigate],
+  );
 
   const handleListingClick = useCallback(
     (e: React.MouseEvent) => {
@@ -282,7 +304,7 @@ function CarCard({
         if (isMobileViewport()) {
           saveScrollPosition(id);
           restoreDebug("card", "navigate-mobile-direct", { id, href });
-          window.location.assign(href);
+          navigateToListingWithState(href);
           return;
         }
         onOpenListing(id);
@@ -297,13 +319,16 @@ function CarCard({
             id,
             href: fallbackHref,
           });
-          window.location.assign(fallbackHref);
+          navigateToListingWithState(fallbackHref);
         }, 160);
         return;
       }
+      e.preventDefault();
+      e.stopPropagation();
       saveScrollPosition(id);
+      navigateToListingWithState(href);
     },
-    [buildListingHref, id, onOpenListing],
+    [buildListingHref, id, navigateToListingWithState, onOpenListing],
   );
 
   if (viewMode === "list") {

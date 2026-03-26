@@ -376,6 +376,28 @@ export default function AddListingPage() {
   const [engineOpen, setEngineOpen] = useState(false);
   const [powerOpen, setPowerOpen] = useState(false);
   const [ownersOpen, setOwnersOpen] = useState(false);
+  const navigateToListingWithState = useCallback(
+    (listingId: string) => {
+      const target = `/listing/${listingId}`;
+      if (typeof window === "undefined") {
+        setLocation(target);
+        return;
+      }
+      const from = `${window.location.pathname}${window.location.search}`;
+      const scrollY = Number.isFinite(window.scrollY) ? Math.max(0, window.scrollY) : 0;
+      setLocation(target);
+      const currentState =
+        window.history.state && typeof window.history.state === "object"
+          ? window.history.state
+          : {};
+      window.history.replaceState(
+        { ...currentState, from, scrollY, listingId },
+        "",
+        target,
+      );
+    },
+    [setLocation],
+  );
   
   const [yearCustom, setYearCustom] = useState(false);
   const [mileageCustom, setMileageCustom] = useState(false);
@@ -446,7 +468,7 @@ export default function AddListingPage() {
         description: t("listing.successDescription") || "Váš inzerát byl úspěšně publikován.",
       });
       setPhotos([]);
-      setLocation(`/listing/${newListing.id}`);
+      navigateToListingWithState(newListing.id);
       setOwnersFilterType('');
       setEngineFilterType('');
       setPowerFilterType('');
@@ -485,7 +507,7 @@ export default function AddListingPage() {
       });
       // Redirect to the newly created listing page
       if (newListing?.id) {
-        setLocation(`/listing/${newListing.id}`);
+        navigateToListingWithState(newListing.id);
       } else {
         setLocation("/listings");
       }
@@ -694,7 +716,7 @@ export default function AddListingPage() {
       });
       setShowPaymentSuccessDialog(false);
       setStripeSessionId(null);
-      setLocation(`/listing/${newListing.id}`);
+      navigateToListingWithState(newListing.id);
     },
     onError: (error: any) => {
       toast({

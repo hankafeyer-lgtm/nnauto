@@ -3244,6 +3244,20 @@ export default function ListingDetailPage() {
       }
     };
 
+    const fromHistoryState =
+      window.history.state &&
+      typeof window.history.state === "object" &&
+      typeof (window.history.state as { from?: unknown }).from === "string"
+        ? (window.history.state as { from: string }).from
+        : null;
+    if (fromHistoryState && fromHistoryState.startsWith("/")) {
+      restoreDebug("detail", "get-return-url:history-state", {
+        listingId,
+        returnUrl: fromHistoryState,
+      });
+      return fromHistoryState;
+    }
+
     const fromParam = new URLSearchParams(window.location.search).get("from");
     if (fromParam && fromParam.startsWith("/")) {
       restoreDebug("detail", "get-return-url:from-param", {
@@ -4091,26 +4105,12 @@ export default function ListingDetailPage() {
       return;
     }
 
-    const returnUrl = getReturnUrl();
-    let listingStateReturnUrl: string | null = null;
-    try {
-      const raw = sessionStorage.getItem(LISTING_STATE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { returnUrl?: string };
-        if (typeof parsed.returnUrl === "string" && parsed.returnUrl.startsWith("/")) {
-          listingStateReturnUrl = parsed.returnUrl;
-        }
-      }
-    } catch {
-      listingStateReturnUrl = null;
-    }
-    const preferredReturnUrl = listingStateReturnUrl ?? returnUrl;
+    const preferredReturnUrl = getReturnUrl();
     restoreDebug("detail", "button-back-triggered", {
       listingId,
       returnUrl: preferredReturnUrl ?? null,
       historyLength: window.history.length,
       isEmbedded,
-      fromListingState: !!listingStateReturnUrl,
     });
     if (preferredReturnUrl) {
       navigate(preferredReturnUrl);
