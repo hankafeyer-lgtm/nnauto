@@ -3187,6 +3187,7 @@ export default function ListingsPage() {
   const lastUrlPageRef = useRef(currentPage);
   const historyNavigationRef = useRef(false);
   const suppressFilterResetRef = useRef(false);
+  const didApplyScrollRestoreRef = useRef(false);
   const pendingRestoreRef = useRef<{
     scrollY: number | null;
     targetId: string | null;
@@ -3298,8 +3299,10 @@ export default function ListingsPage() {
           targetId: hashTargetId,
           scrollMode: "window",
         };
+        didApplyScrollRestoreRef.current = false;
       } else {
         pendingRestoreRef.current = null;
+        didApplyScrollRestoreRef.current = false;
       }
       restoreDebug("listings", "pending-restore-updated", {
         reason: "missing-return-or-scroll",
@@ -3321,8 +3324,10 @@ export default function ListingsPage() {
           targetId: hashTargetId,
           scrollMode: "window",
         };
+        didApplyScrollRestoreRef.current = false;
       } else {
         pendingRestoreRef.current = null;
+        didApplyScrollRestoreRef.current = false;
       }
       restoreDebug("listings", "pending-restore-updated", {
         reason: "path-mismatch-or-invalid-scroll",
@@ -3344,6 +3349,7 @@ export default function ListingsPage() {
         restoreState?.listingId ?? sessionStorage.getItem(LISTINGS_TARGET_ID_KEY),
       scrollMode: restoreState?.scrollMode === "container" ? "container" : "window",
     };
+    didApplyScrollRestoreRef.current = false;
     restoreDebug("listings", "pending-restore-updated", {
       reason: "session-restore-ready",
       currentPath,
@@ -3985,7 +3991,13 @@ export default function ListingsPage() {
 
   useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;
-    if (!pendingRestore || isFetching || openListingId || sortedListings.length === 0) {
+    if (
+      !pendingRestore ||
+      didApplyScrollRestoreRef.current ||
+      isFetching ||
+      openListingId ||
+      sortedListings.length === 0
+    ) {
       return;
     }
 
@@ -4065,16 +4077,37 @@ export default function ListingsPage() {
     };
 
     if (isMobileRestore) {
-      const rafId = window.requestAnimationFrame(() => {
+      let rafId = 0;
+      let cancelled = false;
+      let attempts = 0;
+      const desiredScrollY =
+        typeof pendingRestore.scrollY === "number" && Number.isFinite(pendingRestore.scrollY)
+          ? Math.max(0, pendingRestore.scrollY)
+          : null;
+      const tryMobileRestore = () => {
+        if (cancelled) return;
+        attempts += 1;
+        const maxScrollTop = Math.max(
+          0,
+          document.documentElement.scrollHeight - w.innerHeight,
+        );
+        const hasEnoughHeight =
+          desiredScrollY === null || desiredScrollY <= maxScrollTop || attempts >= 24;
+        if (!hasEnoughHeight) {
+          rafId = window.requestAnimationFrame(tryMobileRestore);
+          return;
+        }
         const result = applyRestore();
         if (!result.restored) {
           restoreDebug("listings", "mobile-restore-skipped", {
             reason: "no-valid-scrollY-and-no-target",
             pendingRestore,
             currentPage,
+            attempts,
           });
           return;
         }
+        didApplyScrollRestoreRef.current = true;
         pendingRestoreRef.current = null;
         clearListingsRestoreState();
         suppressFilterResetRef.current = false;
@@ -4085,10 +4118,13 @@ export default function ListingsPage() {
               : "mobile-single-restore-by-target",
           targetId: pendingRestore.targetId,
           currentPage,
+          attempts,
         });
-      });
+      };
+      rafId = window.requestAnimationFrame(tryMobileRestore);
 
       return () => {
+        cancelled = true;
         window.cancelAnimationFrame(rafId);
       };
     }
@@ -4132,6 +4168,7 @@ export default function ListingsPage() {
     const t2 = window.setTimeout(applyDesktopRestore, 360);
     const t3 = window.setTimeout(() => {
       applyDesktopRestore();
+      didApplyScrollRestoreRef.current = true;
       pendingRestoreRef.current = null;
       clearListingsRestoreState();
     }, 650);
