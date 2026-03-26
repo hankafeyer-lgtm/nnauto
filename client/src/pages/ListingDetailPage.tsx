@@ -4141,35 +4141,13 @@ export default function ListingDetailPage() {
     if (typeof window === "undefined") return;
     if (!isMobileViewport()) return;
 
-    const returnUrl = getReturnUrl();
-    if (!returnUrl) return;
-
-    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    const currentState =
-      window.history.state && typeof window.history.state === "object"
-        ? window.history.state
-        : {};
-
-    if (!currentState.__nnautoMobileSwipeGuard) {
-      window.history.replaceState(
-        { ...currentState, __nnautoMobileSwipeBase: true },
-        "",
-        currentUrl,
-      );
-      window.history.pushState(
-        { __nnautoMobileSwipeGuard: true },
-        "",
-        currentUrl,
-      );
-    }
-
     const handleMobileSwipeBack = (event: PopStateEvent) => {
-      const nextState =
-        event.state && typeof event.state === "object" ? event.state : {};
-      if (nextState.__nnautoMobileSwipeGuard) return;
       restoreDebug("detail", "mobile-popstate-back", {
         listingId,
-        nextStateKeys: Object.keys(nextState),
+        nextStateKeys:
+          event.state && typeof event.state === "object"
+            ? Object.keys(event.state)
+            : [],
       });
       window.removeEventListener("popstate", handleMobileSwipeBack);
       handleBack();
@@ -4179,7 +4157,7 @@ export default function ListingDetailPage() {
     return () => {
       window.removeEventListener("popstate", handleMobileSwipeBack);
     };
-  }, [getReturnUrl, handleBack, isEmbedded, listingId]);
+  }, [handleBack, isEmbedded, listingId]);
 
   const handleEmbeddedSearchSubmit = useCallback(
     (e: React.FormEvent) => {
