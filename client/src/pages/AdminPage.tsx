@@ -479,6 +479,13 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("users");
+  const adminRealtimeQueryOptions = {
+    enabled: isAuthenticated && user?.isAdmin,
+    refetchInterval: 15000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+  } as const;
 
   if (!authLoading && !isAuthenticated) {
     navigate("/");
@@ -496,7 +503,7 @@ export default function AdminPage() {
     error: usersError,
   } = useQuery<Omit<User, "password">[]>({
     queryKey: ["/api/admin/users"],
-    enabled: isAuthenticated && user?.isAdmin,
+    ...adminRealtimeQueryOptions,
   });
 
   const {
@@ -505,7 +512,7 @@ export default function AdminPage() {
     error: listingsError,
   } = useQuery<Listing[]>({
     queryKey: ["/api/admin/listings"],
-    enabled: isAuthenticated && user?.isAdmin,
+    ...adminRealtimeQueryOptions,
   });
 
   const {
@@ -514,7 +521,7 @@ export default function AdminPage() {
     error: paymentsError,
   } = useQuery<EnrichedPayment[]>({
     queryKey: ["/api/admin/payments"],
-    enabled: isAuthenticated && user?.isAdmin,
+    ...adminRealtimeQueryOptions,
   });
 
   const {
@@ -523,12 +530,12 @@ export default function AdminPage() {
     error: cebiaReportsError,
   } = useQuery<AdminCebiaReportsResponse>({
     queryKey: ["/api/admin/cebia/reports"],
-    enabled: isAuthenticated && user?.isAdmin,
+    ...adminRealtimeQueryOptions,
   });
 
   const { data: listingAnalyticsData } = useQuery<AdminListingAnalyticsResponse>({
     queryKey: ["/api/admin/listings/analytics"],
-    enabled: isAuthenticated && user?.isAdmin,
+    ...adminRealtimeQueryOptions,
   });
 
   const byCreatedAtDesc = <
