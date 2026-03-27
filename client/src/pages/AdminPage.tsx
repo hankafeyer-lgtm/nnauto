@@ -480,12 +480,12 @@ export default function AdminPage() {
   const [, navigate] = useLocation();
   const [activeTab, setActiveTab] = useState("users");
 
-  if (!isAuthenticated && !authLoading) {
+  if (!authLoading && !isAuthenticated) {
     navigate("/");
     return null;
   }
 
-  if (!user?.isAdmin) {
+  if (!authLoading && !user?.isAdmin) {
     navigate("/");
     return null;
   }
@@ -531,15 +531,36 @@ export default function AdminPage() {
     enabled: isAuthenticated && user?.isAdmin,
   });
 
-  // const users = usersData || [];
-  // const listings = listingsData || [];
-  // const payments = paymentsData || [];
-  const users = (usersData || []).slice().reverse();
+  const byCreatedAtDesc = <
+    T extends {
+      createdAt?: string | Date | null;
+    },
+  >(
+    items: T[],
+  ) => {
+    const toMs = (value: string | Date | null | undefined) => {
+      if (!value) return 0;
+      const ms = new Date(value).getTime();
+      return Number.isFinite(ms) ? ms : 0;
+    };
+    return items
+      .slice()
+      .sort((a, b) => toMs(b.createdAt ?? null) - toMs(a.createdAt ?? null));
+  };
 
-  const listings = (listingsData || []).slice().reverse();
-
-  const payments = paymentsData || [];
-  const cebiaReports = cebiaReportsData?.items || [];
+  const users = useMemo(() => byCreatedAtDesc(usersData || []), [usersData]);
+  const listings = useMemo(
+    () => byCreatedAtDesc(listingsData || []),
+    [listingsData],
+  );
+  const payments = useMemo(
+    () => byCreatedAtDesc(paymentsData || []),
+    [paymentsData],
+  );
+  const cebiaReports = useMemo(
+    () => byCreatedAtDesc(cebiaReportsData?.items || []),
+    [cebiaReportsData],
+  );
   const listingAnalyticsMap = useMemo(() => {
     const map = new Map<string, AdminListingAnalyticsItem>();
     for (const item of listingAnalyticsData?.items || []) {
@@ -548,13 +569,12 @@ export default function AdminPage() {
     return map;
   }, [listingAnalyticsData]);
 
-  if (
-    (usersError || listingsError || paymentsError || cebiaReportsError) &&
-    !authLoading
-  ) {
-    navigate("/");
-    return null;
-  }
+  const hasUsersError = !!usersError;
+  const hasListingsError = !!listingsError;
+  const hasPaymentsError = !!paymentsError;
+  const hasCebiaReportsError = !!cebiaReportsError;
+  const hasAnyAdminDataError =
+    hasUsersError || hasListingsError || hasPaymentsError || hasCebiaReportsError;
 
   const downloadFromAuthorizedApi = async (
     url: string,
@@ -705,6 +725,28 @@ export default function AdminPage() {
           </div>
           <p className="text-muted-foreground">{t("admin.subtitle")}</p>
         </div>
+
+        {hasAnyAdminDataError ? (
+          <Card className="mb-6 border-destructive/40">
+            <CardContent className="py-4 text-sm text-destructive">
+              <p className="font-medium">
+                Частина адмін-даних не завантажилась.
+              </p>
+              <p className="mt-1">
+                Помилки секцій:{" "}
+                {[
+                  hasUsersError ? "users" : null,
+                  hasListingsError ? "listings" : null,
+                  hasPaymentsError ? "payments" : null,
+                  hasCebiaReportsError ? "cebia" : null,
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+                .
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 max-w-4xl">
