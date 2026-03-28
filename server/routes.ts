@@ -416,7 +416,7 @@ type ListingsFastCacheEntry = {
 
 const LISTINGS_FAST_CACHE_TTL_MS = Math.max(
   0,
-  Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "30000", 10) || 0,
+  Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "60000", 10) || 0,
 );
 const LISTINGS_FAST_CACHE_STALE_MS = Math.max(
   LISTINGS_FAST_CACHE_TTL_MS,
@@ -5370,7 +5370,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // у проді можна кешувати
         res.setHeader(
           "Cache-Control",
-          "public, max-age=60, stale-while-revalidate=300",
+          "public, max-age=120, stale-while-revalidate=600",
         );
       }
 
