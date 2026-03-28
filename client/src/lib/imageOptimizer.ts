@@ -3,6 +3,30 @@ export interface ImageOptimizationOptions {
   quality?: number;
   format?: "webp" | "avif" | "jpeg";
 }
+
+function normalizePath(originalPath: string): string {
+  let p = originalPath;
+  if (p.startsWith("/objects/")) p = p.slice("/objects/".length);
+  return p.replace(/^\/+/, "");
+}
+
+export function getOptimizedImageUrl(
+  originalPath: string,
+  options: ImageOptimizationOptions = {},
+): string {
+  if (!originalPath) return "";
+
+  const { width, quality = 70, format = "webp" } = options;
+  const path = normalizePath(originalPath);
+
+  const params = new URLSearchParams();
+  if (width) params.set("w", width.toString());
+  params.set("q", quality.toString());
+  params.set("f", format);
+
+  return `/img/${path}?${params.toString()}`;
+}
+
 export function getCardSrcSet(photoPath: string): string {
   const widths = [320, 480, 640, 960];
   return widths
@@ -11,27 +35,6 @@ export function getCardSrcSet(photoPath: string): string {
         `${getOptimizedImageUrl(photoPath, { width: w, quality: 70, format: "webp" })} ${w}w`,
     )
     .join(", ");
-}
-export function getOptimizedImageUrl(
-  originalPath: string,
-  options: ImageOptimizationOptions = {},
-): string {
-  if (!originalPath) return "";
-
-  const { width, quality = 70, format = "webp" } = options;
-
-  let path = originalPath;
-  if (path.startsWith("/objects/")) {
-    path = path.slice("/objects/".length);
-  }
-  path = path.replace(/^\/+/, "");
-
-  const params = new URLSearchParams();
-  if (width) params.set("w", width.toString());
-  params.set("q", quality.toString());
-  params.set("f", format);
-
-  return `/img/${path}?${params.toString()}`;
 }
 
 export function getCardImageUrl(photoPath: string): string {
