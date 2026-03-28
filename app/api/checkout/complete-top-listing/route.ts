@@ -3,7 +3,7 @@ import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { storage } from "@lib/storage";
 import Stripe from "stripe";
-import { pendingTopListings } from "../new-top-listing/route";
+import { pendingTopListings } from "@lib/pending-top-listings";
 
 const TOP_LISTING_PRICE = 9900;
 

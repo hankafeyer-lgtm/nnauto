@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { json, error, withAuth } from "@/lib/api-helpers";
-import { storage } from "@/lib/storage";
-import { db } from "@/lib/db";
+import { json, error, withAuth } from "@lib/api-helpers";
+import { storage } from "@lib/storage";
+import { db } from "@lib/db";
 import { listings as listingsTable, insertListingSchema } from "@shared/schema";
 import {
   eq,

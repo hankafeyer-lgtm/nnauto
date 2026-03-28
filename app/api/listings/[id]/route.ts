@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { json, error, withAuth } from "@/lib/api-helpers";
-import { storage } from "@/lib/storage";
+import { json, error, withAuth } from "@lib/api-helpers";
+import { storage } from "@lib/storage";
 
 type RouteContext = { params: Promise<{ id: string }> };
 

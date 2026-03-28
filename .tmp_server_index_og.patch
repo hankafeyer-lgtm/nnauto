@@ -1,0 +1,159 @@
+diff --git a/server/index.ts b/server/index.ts
+index 1d71629..cc5543f 100644
+--- a/server/index.ts
++++ b/server/index.ts
+@@ -1096,6 +1096,11 @@ function injectListingOG(
+     /<meta\s+name="description"\s+content="[^"]*"\s*\/?>/i,
+     `<meta name="description" content="${d}" />`,
+   );
++  out = upsertTag(
++    out,
++    /<meta\s+name="title"\s+content="[^"]*"\s*\/?>/i,
++    `<meta name="title" content="${t}" />`,
++  );
+ 
+   // OG базові
+   out = upsertTag(
+@@ -1165,10 +1170,46 @@ function injectListingOG(
+     /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/?>/i,
+     `<meta name="twitter:image" content="${img}" />`,
+   );
++  out = upsertTag(
++    out,
++    /<meta\s+name="twitter:image:alt"\s+content="[^"]*"\s*\/?>/i,
++    `<meta name="twitter:image:alt" content="${t}" />`,
++  );
+ 
+   return out;
+ }
+ 
++function buildListingPreviewMeta(listing: any, fallbackId: string) {
++  const rawPhotos =
++    listing?.photos ?? listing?.images ?? listing?.photoUrls ?? [];
++  const photos: string[] = Array.isArray(rawPhotos) ? rawPhotos : [];
++
++  const first = photos.find((p) => typeof p === "string" && p.trim() !== "");
++  let image = DEFAULT_OG_IMAGE;
++  if (first) {
++    const normalized = first.trim();
++    image = /^https?:\/\//i.test(normalized)
++      ? normalized
++      : `${BASE_URL}/objects/${normalizeKey(normalized)}`;
++  }
++
++  const priceNum = Number(listing?.price || 0);
++  const price = Number.isFinite(priceNum) ? priceNum.toLocaleString("cs-CZ") : "";
++  const brand = listing?.brand || "";
++  const model = listing?.model || "";
++  const year = listing?.year || "";
++
++  const title = `${year} ${brand} ${model} - ${price} Kč | ${SITE_NAME}`;
++  const descriptionRaw =
++    String(listing?.description || "").trim() ||
++    `Prodej ${year} ${brand} ${model}.`;
++  const description = descriptionRaw.slice(0, 180);
++  const id = listing?.id || fallbackId;
++  const url = `${BASE_URL}/listing/${id}`;
++
++  return { title, description, image, url };
++}
++
+ // ---------- middleware ----------
+ app.use(
+   compression({
+@@ -1510,6 +1551,39 @@ app.use((req, res, next) => {
+ 
+   const server = await registerRoutes(app);
+ 
++  const serveOpenListingPreview = async (
++    req: Request,
++    res: Response,
++    next: NextFunction,
++  ) => {
++    try {
++      const openListingId =
++        typeof req.query.openListing === "string"
++          ? req.query.openListing.trim()
++          : "";
++      if (!openListingId) return next();
++
++      res.set("Vary", "User-Agent");
++      const baseHtml = readIndexHtml();
++      const listing = await storage.getListing(openListingId);
++
++      if (!listing) {
++        res.set("Cache-Control", "no-store");
++        return res.status(200).type("html").send(baseHtml);
++      }
++
++      const meta = buildListingPreviewMeta(listing, openListingId);
++      const html = injectListingOG(baseHtml, meta);
++      res.set("Cache-Control", "no-store");
++      return res.status(200).type("html").send(html);
++    } catch (e) {
++      return next(e);
++    }
++  };
++
++  app.get("/", serveOpenListingPreview);
++  app.get("/listings", serveOpenListingPreview);
++
+   // ✅ OG/Preview for listing pages (важливо: ДО setupVite/serveStatic)
+   app.get("/listing/:id", async (req, res, next) => {
+     try {
+@@ -1525,53 +1599,8 @@ app.use((req, res, next) => {
+         res.set("Cache-Control", "no-store");
+         return res.status(200).type("html").send(baseHtml);
+       }
+-
+-      // photos можуть бути ключами або повними URL
+-      const rawPhotos =
+-        (listing as any).photos ??
+-        (listing as any).images ??
+-        (listing as any).photoUrls ??
+-        [];
+-      const photos: string[] = Array.isArray(rawPhotos) ? rawPhotos : [];
+-
+-      const first = photos.find(
+-        (p) => typeof p === "string" && p.trim() !== "",
+-      );
+-      let ogImage = DEFAULT_OG_IMAGE;
+-
+-      if (first) {
+-        const p = first.trim();
+-        if (/^https?:\/\//i.test(p)) {
+-          ogImage = p;
+-        } else {
+-          ogImage = `${BASE_URL}/objects/${normalizeKey(p)}`;
+-        }
+-      }
+-
+-      const priceNum = Number((listing as any).price || 0);
+-      const price = Number.isFinite(priceNum)
+-        ? priceNum.toLocaleString("cs-CZ")
+-        : "";
+-
+-      const brand = (listing as any).brand || "";
+-      const model = (listing as any).model || "";
+-      const year = (listing as any).year || "";
+-
+-      const ogTitle = `${year} ${brand} ${model} - ${price} Kč | ${SITE_NAME}`;
+-
+-      const ogDescRaw =
+-        ((listing as any).description || "").toString().trim() ||
+-        `Prodej ${year} ${brand} ${model}.`;
+-
+-      const ogDesc = ogDescRaw.slice(0, 180);
+-      const canonical = `${BASE_URL}/listing/${(listing as any).id || id}`;
+-
+-      const html = injectListingOG(baseHtml, {
+-        title: ogTitle,
+-        description: ogDesc,
+-        image: ogImage,
+-        url: canonical,
+-      });
++      const meta = buildListingPreviewMeta(listing, id);
++      const html = injectListingOG(baseHtml, meta);
+ 
+       res.set("Cache-Control", "no-store");
+       return res.status(200).type("html").send(html);

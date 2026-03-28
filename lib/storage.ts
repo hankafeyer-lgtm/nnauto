@@ -96,6 +96,14 @@ export const storage = {
     return result.rowCount !== null && result.rowCount > 0;
   },
 
+  async createPayment(insertPayment: any) {
+    const [payment] = await db
+      .insert(payments)
+      .values(insertPayment)
+      .returning();
+    return payment;
+  },
+
   async getAllPayments() {
     return await db.select().from(payments);
   },

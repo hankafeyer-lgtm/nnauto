@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import "../client/src/index.css";
-import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "NNAuto - Prémiový Marketplace Aut v ČR | Prodej a Nákup Vozidel",
@@ -23,7 +21,7 @@ export default function RootLayout({
         />
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
-        <Providers>{children}</Providers>
+        {children}
       </body>
     </html>
   );
