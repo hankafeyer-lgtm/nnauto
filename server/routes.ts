@@ -50,8 +50,8 @@ const imageCache = new Map<
   string,
   { buffer: Buffer; contentType: string; timestamp: number }
 >();
-const IMAGE_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
-const MAX_CACHE_SIZE = 500; // keep more processed images in memory
+const IMAGE_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
+const MAX_CACHE_SIZE = 1000; // aggressive in-memory cache for processed images
 
 const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
 const MAX_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
@@ -6415,18 +6415,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pipeline = pipeline.resize(maxWidth, undefined, {
           withoutEnlargement: true,
           fit: "inside",
+          fastShrinkOnLoad: true,
         });
       }
 
       // Convert to requested format
       let contentType = "image/webp";
       if (format === "webp") {
-        pipeline = pipeline.webp({ quality });
+        pipeline = pipeline.webp({ quality, effort: 4, smartSubsample: true });
       } else if (format === "avif") {
-        pipeline = pipeline.avif({ quality });
+        pipeline = pipeline.avif({ quality, effort: 4 });
         contentType = "image/avif";
       } else {
-        pipeline = pipeline.jpeg({ quality, mozjpeg: true });
+        pipeline = pipeline.jpeg({ quality, mozjpeg: true, trellisQuantisation: true });
         contentType = "image/jpeg";
       }
 

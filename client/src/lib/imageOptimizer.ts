@@ -4,11 +4,11 @@ export interface ImageOptimizationOptions {
   format?: "webp" | "avif" | "jpeg";
 }
 export function getCardSrcSet(photoPath: string): string {
-  const widths = [480, 768, 1080, 1440];
+  const widths = [320, 480, 640, 960];
   return widths
     .map(
       (w) =>
-        `${getOptimizedImageUrl(photoPath, { width: w, quality: 82, format: "webp" })} ${w}w`,
+        `${getOptimizedImageUrl(photoPath, { width: w, quality: 70, format: "webp" })} ${w}w`,
     )
     .join(", ");
 }
@@ -18,7 +18,7 @@ export function getOptimizedImageUrl(
 ): string {
   if (!originalPath) return "";
 
-  const { width, quality = 78, format = "webp" } = options;
+  const { width, quality = 70, format = "webp" } = options;
 
   let path = originalPath;
   if (path.startsWith("/objects/")) {
@@ -35,17 +35,17 @@ export function getOptimizedImageUrl(
 }
 
 export function getCardImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 480, quality: 75 });
+  return getOptimizedImageUrl(photoPath, { width: 400, quality: 68 });
 }
 
 export function getThumbnailUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 80, quality: 55 });
+  return getOptimizedImageUrl(photoPath, { width: 64, quality: 50 });
 }
 
 export function getFullImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 1120, quality: 82 });
+  return getOptimizedImageUrl(photoPath, { width: 960, quality: 76 });
 }
 
 export function getLightboxImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 1280, quality: 86 });
+  return getOptimizedImageUrl(photoPath, { width: 1280, quality: 82 });
 }
