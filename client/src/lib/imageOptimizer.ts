@@ -1,5 +1,3 @@
-const R2_CDN_BASE = "https://pub-d325306cbf594d02a62f39fb6a92a0fd.r2.dev";
-
 export interface ImageOptimizationOptions {
   width?: number;
   quality?: number;
@@ -10,11 +8,6 @@ function normalizePath(originalPath: string): string {
   let p = originalPath;
   if (p.startsWith("/objects/")) p = p.slice("/objects/".length);
   return p.replace(/^\/+/, "");
-}
-
-export function getCdnImageUrl(photoPath: string): string {
-  if (!photoPath) return "";
-  return `${R2_CDN_BASE}/${normalizePath(photoPath)}`;
 }
 
 export function getOptimizedImageUrl(
@@ -35,11 +28,11 @@ export function getOptimizedImageUrl(
 }
 
 export function getCardSrcSet(photoPath: string): string {
-  const widths = [320, 480, 640, 960];
+  const widths = [320, 480, 640];
   return widths
     .map(
       (w) =>
-        `${getOptimizedImageUrl(photoPath, { width: w, quality: 70, format: "webp" })} ${w}w`,
+        `${getOptimizedImageUrl(photoPath, { width: w, quality: 68, format: "webp" })} ${w}w`,
     )
     .join(", ");
 }
@@ -53,9 +46,14 @@ export function getThumbnailUrl(photoPath: string): string {
 }
 
 export function getFullImageUrl(photoPath: string): string {
-  return getCdnImageUrl(photoPath);
+  return getOptimizedImageUrl(photoPath, { width: 960, quality: 76 });
 }
 
 export function getLightboxImageUrl(photoPath: string): string {
-  return getCdnImageUrl(photoPath);
+  return getOptimizedImageUrl(photoPath, { width: 1280, quality: 80 });
+}
+
+export function getCdnImageUrl(photoPath: string): string {
+  if (!photoPath) return "";
+  return `https://pub-d325306cbf594d02a62f39fb6a92a0fd.r2.dev/${normalizePath(photoPath)}`;
 }

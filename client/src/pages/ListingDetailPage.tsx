@@ -3137,7 +3137,6 @@ import {
   getOptimizedImageUrl,
   getCardImageUrl,
   getFullImageUrl,
-  getCdnImageUrl,
   getThumbnailUrl,
 } from "@/lib/imageOptimizer";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
@@ -3560,9 +3559,17 @@ export default function ListingDetailPage() {
     const w = safeWindow();
     if (!w) return;
 
+    const isDesktop = isLgViewport();
+    const preloadWidth = isDesktop ? 960 : 560;
+    const preloadQuality = isDesktop ? 76 : 68;
+
     const preload = () => {
       for (const key of photoKeys) {
-        const url = getCdnImageUrl(key);
+        const url = getOptimizedImageUrl(key, {
+          width: preloadWidth,
+          quality: preloadQuality,
+          format: "webp",
+        });
         if (preloadedCarouselUrlsRef.current.has(url)) continue;
         preloadedCarouselUrlsRef.current.add(url);
         const img = new Image();
