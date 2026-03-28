@@ -1,3 +1,5 @@
+const R2_CDN_BASE = "https://pub-d325306cbf594d02a62f39fb6a92a0fd.r2.dev";
+
 export interface ImageOptimizationOptions {
   width?: number;
   quality?: number;
@@ -8,6 +10,11 @@ function normalizePath(originalPath: string): string {
   let p = originalPath;
   if (p.startsWith("/objects/")) p = p.slice("/objects/".length);
   return p.replace(/^\/+/, "");
+}
+
+export function getCdnImageUrl(photoPath: string): string {
+  if (!photoPath) return "";
+  return `${R2_CDN_BASE}/${normalizePath(photoPath)}`;
 }
 
 export function getOptimizedImageUrl(
@@ -46,9 +53,9 @@ export function getThumbnailUrl(photoPath: string): string {
 }
 
 export function getFullImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 960, quality: 76 });
+  return getCdnImageUrl(photoPath);
 }
 
 export function getLightboxImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 1280, quality: 82 });
+  return getCdnImageUrl(photoPath);
 }
