@@ -9,6 +9,8 @@ import {
   type Listing,
   type InsertListing,
   type InsertUser,
+  type InsertCebiaReport,
+  type UpdateCebiaReport,
 } from "@shared/schema";
 
 export const storage = {
@@ -137,6 +139,35 @@ export const storage = {
       .select()
       .from(cebiaReports)
       .where(eq(cebiaReports.id, id));
+    return report || undefined;
+  },
+
+  async createCebiaReport(data: InsertCebiaReport) {
+    const [report] = await db.insert(cebiaReports).values(data).returning();
+    return report;
+  },
+
+  async updateCebiaReport(id: string, data: UpdateCebiaReport) {
+    const [report] = await db
+      .update(cebiaReports)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(cebiaReports.id, id))
+      .returning();
+    return report || undefined;
+  },
+
+  async getCebiaReportsByUserId(userId: string) {
+    return await db
+      .select()
+      .from(cebiaReports)
+      .where(eq(cebiaReports.userId, userId));
+  },
+
+  async getCebiaReportByStripeSessionId(sessionId: string) {
+    const [report] = await db
+      .select()
+      .from(cebiaReports)
+      .where(eq(cebiaReports.stripeSessionId, sessionId));
     return report || undefined;
   },
 };
