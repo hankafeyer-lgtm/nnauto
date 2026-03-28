@@ -1,0 +1,134 @@
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import {
+  users,
+  listings,
+  payments,
+  cebiaReports,
+  type User,
+  type Listing,
+  type InsertListing,
+  type InsertUser,
+} from "@shared/schema";
+
+export const storage = {
+  async getUser(id: string) {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  },
+
+  async getUserByEmail(email: string) {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user || undefined;
+  },
+
+  async getUserByUsername(username: string) {
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.username, username));
+    return user || undefined;
+  },
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  },
+
+  async updateUser(
+    id: string,
+    updateData: Partial<InsertUser>,
+  ): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  },
+
+  async deleteUser(id: string): Promise<boolean> {
+    await db.delete(listings).where(eq(listings.userId, id));
+    const result = await db.delete(users).where(eq(users.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  },
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  },
+
+  async createListing(insertListing: InsertListing): Promise<Listing> {
+    const [listing] = await db
+      .insert(listings)
+      .values(insertListing)
+      .returning();
+    return listing;
+  },
+
+  async getListings(): Promise<Listing[]> {
+    return await db.select().from(listings);
+  },
+
+  async getListing(id: string): Promise<Listing | undefined> {
+    const [listing] = await db
+      .select()
+      .from(listings)
+      .where(eq(listings.id, id));
+    return listing || undefined;
+  },
+
+  async updateListing(
+    id: string,
+    updateData: Partial<InsertListing>,
+  ): Promise<Listing | undefined> {
+    const [listing] = await db
+      .update(listings)
+      .set({ ...updateData, updatedAt: new Date() })
+      .where(eq(listings.id, id))
+      .returning();
+    return listing || undefined;
+  },
+
+  async deleteListing(id: string): Promise<boolean> {
+    const result = await db
+      .delete(listings)
+      .where(eq(listings.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  },
+
+  async getAllPayments() {
+    return await db.select().from(payments);
+  },
+
+  async getPayment(id: string) {
+    const [payment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.id, id));
+    return payment || undefined;
+  },
+
+  async updateUserPassword(
+    id: string,
+    hashedPassword: string,
+  ): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ password: hashedPassword, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  },
+
+  async getAllCebiaReports() {
+    return await db.select().from(cebiaReports);
+  },
+
+  async getCebiaReportById(id: string) {
+    const [report] = await db
+      .select()
+      .from(cebiaReports)
+      .where(eq(cebiaReports.id, id));
+    return report || undefined;
+  },
+};
