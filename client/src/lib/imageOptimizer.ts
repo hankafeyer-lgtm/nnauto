@@ -35,11 +35,11 @@ export function getOptimizedImageUrl(
 }
 
 export function getCardImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 640, quality: 80 });
+  return getOptimizedImageUrl(photoPath, { width: 480, quality: 75 });
 }
 
 export function getThumbnailUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 100, quality: 60 });
+  return getOptimizedImageUrl(photoPath, { width: 80, quality: 55 });
 }
 
 export function getFullImageUrl(photoPath: string): string {

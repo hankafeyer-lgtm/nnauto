@@ -50,8 +50,8 @@ const imageCache = new Map<
   string,
   { buffer: Buffer; contentType: string; timestamp: number }
 >();
-const IMAGE_CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
-const MAX_CACHE_SIZE = 100; // Maximum number of cached images
+const IMAGE_CACHE_TTL = 2 * 60 * 60 * 1000; // 2 hours
+const MAX_CACHE_SIZE = 500; // keep more processed images in memory
 
 const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
 const MAX_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
@@ -416,7 +416,7 @@ type ListingsFastCacheEntry = {
 
 const LISTINGS_FAST_CACHE_TTL_MS = Math.max(
   0,
-  Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "15000", 10) || 0,
+  Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "30000", 10) || 0,
 );
 const LISTINGS_FAST_CACHE_STALE_MS = Math.max(
   LISTINGS_FAST_CACHE_TTL_MS,
