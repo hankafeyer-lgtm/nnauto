@@ -113,22 +113,16 @@ function CarCard({
   const currentOptimizedImage =
     optimizedPhotos[currentPhotoIndex] || getCardImageUrl(image);
 
-  // Preload next and previous images for instant navigation
+  const preloadedRef = useRef(false);
+
   useEffect(() => {
-    if (!hasMultiplePhotos || !shouldPreloadGallery || !canPrefetchHeavyResources()) {
-      return;
-    }
-
-    const preloadIndices = [
-      (currentPhotoIndex + 1) % optimizedPhotos.length,
-      (currentPhotoIndex - 1 + optimizedPhotos.length) % optimizedPhotos.length,
-    ];
-
-    preloadIndices.forEach((idx) => {
+    if (!hasMultiplePhotos || !shouldPreloadGallery || preloadedRef.current) return;
+    preloadedRef.current = true;
+    optimizedPhotos.forEach((url) => {
       const img = new Image();
-      img.src = optimizedPhotos[idx];
+      img.src = url;
     });
-  }, [currentPhotoIndex, optimizedPhotos, hasMultiplePhotos, shouldPreloadGallery]);
+  }, [shouldPreloadGallery, optimizedPhotos, hasMultiplePhotos]);
 
   const handlePrevPhoto = (e: React.MouseEvent | React.TouchEvent) => {
     if ("preventDefault" in e) e.preventDefault();
@@ -137,7 +131,6 @@ function CarCard({
     setCurrentPhotoIndex((prev) =>
       prev === 0 ? allPhotos.length - 1 : prev - 1,
     );
-    setImageLoaded(false);
   };
 
   const handleNextPhoto = (e: React.MouseEvent | React.TouchEvent) => {
@@ -147,7 +140,6 @@ function CarCard({
     setCurrentPhotoIndex((prev) =>
       prev === allPhotos.length - 1 ? 0 : prev + 1,
     );
-    setImageLoaded(false);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -561,7 +553,7 @@ function CarCard({
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
-              className={`absolute inset-0 w-full h-full object-cover object-center bg-muted transition-opacity duration-200 ${
+              className={`absolute inset-0 w-full h-full object-cover object-center bg-muted transition-opacity duration-100 ${
                 imageLoaded ? "opacity-100" : "opacity-0"
               } select-none pointer-events-none`}
               draggable={false}

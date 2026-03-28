@@ -3137,6 +3137,7 @@ import {
   getOptimizedImageUrl,
   getCardImageUrl,
   getFullImageUrl,
+  getCdnImageUrl,
   getThumbnailUrl,
 } from "@/lib/imageOptimizer";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
@@ -3552,37 +3553,21 @@ export default function ListingDetailPage() {
     };
   }, [carouselApi]);
 
-  // Preload only immediate neighbors and dedupe URLs to reduce decode spikes on swipe.
+  // Preload ALL photos on first load for instant swipe; dedupe via ref.
   useEffect(() => {
     const len = photoKeys.length;
     if (!len) return;
     const w = safeWindow();
     if (!w) return;
 
-    const idx = Math.max(0, Math.min(currentCarouselIndex, len - 1));
-    const neighbors = new Set<string>([
-      photoKeys[(idx + 1) % len],
-      photoKeys[(idx - 1 + len) % len],
-    ]);
-    const isDesktop = isLgViewport();
-    const preloadWidth = isDesktop ? 1120 : 560;
-    const preloadQuality = isDesktop ? 84 : 74;
-
     const preload = () => {
-      for (const key of neighbors) {
-        const url = getOptimizedImageUrl(key, {
-          width: preloadWidth,
-          quality: preloadQuality,
-          format: "webp",
-        });
+      for (const key of photoKeys) {
+        const url = getCdnImageUrl(key);
         if (preloadedCarouselUrlsRef.current.has(url)) continue;
         preloadedCarouselUrlsRef.current.add(url);
         const img = new Image();
         img.decoding = "async";
         img.src = url;
-        img.decode?.().catch(() => {
-          // ignore decode failures; browser still caches image bytes
-        });
       }
     };
 
@@ -3599,7 +3584,8 @@ export default function ListingDetailPage() {
     }
     const timeoutId = w.setTimeout(preload, 40);
     return () => w.clearTimeout(timeoutId);
-  }, [currentCarouselIndex, photoKeys]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoKeys.length]);
 
   const scrollToCarouselItem = useCallback(
     (index: number) => {
