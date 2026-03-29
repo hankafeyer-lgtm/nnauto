@@ -4412,7 +4412,7 @@ export default function ListingDetailPage() {
 
               {/* Image/Video Gallery */}
               <Card className="overflow-hidden rounded-2xl">
-                <div className="relative">
+                <div className="relative group/gallery">
                   {totalItems > 0 ? (
                     <Carousel
                       setApi={setCarouselApi}
@@ -4517,9 +4517,9 @@ export default function ListingDetailPage() {
                         )}
                       </CarouselContent>
 
-                      {/* Navigation arrows */}
+                      {/* Navigation arrows - hidden by default, visible on hover */}
                       {hasMultipleItems && (
-                        <div className="absolute inset-x-3 top-1/2 -translate-y-1/2 z-10 flex justify-between pointer-events-none">
+                        <div className="absolute inset-x-3 top-1/2 -translate-y-1/2 z-10 flex justify-between pointer-events-none opacity-0 group-hover/gallery:opacity-100 transition-opacity duration-200">
                           <Button
                             variant="outline"
                             size="icon"
