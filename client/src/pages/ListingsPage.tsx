@@ -4447,34 +4447,36 @@ export default function ListingsPage() {
             >
               <FilterSidebar />
             </div>
-            <button
-              ref={filterToggleButtonRef}
-              type="button"
-              onClick={() => setSidebarCollapsed((v) => !v)}
-              className={[
-                "filter-toggle-button",
-                "h-16 w-9",
-                "rounded-xl border bg-background shadow-md",
-                "hidden lg:flex items-center justify-center",
-                "hover:bg-muted transition",
-              ].join(" ")}
-              title={
-                sidebarCollapsed
-                  ? t("filters.showFilters")
-                  : t("filters.hideFilters")
-              }
-              aria-label={
-                sidebarCollapsed
-                  ? t("filters.showFilters")
-                  : t("filters.hideFilters")
-              }
-            >
-              {sidebarCollapsed ? (
-                <ChevronRight className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-              )}
-            </button>
+            {!openListingId ? (
+              <button
+                ref={filterToggleButtonRef}
+                type="button"
+                onClick={() => setSidebarCollapsed((v) => !v)}
+                className={[
+                  "filter-toggle-button",
+                  "h-16 w-9",
+                  "rounded-xl border bg-background shadow-md",
+                  "hidden lg:flex items-center justify-center",
+                  "hover:bg-muted transition",
+                ].join(" ")}
+                title={
+                  sidebarCollapsed
+                    ? t("filters.showFilters")
+                    : t("filters.hideFilters")
+                }
+                aria-label={
+                  sidebarCollapsed
+                    ? t("filters.showFilters")
+                    : t("filters.hideFilters")
+                }
+              >
+                {sidebarCollapsed ? (
+                  <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                ) : (
+                  <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+                )}
+              </button>
+            ) : null}
           </aside>
 
           {/* <main className="flex-1">
