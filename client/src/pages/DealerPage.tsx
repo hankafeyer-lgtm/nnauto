@@ -32,7 +32,19 @@ import {
   Shield,
   Settings,
   ArrowUpRight,
+  Pencil,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type DealerStats = {
   totalListings: number;
@@ -89,15 +101,20 @@ function StatCard({
   value,
   trend,
   className,
+  onClick,
 }: {
   icon: any;
   label: string;
   value: string | number;
   trend?: string;
   className?: string;
+  onClick?: () => void;
 }) {
   return (
-    <Card className={className}>
+    <Card
+      className={`${className || ""} ${onClick ? "cursor-pointer hover:shadow-md hover:border-amber-300 transition-all" : ""}`}
+      onClick={onClick}
+    >
       <CardContent className="pt-6">
         <div className="flex items-center justify-between">
           <div>
@@ -120,6 +137,24 @@ function StatCard({
 }
 
 function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer; t: (key: string) => string }) {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/listings/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+      toast({ title: t("dealer.listingDeleted") });
+      setDeleteId(null);
+    },
+    onError: () => {
+      toast({ title: "Error", variant: "destructive" });
+    },
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 mb-2">
@@ -143,6 +178,7 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
           icon={Car}
           label={t("dealer.totalListings")}
           value={stats.totalListings}
+          onClick={() => navigate(`/listings?userId=${dealer.ownerId}`)}
         />
         <StatCard
           icon={Eye}
@@ -196,7 +232,8 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
               {stats.perListing.map((item) => (
                 <div
                   key={item.listing_id}
-                  className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
+                  onClick={() => navigate(`/listing/${item.listing_id}`)}
                 >
                   <div className="h-12 w-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
                     {item.photo ? (
@@ -217,7 +254,7 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
                     </p>
                     <p className="text-xs text-muted-foreground truncate">{item.title}</p>
                   </div>
-                  <div className="flex gap-4 text-xs text-muted-foreground">
+                  <div className="flex gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <Eye className="h-3 w-3" /> {item.views}
                     </span>
@@ -228,18 +265,48 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
                       <MessageCircle className="h-3 w-3" /> {item.whatsapp}
                     </span>
                   </div>
-                  <a
-                    href={`/listing/${item.listing_id}`}
-                    className="text-amber-700 hover:text-amber-900"
-                  >
-                    <ArrowUpRight className="h-4 w-4" />
-                  </a>
+                  <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-amber-700 hover:text-amber-900 hover:bg-amber-50"
+                      onClick={() => navigate(`/listing/${item.listing_id}?edit=true`)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => setDeleteId(item.listing_id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
       )}
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("dealer.deleteListingTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("dealer.deleteListingDescription")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("dealer.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+            >
+              {t("dealer.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

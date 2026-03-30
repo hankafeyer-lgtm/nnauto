@@ -1095,6 +1095,12 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.listingsUsed": "Využito inzerátů",
     "dealer.profileUpdated": "Profil aktualizován",
     "dealer.registrationSuccess": "Registrace úspěšná! Nyní jste registrován jako autobazar.",
+    "dealer.edit": "Upravit",
+    "dealer.delete": "Smazat",
+    "dealer.cancel": "Zrušit",
+    "dealer.deleteListingTitle": "Smazat inzerát",
+    "dealer.deleteListingDescription": "Opravdu chcete smazat tento inzerát? Tuto akci nelze vrátit zpět.",
+    "dealer.listingDeleted": "Inzerát smazán",
   },
 
   uk: {
@@ -2199,6 +2205,12 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.listingsUsed": "Використано оголошень",
     "dealer.profileUpdated": "Профіль оновлено",
     "dealer.registrationSuccess": "Реєстрація успішна! Тепер ви зареєстровані як автосалон.",
+    "dealer.edit": "Редагувати",
+    "dealer.delete": "Видалити",
+    "dealer.cancel": "Скасувати",
+    "dealer.deleteListingTitle": "Видалити оголошення",
+    "dealer.deleteListingDescription": "Ви дійсно хочете видалити це оголошення? Цю дію не можна скасувати.",
+    "dealer.listingDeleted": "Оголошення видалено",
   },
 
   en: {
@@ -3304,6 +3316,12 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.listingsUsed": "Listings Used",
     "dealer.profileUpdated": "Profile Updated",
     "dealer.registrationSuccess": "Registration successful! You are now registered as a dealer.",
+    "dealer.edit": "Edit",
+    "dealer.delete": "Delete",
+    "dealer.cancel": "Cancel",
+    "dealer.deleteListingTitle": "Delete listing",
+    "dealer.deleteListingDescription": "Are you sure you want to delete this listing? This action cannot be undone.",
+    "dealer.listingDeleted": "Listing deleted",
   },
 };
 
@@ -3706,6 +3724,12 @@ const germanTranslations: Record<string, string> = {
   "dealer.listingsUsed": "Inserate genutzt",
   "dealer.profileUpdated": "Profil aktualisiert",
   "dealer.registrationSuccess": "Registrierung erfolgreich! Sie sind jetzt als Autohaus registriert.",
+  "dealer.edit": "Bearbeiten",
+  "dealer.delete": "Löschen",
+  "dealer.cancel": "Abbrechen",
+  "dealer.deleteListingTitle": "Inserat löschen",
+  "dealer.deleteListingDescription": "Möchten Sie dieses Inserat wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+  "dealer.listingDeleted": "Inserat gelöscht",
 };
 
 export const translations: Record<Language, Record<string, string>> = {
