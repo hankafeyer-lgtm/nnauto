@@ -2251,6 +2251,17 @@ function Hero() {
     pickup: PickupIcon,
     van: VanIcon,
     liftback: LiftbackIcon,
+    truck: TruckGoldIcon,
+    chassis: TruckGoldIcon,
+    tipper: TruckGoldIcon,
+    sport: MotorcycleIcon,
+    cruiser: MotorcycleIcon,
+    touring: MotorcycleIcon,
+    enduro: MotorcycleIcon,
+    naked: MotorcycleIcon,
+    chopper: MotorcycleIcon,
+    scooter: MotorcycleIcon,
+    classic: MotorcycleIcon,
   };
 
   const driveTypeIcons: Record<string, any> = {
