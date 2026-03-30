@@ -144,9 +144,9 @@ export const insertDealerSchema = createInsertSchema(dealers).omit({
   dic: z.string().optional(),
   description: z.string().optional(),
   logoUrl: z.string().optional(),
-  website: z.string().url().optional().or(z.literal("")),
+  website: z.string().optional(),
   phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
+  email: z.string().optional(),
   address: z.string().optional(),
   region: z.string().optional(),
 });
