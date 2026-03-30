@@ -1017,6 +1017,8 @@ import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { storage } from "./storage";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 const app = express();
 app.disable("x-powered-by");
@@ -1590,6 +1592,14 @@ app.use((req, res, next) => {
 
 // ---------- bootstrap ----------
 (async function bootstrap() {
+  // Ensure dealer columns exist before any user queries
+  try {
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_dealer BOOLEAN NOT NULL DEFAULT false`);
+    await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS dealer_id VARCHAR`);
+  } catch (e) {
+    console.warn("[bootstrap] dealer columns migration skipped:", (e as any)?.message);
+  }
+
   await seedAdminUser();
   await seedDemoListings();
 

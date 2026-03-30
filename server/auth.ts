@@ -263,3 +263,29 @@ export const isAdmin: RequestHandler = async (req, res, next) => {
   
   next();
 };
+
+export const isDealer: RequestHandler = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    try {
+      const payload = verifyToken(token);
+      if (payload?.userId) {
+        req.session.userId = payload.userId;
+      }
+    } catch {}
+  }
+
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  const { storage } = await import("./storage");
+  const user = await storage.getUser(req.session.userId);
+
+  if (!user || !user.isDealer || !user.dealerId) {
+    return res.status(403).json({ message: "Forbidden - Dealer access required" });
+  }
+
+  next();
+};

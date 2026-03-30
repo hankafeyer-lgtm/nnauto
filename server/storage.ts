@@ -3,6 +3,8 @@ import {
   listings,
   payments,
   cebiaReports,
+  dealers,
+  bulkImportJobs,
   type User,
   type InsertUser,
   type UpdateUser,
@@ -14,9 +16,13 @@ import {
   type CebiaReport,
   type InsertCebiaReport,
   type UpdateCebiaReport,
+  type Dealer,
+  type InsertDealer,
+  type UpdateDealer,
+  type BulkImportJob,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -49,6 +55,20 @@ export interface IStorage {
   getCebiaReportsByUserId(userId: string): Promise<CebiaReport[]>;
   getCebiaReportByStripeSessionId(stripeSessionId: string): Promise<CebiaReport | undefined>;
   updateCebiaReport(id: string, report: UpdateCebiaReport): Promise<CebiaReport | undefined>;
+
+  // Dealers
+  createDealer(dealer: InsertDealer): Promise<Dealer>;
+  getDealer(id: string): Promise<Dealer | undefined>;
+  getDealerByOwnerId(ownerId: string): Promise<Dealer | undefined>;
+  getAllDealers(): Promise<Dealer[]>;
+  updateDealer(id: string, data: UpdateDealer): Promise<Dealer | undefined>;
+  deleteDealer(id: string): Promise<boolean>;
+
+  // Bulk import
+  createBulkImportJob(job: Partial<BulkImportJob> & { dealerId: string; userId: string }): Promise<BulkImportJob>;
+  getBulkImportJob(id: string): Promise<BulkImportJob | undefined>;
+  getBulkImportJobsByDealer(dealerId: string): Promise<BulkImportJob[]>;
+  updateBulkImportJob(id: string, data: Partial<BulkImportJob>): Promise<BulkImportJob | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -273,6 +293,83 @@ export class DatabaseStorage implements IStorage {
       .where(eq(cebiaReports.id, id))
       .returning();
     return report || undefined;
+  }
+
+  // ── Dealers ──────────────────────────────────────────────────────────────────
+
+  async createDealer(insertDealer: InsertDealer): Promise<Dealer> {
+    const [dealer] = await db.insert(dealers).values(insertDealer).returning();
+    return dealer;
+  }
+
+  async getDealer(id: string): Promise<Dealer | undefined> {
+    const [dealer] = await db.select().from(dealers).where(eq(dealers.id, id));
+    return dealer || undefined;
+  }
+
+  async getDealerByOwnerId(ownerId: string): Promise<Dealer | undefined> {
+    const [dealer] = await db.select().from(dealers).where(eq(dealers.ownerId, ownerId));
+    return dealer || undefined;
+  }
+
+  async getAllDealers(): Promise<Dealer[]> {
+    return await db.select().from(dealers);
+  }
+
+  async updateDealer(id: string, data: UpdateDealer): Promise<Dealer | undefined> {
+    const [dealer] = await db
+      .update(dealers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(dealers.id, id))
+      .returning();
+    return dealer || undefined;
+  }
+
+  async deleteDealer(id: string): Promise<boolean> {
+    const result = await db.delete(dealers).where(eq(dealers.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // ── Bulk Import Jobs ────────────────────────────────────────────────────────
+
+  async createBulkImportJob(
+    job: Partial<BulkImportJob> & { dealerId: string; userId: string },
+  ): Promise<BulkImportJob> {
+    const [created] = await db
+      .insert(bulkImportJobs)
+      .values({
+        dealerId: job.dealerId,
+        userId: job.userId,
+        status: job.status || "pending",
+        totalRows: job.totalRows || 0,
+        processedRows: 0,
+        successRows: 0,
+        failedRows: 0,
+        fileName: job.fileName || null,
+      })
+      .returning();
+    return created;
+  }
+
+  async getBulkImportJob(id: string): Promise<BulkImportJob | undefined> {
+    const [job] = await db.select().from(bulkImportJobs).where(eq(bulkImportJobs.id, id));
+    return job || undefined;
+  }
+
+  async getBulkImportJobsByDealer(dealerId: string): Promise<BulkImportJob[]> {
+    return await db.select().from(bulkImportJobs).where(eq(bulkImportJobs.dealerId, dealerId));
+  }
+
+  async updateBulkImportJob(
+    id: string,
+    data: Partial<BulkImportJob>,
+  ): Promise<BulkImportJob | undefined> {
+    const [job] = await db
+      .update(bulkImportJobs)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(bulkImportJobs.id, id))
+      .returning();
+    return job || undefined;
   }
 }
 

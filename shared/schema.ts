@@ -34,6 +34,8 @@ export const users = pgTable("users", {
   phone: varchar("phone"),
   avatarUrl: text("avatar_url"),
   isAdmin: boolean("is_admin").default(false).notNull(),
+  isDealer: boolean("is_dealer").default(false).notNull(),
+  dealerId: varchar("dealer_id"),
   emailVerified: boolean("email_verified").default(false).notNull(),
   verificationCode: varchar("verification_code"),
   verificationCodeExpiry: timestamp("verification_code_expiry"),
@@ -101,6 +103,87 @@ export type ChangePasswordRequest = z.infer<typeof changePasswordSchema>;
 export type VerifyEmailRequest = z.infer<typeof verifyEmailSchema>;
 export type ChangeEmailRequest = z.infer<typeof changeEmailSchema>;
 export type User = typeof users.$inferSelect;
+
+// ── Dealers ──────────────────────────────────────────────────────────────────
+
+export const dealers = pgTable(
+  "dealers",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    ownerId: varchar("owner_id").notNull(),
+    companyName: text("company_name").notNull(),
+    ico: varchar("ico", { length: 20 }),
+    dic: varchar("dic", { length: 20 }),
+    description: text("description"),
+    logoUrl: text("logo_url"),
+    website: text("website"),
+    phone: varchar("phone"),
+    email: varchar("email"),
+    address: text("address"),
+    region: text("region"),
+    isVerified: boolean("is_verified").default(false).notNull(),
+    maxListings: integer("max_listings").default(50).notNull(),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    index("dealers_owner_id_idx").on(t.ownerId),
+    index("dealers_region_idx").on(t.region),
+  ],
+);
+
+export const insertDealerSchema = createInsertSchema(dealers).omit({
+  id: true,
+  isVerified: true,
+  maxListings: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  companyName: z.string().min(2, "Company name is required"),
+  ico: z.string().optional(),
+  dic: z.string().optional(),
+  description: z.string().optional(),
+  logoUrl: z.string().optional(),
+  website: z.string().url().optional().or(z.literal("")),
+  phone: z.string().optional(),
+  email: z.string().email().optional().or(z.literal("")),
+  address: z.string().optional(),
+  region: z.string().optional(),
+});
+
+export const updateDealerSchema = insertDealerSchema.partial();
+
+export type Dealer = typeof dealers.$inferSelect;
+export type InsertDealer = z.infer<typeof insertDealerSchema>;
+export type UpdateDealer = z.infer<typeof updateDealerSchema>;
+
+// ── Bulk import jobs ─────────────────────────────────────────────────────────
+
+export const bulkImportJobs = pgTable(
+  "bulk_import_jobs",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    dealerId: varchar("dealer_id").notNull(),
+    userId: varchar("user_id").notNull(),
+    status: varchar("status", { length: 20 }).default("pending").notNull(),
+    totalRows: integer("total_rows").default(0).notNull(),
+    processedRows: integer("processed_rows").default(0).notNull(),
+    successRows: integer("success_rows").default(0).notNull(),
+    failedRows: integer("failed_rows").default(0).notNull(),
+    errors: jsonb("errors"),
+    fileName: text("file_name"),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    index("bulk_import_jobs_dealer_id_idx").on(t.dealerId),
+    index("bulk_import_jobs_status_idx").on(t.status),
+  ],
+);
+
+export type BulkImportJob = typeof bulkImportJobs.$inferSelect;
+
+// ── Brands & Models ──────────────────────────────────────────────────────────
 
 export const brands = pgTable(
   "brands",

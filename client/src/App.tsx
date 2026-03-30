@@ -18,6 +18,7 @@ const AddListingPage = lazy(() => import("@/pages/AddListingPage"));
 const ProfilePage = lazy(() => import("@/pages/ProfilePage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const AdminPage = lazy(() => import("@/pages/AdminPage"));
+const DealerPage = lazy(() => import("@/pages/DealerPage"));
 const PricingPage = lazy(() => import("@/pages/PricingPage"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
 const AboutPage = lazy(() => import("@/pages/AboutPage"));
@@ -104,6 +105,12 @@ const SuspenseCebiaReturn = memo(() => (
     <CebiaReturnPage />
   </Suspense>
 ));
+const SuspenseDealer = memo(() => (
+  <Suspense fallback={<PageLoader />}>
+    <DealerPage />
+  </Suspense>
+));
+
 const SuspenseNotFound = memo(() => (
   <Suspense fallback={<PageLoader />}>
     <NotFound />
@@ -122,6 +129,7 @@ function Router() {
         <Route path="/profile" component={SuspenseProfile} />
         <Route path="/settings" component={SuspenseSettings} />
         <Route path="/admin" component={SuspenseAdmin} />
+        <Route path="/dealer" component={SuspenseDealer} />
         <Route path="/pricing" component={SuspensePricing} />
         <Route path="/privacy" component={SuspensePrivacy} />
         <Route path="/about" component={SuspenseAbout} />

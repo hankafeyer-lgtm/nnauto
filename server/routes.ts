@@ -10,6 +10,8 @@ import {
   models as modelsTable,
   modelGenerations as modelGenerationsTable,
   users as usersTable,
+  dealers as dealersTable,
+  bulkImportJobs as bulkImportJobsTable,
   insertListingSchema,
   updateListingSchema,
   insertUserSchema,
@@ -18,12 +20,14 @@ import {
   changePasswordSchema,
   verifyEmailSchema,
   changeEmailSchema,
+  insertDealerSchema,
+  updateDealerSchema,
 } from "@shared/schema";
 import { POPULAR_BRAND_MODEL_CATALOG } from "@shared/brandModelCatalog";
 import { MODEL_GENERATION_CATALOG } from "@shared/modelGenerationCatalog";
 import { carBrands, carModels } from "@shared/carDatabase";
 import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
-import { setupAuth, isAuthenticated, isAdmin } from "./auth";
+import { setupAuth, isAuthenticated, isAdmin, isDealer } from "./auth";
 import "./types";
 import bcrypt from "bcrypt";
 import {
@@ -197,6 +201,53 @@ const getViewerFingerprint = (req: Request): string => {
   return `v1_${stableHash(
     `${sessionUserId}|${sessionId}|${ip}|${ua}|${acceptLanguage}`,
   )}`;
+};
+
+const ensureDealerTables = async () => {
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS dealers (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      owner_id VARCHAR NOT NULL,
+      company_name TEXT NOT NULL,
+      ico VARCHAR(20),
+      dic VARCHAR(20),
+      description TEXT,
+      logo_url TEXT,
+      website TEXT,
+      phone VARCHAR,
+      email VARCHAR,
+      address TEXT,
+      region TEXT,
+      is_verified BOOLEAN NOT NULL DEFAULT false,
+      max_listings INTEGER NOT NULL DEFAULT 50,
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      updated_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS dealers_owner_id_idx ON dealers (owner_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS dealers_region_idx ON dealers (region)`);
+
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_dealer BOOLEAN NOT NULL DEFAULT false`);
+  await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS dealer_id VARCHAR`);
+
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS bulk_import_jobs (
+      id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+      dealer_id VARCHAR NOT NULL,
+      user_id VARCHAR NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'pending',
+      total_rows INTEGER NOT NULL DEFAULT 0,
+      processed_rows INTEGER NOT NULL DEFAULT 0,
+      success_rows INTEGER NOT NULL DEFAULT 0,
+      failed_rows INTEGER NOT NULL DEFAULT 0,
+      errors JSONB,
+      file_name TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT now(),
+      updated_at TIMESTAMP NOT NULL DEFAULT now()
+    )
+  `);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS bulk_import_jobs_dealer_id_idx ON bulk_import_jobs (dealer_id)`);
+  await db.execute(sql`CREATE INDEX IF NOT EXISTS bulk_import_jobs_status_idx ON bulk_import_jobs (status)`);
 };
 
 const ensureListingAnalyticsTable = async () => {
@@ -1863,6 +1914,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   void (async () => {
     try {
+      await ensureDealerTables();
       await ensureListingAnalyticsTable();
       await ensureListingsIndexes();
       await ensureBrandModelCatalog();
@@ -6691,6 +6743,348 @@ Disallow: /add-listing
 
 Sitemap: https://nnauto.cz/sitemap.xml
 `);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DEALER ROUTES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Register as dealer (authenticated user creates a dealer profile)
+  app.post("/api/dealer/register", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      if (user.isDealer) return res.status(400).json({ message: "User is already a dealer" });
+
+      const parsed = insertDealerSchema.safeParse({ ...req.body, ownerId: userId });
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Validation failed", errors: parsed.error.flatten() });
+      }
+
+      const dealer = await storage.createDealer(parsed.data);
+
+      await db
+        .update(usersTable)
+        .set({ isDealer: true, dealerId: dealer.id, updatedAt: new Date() })
+        .where(eq(usersTable.id, userId));
+
+      res.json({ dealer });
+    } catch (error: any) {
+      console.error("[dealer/register]", error);
+      res.status(500).json({ message: "Failed to register dealer" });
+    }
+  });
+
+  // Get current dealer profile
+  app.get("/api/dealer/profile", isDealer, async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user?.dealerId) return res.status(404).json({ message: "Dealer not found" });
+
+      const dealer = await storage.getDealer(user.dealerId);
+      if (!dealer) return res.status(404).json({ message: "Dealer not found" });
+
+      res.json({ dealer });
+    } catch (error: any) {
+      console.error("[dealer/profile]", error);
+      res.status(500).json({ message: "Failed to fetch dealer profile" });
+    }
+  });
+
+  // Update dealer profile
+  app.patch("/api/dealer/profile", isDealer, async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user?.dealerId) return res.status(404).json({ message: "Dealer not found" });
+
+      const parsed = updateDealerSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Validation failed", errors: parsed.error.flatten() });
+      }
+
+      const dealer = await storage.updateDealer(user.dealerId, parsed.data);
+      res.json({ dealer });
+    } catch (error: any) {
+      console.error("[dealer/profile PATCH]", error);
+      res.status(500).json({ message: "Failed to update dealer profile" });
+    }
+  });
+
+  // Get dealer stats (views, contacts, conversions across all listings)
+  app.get("/api/dealer/stats", isDealer, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (!user?.dealerId) return res.status(404).json({ message: "Dealer not found" });
+
+      const dealer = await storage.getDealer(user.dealerId);
+      if (!dealer) return res.status(404).json({ message: "Dealer not found" });
+
+      // Total listings count
+      const listingsCountResult = (await db.execute(sql`
+        SELECT COUNT(*)::int AS total FROM listings WHERE user_id = ${userId}
+      `)) as any;
+      const totalListings = listingsCountResult?.rows?.[0]?.total || 0;
+
+      const activeListingsResult = (await db.execute(sql`
+        SELECT COUNT(*)::int AS total FROM listings
+        WHERE user_id = ${userId} AND created_at > now() - interval '90 days'
+      `)) as any;
+      const activeListings = activeListingsResult?.rows?.[0]?.total || 0;
+
+      // Aggregate analytics across all dealer's listings
+      const analyticsResult = (await db.execute(sql`
+        SELECT
+          COUNT(*) FILTER (WHERE event_type = 'view')::int AS total_views,
+          COUNT(*) FILTER (WHERE event_type = 'contact_click')::int AS total_contacts,
+          COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS total_whatsapp
+        FROM listing_analytics_events
+        WHERE owner_user_id = ${userId}
+      `)) as any;
+      const analytics = analyticsResult?.rows?.[0] || {};
+
+      // Last 30 days analytics
+      const last30Result = (await db.execute(sql`
+        SELECT
+          COUNT(*) FILTER (WHERE event_type = 'view')::int AS views,
+          COUNT(*) FILTER (WHERE event_type = 'contact_click')::int AS contacts,
+          COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS whatsapp
+        FROM listing_analytics_events
+        WHERE owner_user_id = ${userId} AND created_at > now() - interval '30 days'
+      `)) as any;
+      const last30 = last30Result?.rows?.[0] || {};
+
+      // Per-listing breakdown (top 20 by views)
+      const perListingResult = (await db.execute(sql`
+        SELECT
+          lae.listing_id,
+          l.title,
+          l.brand,
+          l.model,
+          l.price,
+          (SELECT (l.photos)[1]) AS photo,
+          COUNT(*) FILTER (WHERE lae.event_type = 'view')::int AS views,
+          COUNT(*) FILTER (WHERE lae.event_type = 'contact_click')::int AS contacts,
+          COUNT(*) FILTER (WHERE lae.event_type = 'whatsapp_click')::int AS whatsapp
+        FROM listing_analytics_events lae
+        JOIN listings l ON l.id = lae.listing_id
+        WHERE lae.owner_user_id = ${userId}
+        GROUP BY lae.listing_id, l.title, l.brand, l.model, l.price, l.photos
+        ORDER BY views DESC
+        LIMIT 20
+      `)) as any;
+      const perListing = perListingResult?.rows || [];
+
+      res.json({
+        dealer,
+        stats: {
+          totalListings,
+          activeListings,
+          totalViews: analytics.total_views || 0,
+          totalContacts: analytics.total_contacts || 0,
+          totalWhatsapp: analytics.total_whatsapp || 0,
+          conversionRate: analytics.total_views
+            ? (((analytics.total_contacts || 0) + (analytics.total_whatsapp || 0)) / analytics.total_views * 100).toFixed(1)
+            : "0.0",
+          last30Days: {
+            views: last30.views || 0,
+            contacts: last30.contacts || 0,
+            whatsapp: last30.whatsapp || 0,
+          },
+          perListing,
+        },
+      });
+    } catch (error: any) {
+      console.error("[dealer/stats]", error);
+      res.status(500).json({ message: "Failed to fetch dealer stats" });
+    }
+  });
+
+  // Get dealer's listings (with analytics)
+  app.get("/api/dealer/listings", isDealer, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const result = (await db.execute(sql`
+        SELECT l.*,
+          COALESCE(a.views, 0)::int AS views,
+          COALESCE(a.contacts, 0)::int AS contacts,
+          COALESCE(a.whatsapp, 0)::int AS whatsapp
+        FROM listings l
+        LEFT JOIN (
+          SELECT
+            listing_id,
+            COUNT(*) FILTER (WHERE event_type = 'view') AS views,
+            COUNT(*) FILTER (WHERE event_type = 'contact_click') AS contacts,
+            COUNT(*) FILTER (WHERE event_type = 'whatsapp_click') AS whatsapp
+          FROM listing_analytics_events
+          GROUP BY listing_id
+        ) a ON a.listing_id = l.id
+        WHERE l.user_id = ${userId}
+        ORDER BY l.created_at DESC
+      `)) as any;
+
+      res.json({ listings: result?.rows || [] });
+    } catch (error: any) {
+      console.error("[dealer/listings]", error);
+      res.status(500).json({ message: "Failed to fetch dealer listings" });
+    }
+  });
+
+  // Bulk import listings (CSV/JSON format)
+  app.post("/api/dealer/bulk-import", isDealer, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId!;
+      const user = await storage.getUser(userId);
+      if (!user?.dealerId) return res.status(404).json({ message: "Dealer not found" });
+
+      const { listings: listingsData, fileName } = req.body;
+      if (!Array.isArray(listingsData) || listingsData.length === 0) {
+        return res.status(400).json({ message: "No listings data provided" });
+      }
+      if (listingsData.length > 50) {
+        return res.status(400).json({ message: "Maximum 50 listings per import" });
+      }
+
+      // Check dealer listing limit
+      const countResult = (await db.execute(sql`
+        SELECT COUNT(*)::int AS total FROM listings WHERE user_id = ${userId}
+      `)) as any;
+      const currentCount = countResult?.rows?.[0]?.total || 0;
+      const dealer = await storage.getDealer(user.dealerId);
+      if (!dealer) return res.status(404).json({ message: "Dealer not found" });
+
+      if (currentCount + listingsData.length > dealer.maxListings) {
+        return res.status(400).json({
+          message: `Exceeds listing limit. Current: ${currentCount}, Importing: ${listingsData.length}, Max: ${dealer.maxListings}`,
+        });
+      }
+
+      const job = await storage.createBulkImportJob({
+        dealerId: user.dealerId,
+        userId,
+        totalRows: listingsData.length,
+        fileName: fileName || "manual-import",
+      });
+
+      // Process listings asynchronously
+      (async () => {
+        let successCount = 0;
+        let failCount = 0;
+        const errors: Array<{ row: number; error: string }> = [];
+
+        for (let i = 0; i < listingsData.length; i++) {
+          try {
+            const item = listingsData[i];
+            const listingData = {
+              ...item,
+              userId,
+              sellerType: "dealer",
+            };
+
+            const parsed = insertListingSchema.safeParse(listingData);
+            if (!parsed.success) {
+              const errorMsg = parsed.error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join("; ");
+              errors.push({ row: i + 1, error: errorMsg });
+              failCount++;
+            } else {
+              await storage.createListing(parsed.data);
+              successCount++;
+            }
+          } catch (e: any) {
+            errors.push({ row: i + 1, error: e.message || "Unknown error" });
+            failCount++;
+          }
+
+          await storage.updateBulkImportJob(job.id, {
+            processedRows: i + 1,
+            successRows: successCount,
+            failedRows: failCount,
+            status: i === listingsData.length - 1 ? "completed" : "processing",
+            errors: errors.length > 0 ? errors : null,
+          });
+        }
+      })();
+
+      res.json({ job: { id: job.id, status: "processing", totalRows: listingsData.length } });
+    } catch (error: any) {
+      console.error("[dealer/bulk-import]", error);
+      res.status(500).json({ message: "Failed to start bulk import" });
+    }
+  });
+
+  // Get bulk import job status
+  app.get("/api/dealer/bulk-import/:jobId", isDealer, async (req: Request, res: Response) => {
+    try {
+      const job = await storage.getBulkImportJob(req.params.jobId);
+      if (!job) return res.status(404).json({ message: "Job not found" });
+      if (job.userId !== req.session.userId) return res.status(403).json({ message: "Forbidden" });
+      res.json({ job });
+    } catch (error: any) {
+      console.error("[dealer/bulk-import/:jobId]", error);
+      res.status(500).json({ message: "Failed to fetch import job" });
+    }
+  });
+
+  // Get all import jobs for current dealer
+  app.get("/api/dealer/bulk-imports", isDealer, async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUser(req.session.userId!);
+      if (!user?.dealerId) return res.status(404).json({ message: "Dealer not found" });
+      const jobs = await storage.getBulkImportJobsByDealer(user.dealerId);
+      res.json({ jobs });
+    } catch (error: any) {
+      console.error("[dealer/bulk-imports]", error);
+      res.status(500).json({ message: "Failed to fetch import jobs" });
+    }
+  });
+
+  // Public: get dealer info by ID (for listing pages)
+  app.get("/api/dealers/:id", async (req: Request, res: Response) => {
+    try {
+      const dealer = await storage.getDealer(req.params.id);
+      if (!dealer) return res.status(404).json({ message: "Dealer not found" });
+      res.json({
+        dealer: {
+          id: dealer.id,
+          companyName: dealer.companyName,
+          description: dealer.description,
+          logoUrl: dealer.logoUrl,
+          website: dealer.website,
+          phone: dealer.phone,
+          email: dealer.email,
+          address: dealer.address,
+          region: dealer.region,
+          isVerified: dealer.isVerified,
+        },
+      });
+    } catch (error: any) {
+      console.error("[dealers/:id]", error);
+      res.status(500).json({ message: "Failed to fetch dealer" });
+    }
+  });
+
+  // Admin: list all dealers
+  app.get("/api/admin/dealers", isAdmin, async (_req: Request, res: Response) => {
+    try {
+      const allDealers = await storage.getAllDealers();
+      res.json({ dealers: allDealers });
+    } catch (error: any) {
+      console.error("[admin/dealers]", error);
+      res.status(500).json({ message: "Failed to fetch dealers" });
+    }
+  });
+
+  // Admin: verify/update dealer
+  app.patch("/api/admin/dealers/:id", isAdmin, async (req: Request, res: Response) => {
+    try {
+      const dealer = await storage.updateDealer(req.params.id, req.body);
+      if (!dealer) return res.status(404).json({ message: "Dealer not found" });
+      res.json({ dealer });
+    } catch (error: any) {
+      console.error("[admin/dealers/:id PATCH]", error);
+      res.status(500).json({ message: "Failed to update dealer" });
+    }
   });
 
   const httpServer = createServer(app);

@@ -30,6 +30,7 @@ import {
   History,
   Star,
   Shield,
+  Building2,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -754,6 +755,14 @@ function HeaderContent({
                     {user?.isAdmin && (
                       <>
                         <DropdownMenuSeparator className="my-2" />
+                        <DropdownMenuItem
+                          onClick={() => navigate("/dealer")}
+                          className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
+                          data-testid="menu-item-dealer"
+                        >
+                          <Building2 className="mr-3 h-5 w-5" />
+                          <span>{t("dealer.cabinet")}</span>
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => navigate("/admin")}
                           className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
