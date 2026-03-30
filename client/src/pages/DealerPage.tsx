@@ -1,6 +1,9 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/lib/translations";
+import type { Listing } from "@shared/schema";
+
+const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -140,6 +143,8 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editingListing, setEditingListing] = useState<Listing | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -154,6 +159,17 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
       toast({ title: "Error", variant: "destructive" });
     },
   });
+
+  const handleEdit = useCallback(async (listingId: string) => {
+    try {
+      const res = await apiRequest("GET", `/api/listings/${listingId}`);
+      const data = await res.json();
+      setEditingListing(data);
+      setEditDialogOpen(true);
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
+    }
+  }, [toast]);
 
   return (
     <div className="space-y-6">
@@ -270,7 +286,7 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-amber-700 hover:text-amber-900 hover:bg-amber-50"
-                      onClick={() => navigate(`/listing/${item.listing_id}?edit=true`)}
+                      onClick={() => handleEdit(item.listing_id)}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
@@ -307,6 +323,22 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {editingListing && (
+        <Suspense fallback={null}>
+          <EditListingDialog
+            open={editDialogOpen}
+            onOpenChange={(open: boolean) => {
+              setEditDialogOpen(open);
+              if (!open) {
+                setEditingListing(null);
+                queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+              }
+            }}
+            listing={editingListing}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
