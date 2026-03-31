@@ -559,26 +559,8 @@ function CarCard({
               draggable={false}
             />
 
-            {/* Photo navigation arrows - flex container ensures proper positioning */}
             {hasMultiplePhotos && (
               <>
-                <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 z-20 flex justify-between pointer-events-none">
-                  <button
-                    onClick={handlePrevPhoto}
-                    className="bg-black/60 hover:bg-black/80 text-white rounded-full p-2 sm:p-1.5 opacity-70 sm:opacity-0 sm:group-hover/photo:opacity-100 transition-opacity duration-200 active:scale-95 pointer-events-auto touch-manipulation"
-                    data-testid={`button-prev-photo-${id}`}
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={handleNextPhoto}
-                    className="bg-black/60 hover:bg-black/80 text-white rounded-full p-2 sm:p-1.5 opacity-70 sm:opacity-0 sm:group-hover/photo:opacity-100 transition-opacity duration-200 active:scale-95 pointer-events-auto touch-manipulation"
-                    data-testid={`button-next-photo-${id}`}
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-
                 {/* Photo dots indicator */}
                 <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
                   {allPhotos.slice(0, 5).map((_, index) => (
