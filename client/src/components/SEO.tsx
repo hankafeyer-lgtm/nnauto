@@ -22,7 +22,7 @@ const siteName = 'NNAuto';
 export function SEO({
   title,
   description = 'NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání.',
-  keywords = 'prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, nákladní vozy, autobazar, Česká republika, NNAuto, autobazar online, prodej vozidel, auto inzeráty, výkup aut',
+  keywords = 'prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, nákladní vozy, SUV, elektroauta, autobazar, Česká republika, Praha, Brno, Ostrava, NNAuto, autobazar online, prodej vozidel, auto inzeráty, výkup aut, financing auta, prodej motorek, inzerce aut, авто базар Чехія, продаж авто в Чехії, car marketplace Czech Republic, used cars Czechia, auto verkaufen Tschechien',
   image = defaultImage,
   url = baseUrl,
   type = 'website',
@@ -414,6 +414,7 @@ export function generateListingKeywords(listing: {
   condition?: string;
 }): string {
   const keywords: string[] = [
+    // Primary Czech intent
     listing.brand,
     listing.model,
     `${listing.brand} ${listing.model}`,
@@ -426,6 +427,13 @@ export function generateListingKeywords(listing: {
     'auto bazar',
     'prodej auta',
     'NNAuto',
+    // Secondary EN/DE/UK intents for multilingual traffic
+    `${listing.brand} ${listing.model} for sale`,
+    `${listing.brand} gebrauchtwagen`,
+    `${listing.brand} ${listing.model} verkauf`,
+    `${listing.brand} ${listing.model} продаж`,
+    'used cars Czech Republic',
+    'cars for sale Czechia',
   ];
   
   if (listing.bodyType) {
@@ -442,17 +450,23 @@ export function generateListingKeywords(listing: {
     keywords.push(listing.region);
     keywords.push(`auto ${listing.region}`);
     keywords.push(`${listing.brand} ${listing.region}`);
+    keywords.push(`${listing.brand} ${listing.model} ${listing.region}`);
+    keywords.push(`prodej auta ${listing.region}`);
   }
   
   if (listing.condition === 'new') {
     keywords.push('nové auto');
     keywords.push(`nový ${listing.brand}`);
+    keywords.push(`${listing.brand} nové vozy`);
   } else {
     keywords.push('ojeté auto');
     keywords.push(`ojetý ${listing.brand}`);
+    keywords.push(`${listing.brand} second hand`);
   }
   
-  return keywords.join(', ');
+  // Remove duplicates while preserving order
+  const uniq = Array.from(new Set(keywords.map((k) => k.trim()).filter(Boolean)));
+  return uniq.join(', ');
 }
 
 export default SEO;
