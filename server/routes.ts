@@ -6733,13 +6733,28 @@ ${listings
   // SEO: robots.txt fallback (in case static file not served)
   app.get("/robots.txt", (req, res) => {
     res.set("Content-Type", "text/plain");
+    res.set("Cache-Control", "public, max-age=86400");
     res.send(`# NNAuto Robots.txt
 User-agent: *
 Allow: /
 Disallow: /admin
 Disallow: /api/
 Disallow: /profile
+Disallow: /settings
+Disallow: /dealer
 Disallow: /add-listing
+Disallow: /cebia/
+
+Crawl-delay: 1
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
 
 Sitemap: https://nnauto.cz/sitemap.xml
 `);

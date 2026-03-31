@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -703,6 +704,7 @@ export default function DealerPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO title={t("dealer.cabinet")} noindex />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8 max-w-5xl">
         <div className="flex items-center gap-3 mb-6">
@@ -783,6 +785,7 @@ function DealerRegistrationPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO title={t("dealer.registerTitle")} noindex />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8 max-w-2xl">
         <Card>

@@ -14,7 +14,7 @@ interface SEOProps {
 }
 
 const baseUrl = 'https://nnauto.cz';
-const defaultImage = `${baseUrl}/og-image.jpg`;
+const defaultImage = `${baseUrl}/og-image.png`;
 const siteName = 'NNAuto';
 
 export function SEO({

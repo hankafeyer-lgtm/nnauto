@@ -4400,15 +4400,18 @@ export default function ListingsPage() {
         }
         alternateLanguages={[
           { lang: "cs", url: "https://nnauto.cz/listings" },
-          { lang: "uk", url: "https://nnauto.cz/listings" },
-          { lang: "en", url: "https://nnauto.cz/listings" },
-          { lang: "de", url: "https://nnauto.cz/listings" },
+          { lang: "uk", url: "https://nnauto.cz/listings?lang=uk" },
+          { lang: "en", url: "https://nnauto.cz/listings?lang=en" },
+          { lang: "de", url: "https://nnauto.cz/listings?lang=de" },
         ]}
         structuredData={listingsSchema}
       />
 
       <Header />
 
+      <h1 className="sr-only">
+        {seoTitles[language as keyof typeof seoTitles] || seoTitles.cs}
+      </h1>
       <div className="border-b bg-card">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between gap-4 py-4">

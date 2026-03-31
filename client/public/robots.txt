@@ -7,7 +7,10 @@ Disallow: /admin
 Disallow: /admin/*
 Disallow: /api/
 Disallow: /profile
+Disallow: /settings
+Disallow: /dealer
 Disallow: /add-listing
+Disallow: /cebia/
 Disallow: /*.json$
 
 # Allow important pages
