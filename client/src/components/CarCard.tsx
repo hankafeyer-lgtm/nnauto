@@ -536,9 +536,9 @@ function CarCard({
             className="relative bg-muted group/photo touch-pan-y min-w-0 shrink-0 h-[240px] sm:h-[260px] lg:h-[220px] overflow-hidden"
             onMouseEnter={() => setShouldPreloadGallery(true)}
             onPointerDown={handlePrimeOpen}
-            onTouchStart={hasMultiplePhotos ? handleTouchStart : undefined}
-            onTouchMove={hasMultiplePhotos ? handleTouchMove : undefined}
-            onTouchEnd={hasMultiplePhotos ? handleTouchEnd : undefined}
+            onTouchStart={undefined}
+            onTouchMove={undefined}
+            onTouchEnd={undefined}
           >
             {!imageLoaded && !imageError && (
               <div className="absolute inset-0 bg-gradient-to-r from-muted via-muted/80 to-muted animate-pulse" />
@@ -560,34 +560,9 @@ function CarCard({
             />
 
             {hasMultiplePhotos && (
-              <>
-                {/* Photo dots indicator */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex gap-1.5">
-                  {allPhotos.slice(0, 5).map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setShouldPreloadGallery(true);
-                        setCurrentPhotoIndex(index);
-                        setImageLoaded(false);
-                      }}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        currentPhotoIndex === index
-                          ? "bg-white scale-110"
-                          : "bg-white/50 hover:bg-white/75"
-                      }`}
-                      data-testid={`button-photo-dot-${id}-${index}`}
-                    />
-                  ))}
-                  {allPhotos.length > 5 && (
-                    <span className="text-white text-xs font-medium ml-1">
-                      +{allPhotos.length - 5}
-                    </span>
-                  )}
-                </div>
-              </>
+              <div className="absolute bottom-2 left-2 z-20 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
+                {allPhotos.length} foto
+              </div>
             )}
 
             {/* Favorites Button - on photo bottom-right */}
