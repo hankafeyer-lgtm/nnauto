@@ -180,7 +180,7 @@ export function generateVehicleSchema(listing: {
 
   const images = listing.photos && listing.photos.length > 0 
     ? listing.photos.map(p => `${baseUrl}/objects/${p.replace(/^\/+/, '')}`)
-    : [`${baseUrl}/og-image.jpg`];
+    : [`${baseUrl}/og-image.png`];
 
   return {
     "@context": "https://schema.org",

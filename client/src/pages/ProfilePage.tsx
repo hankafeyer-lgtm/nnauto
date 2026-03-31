@@ -686,6 +686,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { SEO } from "@/components/SEO";
 import { AvatarUploader } from "@/components/AvatarUploader";
 import { Badge } from "@/components/ui/badge";
 
@@ -1150,6 +1151,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEO title={t("profile.title")} noindex />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8 sm:py-12">
         <div className="max-w-3xl mx-auto space-y-6">

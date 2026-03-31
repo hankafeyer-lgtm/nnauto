@@ -9,8 +9,9 @@ export default function PrivacyPolicyPage() {
     <div className="min-h-screen flex flex-col">
       <SEO
         title="Ochrana osobních údajů"
-        description="Informace o zpracování osobních údajů, cookies a právech uživatelů na NNAuto."
+        description="Informace o zpracování osobních údajů, zásady ochrany soukromí, cookies a právech uživatelů na NNAuto.cz."
         url="https://nnauto.cz/privacy"
+        keywords="ochrana osobních údajů, GDPR, soukromí, cookies, NNAuto, zásady ochrany"
       />
       <Header />
       

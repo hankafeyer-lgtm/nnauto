@@ -6643,6 +6643,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const normalizePhotoPath = (p: string) =>
         String(p ?? "").replace(/^\/+/, "");
 
+      const hreflangBlock = (path: string) => `
+    <xhtml:link rel="alternate" hreflang="cs" href="${baseUrl}${path}" />
+    <xhtml:link rel="alternate" hreflang="uk" href="${baseUrl}${path}${path.includes("?") ? "&" : "?"}lang=uk" />
+    <xhtml:link rel="alternate" hreflang="en" href="${baseUrl}${path}${path.includes("?") ? "&" : "?"}lang=en" />
+    <xhtml:link rel="alternate" hreflang="de" href="${baseUrl}${path}${path.includes("?") ? "&" : "?"}lang=de" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="${baseUrl}${path}" />`;
+
       let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
@@ -6652,32 +6659,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     <loc>${baseUrl}/</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="cs" href="${baseUrl}/" />
-    <xhtml:link rel="alternate" hreflang="uk" href="${baseUrl}/?lang=uk" />
-    <xhtml:link rel="alternate" hreflang="en" href="${baseUrl}/?lang=en" />
-    <xhtml:link rel="alternate" hreflang="de" href="${baseUrl}/?lang=de" />
+    <priority>1.0</priority>${hreflangBlock("/")}
   </url>
 
   <url>
     <loc>${baseUrl}/listings</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>hourly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.9</priority>${hreflangBlock("/listings")}
   </url>
 
   <url>
     <loc>${baseUrl}/about</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.6</priority>${hreflangBlock("/about")}
   </url>
 
   <url>
     <loc>${baseUrl}/tips</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.5</priority>${hreflangBlock("/tips")}
   </url>
 
   <url>
@@ -6691,7 +6694,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     <loc>${baseUrl}/pricing</loc>
     <lastmod>${currentDate}</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.7</priority>${hreflangBlock("/pricing")}
   </url>
 
 ${listings
@@ -6700,21 +6703,19 @@ ${listings
       ? new Date(listing.updatedAt).toISOString().split("T")[0]
       : currentDate;
 
-    const hasPhoto = Array.isArray(listing.photos) && listing.photos.length > 0;
-
-    const imageBlock = hasPhoto
-      ? `
+    const photos = Array.isArray(listing.photos) ? listing.photos.filter(Boolean) : [];
+    const imageBlocks = photos.slice(0, 5).map((photo: string) => `
     <image:image>
-      <image:loc>${baseUrl}/objects/${normalizePhotoPath(listing.photos[0])}</image:loc>
+      <image:loc>${baseUrl}/objects/${normalizePhotoPath(photo)}</image:loc>
       <image:title>${xmlEscape(`${listing.year} ${listing.brand} ${listing.model}`)}</image:title>
-    </image:image>`
-      : "";
+      <image:caption>${xmlEscape(listing.title || `${listing.brand} ${listing.model}`)}</image:caption>
+    </image:image>`).join("");
 
     return `  <url>
     <loc>${baseUrl}/listing/${xmlEscape(listing.id)}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.8</priority>${imageBlock}
+    <priority>0.8</priority>${imageBlocks}
   </url>`;
   })
   .join("\n")}

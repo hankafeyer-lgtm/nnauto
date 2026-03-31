@@ -14,6 +14,7 @@ export default function TipsPage() {
         title={t("tips.title")}
         description={t("tips.subtitle")}
         url="https://nnauto.cz/tips"
+        keywords="tipy prodej auta, jak prodat auto, rady pro prodej, autobazar tipy, NNAuto tipy, prodej vozidla rady"
       />
       <Header />
       

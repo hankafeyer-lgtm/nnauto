@@ -25,6 +25,11 @@
       content="prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, nákladní vozy, autobazar, Česká republika, NNAuto, prémiový marketplace, auto inzerce"
     />
     <link rel="canonical" href="https://nnauto.cz/" />
+    <link rel="alternate" hreflang="cs" href="https://nnauto.cz/" />
+    <link rel="alternate" hreflang="uk" href="https://nnauto.cz/?lang=uk" />
+    <link rel="alternate" hreflang="en" href="https://nnauto.cz/?lang=en" />
+    <link rel="alternate" hreflang="de" href="https://nnauto.cz/?lang=de" />
+    <link rel="alternate" hreflang="x-default" href="https://nnauto.cz/" />
     <meta name="author" content="NNAuto" />
     <meta
       name="robots"
@@ -203,27 +208,46 @@
       {
         "@context": "https://schema.org",
         "@type": "AutoDealer",
-        "name": "NNAuto Marketplace",
+        "name": "NNAuto",
+        "alternateName": "NNAuto.cz",
         "url": "https://nnauto.cz",
-        "description": "Online marketplace pro nákup a prodej automobilů",
+        "logo": "https://nnauto.cz/logo-512.png",
+        "image": "https://nnauto.cz/og-image.png",
+        "description": "Prémiový online marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů.",
         "address": {
           "@type": "PostalAddress",
-          "addressCountry": "CZ"
+          "addressCountry": "CZ",
+          "addressLocality": "Praha"
+        },
+        "geo": {
+          "@type": "GeoCoordinates",
+          "latitude": "49.8175",
+          "longitude": "15.4730"
+        },
+        "areaServed": {
+          "@type": "Country",
+          "name": "CZ"
         },
         "priceRange": "$$",
+        "currenciesAccepted": "CZK",
+        "paymentAccepted": "Credit Card, Bank Transfer",
         "openingHoursSpecification": {
           "@type": "OpeningHoursSpecification",
-          "dayOfWeek": [
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-            "Sunday"
-          ],
+          "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
           "opens": "00:00",
           "closes": "23:59"
+        },
+        "sameAs": [],
+        "knowsLanguage": ["cs", "uk", "en", "de"],
+        "hasOfferCatalog": {
+          "@type": "OfferCatalog",
+          "name": "Automobily a motocykly",
+          "itemListElement": [
+            {"@type": "OfferCatalog", "name": "Osobní auta", "url": "https://nnauto.cz/listings?vehicleType=osobni-auta"},
+            {"@type": "OfferCatalog", "name": "Motocykly", "url": "https://nnauto.cz/listings?vehicleType=motorky"},
+            {"@type": "OfferCatalog", "name": "Nákladní vozy", "url": "https://nnauto.cz/listings?vehicleType=nakladni-vozy"},
+            {"@type": "OfferCatalog", "name": "SUV / Offroad", "url": "https://nnauto.cz/listings?vehicleType=suv-offroad"}
+          ]
         }
       }
     </script>
@@ -234,18 +258,24 @@
         "@context": "https://schema.org",
         "@type": "BreadcrumbList",
         "itemListElement": [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Domů",
-            "item": "https://nnauto.cz/"
-          },
-          {
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Inzeráty",
-            "item": "https://nnauto.cz/listings"
-          }
+          {"@type": "ListItem", "position": 1, "name": "Domů", "item": "https://nnauto.cz/"},
+          {"@type": "ListItem", "position": 2, "name": "Inzeráty", "item": "https://nnauto.cz/listings"}
+        ]
+      }
+    </script>
+
+    <!-- SiteNavigationElement -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "ItemList",
+        "name": "Navigace NNAuto",
+        "itemListElement": [
+          {"@type": "SiteNavigationElement", "position": 1, "name": "Prodej aut", "url": "https://nnauto.cz/listings"},
+          {"@type": "SiteNavigationElement", "position": 2, "name": "Přidat inzerát", "url": "https://nnauto.cz/add-listing"},
+          {"@type": "SiteNavigationElement", "position": 3, "name": "Ceník", "url": "https://nnauto.cz/pricing"},
+          {"@type": "SiteNavigationElement", "position": 4, "name": "Tipy", "url": "https://nnauto.cz/tips"},
+          {"@type": "SiteNavigationElement", "position": 5, "name": "O nás", "url": "https://nnauto.cz/about"}
         ]
       }
     </script>

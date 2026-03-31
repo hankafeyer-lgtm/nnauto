@@ -15,6 +15,7 @@ export default function AboutPage() {
         title={t("about.title")}
         description={t("about.subtitle")}
         url="https://nnauto.cz/about"
+        keywords="o nás, NNAuto, autobazar, marketplace aut, prodej aut, kdo jsme, about us"
       />
       <Header />
       

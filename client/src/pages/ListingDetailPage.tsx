@@ -4251,22 +4251,17 @@ export default function ListingDetailPage() {
 
   const seoDescription = useMemo(() => {
     if (!listing) return "";
-    return (
-      listing.description?.substring(0, 155) ||
-      `Prodej ${listing.year} ${listing.brand} ${
-        listing.model
-      }. Najeto ${listing.mileage.toLocaleString("cs-CZ")} km. ${
-        listing.fuelType?.[0] || ""
-      }, ${listing.transmission?.[0] || ""}. Cena ${Number(
-        listing.price,
-      ).toLocaleString("cs-CZ")} Kč. ${
-        language === "cs"
-          ? "Koupit na NNAuto.cz"
-          : language === "uk"
-            ? "Купити на NNAuto.cz"
-            : "Buy on NNAuto.cz"
-      }`
-    );
+    const price = Number(listing.price).toLocaleString("cs-CZ");
+    const km = listing.mileage.toLocaleString("cs-CZ");
+    const fuel = listing.fuelType?.[0] || "";
+    const trans = listing.transmission?.[0] || "";
+    const power = listing.power ? `, ${listing.power} kW` : "";
+    const engine = listing.engineVolume ? ` ${listing.engineVolume}l` : "";
+    const region = listing.region ? `, ${listing.region}` : "";
+    const base = `${listing.year} ${listing.brand} ${listing.model}${engine}${power}. ${km} km, ${fuel}, ${trans}. ${price} Kč${region}.`;
+    const cta = language === "cs" ? "Koupit na NNAuto.cz" : language === "uk" ? "Купити на NNAuto.cz" : language === "de" ? "Kaufen auf NNAuto.cz" : "Buy on NNAuto.cz";
+    const desc = listing.description ? listing.description.substring(0, 100).replace(/\n/g, " ") + "..." : "";
+    return `${base} ${desc} ${cta}`.substring(0, 160);
   }, [listing, language]);
 
   const seoImage = useMemo(() => {
