@@ -1,9 +1,17 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { SEO } from "@/components/SEO";
+import { SEO, generateFAQSchema } from "@/components/SEO";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Camera, FileText, DollarSign, Users, CheckCircle, AlertCircle, Clock, TrendingUp } from "lucide-react";
 import { useTranslation } from "@/lib/translations";
+
+const tipsFaqSchema = generateFAQSchema([
+  { question: "Jak rychle prodat auto?", answer: "Nastavte konkurenceschopnou cenu, přidejte kvalitní fotky ze všech úhlů, napište podrobný popis s kompletní historií servisu a odpovídejte na dotazy co nejrychleji." },
+  { question: "Kolik stojí inzerát na NNAuto?", answer: "Základní inzerát začíná od 60 Kč. Prémiové balíčky s TOP pozicí a dalšími funkcemi jsou dostupné od 370 Kč." },
+  { question: "Jak nafotit auto pro inzerát?", answer: "Foťte za denního světla, čisté auto, ze všech stran včetně interiéru. Použijte minimálně 10 fotek. Zahrňte detail motoru, tachometr a případné poškození." },
+  { question: "Jakou cenu nastavit při prodeji auta?", answer: "Porovnejte ceny podobných aut na trhu. Zohledněte rok, najeto km, stav a výbavu. Nechte si prostor pro vyjednávání - nastavte cenu o 5-10% výš." },
+  { question: "Je důležitý popis inzerátu?", answer: "Ano, detailní popis zvyšuje důvěru kupujících. Uveďte historii servisu, výbavu, stav, důvod prodeje a vše relevantní. Čím víc informací, tím víc zájemců." },
+]);
 
 export default function TipsPage() {
   const t = useTranslation();
@@ -15,6 +23,7 @@ export default function TipsPage() {
         description={t("tips.subtitle")}
         url="https://nnauto.cz/tips"
         keywords="tipy prodej auta, jak prodat auto, rady pro prodej, autobazar tipy, NNAuto tipy, prodej vozidla rady"
+        structuredData={tipsFaqSchema}
       />
       <Header />
       

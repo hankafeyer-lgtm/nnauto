@@ -365,17 +365,31 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- Noscript fallback for SEO -->
+    <!-- Noscript fallback with navigation for crawlers -->
     <noscript>
-      <div style="padding: 20px; text-align: center">
-        <h1>NNAuto - Prémiový Marketplace Aut</h1>
-        <p>
-          Pro plnou funkčnost stránky povolte JavaScript ve vašem prohlížeči.
+      <div style="padding: 40px 20px; max-width: 800px; margin: 0 auto; font-family: system-ui, sans-serif">
+        <h1 style="font-size: 28px; margin-bottom: 16px">NNAuto - Prémiový Marketplace Aut v České Republice</h1>
+        <p style="font-size: 16px; color: #555; margin-bottom: 24px">
+          NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice.
+          Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání. Najděte své vysněné auto ještě dnes!
         </p>
-        <p>
-          NNAuto je prémiový marketplace pro nákup a prodej automobilů,
-          motocyklů a nákladních vozidel v České republice.
-        </p>
+        <nav style="margin-bottom: 24px">
+          <h2 style="font-size: 18px; margin-bottom: 12px">Navigace</h2>
+          <ul style="list-style: none; padding: 0">
+            <li style="margin-bottom: 8px"><a href="/" style="color: #92400e">Domů</a></li>
+            <li style="margin-bottom: 8px"><a href="/listings" style="color: #92400e">Hledat vozidla - Inzeráty aut a motocyklů</a></li>
+            <li style="margin-bottom: 8px"><a href="/listings?vehicleType=osobni-auta" style="color: #92400e">Osobní auta</a></li>
+            <li style="margin-bottom: 8px"><a href="/listings?vehicleType=motorky" style="color: #92400e">Motocykly</a></li>
+            <li style="margin-bottom: 8px"><a href="/listings?vehicleType=nakladni-vozy" style="color: #92400e">Nákladní vozy</a></li>
+            <li style="margin-bottom: 8px"><a href="/listings?vehicleType=suv-offroad" style="color: #92400e">SUV / Offroad</a></li>
+            <li style="margin-bottom: 8px"><a href="/add-listing" style="color: #92400e">Přidat inzerát</a></li>
+            <li style="margin-bottom: 8px"><a href="/pricing" style="color: #92400e">Ceník</a></li>
+            <li style="margin-bottom: 8px"><a href="/tips" style="color: #92400e">Tipy pro prodej</a></li>
+            <li style="margin-bottom: 8px"><a href="/about" style="color: #92400e">O nás</a></li>
+            <li style="margin-bottom: 8px"><a href="/privacy" style="color: #92400e">Ochrana osobních údajů</a></li>
+          </ul>
+        </nav>
+        <p style="font-size: 14px; color: #888">Pro plnou funkčnost stránky povolte JavaScript ve vašem prohlížeči.</p>
       </div>
     </noscript>
   </body>

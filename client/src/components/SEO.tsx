@@ -11,6 +11,8 @@ interface SEOProps {
   noindex?: boolean;
   structuredData?: object;
   alternateLanguages?: { lang: string; url: string }[];
+  prevPage?: string;
+  nextPage?: string;
 }
 
 const baseUrl = 'https://nnauto.cz';
@@ -28,6 +30,8 @@ export function SEO({
   noindex = false,
   structuredData,
   alternateLanguages,
+  prevPage,
+  nextPage,
 }: SEOProps) {
   const fullTitle = title 
     ? `${title} | ${siteName}` 
@@ -72,6 +76,10 @@ export function SEO({
         <link key={lang} rel="alternate" hrefLang={lang} href={altUrl} />
       ))}
       <link rel="alternate" hrefLang="x-default" href={baseUrl} />
+      
+      {/* Pagination */}
+      {prevPage && <link rel="prev" href={prevPage} />}
+      {nextPage && <link rel="next" href={nextPage} />}
       
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={type} />

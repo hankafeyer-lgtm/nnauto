@@ -256,7 +256,7 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
                     {item.photo ? (
                       <img
                         src={`/img/${item.photo}?w=128&h=96&fit=cover`}
-                        alt=""
+                        alt={`${item.brand} ${item.model}`}
                         className="w-full h-full object-cover"
                       />
                     ) : (

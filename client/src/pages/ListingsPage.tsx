@@ -4337,30 +4337,60 @@ export default function ListingsPage() {
   };
 
   /* ----- SEO ----- */
-  // const seoDescriptions = {
-  //   cs: `Prohlédněte si ${pagination.total || ""} inzerátů aut, motocyklů a nákladních vozidel. Pokročilé filtry, snadné vyhledávání. NNAuto - prémiový marketplace vozidel.`,
-  //   uk: `Перегляньте ${pagination.total || ""} оголошень авто, мотоциклів та вантажівок. Розширені фільтри, легкий пошук. NNAuto - преміальний маркетплейс авто.`,
-  //   en: `Browse ${pagination.total || ""} car, motorcycle and truck listings. Advanced filters, easy search. NNAuto - premium vehicle marketplace.`,
-  // };
+  const vehicleTypeNames: Record<string, Record<string, string>> = {
+    "osobni-auta": { cs: "Osobní auta", uk: "Легкові авто", en: "Cars", de: "Autos" },
+    "motorky": { cs: "Motocykly", uk: "Мотоцикли", en: "Motorcycles", de: "Motorräder" },
+    "nakladni-vozy": { cs: "Nákladní vozy", uk: "Вантажівки", en: "Trucks", de: "Nutzfahrzeuge" },
+    "suv-offroad": { cs: "SUV / Offroad", uk: "SUV / Позашляховики", en: "SUV / Offroad", de: "SUV / Geländewagen" },
+    "dodavky": { cs: "Dodávky", uk: "Фургони", en: "Vans", de: "Transporter" },
+    "elektro": { cs: "Elektromobily", uk: "Електромобілі", en: "Electric Vehicles", de: "Elektrofahrzeuge" },
+  };
+
+  const activeBrand = filters.brand || "";
+  const activeVehicleType = filters.vehicleType || "";
+  const brandLabel = activeBrand ? activeBrand.charAt(0).toUpperCase() + activeBrand.slice(1) : "";
+  const vtLabel = activeVehicleType && vehicleTypeNames[activeVehicleType]
+    ? vehicleTypeNames[activeVehicleType][language] || vehicleTypeNames[activeVehicleType].cs
+    : "";
+
+  const dynamicSuffix = [brandLabel, vtLabel].filter(Boolean).join(" - ");
+  const count = listingsCount || "";
+
   const seoDescriptions = {
-    cs: `Prohlédněte si ${listingsCount || ""} inzerátů aut, motocyklů a nákladních vozidel. Pokročilé filtry, snadné vyhledávání. NNAuto - prémiový marketplace vozidel.`,
-    uk: `Перегляньте ${listingsCount || ""} оголошень авто, мотоциклів та вантажівок. Розширені фільтри, легкий пошук. NNAuto - преміальний маркетплейс авто.`,
-    en: `Browse ${listingsCount || ""} car, motorcycle and truck listings. Advanced filters, easy search. NNAuto - premium vehicle marketplace.`,
-    de: `Entdecken Sie ${listingsCount || ""} Inserate für Autos, Motorräder und Nutzfahrzeuge. Erweiterte Filter, einfache Suche. NNAuto - Premium-Fahrzeugmarktplatz.`,
+    cs: dynamicSuffix
+      ? `${dynamicSuffix}: ${count} inzerátů na NNAuto.cz. Pokročilé filtry, ověřené nabídky, snadné vyhledávání.`
+      : `Prohlédněte si ${count} inzerátů aut, motocyklů a nákladních vozidel. Pokročilé filtry, snadné vyhledávání. NNAuto - prémiový marketplace vozidel.`,
+    uk: dynamicSuffix
+      ? `${dynamicSuffix}: ${count} оголошень на NNAuto.cz. Розширені фільтри, перевірені пропозиції.`
+      : `Перегляньте ${count} оголошень авто, мотоциклів та вантажівок. Розширені фільтри, легкий пошук. NNAuto - преміальний маркетплейс авто.`,
+    en: dynamicSuffix
+      ? `${dynamicSuffix}: ${count} listings on NNAuto.cz. Advanced filters, verified offers.`
+      : `Browse ${count} car, motorcycle and truck listings. Advanced filters, easy search. NNAuto - premium vehicle marketplace.`,
+    de: dynamicSuffix
+      ? `${dynamicSuffix}: ${count} Inserate auf NNAuto.cz. Erweiterte Filter, verifizierte Angebote.`
+      : `Entdecken Sie ${count} Inserate für Autos, Motorräder und Nutzfahrzeuge. Erweiterte Filter, einfache Suche. NNAuto - Premium-Fahrzeugmarktplatz.`,
   };
 
   const seoTitles = {
-    cs: "Inzeráty vozidel - Auta, Motocykly, Nákladní vozy | NNAuto",
-    uk: "Оголошення автомобілів - Авто, Мотоцикли, Вантажівки | NNAuto",
-    en: "Vehicle Listings - Cars, Motorcycles, Trucks | NNAuto",
-    de: "Fahrzeuginserate - Autos, Motorräder, Nutzfahrzeuge | NNAuto",
+    cs: dynamicSuffix
+      ? `${dynamicSuffix} - Prodej a inzeráty | NNAuto`
+      : "Inzeráty vozidel - Auta, Motocykly, Nákladní vozy | NNAuto",
+    uk: dynamicSuffix
+      ? `${dynamicSuffix} - Продаж та оголошення | NNAuto`
+      : "Оголошення автомобілів - Авто, Мотоцикли, Вантажівки | NNAuto",
+    en: dynamicSuffix
+      ? `${dynamicSuffix} - Sale & Listings | NNAuto`
+      : "Vehicle Listings - Cars, Motorcycles, Trucks | NNAuto",
+    de: dynamicSuffix
+      ? `${dynamicSuffix} - Verkauf & Inserate | NNAuto`
+      : "Fahrzeuginserate - Autos, Motorräder, Nutzfahrzeuge | NNAuto",
   };
 
   const seoKeywords = {
-    cs: "inzeráty aut, prodej aut, bazar aut, ojetá auta, auto inzeráty, automobily na prodej, motocykly, nákladní vozy, autobazar, NNAuto",
-    uk: "оголошення авто, продаж авто, авторинок, вживані авто, автомобілі, мотоцикли, вантажівки, NNAuto",
-    en: "car listings, car sales, used cars, automobiles for sale, motorcycles, trucks, car market, NNAuto",
-    de: "Autoanzeigen, Autoverkauf, Gebrauchtwagen, Fahrzeuge zu verkaufen, Motorräder, Nutzfahrzeuge, Automarkt, NNAuto",
+    cs: `${brandLabel ? brandLabel + " prodej, " + brandLabel + " bazar, " : ""}${vtLabel ? vtLabel.toLowerCase() + " inzeráty, " : ""}inzeráty aut, prodej aut, bazar aut, ojetá auta, NNAuto`,
+    uk: `${brandLabel ? brandLabel + " продаж, " + brandLabel + " авторинок, " : ""}${vtLabel ? vtLabel.toLowerCase() + " оголошення, " : ""}оголошення авто, продаж авто, NNAuto`,
+    en: `${brandLabel ? brandLabel + " for sale, " + brandLabel + " listings, " : ""}${vtLabel ? vtLabel.toLowerCase() + " listings, " : ""}car listings, car sales, NNAuto`,
+    de: `${brandLabel ? brandLabel + " kaufen, " + brandLabel + " Inserate, " : ""}${vtLabel ? vtLabel.toLowerCase() + " Inserate, " : ""}Autoanzeigen, Autoverkauf, NNAuto`,
   };
 
   const listingsSchema =
@@ -4405,6 +4435,8 @@ export default function ListingsPage() {
           { lang: "de", url: "https://nnauto.cz/listings?lang=de" },
         ]}
         structuredData={listingsSchema}
+        prevPage={currentPage > 1 ? `https://nnauto.cz/listings?page=${currentPage - 1}` : undefined}
+        nextPage={currentPage < totalPages ? `https://nnauto.cz/listings?page=${currentPage + 1}` : undefined}
       />
 
       <Header />
