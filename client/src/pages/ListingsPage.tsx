@@ -4248,13 +4248,17 @@ export default function ListingsPage() {
     () => localizedOptions.getRegions(),
     [localizedOptions, language],
   );
+  const regionLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const region of regions) {
+      map.set(region.value, region.label);
+    }
+    return map;
+  }, [regions]);
 
   const cars = useMemo(() => {
     return sortedListings.map((listing) => {
-      const regionLabel =
-        regions.find((r) => r.value === listing.region)?.label ||
-        listing.region ||
-        "";
+      const regionLabel = regionLabelMap.get(listing.region || "") || listing.region || "";
 
       let image = sedanImage;
       const firstPhoto = listing.photos?.[0];
@@ -4294,7 +4298,7 @@ export default function ListingsPage() {
         condition: listing.isTopListing ? t("detail.topListing") : undefined,
       };
     });
-  }, [sortedListings, regions, dateLocale, t, fuelLabels, transmissionLabels]);
+  }, [sortedListings, regionLabelMap, dateLocale, t, fuelLabels, transmissionLabels]);
 
   const handleEdit = (listingId: string) => {
     const listing = listingsById.get(listingId);

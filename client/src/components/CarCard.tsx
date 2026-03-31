@@ -12,13 +12,11 @@ import {
   Loader2,
   Pencil,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useTranslation } from "@/lib/translations";
-import { useState, memo, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, memo, useRef, useEffect, useCallback } from "react";
 import { saveScrollPosition } from "@/components/ScrollToTop";
 import {
   canPrefetchHeavyResources,
@@ -91,89 +89,13 @@ function CarCard({
   const favorite = isFavorite(id);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-
-  // Touch/swipe support
-  const touchStartRef = useRef<number | null>(null);
-  const touchEndRef = useRef<number | null>(null);
-  const minSwipeDistance = 50;
   const didPrefetchRef = useRef(false);
-  const [shouldPreloadGallery, setShouldPreloadGallery] = useState(false);
 
-  // Get all photos for navigation (use photos array if available, otherwise just the main image)
+  // Catalog cards now always show only the primary image.
   const allPhotos = photos.length > 0 ? photos : [image];
   const hasMultiplePhotos = allPhotos.length > 1;
-  const currentImage = allPhotos[currentPhotoIndex] || image;
-
-  // Memoize optimized image URLs
-  const optimizedPhotos = useMemo(
-    () => allPhotos.map((photo) => getCardImageUrl(photo)),
-    [allPhotos],
-  );
-  const currentOptimizedImage =
-    optimizedPhotos[currentPhotoIndex] || getCardImageUrl(image);
-
-  const preloadedRef = useRef(false);
-
-  useEffect(() => {
-    if (!hasMultiplePhotos || !shouldPreloadGallery || preloadedRef.current) return;
-    preloadedRef.current = true;
-    optimizedPhotos.forEach((url) => {
-      const img = new Image();
-      img.src = url;
-    });
-  }, [shouldPreloadGallery, optimizedPhotos, hasMultiplePhotos]);
-
-  const handlePrevPhoto = (e: React.MouseEvent | React.TouchEvent) => {
-    if ("preventDefault" in e) e.preventDefault();
-    if ("stopPropagation" in e) e.stopPropagation();
-    setShouldPreloadGallery(true);
-    setCurrentPhotoIndex((prev) =>
-      prev === 0 ? allPhotos.length - 1 : prev - 1,
-    );
-  };
-
-  const handleNextPhoto = (e: React.MouseEvent | React.TouchEvent) => {
-    if ("preventDefault" in e) e.preventDefault();
-    if ("stopPropagation" in e) e.stopPropagation();
-    setShouldPreloadGallery(true);
-    setCurrentPhotoIndex((prev) =>
-      prev === allPhotos.length - 1 ? 0 : prev + 1,
-    );
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setShouldPreloadGallery(true);
-    touchEndRef.current = null;
-    touchStartRef.current = e.targetTouches[0].clientX;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndRef.current = e.targetTouches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStartRef.current || !touchEndRef.current) return;
-
-    const distance = touchStartRef.current - touchEndRef.current;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (hasMultiplePhotos) {
-      if (isLeftSwipe) {
-        e.preventDefault();
-        e.stopPropagation();
-        handleNextPhoto(e);
-      } else if (isRightSwipe) {
-        e.preventDefault();
-        e.stopPropagation();
-        handlePrevPhoto(e);
-      }
-    }
-
-    touchStartRef.current = null;
-    touchEndRef.current = null;
-  };
+  const primaryImage = allPhotos[0] || image;
+  const currentOptimizedImage = getCardImageUrl(primaryImage);
 
   const handleFavoriteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -534,7 +456,6 @@ function CarCard({
         >
           <div
             className="relative bg-muted group/photo touch-pan-y min-w-0 shrink-0 h-[240px] sm:h-[260px] lg:h-[220px] overflow-hidden"
-            onMouseEnter={() => setShouldPreloadGallery(true)}
             onPointerDown={handlePrimeOpen}
             onTouchStart={undefined}
             onTouchMove={undefined}
@@ -545,7 +466,7 @@ function CarCard({
             )}
             <img
               src={currentOptimizedImage}
-              srcSet={getCardSrcSet(currentImage)}
+              srcSet={getCardSrcSet(primaryImage)}
               alt={title}
               loading={priority ? "eager" : "lazy"}
               decoding="async"
