@@ -670,7 +670,7 @@ function PromotionTab({
                     <Badge variant="secondary" className="mt-1 text-[10px]">{t("dealer.promo.bestValue")}</Badge>
                   </div>
                 </div>
-                <ul className="space-y-2 text-sm">
+                <ul className="space-y-2 text-sm mb-4">
                   {[1, 2, 3].map((i) => {
                     const key = `dealer.promo.${pkg.id}.feature${i}`;
                     const text = t(key);
@@ -683,6 +683,32 @@ function PromotionTab({
                     );
                   })}
                 </ul>
+                <Button
+                  className={`w-full ${
+                    selectedPackage === pkg.id
+                      ? "bg-amber-700 hover:bg-amber-800"
+                      : pkg.id === "vip"
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPackage(pkg.id);
+                    toast({ title: `${t(`dealer.promo.${pkg.id}.title`)} ${t("dealer.promo.selected")}` });
+                  }}
+                >
+                  {selectedPackage === pkg.id ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      {t("dealer.promo.selected")}
+                    </>
+                  ) : (
+                    <>
+                      <ChevronRight className="h-4 w-4 mr-2" />
+                      {t("dealer.promo.select")}
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           );
