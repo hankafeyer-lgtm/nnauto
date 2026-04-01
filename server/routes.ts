@@ -49,58 +49,6 @@ import {
 import multer from "multer";
 import sharp from "sharp";
 
-// Watermark overlay generator (cached SVG buffer per image size)
-const watermarkCache = new Map<string, Buffer>();
-
-async function createWatermarkOverlay(width: number, height: number): Promise<Buffer> {
-  const cacheKey = `${width}x${height}`;
-  const cached = watermarkCache.get(cacheKey);
-  if (cached) return cached;
-
-  const fontSize = Math.max(16, Math.min(Math.round(width * 0.06), 64));
-  const x = Math.round(width / 2);
-  const y = Math.round(height * 0.12);
-
-  const svg = Buffer.from(`
-    <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-          <feDropShadow dx="1" dy="1" stdDeviation="2" flood-color="#000" flood-opacity="0.5"/>
-        </filter>
-      </defs>
-      <text
-        x="${x}" y="${y}"
-        text-anchor="middle"
-        font-family="Arial, Helvetica, sans-serif"
-        font-weight="700"
-        font-size="${fontSize}"
-        letter-spacing="2"
-        fill="rgba(255,255,255,0.35)"
-        filter="url(#shadow)"
-      >NNAuto.cz</text>
-    </svg>
-  `);
-
-  const overlay = await sharp(svg).png().toBuffer();
-
-  if (watermarkCache.size > 50) {
-    const first = watermarkCache.keys().next().value;
-    if (first) watermarkCache.delete(first);
-  }
-  watermarkCache.set(cacheKey, overlay);
-  return overlay;
-}
-
-async function applyWatermark(imageBuffer: Buffer): Promise<Buffer> {
-  const metadata = await sharp(imageBuffer).metadata();
-  const w = metadata.width || 800;
-  const h = metadata.height || 600;
-  const overlay = await createWatermarkOverlay(w, h);
-  return sharp(imageBuffer)
-    .composite([{ input: overlay, top: 0, left: 0 }])
-    .toBuffer();
-}
-
 // In-memory cache for optimized images
 const imageCache = new Map<
   string,
@@ -6477,8 +6425,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.sendStatus(401);
       }
 
-      // Generate cache key (wm2 = watermark version, invalidates old cache)
-      const cacheKey = `wm2-${actualKey}-w${maxWidth}-q${quality}-${format}`;
+      // Generate cache key
+      const cacheKey = `${actualKey}-w${maxWidth}-q${quality}-${format}`;
 
       // Check in-memory cache
       const cached = imageCache.get(cacheKey);
@@ -6523,24 +6471,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Apply watermark before format conversion
-      let resizedBuffer = await pipeline.png().toBuffer();
-      resizedBuffer = await applyWatermark(resizedBuffer);
-
       // Convert to requested format
       let contentType = "image/webp";
-      let formatPipeline = sharp(resizedBuffer);
       if (format === "webp") {
-        formatPipeline = formatPipeline.webp({ quality, effort: 4, smartSubsample: true });
+        pipeline = pipeline.webp({ quality, effort: 4, smartSubsample: true });
       } else if (format === "avif") {
-        formatPipeline = formatPipeline.avif({ quality, effort: 4 });
+        pipeline = pipeline.avif({ quality, effort: 4 });
         contentType = "image/avif";
       } else {
-        formatPipeline = formatPipeline.jpeg({ quality, mozjpeg: true, trellisQuantisation: true });
+        pipeline = pipeline.jpeg({ quality, mozjpeg: true, trellisQuantisation: true });
         contentType = "image/jpeg";
       }
 
-      const optimizedBuffer = await formatPipeline.toBuffer();
+      const optimizedBuffer = await pipeline.toBuffer();
 
       // Store in cache (with size limit)
       if (imageCache.size >= MAX_CACHE_SIZE) {
@@ -6602,9 +6545,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           const originalBuffer = Buffer.concat(chunks);
 
-          // Auto-rotate and apply watermark
+          // Auto-rotate based on EXIF and return
           const rotatedBuffer = await sharp(originalBuffer).rotate().toBuffer();
-          const watermarkedBuffer = await applyWatermark(rotatedBuffer);
 
           // Determine content type
           const ext = req.path.split(".").pop()?.toLowerCase();
@@ -6616,7 +6558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 : "image/jpeg";
 
           res.set("Content-Type", contentType);
-          return res.send(watermarkedBuffer);
+          return res.send(rotatedBuffer);
         } catch (rotateError) {
           console.error(
             "Error rotating image, falling back to original:",
