@@ -580,15 +580,6 @@ const PROMO_PACKAGES = [
     badge: "bg-amber-100 text-amber-700",
     boost: "+80%",
   },
-  {
-    id: "premium" as const,
-    icon: Sparkles,
-    color: "text-purple-600",
-    bg: "bg-purple-50",
-    border: "border-purple-200 hover:border-purple-400",
-    badge: "bg-purple-100 text-purple-700",
-    boost: "+120%",
-  },
 ];
 
 function PromotionTab({
@@ -619,11 +610,11 @@ function PromotionTab({
   return (
     <div className="space-y-6">
       {/* Recommendation banner */}
-      <Card className="border-purple-200 bg-gradient-to-r from-purple-50 via-white to-amber-50">
+      <Card className="border-amber-200 bg-gradient-to-r from-amber-50 via-white to-yellow-50">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="h-14 w-14 rounded-2xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-              <Sparkles className="h-7 w-7 text-purple-600" />
+            <div className="h-14 w-14 rounded-2xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <Crown className="h-7 w-7 text-amber-600" />
             </div>
             <div className="flex-1 text-center sm:text-left">
               <h3 className="font-semibold text-lg">
@@ -633,16 +624,16 @@ function PromotionTab({
                 {t("dealer.promo.recommendDescription")}
               </p>
             </div>
-            <Button className="bg-purple-600 hover:bg-purple-700 px-6 flex-shrink-0">
-              <Sparkles className="h-4 w-4 mr-2" />
-              {t("dealer.promo.activatePremium")}
+            <Button className="bg-amber-700 hover:bg-amber-800 px-6 flex-shrink-0">
+              <Crown className="h-4 w-4 mr-2" />
+              {t("dealer.promo.activateVip")}
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Promotion packages */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {PROMO_PACKAGES.map((pkg) => {
           const Icon = pkg.icon;
           return (
@@ -668,13 +659,16 @@ function PromotionTab({
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-baseline gap-1 mb-3">
-                  <span className="text-2xl font-bold">
-                    {t(`dealer.promo.${pkg.id}.price`)}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {t("dealer.promo.perListing")}
-                  </span>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3 rounded-lg bg-muted/50 text-center">
+                    <span className="text-xl font-bold">{t(`dealer.promo.${pkg.id}.price14`)}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("dealer.promo.per14days")}</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-muted/50 text-center border-2 border-amber-200">
+                    <span className="text-xl font-bold">{t(`dealer.promo.${pkg.id}.price30`)}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("dealer.promo.per30days")}</p>
+                    <Badge variant="secondary" className="mt-1 text-[10px]">{t("dealer.promo.bestValue")}</Badge>
+                  </div>
                 </div>
                 <ul className="space-y-2 text-sm">
                   {[1, 2, 3].map((i) => {
