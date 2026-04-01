@@ -94,6 +94,7 @@ export function serveStatic(app: Express) {
   app.use("*", (req, res) => {
     const indexPath = path.resolve(distPath, "index.html");
     const status = isKnownRoute(req.originalUrl) ? 200 : 404;
+    res.set("Cache-Control", "no-cache, must-revalidate");
     res.status(status).sendFile(indexPath);
   });
 }
