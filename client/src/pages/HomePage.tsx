@@ -2043,7 +2043,7 @@ import { formatDistanceToNow } from "date-fns";
 import { cs, uk, enUS, de } from "date-fns/locale";
 
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useLocation } from "wouter";
+import { useLocation } from "@/lib/navigation";
 
 import {
   ChevronLeft,
@@ -2119,6 +2119,7 @@ type ListingsResponse = {
 const ITEMS_PER_PAGE = 12;
 
 function getPageFromUrl(): number {
+  if (typeof window === "undefined") return 1;
   const sp = new URLSearchParams(window.location.search);
   const raw = sp.get("page");
   const n = raw ? Number(raw) : 1;

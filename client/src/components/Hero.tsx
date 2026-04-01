@@ -1842,7 +1842,7 @@ import { EngineRangeInput } from "@/components/EngineRangeInput";
 import { PowerRangeInput } from "@/components/PowerRangeInput";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect, useState, useRef, useMemo, memo } from "react";
-import { useLocation } from "wouter";
+import { useLocation } from "@/lib/navigation";
 import heroImage from "@assets/generated_images/Hero_background_dealership_5896f308.png";
 import convertibleIcon from "@assets/28299981-16D7-4B57-8C0A-67EE5A345CA1_1763441678210.png";
 import crossoverIcon from "@assets/0B62266D-D955-409B-96CC-D4C08E304D2E_1763441985403.png";

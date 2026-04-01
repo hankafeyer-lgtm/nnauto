@@ -13,7 +13,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation } from "@/lib/navigation";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useTranslation } from "@/lib/translations";
 import { useState, memo, useRef, useEffect, useCallback } from "react";

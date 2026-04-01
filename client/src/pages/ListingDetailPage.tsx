@@ -3049,7 +3049,7 @@
 //   );
 // }
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useRoute, useLocation, Link } from "wouter";
+import { useRoute, useLocation, Link } from "@/lib/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 import {

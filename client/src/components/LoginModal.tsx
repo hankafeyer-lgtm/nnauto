@@ -18,7 +18,7 @@ import { useTranslation } from "@/lib/translations";
 import { Eye, EyeOff, Shield, CheckCircle } from "lucide-react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import Swal from "sweetalert2";
-import { useLocation } from "wouter";
+import { useLocation } from "@/lib/navigation";
 import { consumePostAuthRedirect } from "@/lib/authRedirect";
 interface LoginModalProps {
   open: boolean;

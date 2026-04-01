@@ -9,7 +9,7 @@
 // import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 // import { Badge } from "@/components/ui/badge";
 // import { useToast } from "@/hooks/use-toast";
-// import { useLocation } from "wouter";
+// import { useLocation } from "@/lib/navigation";
 // import { Shield, Users, Car, Trash2, CreditCard, Star } from "lucide-react";
 // import { format } from "date-fns";
 // import Header from "@/components/Header";
@@ -423,7 +423,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { useLocation } from "@/lib/navigation";
 import {
   Shield,
   Users,

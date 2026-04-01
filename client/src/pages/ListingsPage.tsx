@@ -2989,7 +2989,7 @@ import {
 } from "@/components/ui/pagination";
 
 import { SearchX, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useSearch } from "wouter";
+import { useSearch } from "@/lib/navigation";
 
 import {
   useCallback,
