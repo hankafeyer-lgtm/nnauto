@@ -32,3 +32,4 @@ reports/
 
 # Cursor / local assets
 attached_assets/
+.next/

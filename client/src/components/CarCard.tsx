@@ -33,7 +33,6 @@ import {
 } from "@/lib/imageOptimizer";
 import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
-import { PhotoWatermark } from "@/components/PhotoWatermark";
 
 interface CarCardProps {
   id: string;
@@ -481,7 +480,6 @@ function CarCard({
               draggable={false}
             />
 
-            <PhotoWatermark />
 
             {hasMultiplePhotos && (
               <div className="absolute bottom-2 left-2 z-20 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">

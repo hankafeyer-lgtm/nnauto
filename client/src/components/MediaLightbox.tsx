@@ -1581,14 +1581,6 @@ export function MediaLightbox({
           />
         ) : null}
 
-        {/* Watermark — fixed position, doesn't move with zoom/pan */}
-        {!isVideoSlide && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-[9999]">
-            <span className="text-white/15 text-4xl sm:text-5xl font-bold tracking-wider rotate-[-20deg] whitespace-nowrap">
-              NNAuto.cz
-            </span>
-          </div>
-        )}
       </div>
 
       {/* Zoom indicator */}

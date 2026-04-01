@@ -3114,7 +3114,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { getListingMainTitle } from "@/lib/listingTitle";
-import { PhotoWatermark } from "@/components/PhotoWatermark";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import MobileFilters from "@/components/MobileFilters";
@@ -4445,8 +4444,6 @@ export default function ListingDetailPage() {
                                 className="w-full h-full object-cover object-center bg-muted"
                                 data-testid={`img-listing-${index}`}
                               />
-
-                              <PhotoWatermark />
 
                               <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20 z-20">
                                 <div className="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-medium">
