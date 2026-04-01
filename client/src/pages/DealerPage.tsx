@@ -592,6 +592,7 @@ function PromotionTab({
   const { toast } = useToast();
   const [selectedListing, setSelectedListing] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<Record<string, "14" | "30">>({});
   const [autoBudget, setAutoBudget] = useState(500);
   const [autoBudgetEnabled, setAutoBudgetEnabled] = useState(false);
 
@@ -660,15 +661,41 @@ function PromotionTab({
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <button
+                    type="button"
+                    className={`p-3 rounded-lg text-center transition-all cursor-pointer ${
+                      selectedDuration[pkg.id] === "14"
+                        ? `${pkg.bg} border-2 ${pkg.border.split(" ")[0]} shadow-sm`
+                        : "bg-muted/50 border-2 border-transparent hover:border-gray-200"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDuration((prev) => ({ ...prev, [pkg.id]: "14" }));
+                      setSelectedPackage(pkg.id);
+                      toast({ title: `${t(`dealer.promo.${pkg.id}.title`)} — ${t("dealer.promo.per14days")}` });
+                    }}
+                  >
                     <span className="text-xl font-bold">{t(`dealer.promo.${pkg.id}.price14`)}</span>
                     <p className="text-xs text-muted-foreground mt-0.5">{t("dealer.promo.per14days")}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/50 text-center border-2 border-amber-200">
+                  </button>
+                  <button
+                    type="button"
+                    className={`p-3 rounded-lg text-center transition-all cursor-pointer ${
+                      !selectedDuration[pkg.id] || selectedDuration[pkg.id] === "30"
+                        ? `${pkg.bg} border-2 ${pkg.border.split(" ")[0]} shadow-sm`
+                        : "bg-muted/50 border-2 border-transparent hover:border-gray-200"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDuration((prev) => ({ ...prev, [pkg.id]: "30" }));
+                      setSelectedPackage(pkg.id);
+                      toast({ title: `${t(`dealer.promo.${pkg.id}.title`)} — ${t("dealer.promo.per30days")}` });
+                    }}
+                  >
                     <span className="text-xl font-bold">{t(`dealer.promo.${pkg.id}.price30`)}</span>
                     <p className="text-xs text-muted-foreground mt-0.5">{t("dealer.promo.per30days")}</p>
                     <Badge variant="secondary" className="mt-1 text-[10px]">{t("dealer.promo.bestValue")}</Badge>
-                  </div>
+                  </button>
                 </div>
                 <ul className="space-y-2 text-sm mb-4">
                   {[1, 2, 3].map((i) => {
