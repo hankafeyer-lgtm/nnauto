@@ -3552,7 +3552,7 @@ export default function ListingDetailPage() {
     };
   }, [carouselApi]);
 
-  // Preload ALL photos on first load for instant swipe; dedupe via ref.
+  // Preload nearby photos (current + next 2) for fast swipe; rest load on demand.
   useEffect(() => {
     const len = photoKeys.length;
     if (!len) return;
@@ -3562,9 +3562,12 @@ export default function ListingDetailPage() {
     const isDesktop = isLgViewport();
     const preloadWidth = isDesktop ? 960 : 560;
     const preloadQuality = isDesktop ? 76 : 68;
+    const preloadCount = Math.min(3, len);
 
     const preload = () => {
-      for (const key of photoKeys) {
+      for (let i = 0; i < preloadCount; i++) {
+        const idx = (currentCarouselIndex + i) % len;
+        const key = photoKeys[idx];
         const url = getOptimizedImageUrl(key, {
           width: preloadWidth,
           quality: preloadQuality,
@@ -3579,20 +3582,17 @@ export default function ListingDetailPage() {
     };
 
     const idleApi = w as Window & {
-      requestIdleCallback?: (
-        cb: () => void,
-        opts?: { timeout: number },
-      ) => number;
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
       cancelIdleCallback?: (id: number) => void;
     };
     if (idleApi.requestIdleCallback) {
-      const idleId = idleApi.requestIdleCallback(preload, { timeout: 160 });
+      const idleId = idleApi.requestIdleCallback(preload, { timeout: 200 });
       return () => idleApi.cancelIdleCallback?.(idleId);
     }
-    const timeoutId = w.setTimeout(preload, 40);
+    const timeoutId = w.setTimeout(preload, 60);
     return () => w.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photoKeys.length]);
+  }, [photoKeys.length, currentCarouselIndex]);
 
   const scrollToCarouselItem = useCallback(
     (index: number) => {

@@ -181,69 +181,22 @@ const prefetchedListingDocs = new Set<string>();
 const prefetchedListingDocLinks = new Set<string>();
 const warmedListingFrames = new Set<string>();
 
-export function warmListingFrame(id: string) {
-  if (typeof window === "undefined") return;
-  if (!id) return;
-  if (!canPrefetchHeavyResources()) return;
-
-  const url = `/listing/${id}?embedded=1`;
-  if (warmedListingFrames.has(url)) return;
-  warmedListingFrames.add(url);
-
-  const iframe = document.createElement("iframe");
-  iframe.src = url;
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.tabIndex = -1;
-  iframe.style.position = "absolute";
-  iframe.style.width = "1px";
-  iframe.style.height = "1px";
-  iframe.style.opacity = "0";
-  iframe.style.pointerEvents = "none";
-  iframe.style.left = "-9999px";
-  iframe.style.top = "-9999px";
-
-  const cleanup = () => {
-    window.clearTimeout(timeout);
-    iframe.remove();
-  };
-
-  const timeout = window.setTimeout(cleanup, 5000);
-  iframe.addEventListener("load", cleanup, { once: true });
-  iframe.addEventListener("error", cleanup, { once: true });
-  document.body.appendChild(iframe);
+export function warmListingFrame(_id: string) {
+  // Disabled: hidden iframes are too heavy and cause UI jank on mobile/desktop.
+  // Navigation is fast enough with API prefetch + link rel=prefetch alone.
 }
 
-// Warm listing page document cache (helps iframe open faster on mobile)
 export function prefetchListingDocument(id: string) {
   if (typeof window === "undefined") return;
   if (!id) return;
-  const url = `/listing/${id}?embedded=1`;
+  const url = `/listing/${id}`;
 
-  if (!prefetchedListingDocLinks.has(url)) {
-    prefetchedListingDocLinks.add(url);
-    const link = document.createElement("link");
-    link.rel = "prefetch";
-    link.as = "document";
-    link.href = url;
-    document.head.appendChild(link);
-  }
+  if (prefetchedListingDocLinks.has(url)) return;
+  prefetchedListingDocLinks.add(url);
 
-  if (prefetchedListingDocs.has(url)) return;
-  prefetchedListingDocs.add(url);
-
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 6000);
-
-  fetch(url, {
-    method: "GET",
-    credentials: "include",
-    signal: controller.signal,
-    cache: "force-cache",
-  })
-    .catch(() => {
-      // Ignore warmup failures; real navigation still handles loading/errors.
-    })
-    .finally(() => {
-      window.clearTimeout(timeout);
-    });
+  const link = document.createElement("link");
+  link.rel = "prefetch";
+  link.as = "document";
+  link.href = url;
+  document.head.appendChild(link);
 }
