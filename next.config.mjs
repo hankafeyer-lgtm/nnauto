@@ -1,7 +1,10 @@
-import type { NextConfig } from "next";
-import path from "path";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
 
-const nextConfig: NextConfig = {
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -22,17 +25,17 @@ const nextConfig: NextConfig = {
   },
   turbopack: {
     resolveAlias: {
-      "@shared": path.resolve(__dirname, "shared"),
-      "@assets": path.resolve(__dirname, "attached_assets"),
-      "@lib": path.resolve(__dirname, "lib"),
+      "@shared": resolve(__dirname, "shared"),
+      "@assets": resolve(__dirname, "attached_assets"),
+      "@lib": resolve(__dirname, "lib"),
     },
   },
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@shared": path.resolve(__dirname, "shared"),
-      "@assets": path.resolve(__dirname, "attached_assets"),
-      "@lib": path.resolve(__dirname, "lib"),
+      "@shared": resolve(__dirname, "shared"),
+      "@assets": resolve(__dirname, "attached_assets"),
+      "@lib": resolve(__dirname, "lib"),
     };
     return config;
   },
