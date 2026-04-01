@@ -3049,7 +3049,7 @@
 //   );
 // }
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useRoute, useLocation, Link, useParams } from "@/lib/navigation";
+import { useLocation, Link, useParams } from "@/lib/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 import {
@@ -3179,9 +3179,11 @@ export default function ListingDetailPage() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
 
-  const nextParams = useParams();
-  const [, routeParams] = useRoute("/listing/:id");
-  const listingId = (nextParams?.id as string) || routeParams?.id;
+  const routeParams = useParams();
+  const listingId = (routeParams?.id as string) ||
+    (typeof window !== "undefined"
+      ? window.location.pathname.split("/listing/")[1]?.split("?")[0]
+      : undefined);
   const isEmbedded =
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("embedded") === "1";
