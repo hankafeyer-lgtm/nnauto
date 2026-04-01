@@ -38,7 +38,15 @@ import {
   ArrowUpRight,
   Pencil,
   Trash2,
+  Rocket,
+  Crown,
+  Star,
+  Zap,
+  Sparkles,
+  Wallet,
+  ChevronRight,
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -551,6 +559,301 @@ function BulkImportTab({ t }: { t: (key: string) => string }) {
   );
 }
 
+// ── Promotion packages ────────────────────────────────────────────────────────
+
+const PROMO_PACKAGES = [
+  {
+    id: "top" as const,
+    icon: ArrowUpRight,
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+    border: "border-blue-200 hover:border-blue-400",
+    badge: "bg-blue-100 text-blue-700",
+    boost: "+40%",
+  },
+  {
+    id: "vip" as const,
+    icon: Crown,
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "border-amber-200 hover:border-amber-400",
+    badge: "bg-amber-100 text-amber-700",
+    boost: "+80%",
+  },
+  {
+    id: "premium" as const,
+    icon: Sparkles,
+    color: "text-purple-600",
+    bg: "bg-purple-50",
+    border: "border-purple-200 hover:border-purple-400",
+    badge: "bg-purple-100 text-purple-700",
+    boost: "+120%",
+  },
+];
+
+function PromotionTab({
+  stats,
+  t,
+}: {
+  stats: DealerStats;
+  t: (key: string) => string;
+}) {
+  const { toast } = useToast();
+  const [selectedListing, setSelectedListing] = useState<string | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [autoBudget, setAutoBudget] = useState(500);
+  const [autoBudgetEnabled, setAutoBudgetEnabled] = useState(false);
+
+  const handlePromote = useCallback(
+    (listingId: string, pkg: string) => {
+      toast({
+        title: t("dealer.promo.activating"),
+        description: `${pkg.toUpperCase()} — ${listingId.slice(0, 8)}...`,
+      });
+      setSelectedListing(null);
+      setSelectedPackage(null);
+    },
+    [t, toast],
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Recommendation banner */}
+      <Card className="border-purple-200 bg-gradient-to-r from-purple-50 via-white to-amber-50">
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="h-14 w-14 rounded-2xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+              <Sparkles className="h-7 w-7 text-purple-600" />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <h3 className="font-semibold text-lg">
+                {t("dealer.promo.recommendTitle")}
+              </h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {t("dealer.promo.recommendDescription")}
+              </p>
+            </div>
+            <Button className="bg-purple-600 hover:bg-purple-700 px-6 flex-shrink-0">
+              <Sparkles className="h-4 w-4 mr-2" />
+              {t("dealer.promo.activatePremium")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Promotion packages */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {PROMO_PACKAGES.map((pkg) => {
+          const Icon = pkg.icon;
+          return (
+            <Card
+              key={pkg.id}
+              className={`cursor-pointer transition-all duration-200 ${pkg.border} ${
+                selectedPackage === pkg.id ? "ring-2 ring-offset-2 ring-amber-400 shadow-lg" : ""
+              }`}
+              onClick={() => setSelectedPackage(pkg.id)}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className={`h-10 w-10 rounded-xl ${pkg.bg} flex items-center justify-center`}>
+                    <Icon className={`h-5 w-5 ${pkg.color}`} />
+                  </div>
+                  <Badge className={pkg.badge}>{pkg.boost}</Badge>
+                </div>
+                <CardTitle className="text-lg mt-3">
+                  {t(`dealer.promo.${pkg.id}.title`)}
+                </CardTitle>
+                <CardDescription>
+                  {t(`dealer.promo.${pkg.id}.description`)}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline gap-1 mb-3">
+                  <span className="text-2xl font-bold">
+                    {t(`dealer.promo.${pkg.id}.price`)}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {t("dealer.promo.perListing")}
+                  </span>
+                </div>
+                <ul className="space-y-2 text-sm">
+                  {[1, 2, 3].map((i) => {
+                    const key = `dealer.promo.${pkg.id}.feature${i}`;
+                    const text = t(key);
+                    if (text === key) return null;
+                    return (
+                      <li key={i} className="flex items-center gap-2">
+                        <CheckCircle2 className={`h-4 w-4 flex-shrink-0 ${pkg.color}`} />
+                        <span>{text}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Per-listing promotion */}
+      {stats.perListing.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Rocket className="h-4 w-4" />
+              {t("dealer.promo.boostListings")}
+            </CardTitle>
+            <CardDescription>{t("dealer.promo.boostDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {stats.perListing.map((item) => (
+                <div
+                  key={item.listing_id}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                >
+                  <div className="h-10 w-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                    {item.photo ? (
+                      <img
+                        src={`/img/${item.photo}?w=112&h=80&fit=cover`}
+                        alt={`${item.brand} ${item.model}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Car className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {item.brand} {item.model}
+                    </p>
+                    <div className="flex gap-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-3 w-3" /> {item.views}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" /> {item.contacts}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={selectedListing === item.listing_id ? "default" : "outline"}
+                    className={selectedListing === item.listing_id ? "bg-amber-700 hover:bg-amber-800" : ""}
+                    onClick={() => {
+                      if (selectedListing === item.listing_id) {
+                        if (selectedPackage) {
+                          handlePromote(item.listing_id, selectedPackage);
+                        } else {
+                          toast({ title: t("dealer.promo.selectPackageFirst") });
+                        }
+                      } else {
+                        setSelectedListing(item.listing_id);
+                      }
+                    }}
+                  >
+                    {selectedListing === item.listing_id ? (
+                      <>
+                        <Zap className="h-3.5 w-3.5 mr-1" />
+                        {t("dealer.promo.confirm")}
+                      </>
+                    ) : (
+                      <>
+                        <Rocket className="h-3.5 w-3.5 mr-1" />
+                        {t("dealer.promo.boost")}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Auto-budget */}
+      <Card className="border-amber-200">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                <Wallet className="h-5 w-5 text-amber-700" />
+              </div>
+              <div>
+                <CardTitle className="text-base">{t("dealer.promo.autoBudgetTitle")}</CardTitle>
+                <CardDescription>{t("dealer.promo.autoBudgetDescription")}</CardDescription>
+              </div>
+            </div>
+            <Button
+              variant={autoBudgetEnabled ? "default" : "outline"}
+              size="sm"
+              className={autoBudgetEnabled ? "bg-amber-700 hover:bg-amber-800" : ""}
+              onClick={() => {
+                setAutoBudgetEnabled(!autoBudgetEnabled);
+                toast({
+                  title: autoBudgetEnabled
+                    ? t("dealer.promo.autoBudgetDisabled")
+                    : t("dealer.promo.autoBudgetEnabled"),
+                });
+              }}
+            >
+              {autoBudgetEnabled ? t("dealer.promo.active") : t("dealer.promo.activate")}
+            </Button>
+          </div>
+        </CardHeader>
+        {autoBudgetEnabled && (
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>{t("dealer.promo.monthlyBudget")}</Label>
+                <span className="text-xl font-bold text-amber-700">{autoBudget} Kč</span>
+              </div>
+              <Slider
+                value={[autoBudget]}
+                onValueChange={(v) => setAutoBudget(v[0])}
+                min={100}
+                max={5000}
+                step={100}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>100 Kč</span>
+                <span>5 000 Kč</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-lg font-bold text-amber-700">
+                  ~{Math.round(autoBudget / 15)}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("dealer.promo.estimatedBoosts")}</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-lg font-bold text-emerald-600">
+                  +{Math.round(autoBudget * 0.8)}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("dealer.promo.estimatedViews")}</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-lg font-bold text-blue-600">
+                  +{Math.round(autoBudget * 0.04)}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("dealer.promo.estimatedContacts")}</p>
+              </div>
+            </div>
+            <Button className="w-full bg-amber-700 hover:bg-amber-800">
+              <Wallet className="h-4 w-4 mr-2" />
+              {t("dealer.promo.saveBudget")}
+            </Button>
+          </CardContent>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function DealerSettingsTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string }) {
   const { toast } = useToast();
   const [form, setForm] = useState({
@@ -718,10 +1021,14 @@ export default function DealerPage() {
           </div>
         ) : (
           <Tabs defaultValue="dashboard">
-            <TabsList className="mb-6 grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
+            <TabsList className="mb-6 grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
               <TabsTrigger value="dashboard" className="gap-2">
                 <BarChart3 className="h-4 w-4 hidden sm:block" />
                 {t("dealer.dashboard")}
+              </TabsTrigger>
+              <TabsTrigger value="promotion" className="gap-2">
+                <Rocket className="h-4 w-4 hidden sm:block" />
+                {t("dealer.promo.tab")}
               </TabsTrigger>
               <TabsTrigger value="import" className="gap-2">
                 <Upload className="h-4 w-4 hidden sm:block" />
@@ -735,6 +1042,9 @@ export default function DealerPage() {
 
             <TabsContent value="dashboard">
               <DashboardTab stats={stats} dealer={dealer} t={t} />
+            </TabsContent>
+            <TabsContent value="promotion">
+              <PromotionTab stats={stats} t={t} />
             </TabsContent>
             <TabsContent value="import">
               <BulkImportTab t={t} />
