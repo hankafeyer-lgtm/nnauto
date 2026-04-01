@@ -1068,21 +1068,21 @@ export default function DealerPage() {
           </div>
         ) : (
           <Tabs defaultValue="dashboard">
-            <TabsList className="mb-6 grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
-              <TabsTrigger value="dashboard" className="gap-2">
-                <BarChart3 className="h-4 w-4 hidden sm:block" />
+            <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-flex gap-1 h-auto p-1">
+              <TabsTrigger value="dashboard" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.dashboard")}
               </TabsTrigger>
-              <TabsTrigger value="promotion" className="gap-2">
-                <Rocket className="h-4 w-4 hidden sm:block" />
+              <TabsTrigger value="promotion" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.promo.tab")}
               </TabsTrigger>
-              <TabsTrigger value="import" className="gap-2">
-                <Upload className="h-4 w-4 hidden sm:block" />
+              <TabsTrigger value="import" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.bulkImport")}
               </TabsTrigger>
-              <TabsTrigger value="settings" className="gap-2">
-                <Settings className="h-4 w-4 hidden sm:block" />
+              <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.settings")}
               </TabsTrigger>
             </TabsList>
