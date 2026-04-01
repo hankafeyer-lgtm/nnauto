@@ -590,23 +590,46 @@ function PromotionTab({
   t: (key: string) => string;
 }) {
   const { toast } = useToast();
-  const [selectedListing, setSelectedListing] = useState<string | null>(null);
+  const [selectedListings, setSelectedListings] = useState<Set<string>>(new Set());
   const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   const [selectedDuration, setSelectedDuration] = useState<Record<string, "14" | "30">>({});
   const [autoBudget, setAutoBudget] = useState(500);
   const [autoBudgetEnabled, setAutoBudgetEnabled] = useState(false);
 
-  const handlePromote = useCallback(
-    (listingId: string, pkg: string) => {
-      toast({
-        title: t("dealer.promo.activating"),
-        description: `${pkg.toUpperCase()} — ${listingId.slice(0, 8)}...`,
-      });
-      setSelectedListing(null);
-      setSelectedPackage(null);
-    },
-    [t, toast],
-  );
+  const toggleListing = useCallback((id: string) => {
+    setSelectedListings((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const getPrice = useCallback(() => {
+    if (!selectedPackage) return 0;
+    const dur = selectedDuration[selectedPackage] || "30";
+    const prices: Record<string, Record<string, number>> = {
+      top: { "14": 69, "30": 99 },
+      vip: { "14": 119, "30": 159 },
+    };
+    return (prices[selectedPackage]?.[dur] || 0) * selectedListings.size;
+  }, [selectedPackage, selectedDuration, selectedListings.size]);
+
+  const handlePayment = useCallback(() => {
+    if (!selectedPackage) {
+      toast({ title: t("dealer.promo.selectPackageFirst") });
+      return;
+    }
+    if (selectedListings.size === 0) {
+      toast({ title: t("dealer.promo.selectListingsFirst") });
+      return;
+    }
+    const dur = selectedDuration[selectedPackage] || "30";
+    toast({
+      title: t("dealer.promo.redirectingToPayment"),
+      description: `${selectedPackage.toUpperCase()} × ${selectedListings.size} — ${getPrice()} Kč`,
+    });
+  }, [selectedPackage, selectedListings, selectedDuration, getPrice, t, toast]);
 
   return (
     <div className="space-y-6">
@@ -746,76 +769,117 @@ function PromotionTab({
       {stats.perListing.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Rocket className="h-4 w-4" />
-              {t("dealer.promo.boostListings")}
-            </CardTitle>
-            <CardDescription>{t("dealer.promo.boostDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {stats.perListing.map((item) => (
-                <div
-                  key={item.listing_id}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                >
-                  <div className="h-10 w-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                    {item.photo ? (
-                      <img
-                        src={`/img/${item.photo}?w=112&h=80&fit=cover`}
-                        alt={`${item.brand} ${item.model}`}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Car className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">
-                      {item.brand} {item.model}
-                    </p>
-                    <div className="flex gap-3 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Eye className="h-3 w-3" /> {item.views}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" /> {item.contacts}
-                      </span>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={selectedListing === item.listing_id ? "default" : "outline"}
-                    className={selectedListing === item.listing_id ? "bg-amber-700 hover:bg-amber-800" : ""}
-                    onClick={() => {
-                      if (selectedListing === item.listing_id) {
-                        if (selectedPackage) {
-                          handlePromote(item.listing_id, selectedPackage);
-                        } else {
-                          toast({ title: t("dealer.promo.selectPackageFirst") });
-                        }
-                      } else {
-                        setSelectedListing(item.listing_id);
-                      }
-                    }}
-                  >
-                    {selectedListing === item.listing_id ? (
-                      <>
-                        <Zap className="h-3.5 w-3.5 mr-1" />
-                        {t("dealer.promo.confirm")}
-                      </>
-                    ) : (
-                      <>
-                        <Rocket className="h-3.5 w-3.5 mr-1" />
-                        {t("dealer.promo.boost")}
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ))}
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Rocket className="h-4 w-4" />
+                  {t("dealer.promo.boostListings")}
+                </CardTitle>
+                <CardDescription>{t("dealer.promo.boostDescription")}</CardDescription>
+              </div>
+              {selectedListings.size > 0 && (
+                <Badge className="bg-amber-100 text-amber-700">
+                  {selectedListings.size} {t("dealer.promo.selectedCount")}
+                </Badge>
+              )}
             </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              {stats.perListing.map((item) => {
+                const isSelected = selectedListings.has(item.listing_id);
+                return (
+                  <div
+                    key={item.listing_id}
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-amber-50 border border-amber-300 shadow-sm"
+                        : "bg-muted/50 hover:bg-muted border border-transparent"
+                    }`}
+                    onClick={() => toggleListing(item.listing_id)}
+                  >
+                    <div className={`h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isSelected ? "bg-amber-700 border-amber-700" : "border-gray-300"
+                    }`}>
+                      {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                    </div>
+                    <div className="h-10 w-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                      {item.photo ? (
+                        <img
+                          src={`/img/${item.photo}?w=112&h=80&fit=cover`}
+                          alt={`${item.brand} ${item.model}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Car className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {item.brand} {item.model}
+                      </p>
+                      <div className="flex gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-3 w-3" /> {item.views}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Phone className="h-3 w-3" /> {item.contacts}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={isSelected ? "default" : "outline"}
+                      className={isSelected ? "bg-amber-700 hover:bg-amber-800" : ""}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleListing(item.listing_id);
+                      }}
+                    >
+                      {isSelected ? (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          {t("dealer.promo.selected")}
+                        </>
+                      ) : (
+                        <>
+                          <Rocket className="h-3.5 w-3.5 mr-1" />
+                          {t("dealer.promo.boost")}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Payment summary */}
+            {selectedListings.size > 0 && (
+              <div className="pt-3 border-t space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {selectedPackage
+                      ? `${t(`dealer.promo.${selectedPackage}.title`)} × ${selectedListings.size}`
+                      : t("dealer.promo.selectPackageFirst")}
+                  </span>
+                  {selectedPackage && (
+                    <span className="text-lg font-bold text-amber-700">{getPrice()} Kč</span>
+                  )}
+                </div>
+                <Button
+                  className="w-full bg-amber-700 hover:bg-amber-800 text-base py-5"
+                  disabled={!selectedPackage}
+                  onClick={handlePayment}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  {selectedPackage
+                    ? `${t("dealer.promo.pay")} ${getPrice()} Kč`
+                    : t("dealer.promo.selectPackageFirst")}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
