@@ -6745,6 +6745,15 @@ Disallow: /settings
 Disallow: /dealer
 Disallow: /add-listing
 Disallow: /cebia/
+Disallow: /uk
+Disallow: /uk/
+Disallow: /en
+Disallow: /en/
+Disallow: /de
+Disallow: /de/
+Disallow: /listings/osobni/
+Disallow: /listings/audi
+Disallow: /listings/bmw
 
 Crawl-delay: 1
 

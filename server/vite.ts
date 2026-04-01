@@ -67,6 +67,19 @@ export async function setupVite(app: Express, server: Server) {
   });
 }
 
+const KNOWN_SPA_ROUTES = new Set([
+  "/", "/listings", "/add-listing", "/profile", "/settings",
+  "/admin", "/dealer", "/pricing", "/privacy", "/about", "/tips",
+  "/cebia/return",
+]);
+
+function isKnownRoute(url: string): boolean {
+  const path = url.split("?")[0].split("#")[0];
+  if (KNOWN_SPA_ROUTES.has(path)) return true;
+  if (path.startsWith("/listing/") && path.split("/").length === 3) return true;
+  return false;
+}
+
 export function serveStatic(app: Express) {
   const distPath = path.resolve(import.meta.dirname, "public");
 
@@ -78,8 +91,9 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+  app.use("*", (req, res) => {
+    const indexPath = path.resolve(distPath, "index.html");
+    const status = isKnownRoute(req.originalUrl) ? 200 : 404;
+    res.status(status).sendFile(indexPath);
   });
 }
