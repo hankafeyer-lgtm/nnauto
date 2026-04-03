@@ -49,6 +49,8 @@ import {
 import multer from "multer";
 import sharp from "sharp";
 
+sharp.concurrency(2);
+
 // LRU-style in-memory cache for optimized images (access bumps to end)
 const imageCache = new Map<
   string,
@@ -500,7 +502,7 @@ type ListingsFastCacheEntry = {
 
 const LISTINGS_FAST_CACHE_TTL_MS = Math.max(
   0,
-  Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "60000", 10) || 0,
+  Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "180000", 10) || 0,
 );
 const LISTINGS_FAST_CACHE_STALE_MS = Math.max(
   LISTINGS_FAST_CACHE_TTL_MS,
