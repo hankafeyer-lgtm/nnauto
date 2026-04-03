@@ -42,7 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 import LoginModal from "@/components/LoginModal";
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { carBrands, carModels } from "@shared/carDatabase";
-const logoImage = "/logo-192.png";
+const logoImage = "/apple-touch-icon.png";
 
 const FavoritesModal = lazy(() =>
   import("@/components/FavoritesModal").then((m) => ({
