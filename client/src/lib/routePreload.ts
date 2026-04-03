@@ -32,15 +32,15 @@ export function warmCoreRoutes() {
   const isMobileLikeViewport = isMobileViewport();
   const shouldUseLightWarmup = isConstrainedNetwork || isMobileLikeViewport;
 
-  const warm = () => {
-    // Warm the most frequently used routes first.
+  const warmPrimary = () => {
     void loadListingsPage();
     void loadListingDetailPage();
-    if (!shouldUseLightWarmup) {
-      void loadAddListingPage();
-      void loadProfilePage();
-      void loadSettingsPage();
-    }
+  };
+
+  const warmSecondary = () => {
+    if (shouldUseLightWarmup) return;
+    void loadAddListingPage();
+    void loadProfilePage();
   };
 
   const idleApi = window as Window & {
@@ -52,10 +52,12 @@ export function warmCoreRoutes() {
   };
 
   if (idleApi.requestIdleCallback) {
-    idleApi.requestIdleCallback(warm, { timeout: 250 });
+    idleApi.requestIdleCallback(warmPrimary, { timeout: 200 });
+    idleApi.requestIdleCallback(warmSecondary, { timeout: 3000 });
     return;
   }
 
-  window.setTimeout(warm, 60);
+  window.setTimeout(warmPrimary, 100);
+  window.setTimeout(warmSecondary, 2000);
 }
 

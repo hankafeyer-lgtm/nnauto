@@ -16,5 +16,15 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     sourcemap: false,
+    target: "es2020",
+    cssMinify: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-query": ["@tanstack/react-query"],
+        },
+      },
+    },
   },
 });
