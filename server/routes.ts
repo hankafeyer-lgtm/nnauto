@@ -2881,6 +2881,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/user", async (req, res) => {
     try {
+      // Same as isAuthenticated: honor Bearer JWT so the SPA sees the user when
+      // the session cookie is missing (cross-domain / cookie issues).
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.substring(7);
+        try {
+          const payload = verifyToken(token);
+          if (payload?.userId) {
+            req.session.userId = payload.userId;
+          }
+        } catch {
+          /* ignore invalid token */
+        }
+      }
+
       // Session header fallback for compatibility in non-production only.
       if (
         !req.session.userId &&
