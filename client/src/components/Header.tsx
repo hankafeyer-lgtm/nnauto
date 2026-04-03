@@ -42,7 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 import LoginModal from "@/components/LoginModal";
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { carBrands, carModels } from "@shared/carDatabase";
-const logoImage = "/favicon-48x48.png?v=2";
+const logoImage = "/logo-icon-only.png";
 
 const FavoritesModal = lazy(() =>
   import("@/components/FavoritesModal").then((m) => ({
