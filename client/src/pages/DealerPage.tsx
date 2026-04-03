@@ -45,6 +45,9 @@ import {
   Sparkles,
   Wallet,
   ChevronRight,
+  Timer,
+  Pause,
+  CircleDot,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -555,6 +558,243 @@ function BulkImportTab({ t }: { t: (key: string) => string }) {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ── My Listings Tab ───────────────────────────────────────────────────────────
+
+type DealerListing = {
+  id: string;
+  title: string;
+  brand: string;
+  model: string;
+  year: number;
+  price: string;
+  photos: string[] | null;
+  is_top_listing: boolean;
+  top_listing_expires_at: string | null;
+  is_sold: boolean;
+  created_at: string;
+  views: number;
+  contacts: number;
+  whatsapp: number;
+};
+
+function getListingStatus(l: DealerListing): "sold" | "top" | "reserve" | "active" {
+  if (l.is_sold) return "sold";
+  if (l.is_top_listing) return "top";
+  return "active";
+}
+
+function getTimeSince(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days < 1) return "dnes";
+  if (days === 1) return "1 den";
+  if (days < 5) return `${days} dny`;
+  return `${days} dní`;
+}
+
+const STATUS_CONFIG = {
+  active: { label: "Aktivní", color: "bg-emerald-100 text-emerald-700", icon: CircleDot },
+  top: { label: "TOP", color: "bg-amber-100 text-amber-700", icon: Crown },
+  sold: { label: "Prodáno", color: "bg-red-100 text-red-700", icon: Check },
+  reserve: { label: "Rezervace", color: "bg-blue-100 text-blue-700", icon: Pause },
+};
+
+function MyListingsTab({ t }: { t: (key: string) => string }) {
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [editingListing, setEditingListing] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/dealer/listings"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/dealer/listings");
+      return res.json();
+    },
+  });
+
+  const toggleSoldMutation = useMutation({
+    mutationFn: async ({ id, isSold }: { id: string; isSold: boolean }) => {
+      await apiRequest("PATCH", `/api/listings/${id}/sold`, { isSold });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+    },
+  });
+
+  const removeTopMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/listings/${id}/promote`, { isTopListing: false });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+      toast({ title: t("dealer.listings.topRemoved") });
+    },
+  });
+
+  const handleEdit = useCallback(async (id: string) => {
+    try {
+      const res = await apiRequest("GET", `/api/listings/${id}`);
+      const listing = await res.json();
+      setEditingListing(listing);
+      setEditDialogOpen(true);
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
+    }
+  }, [toast]);
+
+  const allListings = (data?.listings || []) as DealerListing[];
+
+  const filteredListings = statusFilter === "all"
+    ? allListings
+    : allListings.filter((l) => getListingStatus(l) === statusFilter);
+
+  const statusCounts = {
+    all: allListings.length,
+    active: allListings.filter((l) => getListingStatus(l) === "active").length,
+    top: allListings.filter((l) => getListingStatus(l) === "top").length,
+    sold: allListings.filter((l) => getListingStatus(l) === "sold").length,
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Status filter bar */}
+      <div className="flex gap-2 flex-wrap">
+        {(["all", "active", "top", "sold"] as const).map((s) => (
+          <Button
+            key={s}
+            size="sm"
+            variant={statusFilter === s ? "default" : "outline"}
+            className={statusFilter === s ? "bg-amber-700 hover:bg-amber-800" : ""}
+            onClick={() => setStatusFilter(s)}
+          >
+            {s === "all" ? t("dealer.listings.all") : STATUS_CONFIG[s].label}
+            <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">
+              {statusCounts[s]}
+            </Badge>
+          </Button>
+        ))}
+      </div>
+
+      {/* Listings */}
+      <div className="space-y-2">
+        {filteredListings.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              {t("dealer.listings.empty")}
+            </CardContent>
+          </Card>
+        ) : (
+          filteredListings.map((l) => {
+            const status = getListingStatus(l);
+            const cfg = STATUS_CONFIG[status];
+            const StatusIcon = cfg.icon;
+            const photo = l.photos?.[0];
+            return (
+              <Card key={l.id} className={`transition-all ${status === "sold" ? "opacity-60" : ""}`}>
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-center gap-3">
+                    {/* Photo */}
+                    <div
+                      className="h-14 w-20 sm:h-16 sm:w-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 cursor-pointer relative"
+                      onClick={() => navigate(`/listing/${l.id}`)}
+                    >
+                      {photo ? (
+                        <img src={`/img/${photo}?w=192&h=128&fit=cover`} alt={`${l.brand} ${l.model}`} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><Car className="h-5 w-5 text-muted-foreground" /></div>
+                      )}
+                      {status === "sold" && (
+                        <div className="absolute inset-0 bg-white/40 flex items-center justify-center">
+                          <span className="text-[10px] font-black text-red-600 tracking-wider">PRODÁNO</span>
+                        </div>
+                      )}
+                      {status === "top" && (
+                        <div className="absolute top-0.5 left-0.5">
+                          <Crown className="h-3.5 w-3.5 text-amber-500 drop-shadow" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="font-semibold text-sm truncate">{l.brand} {l.model}</p>
+                        <Badge className={`${cfg.color} text-[10px] px-1.5 py-0 h-5 flex-shrink-0`}>
+                          <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
+                          {cfg.label}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="font-medium">{Number(l.price).toLocaleString()} Kč</span>
+                        <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{l.views}</span>
+                        <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{l.contacts}</span>
+                        <span className="flex items-center gap-0.5"><Timer className="h-3 w-3" />{getTimeSince(l.created_at)}</span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {status === "top" && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => removeTopMutation.mutate(l.id)}>
+                          <Crown className="h-3 w-3 mr-1 text-amber-500" />
+                          {t("dealer.listings.removeTop")}
+                        </Button>
+                      )}
+                      {status !== "sold" ? (
+                        <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => toggleSoldMutation.mutate({ id: l.id, isSold: true })}>
+                          <Check className="h-3 w-3 mr-1" />
+                          {t("dealer.listings.markSold")}
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => toggleSoldMutation.mutate({ id: l.id, isSold: false })}>
+                          <CircleDot className="h-3 w-3 mr-1" />
+                          {t("dealer.listings.markActive")}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleEdit(l.id)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {editingListing && (
+        <Suspense fallback={null}>
+          <EditListingDialog
+            open={editDialogOpen}
+            onOpenChange={(open: boolean) => {
+              setEditDialogOpen(open);
+              if (!open) {
+                setEditingListing(null);
+                queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+              }
+            }}
+            listing={editingListing}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
@@ -1132,10 +1372,14 @@ export default function DealerPage() {
           </div>
         ) : (
           <Tabs defaultValue="dashboard">
-            <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-4 lg:w-auto lg:inline-flex gap-1 h-auto p-1">
+            <TabsList className="mb-6 grid w-full grid-cols-3 sm:grid-cols-5 lg:w-auto lg:inline-flex gap-1 h-auto p-1">
               <TabsTrigger value="dashboard" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
                 <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.dashboard")}
+              </TabsTrigger>
+              <TabsTrigger value="mylistings" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {t("dealer.myListings")}
               </TabsTrigger>
               <TabsTrigger value="promotion" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
                 <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
@@ -1153,6 +1397,9 @@ export default function DealerPage() {
 
             <TabsContent value="dashboard">
               <DashboardTab stats={stats} dealer={dealer} t={t} />
+            </TabsContent>
+            <TabsContent value="mylistings">
+              <MyListingsTab t={t} />
             </TabsContent>
             <TabsContent value="promotion">
               <PromotionTab stats={stats} t={t} />

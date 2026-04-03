@@ -1145,6 +1145,12 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.deleteListingTitle": "Smazat inzerát",
     "dealer.deleteListingDescription": "Opravdu chcete smazat tento inzerát? Tuto akci nelze vrátit zpět.",
     "dealer.listingDeleted": "Inzerát smazán",
+    "dealer.listings.all": "Všechny",
+    "dealer.listings.empty": "Žádné inzeráty",
+    "dealer.listings.removeTop": "Zrušit TOP",
+    "dealer.listings.topRemoved": "TOP odstraněn",
+    "dealer.listings.markSold": "Prodáno",
+    "dealer.listings.markActive": "Aktivovat",
   },
 
   uk: {
@@ -2299,6 +2305,12 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.deleteListingTitle": "Видалити оголошення",
     "dealer.deleteListingDescription": "Ви дійсно хочете видалити це оголошення? Цю дію не можна скасувати.",
     "dealer.listingDeleted": "Оголошення видалено",
+    "dealer.listings.all": "Всі",
+    "dealer.listings.empty": "Немає оголошень",
+    "dealer.listings.removeTop": "Зняти TOP",
+    "dealer.listings.topRemoved": "TOP знято",
+    "dealer.listings.markSold": "Продано",
+    "dealer.listings.markActive": "Активувати",
   },
 
   en: {
@@ -3454,6 +3466,12 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.deleteListingTitle": "Delete listing",
     "dealer.deleteListingDescription": "Are you sure you want to delete this listing? This action cannot be undone.",
     "dealer.listingDeleted": "Listing deleted",
+    "dealer.listings.all": "All",
+    "dealer.listings.empty": "No listings",
+    "dealer.listings.removeTop": "Remove TOP",
+    "dealer.listings.topRemoved": "TOP removed",
+    "dealer.listings.markSold": "Sold",
+    "dealer.listings.markActive": "Activate",
   },
 };
 
@@ -3906,6 +3924,12 @@ const germanTranslations: Record<string, string> = {
   "dealer.deleteListingTitle": "Inserat löschen",
   "dealer.deleteListingDescription": "Möchten Sie dieses Inserat wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
   "dealer.listingDeleted": "Inserat gelöscht",
+  "dealer.listings.all": "Alle",
+  "dealer.listings.empty": "Keine Inserate",
+  "dealer.listings.removeTop": "TOP entfernen",
+  "dealer.listings.topRemoved": "TOP entfernt",
+  "dealer.listings.markSold": "Verkauft",
+  "dealer.listings.markActive": "Aktivieren",
 };
 
 export const translations: Record<Language, Record<string, string>> = {
