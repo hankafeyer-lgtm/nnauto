@@ -4969,6 +4969,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Mark listing as sold / unsold
+  app.patch("/api/listings/:id/sold", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const listing = await storage.getListing(id);
+      if (!listing) return res.status(404).json({ error: "Listing not found" });
+      if (listing.userId !== req.session.userId) return res.status(403).json({ error: "Forbidden" });
+
+      const isSold = req.body.isSold !== false;
+      const updated = await storage.updateListing(id, { isSold } as any);
+      res.json(updated);
+    } catch (error: any) {
+      console.error("[listings/:id/sold]", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Legacy promote endpoint - now requires payment (kept for admin use)
   app.patch("/api/listings/:id/promote", isAuthenticated, async (req, res) => {
     try {
@@ -5512,7 +5529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.json(payload);
         }
 
-        const orderBy = [desc(listingsTable.isTopListing)];
+        const orderBy = [asc(listingsTable.isSold), desc(listingsTable.isTopListing)];
         switch (sort) {
           case "oldest":
             orderBy.push(asc(listingsTable.createdAt));

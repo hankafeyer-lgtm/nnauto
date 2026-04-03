@@ -4307,6 +4307,22 @@ export default function ListingsPage() {
     setEditDialogOpen(true);
   };
 
+  const markSoldMutation = useMutation({
+    mutationFn: async ({ id, isSold }: { id: string; isSold: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/listings/${id}/sold`, { isSold });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "/api/listings" });
+    },
+  });
+
+  const handleMarkSold = (listingId: string) => {
+    const listing = listingsById.get(listingId);
+    if (!listing) return;
+    markSoldMutation.mutate({ id: listingId, isSold: !listing.isSold });
+  };
+
   const totalPages = pagination.totalPages;
 
   const getPageNumbers = () => {
@@ -4556,6 +4572,7 @@ export default function ListingsPage() {
                       user && listing && listing.userId === user.id,
                     );
                     const isTopListing = Boolean(listing?.isTopListing);
+                    const isListingSold = Boolean(listing?.isSold);
                     const isPromoting = promotingListingId === car.id;
 
                     return (
@@ -4566,10 +4583,12 @@ export default function ListingsPage() {
                         onOpenListing={openListingOverlay}
                         isOwner={isOwner}
                         isTopListing={isTopListing}
+                        isSold={isListingSold}
                         onPromote={handlePromote}
                         isPromoting={isPromoting}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
+                        onMarkSold={handleMarkSold}
                         priority={index < 3}
                       />
                     );
@@ -4715,6 +4734,7 @@ export default function ListingsPage() {
                       user && listing && listing.userId === user.id,
                     );
                     const isTopListing = Boolean(listing?.isTopListing);
+                    const isListingSold = Boolean(listing?.isSold);
                     const isPromoting = promotingListingId === car.id;
 
                     return (
@@ -4725,10 +4745,12 @@ export default function ListingsPage() {
                         onOpenListing={openListingOverlay}
                         isOwner={isOwner}
                         isTopListing={isTopListing}
+                        isSold={isListingSold}
                         onPromote={handlePromote}
                         isPromoting={isPromoting}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
+                        onMarkSold={handleMarkSold}
                         priority={index < 3}
                       />
                     );

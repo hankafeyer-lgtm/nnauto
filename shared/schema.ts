@@ -277,6 +277,7 @@ export const listings = pgTable(
     isTopListing: boolean("is_top_listing").default(false).notNull(),
     topListingExpiresAt: timestamp("top_listing_expires_at"),
     vatDeductible: boolean("vat_deductible").default(true).notNull(),
+    isSold: boolean("is_sold").default(false).notNull(),
     isImported: boolean("is_imported").default(false).notNull(),
     importCountry: text("import_country"),
     photos: text("photos").array(),

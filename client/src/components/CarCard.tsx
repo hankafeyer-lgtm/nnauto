@@ -12,6 +12,7 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  Check,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useFavorites } from "@/contexts/FavoritesContext";
@@ -54,6 +55,8 @@ interface CarCardProps {
   isPromoting?: boolean;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onMarkSold?: (id: string) => void;
+  isSold?: boolean;
   priority?: boolean;
   vatDeductible?: boolean;
   onOpenListing?: (id: string) => void;
@@ -79,6 +82,8 @@ function CarCard({
   isPromoting = false,
   onEdit,
   onDelete,
+  onMarkSold,
+  isSold = false,
   priority = false,
   vatDeductible = false,
   onOpenListing,
@@ -127,12 +132,16 @@ function CarCard({
     }
   };
 
-  // Show promote button if user owns the listing and it's not already TOP
   const showPromoteButton = isOwner && !isTopListing && onPromote;
-  // Show edit button if user owns the listing
   const showEditButton = isOwner && onEdit;
-  // Show delete button if user owns the listing
   const showDeleteButton = isOwner && onDelete;
+  const showSoldButton = isOwner && onMarkSold;
+
+  const handleSoldClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onMarkSold) onMarkSold(id);
+  };
 
   // Prefetch listing data on hover for faster navigation
   const handlePrefetch = useCallback(() => {
@@ -449,7 +458,7 @@ function CarCard({
         onFocus={handlePrimeOpen}
       >
         <Card
-          className="overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col"
+          className={`overflow-hidden hover-elevate active-elevate-2 cursor-pointer transition-all hover:shadow-2xl sm:hover:scale-[1.02] duration-300 rounded-xl sm:rounded-2xl lg:rounded-lg h-full flex flex-col ${isSold ? "opacity-60" : ""}`}
           data-testid={`card-car-${title.toLowerCase().replace(/\s+/g, "-")}`}
           data-listing-id={id}
           id={`listing-${id}`}
@@ -504,9 +513,28 @@ function CarCard({
               />
             </div>
 
-            {/* Edit and Delete buttons - bottom-right of photo with text labels */}
-            {(showEditButton || showDeleteButton) && (
+            {/* Sold overlay */}
+            {isSold && (
+              <div className="absolute inset-0 bg-white/50 z-[30] flex items-center justify-center">
+                <span className="text-2xl sm:text-3xl font-black text-red-600/80 tracking-widest rotate-[-15deg] border-4 border-red-600/80 rounded-lg px-4 py-1">
+                  PRODÁNO
+                </span>
+              </div>
+            )}
+
+            {/* Sold / Edit / Delete buttons */}
+            {(showSoldButton || showEditButton || showDeleteButton) && (
               <div className="absolute bottom-2 right-2 z-[9999] flex flex-col gap-1.5">
+                {showSoldButton && (
+                  <div
+                    className={`${isSold ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"} text-white rounded-lg px-3 py-1.5 shadow-lg cursor-pointer hover:scale-105 transition-all flex items-center gap-1.5 text-xs font-semibold`}
+                    onClick={handleSoldClick}
+                    data-testid={`button-sold-${id}`}
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    <span>{isSold ? "Prodáno ✓" : "Prodáno"}</span>
+                  </div>
+                )}
                 {showEditButton && (
                   <div
                     className="bg-amber-500 hover:bg-amber-600 text-white rounded-lg px-3 py-1.5 shadow-lg cursor-pointer hover:scale-105 transition-all flex items-center gap-1.5 text-xs font-semibold"

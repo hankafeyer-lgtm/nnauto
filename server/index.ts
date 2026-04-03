@@ -1600,12 +1600,12 @@ app.use((req, res, next) => {
 
 // ---------- bootstrap ----------
 (async function bootstrap() {
-  // Ensure dealer columns exist before any user queries
   try {
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_dealer BOOLEAN NOT NULL DEFAULT false`);
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS dealer_id VARCHAR`);
+    await db.execute(sql`ALTER TABLE listings ADD COLUMN IF NOT EXISTS is_sold BOOLEAN NOT NULL DEFAULT false`);
   } catch (e) {
-    console.warn("[bootstrap] dealer columns migration skipped:", (e as any)?.message);
+    console.warn("[bootstrap] column migration skipped:", (e as any)?.message);
   }
 
   await seedAdminUser();
