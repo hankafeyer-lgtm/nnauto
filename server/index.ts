@@ -1073,9 +1073,15 @@ const INDEX_CANDIDATES = [
   path.join(process.cwd(), "index.html"),
 ];
 
+let cachedIndexHtml: string | null = null;
+
 function readIndexHtml() {
+  if (cachedIndexHtml) return cachedIndexHtml;
   for (const p of INDEX_CANDIDATES) {
-    if (fs.existsSync(p)) return fs.readFileSync(p, "utf-8");
+    if (fs.existsSync(p)) {
+      cachedIndexHtml = fs.readFileSync(p, "utf-8");
+      return cachedIndexHtml;
+    }
   }
   throw new Error(
     `index.html not found. Tried:\n${INDEX_CANDIDATES.join("\n")}`,
@@ -1681,10 +1687,14 @@ app.use((req, res, next) => {
 
   const port = parseInt(process.env.PORT || "5000", 10);
 
+  server.maxConnections = 0;
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
+
   const tryListen = (p: number) =>
     new Promise<void>((resolve, reject) => {
       server.once("error", reject);
-      server.listen({ port: p, host: "0.0.0.0", reusePort: true }, () => {
+      server.listen({ port: p, host: "0.0.0.0", backlog: 1024 }, () => {
         server.off("error", reject);
         resolve();
       });

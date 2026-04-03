@@ -49,13 +49,46 @@ import {
 import multer from "multer";
 import sharp from "sharp";
 
-// In-memory cache for optimized images
+// LRU-style in-memory cache for optimized images (access bumps to end)
 const imageCache = new Map<
   string,
   { buffer: Buffer; contentType: string; timestamp: number }
 >();
 const IMAGE_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
-const MAX_CACHE_SIZE = 1000; // aggressive in-memory cache for processed images
+const MAX_CACHE_SIZE = 500;
+const MAX_CACHE_BYTES = 256 * 1024 * 1024; // 256MB RAM cap
+let currentCacheBytes = 0;
+
+function imageCacheGet(key: string) {
+  const entry = imageCache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.timestamp > IMAGE_CACHE_TTL) {
+    currentCacheBytes -= entry.buffer.length;
+    imageCache.delete(key);
+    return undefined;
+  }
+  imageCache.delete(key);
+  imageCache.set(key, entry);
+  return entry;
+}
+
+function imageCacheSet(key: string, entry: { buffer: Buffer; contentType: string; timestamp: number }) {
+  const existing = imageCache.get(key);
+  if (existing) {
+    currentCacheBytes -= existing.buffer.length;
+    imageCache.delete(key);
+  }
+  while ((imageCache.size >= MAX_CACHE_SIZE || currentCacheBytes + entry.buffer.length > MAX_CACHE_BYTES) && imageCache.size > 0) {
+    const oldest = imageCache.keys().next().value;
+    if (oldest) {
+      const old = imageCache.get(oldest);
+      if (old) currentCacheBytes -= old.buffer.length;
+      imageCache.delete(oldest);
+    }
+  }
+  imageCache.set(key, entry);
+  currentCacheBytes += entry.buffer.length;
+}
 
 const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
 const MAX_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
@@ -5597,6 +5630,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dbPrefilters.push(eq(listingsTable.hasServiceBook, true));
       }
 
+      const brandPrefilter = typeof q.brand === "string" ? q.brand.trim() : "";
+      if (brandPrefilter) {
+        dbPrefilters.push(ilike(listingsTable.brand, brandPrefilter));
+      }
+
+      const vehicleTypePrefilter = typeof q.vehicleType === "string" ? q.vehicleType.trim() : "";
+      if (vehicleTypePrefilter) {
+        dbPrefilters.push(eq(listingsTable.vehicleType, vehicleTypePrefilter));
+      }
+
+      const bodyTypePrefilter = typeof q.bodyType === "string" ? q.bodyType.trim().split(",")[0] : "";
+      if (bodyTypePrefilter) {
+        dbPrefilters.push(eq(listingsTable.bodyType, bodyTypePrefilter));
+      }
+
+      const regionPrefilter = typeof q.region === "string" ? q.region.trim() : "";
+      if (regionPrefilter) {
+        dbPrefilters.push(eq(listingsTable.region, regionPrefilter));
+      }
+
+      const conditionPrefilter = typeof q.condition === "string" ? q.condition.trim().split(",") : [];
+      if (conditionPrefilter.length === 1) {
+        dbPrefilters.push(eq(listingsTable.condition, conditionPrefilter[0]));
+      }
+
       const listingAgeMinPrefilter = toInt(q.listingAgeMin);
       const listingAgeMaxPrefilter = toInt(q.listingAgeMax);
       if (listingAgeMinPrefilter !== undefined) {
@@ -6428,9 +6486,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate cache key
       const cacheKey = `${actualKey}-w${maxWidth}-q${quality}-${format}`;
 
-      // Check in-memory cache
-      const cached = imageCache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < IMAGE_CACHE_TTL) {
+      // Check in-memory LRU cache
+      const cached = imageCacheGet(cacheKey);
+      if (cached) {
         res.set("Content-Type", cached.contentType);
         res.set("Cache-Control", "public, max-age=31536000, immutable");
         res.set("X-Image-Cache", "HIT");
@@ -6485,12 +6543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const optimizedBuffer = await pipeline.toBuffer();
 
-      // Store in cache (with size limit)
-      if (imageCache.size >= MAX_CACHE_SIZE) {
-        const oldestKey = imageCache.keys().next().value;
-        if (oldestKey) imageCache.delete(oldestKey);
-      }
-      imageCache.set(cacheKey, {
+      imageCacheSet(cacheKey, {
         buffer: optimizedBuffer,
         contentType,
         timestamp: Date.now(),
