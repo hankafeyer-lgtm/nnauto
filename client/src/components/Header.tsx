@@ -42,7 +42,7 @@ import { useToast } from "@/hooks/use-toast";
 import LoginModal from "@/components/LoginModal";
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { carBrands, carModels } from "@shared/carDatabase";
-import logoImage from "@assets/ADEE73F1-9859-4FA3-9185-00DC43A78326_1764497749332.png";
+const logoImage = "/logo-192.png";
 
 const FavoritesModal = lazy(() =>
   import("@/components/FavoritesModal").then((m) => ({
@@ -460,6 +460,10 @@ function HeaderContent({
                 <img
                   src={logoImage}
                   alt="NNAuto"
+                  width={96}
+                  height={96}
+                  decoding="async"
+                  fetchPriority="high"
                   className={`object-contain ${
                     compactMobile
                       ? "w-9 h-9 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
