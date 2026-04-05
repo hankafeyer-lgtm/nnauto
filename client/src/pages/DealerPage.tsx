@@ -30,6 +30,7 @@ import {
   Car,
   FileSpreadsheet,
   Plus,
+  Check,
   CheckCircle2,
   XCircle,
   Clock,
