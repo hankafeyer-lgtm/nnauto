@@ -34,7 +34,9 @@ export function warmCoreRoutes() {
 
   const warmPrimary = () => {
     void loadListingsPage();
-    void loadListingDetailPage();
+    if (!shouldUseLightWarmup) {
+      void loadListingDetailPage();
+    }
   };
 
   const warmSecondary = () => {
