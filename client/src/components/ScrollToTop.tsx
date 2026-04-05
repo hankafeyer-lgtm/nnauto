@@ -111,11 +111,26 @@ export function clearListingsRestoreState() {
   sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
 }
 
+function trackPageView(path: string) {
+  try {
+    const w = window as Window & { gtag?: (...args: any[]) => void };
+    if (typeof w.gtag === "function") {
+      w.gtag("event", "page_view", {
+        page_path: path,
+        page_location: window.location.origin + path,
+      });
+    }
+  } catch { /* analytics should never break the app */ }
+}
+
 export function ScrollToTop() {
   const [location] = useLocation();
 
   useEffect(() => {
-    // Check if we should restore scroll position instead of resetting
+    trackPageView(location || "/");
+  }, [location]);
+
+  useEffect(() => {
     const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
     const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
 
