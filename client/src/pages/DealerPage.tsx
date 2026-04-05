@@ -1332,12 +1332,13 @@ export default function DealerPage() {
     enabled: !!user?.isDealer,
   });
 
-  if (!authLoading && !isAuthenticated) {
-    navigate("/");
-    return null;
-  }
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate("/");
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
-  if (authLoading) {
+  if (authLoading || (!authLoading && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
