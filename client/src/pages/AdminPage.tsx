@@ -432,6 +432,7 @@ import {
   CreditCard,
   Star,
   FileSpreadsheet,
+  History,
 } from "lucide-react";
 import { format } from "date-fns";
 import Header from "@/components/Header";
@@ -471,6 +472,23 @@ type AdminListingAnalyticsItem = {
 type AdminListingAnalyticsResponse = {
   count: number;
   items: AdminListingAnalyticsItem[];
+};
+
+type DeletedListingItem = {
+  id: string;
+  listing_id: string;
+  user_id: string;
+  deleted_by: string;
+  brand: string;
+  model: string;
+  title: string;
+  year: number | null;
+  price: string | null;
+  photo: string | null;
+  deleted_at: string;
+  owner_username: string | null;
+  owner_email: string | null;
+  deleted_by_username: string | null;
 };
 
 export default function AdminPage() {
@@ -538,6 +556,14 @@ export default function AdminPage() {
     ...adminRealtimeQueryOptions,
   });
 
+  const {
+    data: deletedListingsData,
+    isLoading: deletedListingsLoading,
+  } = useQuery<{ items: DeletedListingItem[] }>({
+    queryKey: ["/api/admin/deleted-listings"],
+    ...adminRealtimeQueryOptions,
+  });
+
   const byCreatedAtDesc = <
     T extends {
       createdAt?: string | Date | null;
@@ -568,6 +594,11 @@ export default function AdminPage() {
     () => byCreatedAtDesc(cebiaReportsData?.items || []),
     [cebiaReportsData],
   );
+  const deletedListings = useMemo(
+    () => deletedListingsData?.items || [],
+    [deletedListingsData],
+  );
+
   const listingAnalyticsMap = useMemo(() => {
     const map = new Map<string, AdminListingAnalyticsItem>();
     for (const item of listingAnalyticsData?.items || []) {
@@ -756,7 +787,7 @@ export default function AdminPage() {
         ) : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 max-w-4xl">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 max-w-5xl">
             <TabsTrigger value="users" data-testid="tab-admin-users">
               <Users className="h-4 w-4 mr-2" />
               {t("admin.users")} {users && `(${users.length})`}
@@ -765,13 +796,17 @@ export default function AdminPage() {
               <Car className="h-4 w-4 mr-2" />
               {t("admin.listings")} {listings && `(${listings.length})`}
             </TabsTrigger>
+            <TabsTrigger value="deleted" data-testid="tab-admin-deleted">
+              <History className="h-4 w-4 mr-2" />
+              Видалені {deletedListings.length > 0 && `(${deletedListings.length})`}
+            </TabsTrigger>
             <TabsTrigger value="payments" data-testid="tab-admin-payments">
               <CreditCard className="h-4 w-4 mr-2" />
               {t("admin.payments")} {payments && `(${payments.length})`}
             </TabsTrigger>
             <TabsTrigger value="cebia" data-testid="tab-admin-cebia">
               <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Cebia Reports {cebiaReports && `(${cebiaReports.length})`}
+              Cebia {cebiaReports && `(${cebiaReports.length})`}
             </TabsTrigger>
           </TabsList>
 
@@ -1026,6 +1061,85 @@ export default function AdminPage() {
                 ) : (
                   <p className="text-center py-8 text-muted-foreground">
                     {t("admin.noListings")}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="deleted" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Видалені оголошення</CardTitle>
+                <CardDescription>
+                  Історія видалених оголошень — хто, коли і яке авто видалив
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {deletedListingsLoading ? (
+                  <p className="text-center py-8 text-muted-foreground">
+                    {t("admin.loading")}
+                  </p>
+                ) : deletedListings.length > 0 ? (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Фото</TableHead>
+                          <TableHead>Авто</TableHead>
+                          <TableHead>Ціна</TableHead>
+                          <TableHead>Власник</TableHead>
+                          <TableHead>Видалив</TableHead>
+                          <TableHead>Коли</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {deletedListings.map((dl) => (
+                          <TableRow key={dl.id}>
+                            <TableCell>
+                              {dl.photo ? (
+                                <img
+                                  src={`/img/${dl.photo}?w=80&h=56&fit=cover`}
+                                  alt={`${dl.brand} ${dl.model}`}
+                                  className="h-10 w-14 rounded object-cover"
+                                />
+                              ) : (
+                                <div className="h-10 w-14 rounded bg-muted flex items-center justify-center">
+                                  <Car className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <p className="font-medium text-sm">{dl.brand} {dl.model} {dl.year || ""}</p>
+                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{dl.title}</p>
+                            </TableCell>
+                            <TableCell>
+                              {dl.price
+                                ? `${new Intl.NumberFormat("cs-CZ").format(Number(dl.price))} Kč`
+                                : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-sm">{dl.owner_username || "—"}</p>
+                              <p className="text-xs text-muted-foreground">{dl.owner_email || ""}</p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={dl.deleted_by === dl.user_id ? "secondary" : "destructive"}>
+                                {dl.deleted_by === dl.user_id
+                                  ? (dl.owner_username || "власник")
+                                  : (dl.deleted_by_username || "адмін")}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-sm">
+                              {format(new Date(dl.deleted_at), "dd.MM.yyyy HH:mm")}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-center py-8 text-muted-foreground">
+                    Ще нічого не видалено.
                   </p>
                 )}
               </CardContent>

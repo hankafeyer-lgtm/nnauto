@@ -3183,18 +3183,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
 
-      // Get existing listing to verify ownership
       const existingListing = await storage.getListing(id);
       if (!existingListing) {
         return res.status(404).json({ error: "Listing not found" });
       }
 
-      // Verify user owns this listing
       if (existingListing.userId !== req.session.userId) {
         return res
           .status(403)
           .json({ error: "Cannot delete another user's listing" });
       }
+
+      await db.execute(sql`
+        INSERT INTO deleted_listings (listing_id, user_id, deleted_by, brand, model, title, year, price, photo)
+        VALUES (${id}, ${existingListing.userId}, ${req.session.userId!}, ${existingListing.brand}, ${existingListing.model}, ${existingListing.title}, ${existingListing.year}, ${existingListing.price}, ${existingListing.photos?.[0] || null})
+      `);
 
       const deleted = await storage.deleteListing(id);
       if (deleted) {
@@ -6220,8 +6223,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/listings/:id", isAdmin, async (req, res) => {
     try {
       const listingId = req.params.id;
-      const deleted = await storage.deleteListing(listingId);
+      const existingListing = await storage.getListing(listingId);
 
+      if (!existingListing) {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+
+      await db.execute(sql`
+        INSERT INTO deleted_listings (listing_id, user_id, deleted_by, brand, model, title, year, price, photo)
+        VALUES (${listingId}, ${existingListing.userId}, ${req.session.userId!}, ${existingListing.brand}, ${existingListing.model}, ${existingListing.title}, ${existingListing.year}, ${existingListing.price}, ${existingListing.photos?.[0] || null})
+      `);
+
+      const deleted = await storage.deleteListing(listingId);
       if (!deleted) {
         return res.status(404).json({ error: "Listing not found" });
       }
@@ -6256,6 +6269,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedListing);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/deleted-listings", isAdmin, async (_req: Request, res: Response) => {
+    try {
+      const result = (await db.execute(sql`
+        SELECT
+          dl.*,
+          u_owner.username AS owner_username,
+          u_owner.email AS owner_email,
+          u_deleter.username AS deleted_by_username
+        FROM deleted_listings dl
+        LEFT JOIN users u_owner ON u_owner.id = dl.user_id
+        LEFT JOIN users u_deleter ON u_deleter.id = dl.deleted_by
+        ORDER BY dl.deleted_at DESC
+        LIMIT 200
+      `)) as any;
+      res.json({ items: result?.rows || [] });
+    } catch (error: any) {
+      console.error("[admin/deleted-listings]", error);
+      res.status(500).json({ message: "Failed to fetch deleted listings" });
     }
   });
 

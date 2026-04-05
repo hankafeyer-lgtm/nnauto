@@ -300,6 +300,24 @@ export const listings = pgTable(
   ],
 );
 
+// ── Deleted listings log ─────────────────────────────────────────────────────
+
+export const deletedListings = pgTable("deleted_listings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  listingId: varchar("listing_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  deletedBy: varchar("deleted_by").notNull(),
+  brand: text("brand").notNull(),
+  model: text("model").notNull(),
+  title: text("title").notNull(),
+  year: integer("year"),
+  price: decimal("price", { precision: 10, scale: 2 }),
+  photo: text("photo"),
+  deletedAt: timestamp("deleted_at").default(sql`now()`).notNull(),
+});
+
+export type DeletedListing = typeof deletedListings.$inferSelect;
+
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/;
 
 export const insertListingSchema = createInsertSchema(listings).omit({

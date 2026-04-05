@@ -1604,6 +1604,21 @@ app.use((req, res, next) => {
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_dealer BOOLEAN NOT NULL DEFAULT false`);
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS dealer_id VARCHAR`);
     await db.execute(sql`ALTER TABLE listings ADD COLUMN IF NOT EXISTS is_sold BOOLEAN NOT NULL DEFAULT false`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS deleted_listings (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        listing_id VARCHAR NOT NULL,
+        user_id VARCHAR NOT NULL,
+        deleted_by VARCHAR NOT NULL,
+        brand TEXT NOT NULL,
+        model TEXT NOT NULL,
+        title TEXT NOT NULL,
+        year INTEGER,
+        price DECIMAL(10,2),
+        photo TEXT,
+        deleted_at TIMESTAMP NOT NULL DEFAULT now()
+      )
+    `);
   } catch (e) {
     console.warn("[bootstrap] column migration skipped:", (e as any)?.message);
   }
