@@ -580,6 +580,8 @@ type DealerListing = {
   views: number;
   contacts: number;
   whatsapp: number;
+  mileage?: number;
+  region?: string;
 };
 
 function getListingStatus(l: DealerListing): "sold" | "top" | "reserve" | "active" {
@@ -610,6 +612,7 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [editingListing, setEditingListing] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/dealer/listings"],
@@ -706,14 +709,22 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
             const cfg = STATUS_CONFIG[status];
             const StatusIcon = cfg.icon;
             const photo = l.photos?.[0];
+            const isExpanded = expandedId === l.id;
+            const totalInteractions = (l.contacts || 0) + (l.whatsapp || 0);
+            const conversionRate = l.views > 0 ? ((totalInteractions / l.views) * 100).toFixed(1) : "0.0";
+            const viewsBarWidth = Math.min(100, Math.round((l.views / Math.max(1, ...allListings.map(x => x.views))) * 100));
+
             return (
               <Card key={l.id} className={`transition-all ${status === "sold" ? "opacity-60" : ""}`}>
                 <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-center gap-3">
-                    {/* Photo */}
+                  <div
+                    className="flex items-center gap-3 cursor-pointer"
+                    onClick={() => setExpandedId(isExpanded ? null : l.id)}
+                  >
+                    {/* Фото */}
                     <div
-                      className="h-14 w-20 sm:h-16 sm:w-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 cursor-pointer relative"
-                      onClick={() => navigate(`/listing/${l.id}`)}
+                      className="h-14 w-20 sm:h-16 sm:w-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 relative"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/listing/${l.id}`); }}
                     >
                       {photo ? (
                         <img src={`/img/${photo}?w=192&h=128&fit=cover`} alt={`${l.brand} ${l.model}`} className="w-full h-full object-cover" />
@@ -732,10 +743,10 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                       )}
                     </div>
 
-                    {/* Info */}
+                    {/* Інфо */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <p className="font-semibold text-sm truncate">{l.brand} {l.model}</p>
+                        <p className="font-semibold text-sm truncate">{l.brand} {l.model} {l.year}</p>
                         <Badge className={`${cfg.color} text-[10px] px-1.5 py-0 h-5 flex-shrink-0`}>
                           <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
                           {cfg.label}
@@ -745,12 +756,13 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                         <span className="font-medium">{Number(l.price).toLocaleString()} Kč</span>
                         <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{l.views}</span>
                         <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{l.contacts}</span>
+                        <span className="flex items-center gap-0.5"><MessageCircle className="h-3 w-3" />{l.whatsapp}</span>
                         <span className="flex items-center gap-0.5"><Timer className="h-3 w-3" />{getTimeSince(l.created_at)}</span>
                       </div>
                     </div>
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* Кнопки */}
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       {status === "top" && (
                         <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => removeTopMutation.mutate(l.id)}>
                           <Crown className="h-3 w-3 mr-1 text-amber-500" />
@@ -773,6 +785,71 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                       </Button>
                     </div>
                   </div>
+
+                  {/* Розгорнута статистика */}
+                  {isExpanded && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-blue-50 rounded-lg p-2.5 text-center">
+                          <Eye className="h-4 w-4 mx-auto text-blue-600 mb-1" />
+                          <p className="text-lg font-bold text-blue-700">{l.views}</p>
+                          <p className="text-[10px] text-blue-600/70">{t("dealer.views")}</p>
+                        </div>
+                        <div className="bg-emerald-50 rounded-lg p-2.5 text-center">
+                          <Phone className="h-4 w-4 mx-auto text-emerald-600 mb-1" />
+                          <p className="text-lg font-bold text-emerald-700">{l.contacts}</p>
+                          <p className="text-[10px] text-emerald-600/70">{t("dealer.contacts")}</p>
+                        </div>
+                        <div className="bg-green-50 rounded-lg p-2.5 text-center">
+                          <MessageCircle className="h-4 w-4 mx-auto text-green-600 mb-1" />
+                          <p className="text-lg font-bold text-green-700">{l.whatsapp}</p>
+                          <p className="text-[10px] text-green-600/70">WhatsApp</p>
+                        </div>
+                        <div className="bg-amber-50 rounded-lg p-2.5 text-center">
+                          <TrendingUp className="h-4 w-4 mx-auto text-amber-600 mb-1" />
+                          <p className="text-lg font-bold text-amber-700">{conversionRate}%</p>
+                          <p className="text-[10px] text-amber-600/70">{t("dealer.conversionRate")}</p>
+                        </div>
+                      </div>
+
+                      {/* Візуальний прогрес-бар переглядів */}
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{t("dealer.views")}</span>
+                          <span>{l.views}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full transition-all"
+                            style={{ width: `${viewsBarWidth}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{t("dealer.contacts")} + WhatsApp</span>
+                          <span>{totalInteractions}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all"
+                            style={{ width: `${l.views > 0 ? Math.min(100, Math.round((totalInteractions / l.views) * 100 * 5)) : 0}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Додаткова інформація */}
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        {l.mileage != null && (
+                          <span className="bg-muted px-2 py-0.5 rounded">{l.mileage.toLocaleString()} km</span>
+                        )}
+                        {l.region && (
+                          <span className="bg-muted px-2 py-0.5 rounded">{l.region}</span>
+                        )}
+                        <span className="bg-muted px-2 py-0.5 rounded">
+                          {new Date(l.created_at).toLocaleDateString("cs-CZ")}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
