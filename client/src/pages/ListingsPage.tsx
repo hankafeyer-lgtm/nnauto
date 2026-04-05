@@ -3835,7 +3835,7 @@ export default function ListingsPage() {
 
         {/* ✅ Skeleton cards (щоб сторінка не виглядала пустою) */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8">
-          {Array.from({ length: 9 }).map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
               <div className="h-44 w-full rounded-lg bg-muted animate-pulse" />
               <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />

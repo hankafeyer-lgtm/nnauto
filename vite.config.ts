@@ -20,9 +20,14 @@ export default defineConfig({
     cssMinify: true,
     rollupOptions: {
       output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom"],
-          "vendor-query": ["@tanstack/react-query"],
+        manualChunks(id: string) {
+          if (id.includes("node_modules/react-dom")) return "vendor-react";
+          if (id.includes("node_modules/react/")) return "vendor-react";
+          if (id.includes("node_modules/@tanstack/react-query")) return "vendor-query";
+          if (id.includes("node_modules/lucide-react")) return "vendor-icons";
+          if (id.includes("node_modules/@radix-ui")) return "vendor-radix";
+          if (id.includes("node_modules/date-fns")) return "vendor-datefns";
+          if (id.includes("node_modules/react-helmet-async")) return "vendor-helmet";
         },
       },
     },

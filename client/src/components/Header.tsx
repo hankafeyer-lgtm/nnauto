@@ -197,7 +197,9 @@ function HeaderContent({
     pagination?: { total: number };
   }>({
     queryKey: [listingsCountApiUrl],
-    staleTime: 15 * 60 * 1000,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnMount: false,
   });
 
   const baseListingsCount = listingsCountData?.pagination?.total ?? 0;

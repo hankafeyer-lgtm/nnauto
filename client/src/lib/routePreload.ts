@@ -51,13 +51,16 @@ export function warmCoreRoutes() {
     cancelIdleCallback?: (id: number) => void;
   };
 
+  const primaryDelay = shouldUseLightWarmup ? 2000 : 200;
+  const secondaryDelay = shouldUseLightWarmup ? 8000 : 3000;
+
   if (idleApi.requestIdleCallback) {
-    idleApi.requestIdleCallback(warmPrimary, { timeout: 200 });
-    idleApi.requestIdleCallback(warmSecondary, { timeout: 3000 });
+    idleApi.requestIdleCallback(warmPrimary, { timeout: primaryDelay });
+    idleApi.requestIdleCallback(warmSecondary, { timeout: secondaryDelay });
     return;
   }
 
-  window.setTimeout(warmPrimary, 100);
-  window.setTimeout(warmSecondary, 2000);
+  window.setTimeout(warmPrimary, primaryDelay);
+  window.setTimeout(warmSecondary, secondaryDelay);
 }
 

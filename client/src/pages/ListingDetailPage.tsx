@@ -3388,9 +3388,12 @@ export default function ListingDetailPage() {
   const { data: listingAnalytics } = useQuery<ListingAnalytics>({
     queryKey: [`/api/listings/${listingId}/analytics`],
     enabled: !!listingId && canSeeListingAnalytics,
-    refetchInterval: canSeeListingAnalytics ? 15000 : false,
+    refetchInterval: canSeeListingAnalytics ? 60000 : false,
     retry: false,
   });
+
+  const listingVinRaw = (listing?.vin || "").trim().toUpperCase();
+  const hasValidVin = /^[A-HJ-NPR-Z0-9]{17}$/.test(listingVinRaw);
 
   const { data: cebiaConfig } = useQuery<{
     enabled: boolean;
@@ -3400,11 +3403,13 @@ export default function ListingDetailPage() {
     currency?: string;
   }>({
     queryKey: ["/api/cebia/config"],
+    enabled: hasValidVin,
+    staleTime: 30 * 60 * 1000,
   });
 
   const cebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen === true;
-  const listingVin = (listing?.vin || "").trim().toUpperCase();
-  const listingVinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(listingVin);
+  const listingVin = listingVinRaw;
+  const listingVinValid = hasValidVin;
 
   const clearInteractionLocks = useCallback(() => {
     document.body.style.pointerEvents = "";

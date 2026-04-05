@@ -358,6 +358,14 @@ const ensureListingsIndexes = async () => {
     CREATE INDEX IF NOT EXISTS listings_user_id_idx
     ON listings (user_id)
   `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_is_sold_created_at_idx
+    ON listings (is_sold, is_top_listing DESC, created_at DESC)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS listings_color_idx
+    ON listings (color)
+  `);
 };
 
 const ensureBrandModelCatalog = async () => {
@@ -5584,8 +5592,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .offset(start),
         );
 
+        const slimListings = paginated.map(({ description, equipment, extras, video, ...rest }) => rest);
+
         const payload = {
-          listings: paginated,
+          listings: slimListings,
           pagination: {
             total,
             page: safePage,
@@ -5603,8 +5613,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(payload);
       }
 
-      // Fallback (filters supported): preserve current logic, but narrow the DB
-      // candidate set first to avoid loading all listings on every filtered request.
+      // Filtered path: narrow DB candidate set then apply JS-level filters
+      const filterCacheKey = `f:${JSON.stringify(q)}`;
+      if (process.env.NODE_ENV === "production") {
+        const cached = getListingsFastCache(filterCacheKey);
+        if (cached) {
+          res.setHeader("X-Listings-Data-Source", "filter-cache");
+          return res.json(cached);
+        }
+      }
+
       const dbPrefilters: SQL[] = [];
       const userIdPrefilter = typeof q.userId === "string" ? q.userId.trim() : "";
       if (userIdPrefilter) {
@@ -5687,6 +5705,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conditionPrefilter = typeof q.condition === "string" ? q.condition.trim().split(",") : [];
       if (conditionPrefilter.length === 1) {
         dbPrefilters.push(eq(listingsTable.condition, conditionPrefilter[0]));
+      }
+
+      const modelPrefilter = typeof q.model === "string" ? q.model.trim() : "";
+      if (modelPrefilter) {
+        dbPrefilters.push(ilike(listingsTable.model, modelPrefilter));
+      }
+
+      const colorPrefilter = typeof q.color === "string" ? q.color.trim() : "";
+      if (colorPrefilter) {
+        dbPrefilters.push(ilike(listingsTable.color, colorPrefilter));
       }
 
       const listingAgeMinPrefilter = toInt(q.listingAgeMin);
@@ -6000,8 +6028,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const end = start + limitNum;
       const paginated = allListings.slice(start, end);
 
-      return res.json({
-        listings: paginated,
+      const slimPaginated = paginated.map(({ description, video, ...rest }) => rest);
+
+      const filteredPayload = {
+        listings: slimPaginated,
         pagination: {
           total,
           page: safePage,
@@ -6009,7 +6039,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalPages,
           hasMore: safePage * limitNum < total,
         },
-      });
+      };
+
+      if (process.env.NODE_ENV === "production") {
+        setListingsFastCache(filterCacheKey, filteredPayload);
+      }
+
+      return res.json(filteredPayload);
     } catch (error: any) {
       if (process.env.NODE_ENV === "production" && fastCacheKeyForFallback) {
         const stalePayload = getListingsFastCache(fastCacheKeyForFallback, {
@@ -6617,11 +6653,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.set("Cache-Control", "public, max-age=31536000, immutable");
       res.set("Vary", "Accept-Encoding");
 
-      // Check if this is an image that might need rotation
       const isImagePath = /\.(jpg|jpeg|png|webp)$/i.test(req.path);
 
       if (isImagePath) {
-        // Download and auto-rotate image based on EXIF orientation
+        const objCacheKey = `obj-${objectKey}`;
+        const cachedObj = imageCacheGet(objCacheKey);
+        if (cachedObj) {
+          res.set("Content-Type", cachedObj.contentType);
+          res.set("X-Image-Cache", "HIT");
+          return res.send(cachedObj.buffer);
+        }
+
         try {
           const chunks: Buffer[] = [];
           const originalStream =
@@ -6632,10 +6674,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           const originalBuffer = Buffer.concat(chunks);
 
-          // Auto-rotate based on EXIF and return
           const rotatedBuffer = await sharp(originalBuffer).rotate().toBuffer();
 
-          // Determine content type
           const ext = req.path.split(".").pop()?.toLowerCase();
           const contentType =
             ext === "png"
@@ -6644,7 +6684,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ? "image/webp"
                 : "image/jpeg";
 
+          imageCacheSet(objCacheKey, {
+            buffer: rotatedBuffer,
+            contentType,
+            timestamp: Date.now(),
+          });
+
           res.set("Content-Type", contentType);
+          res.set("X-Image-Cache", "MISS");
           return res.send(rotatedBuffer);
         } catch (rotateError) {
           console.error(

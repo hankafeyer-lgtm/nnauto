@@ -188,7 +188,7 @@ export function warmListingFrame(_id: string) {
 
 export function prefetchListingDocument(id: string) {
   if (typeof window === "undefined") return;
-  if (!id) return;
+  if (!id || !canPrefetchHeavyResources()) return;
   const url = `/listing/${id}`;
 
   if (prefetchedListingDocLinks.has(url)) return;
