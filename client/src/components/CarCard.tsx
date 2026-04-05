@@ -294,13 +294,9 @@ function CarCard({
                   }`}
                 /> */}
                 <img
-                  src={getOptimizedImageUrl(image, {
-                    width: 768,
-                    quality: 84,
-                    format: "webp",
-                  })}
+                  src={getCardImageUrl(image)}
                   srcSet={getCardSrcSet(image)}
-                  sizes="(max-width: 640px) 100vw, 320px"
+                  sizes="(max-width: 640px) 100vw, 400px"
                   alt={title}
                   loading={priority ? "eager" : "lazy"}
                   decoding="async"

@@ -358,21 +358,14 @@
     inset: -1px;
   }
 
-  /* Custom animation for golden glow */
   @keyframes pulse-slow {
-    0%,
-    100% {
-      opacity: 1;
-      box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
-    }
-    50% {
-      opacity: 0.85;
-      box-shadow: 0 0 40px rgba(212, 175, 55, 0.8);
-    }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
   }
 
   .animate-pulse-slow {
     animation: pulse-slow 3s ease-in-out infinite;
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
   }
 
   /* Hide scrollbar but keep functionality */

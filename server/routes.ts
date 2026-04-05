@@ -6567,7 +6567,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Parse query parameters for optimization
       const width = parseInt(req.query.w as string) || undefined;
-      const quality = parseInt(req.query.q as string) || 80;
+      const quality = parseInt(req.query.q as string) || 72;
       const format = (req.query.f as string) || "webp";
 
       // Limit width to reasonable values
@@ -6636,9 +6636,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert to requested format
       let contentType = "image/webp";
       if (format === "webp") {
-        pipeline = pipeline.webp({ quality, effort: 4, smartSubsample: true });
+        pipeline = pipeline.webp({ quality, effort: 2, smartSubsample: true });
       } else if (format === "avif") {
-        pipeline = pipeline.avif({ quality, effort: 4 });
+        pipeline = pipeline.avif({ quality, effort: 2 });
         contentType = "image/avif";
       } else {
         pipeline = pipeline.jpeg({ quality, mozjpeg: true, trellisQuantisation: true });

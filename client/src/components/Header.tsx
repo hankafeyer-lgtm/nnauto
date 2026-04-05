@@ -39,7 +39,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient, setSessionId } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import LoginModal from "@/components/LoginModal";
+const LoginModal = lazy(() => import("@/components/LoginModal"));
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { carBrands, carModels } from "@shared/carDatabase";
 const logoImage = "/logo-icon-only.png";
@@ -71,12 +71,18 @@ const normalizeSearchText = (value: string) =>
 
 const brandLabelByValue = new Map(carBrands.map((brand) => [brand.value, brand.label]));
 
-const staticModelSuggestions = Object.entries(carModels).flatMap(([brandValue, models]) =>
-  models.map((model) => ({
-    brand: brandLabelByValue.get(brandValue) ?? brandValue,
-    model,
-  })),
-);
+let _cachedModelSuggestions: Array<{ brand: string; model: string }> | null = null;
+function getStaticModelSuggestions() {
+  if (!_cachedModelSuggestions) {
+    _cachedModelSuggestions = Object.entries(carModels).flatMap(([brandValue, models]) =>
+      models.map((model) => ({
+        brand: brandLabelByValue.get(brandValue) ?? brandValue,
+        model,
+      })),
+    );
+  }
+  return _cachedModelSuggestions;
+}
 
 export default function Header(props: HeaderProps) {
   return <HeaderContent {...props} />;
@@ -226,7 +232,7 @@ function HeaderContent({
       });
     }
 
-    for (const entry of staticModelSuggestions) {
+    for (const entry of getStaticModelSuggestions()) {
       const brandQuery = normalizeSearchText(entry.brand);
       const modelQuery = normalizeSearchText(entry.model);
       const modelKey = `${brandQuery}-${modelQuery}`;
@@ -834,11 +840,15 @@ function HeaderContent({
         </div>
       </div>
 
-      <LoginModal
-        open={loginModalOpen}
-        onOpenChange={setLoginModalOpen}
-        initialTab={loginModalTab}
-      />
+      {loginModalOpen && (
+        <Suspense fallback={null}>
+          <LoginModal
+            open={loginModalOpen}
+            onOpenChange={setLoginModalOpen}
+            initialTab={loginModalTab}
+          />
+        </Suspense>
+      )}
       {favoritesModalOpen && (
         <Suspense fallback={null}>
           <FavoritesModal
