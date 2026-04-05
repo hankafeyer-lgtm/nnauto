@@ -787,26 +787,26 @@ export default function AdminPage() {
         ) : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 max-w-5xl">
-            <TabsTrigger value="users" data-testid="tab-admin-users">
-              <Users className="h-4 w-4 mr-2" />
-              {t("admin.users")} {users && `(${users.length})`}
+          <TabsList className="grid w-full grid-cols-3 sm:grid-cols-5 max-w-5xl gap-1 h-auto p-1">
+            <TabsTrigger value="users" data-testid="tab-admin-users" className="text-xs sm:text-sm px-2 py-2 gap-1">
+              <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate">{t("admin.users")} ({users.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="listings" data-testid="tab-admin-listings">
-              <Car className="h-4 w-4 mr-2" />
-              {t("admin.listings")} {listings && `(${listings.length})`}
+            <TabsTrigger value="listings" data-testid="tab-admin-listings" className="text-xs sm:text-sm px-2 py-2 gap-1">
+              <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate">{t("admin.listings")} ({listings.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="deleted" data-testid="tab-admin-deleted">
-              <History className="h-4 w-4 mr-2" />
-              Видалені {deletedListings.length > 0 && `(${deletedListings.length})`}
+            <TabsTrigger value="deleted" data-testid="tab-admin-deleted" className="text-xs sm:text-sm px-2 py-2 gap-1">
+              <History className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate">Smazané{deletedListings.length > 0 ? ` (${deletedListings.length})` : ""}</span>
             </TabsTrigger>
-            <TabsTrigger value="payments" data-testid="tab-admin-payments">
-              <CreditCard className="h-4 w-4 mr-2" />
-              {t("admin.payments")} {payments && `(${payments.length})`}
+            <TabsTrigger value="payments" data-testid="tab-admin-payments" className="text-xs sm:text-sm px-2 py-2 gap-1">
+              <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate">{t("admin.payments")} ({payments.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="cebia" data-testid="tab-admin-cebia">
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Cebia {cebiaReports && `(${cebiaReports.length})`}
+            <TabsTrigger value="cebia" data-testid="tab-admin-cebia" className="text-xs sm:text-sm px-2 py-2 gap-1">
+              <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+              <span className="truncate">Cebia ({cebiaReports.length})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1070,9 +1070,9 @@ export default function AdminPage() {
           <TabsContent value="deleted" className="mt-6">
             <Card>
               <CardHeader>
-                <CardTitle>Видалені оголошення</CardTitle>
+                <CardTitle>Smazané inzeráty</CardTitle>
                 <CardDescription>
-                  Історія видалених оголошень — хто, коли і яке авто видалив
+                  Historie smazaných inzerátů — kdo, kdy a jaké auto smazal
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1085,12 +1085,12 @@ export default function AdminPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Фото</TableHead>
-                          <TableHead>Авто</TableHead>
-                          <TableHead>Ціна</TableHead>
-                          <TableHead>Власник</TableHead>
-                          <TableHead>Видалив</TableHead>
-                          <TableHead>Коли</TableHead>
+                          <TableHead>Foto</TableHead>
+                          <TableHead>Auto</TableHead>
+                          <TableHead>Cena</TableHead>
+                          <TableHead>Vlastník</TableHead>
+                          <TableHead>Smazal</TableHead>
+                          <TableHead>Kdy</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1125,8 +1125,8 @@ export default function AdminPage() {
                             <TableCell>
                               <Badge variant={dl.deleted_by === dl.user_id ? "secondary" : "destructive"}>
                                 {dl.deleted_by === dl.user_id
-                                  ? (dl.owner_username || "власник")
-                                  : (dl.deleted_by_username || "адмін")}
+                                  ? (dl.owner_username || "vlastník")
+                                  : (dl.deleted_by_username || "admin")}
                               </Badge>
                             </TableCell>
                             <TableCell className="whitespace-nowrap text-sm">
@@ -1139,7 +1139,7 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <p className="text-center py-8 text-muted-foreground">
-                    Ще нічого не видалено.
+                    Zatím žádné smazané inzeráty.
                   </p>
                 )}
               </CardContent>
