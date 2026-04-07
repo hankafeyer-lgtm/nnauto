@@ -4,7 +4,17 @@ import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const DropdownMenu = DropdownMenuPrimitive.Root
+/**
+ * Radix defaults modal=true, which sets disableOutsidePointerEvents + scroll lock on the whole page.
+ * With sticky headers / scroll that can leave the menu misplaced while input is still blocked — use non-modal by default.
+ */
+function DropdownMenu({
+  modal = false,
+  ...props
+}: React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.Root>) {
+  return <DropdownMenuPrimitive.Root modal={modal} {...props} />
+}
+DropdownMenu.displayName = DropdownMenuPrimitive.Root.displayName
 
 const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
 
