@@ -2956,6 +2956,7 @@ import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   apiRequest,
+  listingsFetchHeaders,
   prefetchListing,
   prefetchListingDocument,
   queryClient,
@@ -2989,7 +2990,7 @@ import {
 } from "@/components/ui/pagination";
 
 import { SearchX, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
-import { useSearch } from "wouter";
+import { useSearch } from "@/lib/navigation";
 
 import {
   useCallback,
@@ -3628,6 +3629,32 @@ export default function ListingsPage() {
     },
   });
 
+  const toggleSoldMutation = useMutation({
+    mutationFn: async (payload: { listingId: string; isSold: boolean }) => {
+      const res = await apiRequest("PUT", `/api/listings/${payload.listingId}`, {
+        isSold: payload.isSold,
+      });
+      return (await res.json()) as Listing;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === "/api/listings",
+        refetchType: "all",
+      });
+      toast({
+        title: t("listing.soldStatusUpdated"),
+        description: t("listing.soldStatusUpdatedDescription"),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: t("listing.error"),
+        description: error?.message || t("listing.updateErrorDescription"),
+      });
+    },
+  });
+
   const handlePromote = useCallback(
     (listingId: string) => promoteToTopMutation.mutate(listingId),
     [promoteToTopMutation],
@@ -3796,7 +3823,7 @@ export default function ListingsPage() {
         method: "GET",
         credentials: "same-origin",
         cache: "default",
-        headers: { Accept: "application/json" },
+        headers: listingsFetchHeaders({ Accept: "application/json" }),
       });
 
       if (!res.ok) {
@@ -3835,7 +3862,7 @@ export default function ListingsPage() {
 
         {/* ✅ Skeleton cards (щоб сторінка не виглядала пустою) */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-8">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 9 }).map((_, i) => (
             <div key={i} className="rounded-xl border bg-card p-4 space-y-3">
               <div className="h-44 w-full rounded-lg bg-muted animate-pulse" />
               <div className="h-4 w-3/4 rounded bg-muted animate-pulse" />
@@ -3875,7 +3902,7 @@ export default function ListingsPage() {
         const res = await fetch(`/api/listings?${nextQueryString}`, {
           method: "GET",
           credentials: "same-origin",
-          headers: { Accept: "application/json" },
+          headers: listingsFetchHeaders({ Accept: "application/json" }),
         });
         if (!res.ok) throw new Error(`Request failed: ${res.status}`);
         return (await res.json()) as ListingsResponse;
@@ -4222,6 +4249,18 @@ export default function ListingsPage() {
     return map;
   }, [sortedListings]);
 
+  const handleToggleSold = useCallback(
+    (listingId: string) => {
+      const listing = listingsById.get(listingId);
+      if (!listing) return;
+      toggleSoldMutation.mutate({
+        listingId,
+        isSold: !listing.isSold,
+      });
+    },
+    [listingsById, toggleSoldMutation],
+  );
+
   const fuelLabels = useMemo(
     () => ({
       benzin: t("hero.benzin"),
@@ -4296,6 +4335,7 @@ export default function ListingsPage() {
         location: regionLabel,
         datePosted,
         condition: listing.isTopListing ? t("detail.topListing") : undefined,
+        isSold: Boolean(listing.isSold),
       };
     });
   }, [sortedListings, regionLabelMap, dateLocale, t, fuelLabels, transmissionLabels]);
@@ -4305,22 +4345,6 @@ export default function ListingsPage() {
     if (!listing) return;
     setEditingListing(listing);
     setEditDialogOpen(true);
-  };
-
-  const markSoldMutation = useMutation({
-    mutationFn: async ({ id, isSold }: { id: string; isSold: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/listings/${id}/sold`, { isSold });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "/api/listings" });
-    },
-  });
-
-  const handleMarkSold = (listingId: string) => {
-    const listing = listingsById.get(listingId);
-    if (!listing) return;
-    markSoldMutation.mutate({ id: listingId, isSold: !listing.isSold });
   };
 
   const totalPages = pagination.totalPages;
@@ -4572,7 +4596,6 @@ export default function ListingsPage() {
                       user && listing && listing.userId === user.id,
                     );
                     const isTopListing = Boolean(listing?.isTopListing);
-                    const isListingSold = Boolean(listing?.isSold);
                     const isPromoting = promotingListingId === car.id;
 
                     return (
@@ -4583,12 +4606,10 @@ export default function ListingsPage() {
                         onOpenListing={openListingOverlay}
                         isOwner={isOwner}
                         isTopListing={isTopListing}
-                        isSold={isListingSold}
                         onPromote={handlePromote}
                         isPromoting={isPromoting}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
-                        onMarkSold={handleMarkSold}
                         priority={index < 3}
                       />
                     );
@@ -4734,8 +4755,10 @@ export default function ListingsPage() {
                       user && listing && listing.userId === user.id,
                     );
                     const isTopListing = Boolean(listing?.isTopListing);
-                    const isListingSold = Boolean(listing?.isSold);
                     const isPromoting = promotingListingId === car.id;
+                    const isTogglingSold =
+                      toggleSoldMutation.isPending &&
+                      toggleSoldMutation.variables?.listingId === car.id;
 
                     return (
                       <CarCard
@@ -4745,12 +4768,12 @@ export default function ListingsPage() {
                         onOpenListing={openListingOverlay}
                         isOwner={isOwner}
                         isTopListing={isTopListing}
-                        isSold={isListingSold}
                         onPromote={handlePromote}
                         isPromoting={isPromoting}
                         onEdit={handleEdit}
                         onDelete={handleDelete}
-                        onMarkSold={handleMarkSold}
+                        onToggleSold={isOwner ? handleToggleSold : undefined}
+                        isTogglingSold={isTogglingSold}
                         priority={index < 3}
                       />
                     );

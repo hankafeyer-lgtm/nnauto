@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { Link, useLocation } from "@/lib/navigation";
 import {
   NNAUTO_OPEN_ADD_LISTING_AUTH_EVENT,
   setPostAuthRedirect,
@@ -115,10 +115,10 @@ function HeaderContent({
       window.removeEventListener(NNAUTO_OPEN_ADD_LISTING_AUTH_EVENT, openAddListingAuth);
   }, []);
   const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window === "undefined") return false;
     const THEME_VERSION = "v3_always_light_default";
     const savedVersion = localStorage.getItem("zlateauto_theme_version");
 
-    // Always reset to light theme if version doesn't match or no saved theme
     if (savedVersion !== THEME_VERSION) {
       localStorage.setItem("zlateauto_theme", "light");
       localStorage.setItem("zlateauto_theme_version", THEME_VERSION);
@@ -127,7 +127,6 @@ function HeaderContent({
     }
 
     const saved = localStorage.getItem("zlateauto_theme");
-    // Default to light mode if no saved preference
     if (!saved || saved === "light") {
       document.documentElement.classList.remove("dark");
       return false;

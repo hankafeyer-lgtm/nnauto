@@ -1,4 +1,6 @@
-import { Helmet } from 'react-helmet-async';
+"use client";
+
+import { useEffect } from "react";
 
 interface SEOProps {
   title?: string;
@@ -6,7 +8,7 @@ interface SEOProps {
   keywords?: string;
   image?: string;
   url?: string;
-  type?: 'website' | 'article' | 'product';
+  type?: "website" | "article" | "product";
   locale?: string;
   noindex?: boolean;
   structuredData?: object;
@@ -15,111 +17,101 @@ interface SEOProps {
   nextPage?: string;
 }
 
-const baseUrl = 'https://nnauto.cz';
+const baseUrl = "https://nnauto.cz";
 const defaultImage = `${baseUrl}/og-image.png`;
-const siteName = 'NNAuto';
+const siteName = "NNAuto";
+
+function setMeta(name: string, content: string, attr = "name") {
+  let el = document.querySelector(`meta[${attr}="${name}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute(attr, name);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+}
+
+function setLink(rel: string, href: string, extra?: Record<string, string>) {
+  const selector = extra
+    ? `link[rel="${rel}"][${Object.entries(extra)
+        .map(([k, v]) => `${k}="${v}"`)
+        .join("][")}]`
+    : `link[rel="${rel}"]`;
+  let el = document.querySelector(selector);
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", rel);
+    if (extra) Object.entries(extra).forEach(([k, v]) => el!.setAttribute(k, v));
+    document.head.appendChild(el);
+  }
+  (el as HTMLLinkElement).href = href;
+}
 
 export function SEO({
   title,
-  description = 'NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání.',
-  keywords = 'prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, nákladní vozy, SUV, elektroauta, autobazar, Česká republika, Praha, Brno, Ostrava, NNAuto, autobazar online, prodej vozidel, auto inzeráty, výkup aut, financing auta, prodej motorek, inzerce aut, авто базар Чехія, продаж авто в Чехії, car marketplace Czech Republic, used cars Czechia, auto verkaufen Tschechien',
+  description = "NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání.",
+  keywords = "prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, nákladní vozy, SUV, elektroauta, autobazar, Česká republika, Praha, Brno, Ostrava, NNAuto, autobazar online, prodej vozidel, auto inzeráty, výkup aut, financing auta, prodej motorek, inzerce aut, авто базар Чехія, продаж авто в Чехії, car marketplace Czech Republic, used cars Czechia, auto verkaufen Tschechien",
   image = defaultImage,
   url = baseUrl,
-  type = 'website',
-  locale = 'cs_CZ',
+  type = "website",
+  locale = "cs_CZ",
   noindex = false,
   structuredData,
   alternateLanguages,
   prevPage,
   nextPage,
 }: SEOProps) {
-  const fullTitle = title 
-    ? `${title} | ${siteName}` 
+  const fullTitle = title
+    ? `${title} | ${siteName}`
     : `${siteName} - Prémiový Marketplace Aut v České Republice`;
 
-  return (
-    <Helmet>
-      {/* Primary Meta Tags */}
-      <title>{fullTitle}</title>
-      <meta name="title" content={fullTitle} />
-      <meta name="description" content={description} />
-      <meta name="keywords" content={keywords} />
-      
-      {/* Author and Publisher */}
-      <meta name="author" content="NNAuto" />
-      <meta name="publisher" content="NNAuto s.r.o." />
-      
-      {/* Geo Tags for Czech Republic */}
-      <meta name="geo.region" content="CZ" />
-      <meta name="geo.placename" content="Česká republika" />
-      <meta name="geo.position" content="49.8175;15.4730" />
-      <meta name="ICBM" content="49.8175, 15.4730" />
-      
-      {/* Language and Content */}
-      <meta httpEquiv="content-language" content={locale.replace('_', '-')} />
-      <meta name="language" content={locale.split('_')[0]} />
-      
-      {/* Robots */}
-      {noindex ? (
-        <meta name="robots" content="noindex, nofollow" />
-      ) : (
-        <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-      )}
-      <meta name="googlebot" content="index, follow, max-image-preview:large" />
-      <meta name="bingbot" content="index, follow" />
-      
-      {/* Canonical URL */}
-      <link rel="canonical" href={url} />
-      
-      {/* Alternate Language URLs (hreflang) */}
-      {alternateLanguages?.map(({ lang, url: altUrl }) => (
-        <link key={lang} rel="alternate" hrefLang={lang} href={altUrl} />
-      ))}
-      <link rel="alternate" hrefLang="x-default" href={baseUrl} />
-      
-      {/* Pagination */}
-      {prevPage && <link rel="prev" href={prevPage} />}
-      {nextPage && <link rel="next" href={nextPage} />}
-      
-      {/* Open Graph / Facebook */}
-      <meta property="og:type" content={type} />
-      <meta property="og:url" content={url} />
-      <meta property="og:title" content={fullTitle} />
-      <meta property="og:description" content={description} />
-      <meta property="og:image" content={image} />
-      <meta property="og:image:width" content="1200" />
-      <meta property="og:image:height" content="630" />
-      <meta property="og:image:alt" content={title || 'NNAuto - Prodej a nákup automobilů'} />
-      <meta property="og:site_name" content={siteName} />
-      <meta property="og:locale" content={locale} />
-      <meta property="og:locale:alternate" content="cs_CZ" />
-      <meta property="og:locale:alternate" content="uk_UA" />
-      <meta property="og:locale:alternate" content="en_US" />
-      <meta property="og:locale:alternate" content="de_DE" />
-      
-      {/* Twitter */}
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:url" content={url} />
-      <meta name="twitter:title" content={fullTitle} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={image} />
-      <meta name="twitter:image:alt" content={title || 'NNAuto - Prodej a nákup automobilů'} />
-      
-      {/* Mobile App Meta */}
-      <meta name="apple-mobile-web-app-title" content={siteName} />
-      <meta name="application-name" content={siteName} />
-      
-      {/* Structured Data */}
-      {structuredData && (
-        <script type="application/ld+json">
-          {JSON.stringify(structuredData)}
-        </script>
-      )}
-    </Helmet>
-  );
+  useEffect(() => {
+    document.title = fullTitle;
+
+    setMeta("title", fullTitle);
+    setMeta("description", description);
+    setMeta("keywords", keywords);
+    setMeta("author", "NNAuto");
+
+    const robotsContent = noindex
+      ? "noindex, nofollow"
+      : "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
+    setMeta("robots", robotsContent);
+
+    setLink("canonical", url);
+
+    setMeta("og:type", fullTitle, "property");
+    setMeta("og:url", url, "property");
+    setMeta("og:title", fullTitle, "property");
+    setMeta("og:description", description, "property");
+    setMeta("og:image", image, "property");
+    setMeta("og:site_name", siteName, "property");
+    setMeta("og:locale", locale, "property");
+
+    setMeta("twitter:card", "summary_large_image");
+    setMeta("twitter:title", fullTitle);
+    setMeta("twitter:description", description);
+    setMeta("twitter:image", image);
+
+    let jsonLdEl = document.querySelector(
+      'script[data-seo-jsonld="true"]',
+    ) as HTMLScriptElement | null;
+    if (structuredData) {
+      if (!jsonLdEl) {
+        jsonLdEl = document.createElement("script");
+        jsonLdEl.type = "application/ld+json";
+        jsonLdEl.setAttribute("data-seo-jsonld", "true");
+        document.head.appendChild(jsonLdEl);
+      }
+      jsonLdEl.textContent = JSON.stringify(structuredData);
+    } else if (jsonLdEl) {
+      jsonLdEl.remove();
+    }
+  }, [fullTitle, description, keywords, image, url, type, locale, noindex, structuredData]);
+
+  return null;
 }
 
-// Generate comprehensive Vehicle structured data for listings
 export function generateVehicleSchema(listing: {
   id: string;
   brand: string;
@@ -143,267 +135,179 @@ export function generateVehicleSchema(listing: {
   driveType?: string[];
   region?: string;
 }) {
-  const baseUrl = 'https://nnauto.cz';
-  
   const fuelTypeMap: Record<string, string> = {
-    'benzin': 'Gasoline',
-    'diesel': 'Diesel',
-    'hybrid': 'HybridElectric',
-    'elektro': 'Electric',
-    'lpg': 'NaturalGas',
-    'cng': 'NaturalGas',
+    benzin: "Gasoline",
+    diesel: "Diesel",
+    hybrid: "HybridElectric",
+    elektro: "Electric",
+    lpg: "NaturalGas",
+    cng: "NaturalGas",
   };
-  
   const transmissionMap: Record<string, string> = {
-    'manual': 'ManualTransmission',
-    'automat': 'AutomaticTransmission',
-    'dsg': 'AutomaticTransmission',
-    'cvt': 'AutomaticTransmission',
+    manual: "ManualTransmission",
+    automat: "AutomaticTransmission",
+    dsg: "AutomaticTransmission",
+    cvt: "AutomaticTransmission",
   };
-  
   const bodyTypeMap: Record<string, string> = {
-    'sedan': 'Sedan',
-    'hatchback': 'Hatchback',
-    'kombi': 'StationWagon',
-    'suv': 'SUV',
-    'crossover': 'Crossover',
-    'coupe': 'Coupe',
-    'cabrio': 'Convertible',
-    'liftback': 'Hatchback',
-    'pickup': 'Pickup',
-    'minivan': 'Minivan',
-    'van': 'Van',
+    sedan: "Sedan",
+    hatchback: "Hatchback",
+    kombi: "StationWagon",
+    suv: "SUV",
+    crossover: "Crossover",
+    coupe: "Coupe",
+    cabrio: "Convertible",
+    liftback: "Hatchback",
+    pickup: "Pickup",
+    minivan: "Minivan",
+    van: "Van",
   };
-  
   const driveTypeMap: Record<string, string> = {
-    'fwd': 'FrontWheelDriveConfiguration',
-    'rwd': 'RearWheelDriveConfiguration',
-    'awd': 'AllWheelDriveConfiguration',
-    '4x4': 'FourWheelDriveConfiguration',
+    fwd: "FrontWheelDriveConfiguration",
+    rwd: "RearWheelDriveConfiguration",
+    awd: "AllWheelDriveConfiguration",
+    "4x4": "FourWheelDriveConfiguration",
   };
-
-  const conditionUrl = listing.condition === 'new' 
-    ? 'https://schema.org/NewCondition' 
-    : 'https://schema.org/UsedCondition';
-
-  const images = listing.photos && listing.photos.length > 0 
-    ? listing.photos.map(p => `${baseUrl}/objects/${p.replace(/^\/+/, '')}`)
-    : [`${baseUrl}/og-image.png`];
+  const conditionUrl =
+    listing.condition === "new"
+      ? "https://schema.org/NewCondition"
+      : "https://schema.org/UsedCondition";
+  const images =
+    listing.photos && listing.photos.length > 0
+      ? listing.photos.map(
+          (p) => `${baseUrl}/objects/${p.replace(/^\/+/, "")}`,
+        )
+      : [`${baseUrl}/og-image.png`];
 
   return {
     "@context": "https://schema.org",
     "@type": "Car",
     "@id": `${baseUrl}/listing/${listing.id}#vehicle`,
-    "name": `${listing.year} ${listing.brand} ${listing.model}`,
-    "brand": {
-      "@type": "Brand",
-      "name": listing.brand
-    },
-    "manufacturer": {
-      "@type": "Organization",
-      "name": listing.brand
-    },
-    "model": listing.model,
-    "modelDate": listing.year.toString(),
-    "productionDate": listing.year.toString(),
-    "vehicleIdentificationNumber": listing.vin || undefined,
-    "mileageFromOdometer": {
+    name: `${listing.year} ${listing.brand} ${listing.model}`,
+    brand: { "@type": "Brand", name: listing.brand },
+    manufacturer: { "@type": "Organization", name: listing.brand },
+    model: listing.model,
+    modelDate: listing.year.toString(),
+    productionDate: listing.year.toString(),
+    vehicleIdentificationNumber: listing.vin || undefined,
+    mileageFromOdometer: {
       "@type": "QuantitativeValue",
-      "value": listing.mileage,
-      "unitCode": "KMT",
-      "unitText": "km"
+      value: listing.mileage,
+      unitCode: "KMT",
+      unitText: "km",
     },
-    "fuelType": listing.fuelType?.[0] ? fuelTypeMap[listing.fuelType[0]] || listing.fuelType[0] : undefined,
-    "vehicleTransmission": listing.transmission?.[0] ? transmissionMap[listing.transmission[0]] || listing.transmission[0] : undefined,
-    "driveWheelConfiguration": listing.driveType?.[0] ? driveTypeMap[listing.driveType[0]] || listing.driveType[0] : undefined,
-    "color": listing.color || undefined,
-    "bodyType": listing.bodyType ? bodyTypeMap[listing.bodyType] || listing.bodyType : undefined,
-    "numberOfDoors": listing.doors || undefined,
-    "vehicleSeatingCapacity": listing.seats || undefined,
-    "vehicleEngine": listing.engineVolume || listing.power ? {
-      "@type": "EngineSpecification",
-      ...(listing.engineVolume && {
-        "engineDisplacement": {
-          "@type": "QuantitativeValue",
-          "value": parseFloat(listing.engineVolume),
-          "unitCode": "LTR",
-          "unitText": "L"
-        }
-      }),
-      ...(listing.power && {
-        "enginePower": {
-          "@type": "QuantitativeValue",
-          "value": listing.power,
-          "unitCode": "KWT",
-          "unitText": "kW"
-        }
-      })
-    } : undefined,
-    "description": listing.description || `Prodej ${listing.year} ${listing.brand} ${listing.model}. Najeto ${listing.mileage.toLocaleString('cs-CZ')} km. ${listing.fuelType?.[0] || ''} ${listing.transmission?.[0] || ''}. Cena ${listing.price.toLocaleString('cs-CZ')} Kč.`,
-    "image": images,
-    "url": `${baseUrl}/listing/${listing.id}`,
-    "offers": {
+    fuelType: listing.fuelType?.[0]
+      ? fuelTypeMap[listing.fuelType[0]] || listing.fuelType[0]
+      : undefined,
+    vehicleTransmission: listing.transmission?.[0]
+      ? transmissionMap[listing.transmission[0]] || listing.transmission[0]
+      : undefined,
+    driveWheelConfiguration: listing.driveType?.[0]
+      ? driveTypeMap[listing.driveType[0]] || listing.driveType[0]
+      : undefined,
+    color: listing.color || undefined,
+    bodyType: listing.bodyType
+      ? bodyTypeMap[listing.bodyType] || listing.bodyType
+      : undefined,
+    numberOfDoors: listing.doors || undefined,
+    vehicleSeatingCapacity: listing.seats || undefined,
+    description:
+      listing.description ||
+      `Prodej ${listing.year} ${listing.brand} ${listing.model}. Najeto ${listing.mileage.toLocaleString("cs-CZ")} km.`,
+    image: images,
+    url: `${baseUrl}/listing/${listing.id}`,
+    offers: {
       "@type": "Offer",
       "@id": `${baseUrl}/listing/${listing.id}#offer`,
-      "url": `${baseUrl}/listing/${listing.id}`,
-      "price": listing.price,
-      "priceCurrency": "CZK",
-      "priceValidUntil": new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      "availability": "https://schema.org/InStock",
-      "itemCondition": conditionUrl,
-      "seller": {
-        "@type": listing.sellerType === 'dealer' ? "AutoDealer" : "Person",
-        "name": listing.sellerType === 'dealer' ? "Autobazar" : "Soukromý prodejce",
-        "areaServed": {
-          "@type": "Country",
-          "name": "Česká republika"
-        }
-      },
-      "offeredBy": {
-        "@type": "Organization",
-        "name": "NNAuto",
-        "url": baseUrl
-      }
+      url: `${baseUrl}/listing/${listing.id}`,
+      price: listing.price,
+      priceCurrency: "CZK",
+      availability: "https://schema.org/InStock",
+      itemCondition: conditionUrl,
     },
-    "additionalProperty": [
-      ...(listing.region ? [{
-        "@type": "PropertyValue",
-        "name": "Lokalita",
-        "value": listing.region
-      }] : []),
-      ...(listing.condition ? [{
-        "@type": "PropertyValue",
-        "name": "Stav",
-        "value": listing.condition === 'new' ? 'Nové' : 'Ojeté'
-      }] : [])
-    ]
   };
 }
 
-// Generate BreadcrumbList for navigation
-export function generateBreadcrumbSchema(items: { name: string; url: string }[]) {
+export function generateBreadcrumbSchema(
+  items: { name: string; url: string }[],
+) {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    "itemListElement": items.map((item, index) => ({
+    itemListElement: items.map((item, index) => ({
       "@type": "ListItem",
-      "position": index + 1,
-      "name": item.name,
-      "item": item.url
-    }))
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
   };
 }
 
-// Generate ItemList for listings page
-export function generateListingsSchema(listings: Array<{
-  id: string;
-  brand: string;
-  model: string;
-  year: number;
-  price: number;
-  photos?: string[];
-}>) {
-  const baseUrl = 'https://nnauto.cz';
-  
+export function generateListingsSchema(
+  listings: Array<{
+    id: string;
+    brand: string;
+    model: string;
+    year: number;
+    price: number;
+    photos?: string[];
+  }>,
+) {
   return {
     "@context": "https://schema.org",
     "@type": "ItemList",
-    "name": "Inzeráty vozidel na NNAuto",
-    "description": "Aktuální nabídka automobilů, motocyklů a nákladních vozidel k prodeji",
-    "numberOfItems": listings.length,
-    "itemListElement": listings.slice(0, 20).map((listing, index) => ({
+    name: "Inzeráty vozidel na NNAuto",
+    numberOfItems: listings.length,
+    itemListElement: listings.slice(0, 20).map((listing, index) => ({
       "@type": "ListItem",
-      "position": index + 1,
-      "url": `${baseUrl}/listing/${listing.id}`,
-      "name": `${listing.year} ${listing.brand} ${listing.model}`,
-      "item": {
-        "@type": "Car",
-        "name": `${listing.year} ${listing.brand} ${listing.model}`,
-        "brand": listing.brand,
-        "model": listing.model,
-        "modelDate": listing.year.toString(),
-        "image": listing.photos?.[0] ? `${baseUrl}/objects/${listing.photos[0].replace(/^\/+/, '')}` : undefined,
-        "offers": {
-          "@type": "Offer",
-          "price": listing.price,
-          "priceCurrency": "CZK"
-        }
-      }
-    }))
+      position: index + 1,
+      url: `${baseUrl}/listing/${listing.id}`,
+      name: `${listing.year} ${listing.brand} ${listing.model}`,
+    })),
   };
 }
 
-// Generate Organization schema for the website
 export function generateOrganizationSchema() {
-  const baseUrl = 'https://nnauto.cz';
-  
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "@id": `${baseUrl}/#organization`,
-    "name": "NNAuto",
-    "alternateName": "NNAuto.cz",
-    "url": baseUrl,
-    "logo": {
-      "@type": "ImageObject",
-      "url": `${baseUrl}/favicon.svg`,
-      "width": 512,
-      "height": 512
-    },
-    "description": "Prémiový online marketplace pro prodej a nákup automobilů, motocyklů a nákladních vozidel v České republice.",
-    "email": "info@nnauto.cz",
-    "areaServed": {
-      "@type": "Country",
-      "name": "Česká republika"
-    },
-    "sameAs": []
+    name: "NNAuto",
+    url: baseUrl,
+    logo: `${baseUrl}/og-image.png`,
   };
 }
 
-// Generate WebSite schema with search action
 export function generateWebsiteSchema() {
-  const baseUrl = 'https://nnauto.cz';
-  
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "@id": `${baseUrl}/#website`,
-    "name": "NNAuto",
-    "alternateName": "NNAuto.cz - Prodej a nákup aut",
-    "url": baseUrl,
-    "description": "Prémiový marketplace pro prodej a nákup automobilů v České republice",
-    "publisher": {
-      "@id": `${baseUrl}/#organization`
-    },
-    "inLanguage": ["cs-CZ", "uk-UA", "en-US"],
-    "potentialAction": {
+    name: "NNAuto",
+    url: baseUrl,
+    potentialAction: {
       "@type": "SearchAction",
-      "target": {
+      target: {
         "@type": "EntryPoint",
-        "urlTemplate": `${baseUrl}/listings?brand={search_term_string}`
+        urlTemplate: `${baseUrl}/listings?brand={search_term_string}`,
       },
-      "query-input": "required name=search_term_string"
-    }
+      "query-input": "required name=search_term_string",
+    },
   };
 }
 
-// Generate FAQ schema
-export function generateFAQSchema(faqs: { question: string; answer: string }[]) {
+export function generateFAQSchema(
+  faqs: { question: string; answer: string }[],
+) {
   return {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    "mainEntity": faqs.map(faq => ({
+    mainEntity: faqs.map((faq) => ({
       "@type": "Question",
-      "name": faq.question,
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": faq.answer
-      }
-    }))
+      name: faq.question,
+      acceptedAnswer: { "@type": "Answer", text: faq.answer },
+    })),
   };
 }
 
-// Generate keywords based on listing attributes
 export function generateListingKeywords(listing: {
   brand: string;
   model: string;
@@ -414,59 +318,16 @@ export function generateListingKeywords(listing: {
   condition?: string;
 }): string {
   const keywords: string[] = [
-    // Primary Czech intent
     listing.brand,
     listing.model,
     `${listing.brand} ${listing.model}`,
     `${listing.year} ${listing.brand}`,
-    `${listing.year} ${listing.brand} ${listing.model}`,
     `prodej ${listing.brand}`,
-    `koupit ${listing.brand} ${listing.model}`,
-    `${listing.brand} bazar`,
-    `${listing.brand} ojetý`,
-    'auto bazar',
-    'prodej auta',
-    'NNAuto',
-    // Secondary EN/DE/UK intents for multilingual traffic
-    `${listing.brand} ${listing.model} for sale`,
-    `${listing.brand} gebrauchtwagen`,
-    `${listing.brand} ${listing.model} verkauf`,
-    `${listing.brand} ${listing.model} продаж`,
-    'used cars Czech Republic',
-    'cars for sale Czechia',
+    "auto bazar",
+    "NNAuto",
   ];
-  
-  if (listing.bodyType) {
-    keywords.push(listing.bodyType);
-    keywords.push(`${listing.brand} ${listing.bodyType}`);
-  }
-  
-  if (listing.fuelType?.[0]) {
-    keywords.push(listing.fuelType[0]);
-    keywords.push(`${listing.brand} ${listing.fuelType[0]}`);
-  }
-  
-  if (listing.region) {
-    keywords.push(listing.region);
-    keywords.push(`auto ${listing.region}`);
-    keywords.push(`${listing.brand} ${listing.region}`);
-    keywords.push(`${listing.brand} ${listing.model} ${listing.region}`);
-    keywords.push(`prodej auta ${listing.region}`);
-  }
-  
-  if (listing.condition === 'new') {
-    keywords.push('nové auto');
-    keywords.push(`nový ${listing.brand}`);
-    keywords.push(`${listing.brand} nové vozy`);
-  } else {
-    keywords.push('ojeté auto');
-    keywords.push(`ojetý ${listing.brand}`);
-    keywords.push(`${listing.brand} second hand`);
-  }
-  
-  // Remove duplicates while preserving order
-  const uniq = Array.from(new Set(keywords.map((k) => k.trim()).filter(Boolean)));
-  return uniq.join(', ');
+  if (listing.region) keywords.push(listing.region);
+  return Array.from(new Set(keywords.filter(Boolean))).join(", ");
 }
 
 export default SEO;

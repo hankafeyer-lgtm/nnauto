@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation } from "@/lib/navigation";
 import { restoreDebug } from "@/lib/restoreDebug";
 
 // Key for storing scroll position in sessionStorage

@@ -835,6 +835,7 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Trash2, Loader2 } from "lucide-react";
 
@@ -896,6 +897,7 @@ function buildDefaults(l: any): Partial<InsertListing> {
     category: l?.category || undefined,
 
     isTopListing: Boolean(l?.isTopListing),
+    isSold: Boolean(l?.isSold),
     vatDeductible: Boolean(l?.vatDeductible),
     isImported: Boolean(l?.isImported),
     importCountry: l?.importCountry || undefined,
@@ -1755,6 +1757,29 @@ export default function EditListingDialog({
                     )}
                   />
                 </div>
+              </div>
+
+              <div className="rounded-lg border p-4 bg-muted/30">
+                <FormField
+                  control={form.control}
+                  name="isSold"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={Boolean(field.value)}
+                          onCheckedChange={(v) => field.onChange(v === true)}
+                          data-testid="checkbox-edit-is-sold"
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel className="font-medium cursor-pointer">
+                          {t("listing.soldCheckbox")}
+                        </FormLabel>
+                      </div>
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <DialogFooter className="flex flex-col sm:flex-row gap-2">

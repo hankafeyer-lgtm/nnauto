@@ -1623,6 +1623,17 @@ app.use((req, res, next) => {
     console.warn("[bootstrap] column migration skipped:", (e as any)?.message);
   }
 
+  try {
+    await db.execute(
+      sql`ALTER TABLE listings ADD COLUMN IF NOT EXISTS is_sold BOOLEAN NOT NULL DEFAULT false`,
+    );
+    await db.execute(
+      sql`CREATE INDEX IF NOT EXISTS listings_is_sold_idx ON listings (is_sold)`,
+    );
+  } catch (e) {
+    console.warn("[bootstrap] listings is_sold migration skipped:", (e as any)?.message);
+  }
+
   await seedAdminUser();
   await seedDemoListings();
 

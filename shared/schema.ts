@@ -282,11 +282,14 @@ export const listings = pgTable(
     importCountry: text("import_country"),
     photos: text("photos").array(),
     video: text("video"),
+    /** When true, listing is hidden from public browse/search but still visible to owner (cabinet) and by direct URL. */
+    isSold: boolean("is_sold").default(false).notNull(),
     createdAt: timestamp("created_at").default(sql`now()`).notNull(),
     updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   },
   (t) => [
     index("listings_is_top_created_at_idx").on(t.isTopListing, t.createdAt),
+    index("listings_is_sold_idx").on(t.isSold),
     index("listings_created_at_idx").on(t.createdAt),
     index("listings_price_idx").on(t.price),
     index("listings_year_idx").on(t.year),
@@ -364,11 +367,13 @@ export const insertListingSchema = createInsertSchema(listings).omit({
   euroEmission: z.string().optional(),
   stkValidUntil: z.string().optional(),
   hasServiceBook: z.boolean().optional(),
+  isSold: z.boolean().optional(),
 });
 
 export const updateListingSchema = insertListingSchema.extend({
   isTopListing: z.boolean().optional(),
   topListingExpiresAt: z.date().nullable().optional(),
+  isSold: z.boolean().optional(),
 }).omit({
   userId: true,
 }).partial();

@@ -22,6 +22,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         : null;
     if (isLanguage(urlLanguage)) return urlLanguage;
 
+    if (typeof window === "undefined") return "cs";
     const saved = localStorage.getItem("language");
     return isLanguage(saved) ? saved : "cs";
   });
