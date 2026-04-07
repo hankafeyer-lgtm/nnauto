@@ -5,12 +5,14 @@ import {
   listings,
   payments,
   cebiaReports,
+  dealers,
   type User,
   type Listing,
   type InsertListing,
   type InsertUser,
   type InsertCebiaReport,
   type UpdateCebiaReport,
+  type Dealer,
 } from "@shared/schema";
 
 export const storage = {
@@ -169,5 +171,27 @@ export const storage = {
       .from(cebiaReports)
       .where(eq(cebiaReports.stripeSessionId, sessionId));
     return report || undefined;
+  },
+
+  async getAllDealers(): Promise<Dealer[]> {
+    return await db.select().from(dealers);
+  },
+
+  async updateDealer(
+    id: string,
+    data: Partial<{
+      companyName: string;
+      isVerified: boolean;
+      maxListings: number;
+      phone: string | null;
+      email: string | null;
+    }>,
+  ): Promise<Dealer | undefined> {
+    const [row] = await db
+      .update(dealers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(dealers.id, id))
+      .returning();
+    return row;
   },
 };

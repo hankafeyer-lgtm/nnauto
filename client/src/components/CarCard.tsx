@@ -12,6 +12,7 @@ import {
   Loader2,
   Pencil,
   Trash2,
+  CheckCircle2,
 } from "lucide-react";
 import { Link, useLocation } from "@/lib/navigation";
 import { useFavorites } from "@/contexts/FavoritesContext";
@@ -54,6 +55,10 @@ interface CarCardProps {
   isPromoting?: boolean;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  /** Mark listing as sold / back to active (owner only). */
+  onToggleSold?: (id: string) => void;
+  isSold?: boolean;
+  isTogglingSold?: boolean;
   priority?: boolean;
   vatDeductible?: boolean;
   onOpenListing?: (id: string) => void;
@@ -79,6 +84,9 @@ function CarCard({
   isPromoting = false,
   onEdit,
   onDelete,
+  onToggleSold,
+  isSold = false,
+  isTogglingSold = false,
   priority = false,
   vatDeductible = false,
   onOpenListing,
@@ -127,12 +135,22 @@ function CarCard({
     }
   };
 
+  const handleToggleSoldClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onToggleSold && !isTogglingSold) {
+      onToggleSold(id);
+    }
+  };
+
   // Show promote button if user owns the listing and it's not already TOP
-  const showPromoteButton = isOwner && !isTopListing && onPromote;
+  const showPromoteButton =
+    isOwner && !isTopListing && onPromote && !isSold;
   // Show edit button if user owns the listing
   const showEditButton = isOwner && onEdit;
   // Show delete button if user owns the listing
   const showDeleteButton = isOwner && onDelete;
+  const showSoldToggle = isOwner && onToggleSold;
 
   // Prefetch listing data on hover for faster navigation
   const handlePrefetch = useCallback(() => {
@@ -302,6 +320,16 @@ function CarCard({
                   }`}
                 />
 
+                {isSold && (
+                  <div className="absolute top-2 left-2 z-20">
+                    <Badge
+                      variant="secondary"
+                      className="bg-zinc-800 text-white border-zinc-600 text-xs font-semibold"
+                    >
+                      {t("listing.soldBadge")}
+                    </Badge>
+                  </div>
+                )}
                 {condition && (
                   <div className="absolute top-2 right-2">
                     <Badge className="bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-500 text-black border-2 border-amber-300 rounded-lg px-2 py-0.5 shadow-[0_4px_12px_rgba(251,191,36,0.6)] text-xs font-bold flex items-center gap-1 animate-pulse">
@@ -332,8 +360,8 @@ function CarCard({
                     </div>
                   </button>
                 )}
-                {/* Edit and Delete buttons - bottom-right of photo (list view) */}
-                {(showEditButton || showDeleteButton) && (
+                {/* Edit / sold / delete — list view */}
+                {(showEditButton || showDeleteButton || showSoldToggle) && (
                   <div className="absolute bottom-2 right-2 z-20 flex flex-col gap-1">
                     {showEditButton && (
                       <button
@@ -343,6 +371,26 @@ function CarCard({
                       >
                         <Pencil className="w-3 h-3" />
                         <span>Upravit</span>
+                      </button>
+                    )}
+                    {showSoldToggle && (
+                      <button
+                        type="button"
+                        onClick={handleToggleSoldClick}
+                        disabled={isTogglingSold}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-2.5 py-1 shadow-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-200 hover:scale-105 disabled:opacity-60"
+                        data-testid={`button-toggle-sold-list-${id}`}
+                      >
+                        {isTogglingSold ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-3 h-3" />
+                        )}
+                        <span>
+                          {isSold
+                            ? t("listing.markAvailableShort")
+                            : t("listing.markSoldShort")}
+                        </span>
                       </button>
                     )}
                     {showDeleteButton && (
@@ -493,10 +541,23 @@ function CarCard({
               </div>
             )}
 
+            {isSold && (
+              <div className="absolute top-2 left-2 z-20">
+                <Badge
+                  variant="secondary"
+                  className="bg-zinc-800 text-white border-zinc-600 text-xs font-semibold"
+                >
+                  {t("listing.soldBadge")}
+                </Badge>
+              </div>
+            )}
+
             {/* Favorites Button - on photo bottom-right */}
             <div
               className={`absolute bottom-2 z-[9999] w-10 h-10 bg-white/90 dark:bg-black/80 rounded-full flex items-center justify-center border border-gray-200 dark:border-gray-700 shadow-lg cursor-pointer hover:scale-110 transition-transform ${
-                showEditButton || showDeleteButton ? "right-24" : "right-2"
+                showEditButton || showDeleteButton || showSoldToggle
+                  ? "right-24"
+                  : "right-2"
               }`}
               onClick={handleFavoriteClick}
               data-testid={`button-favorite-${id}`}
@@ -510,8 +571,8 @@ function CarCard({
               />
             </div>
 
-            {/* Edit and Delete buttons - bottom-right of photo with text labels */}
-            {(showEditButton || showDeleteButton) && (
+            {/* Edit / sold / delete — grid */}
+            {(showEditButton || showDeleteButton || showSoldToggle) && (
               <div className="absolute bottom-2 right-2 z-[9999] flex flex-col gap-1.5">
                 {showEditButton && (
                   <div
@@ -521,6 +582,24 @@ function CarCard({
                   >
                     <Pencil className="h-3.5 w-3.5" />
                     <span>Upravit</span>
+                  </div>
+                )}
+                {showSoldToggle && (
+                  <div
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg px-3 py-1.5 shadow-lg cursor-pointer hover:scale-105 transition-all flex items-center gap-1.5 text-xs font-semibold disabled:opacity-60"
+                    onClick={handleToggleSoldClick}
+                    data-testid={`button-toggle-sold-${id}`}
+                  >
+                    {isTogglingSold ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    )}
+                    <span>
+                      {isSold
+                        ? t("listing.markAvailableShort")
+                        : t("listing.markSoldShort")}
+                    </span>
                   </div>
                 )}
                 {showDeleteButton && (

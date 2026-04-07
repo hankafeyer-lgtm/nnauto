@@ -31,6 +31,11 @@ const TURNSTILE_SITE_KEY =
   process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
   "1x00000000000000000000AA";
 
+/** When true, skip Turnstile UI + client checks (server still enforces if TURNSTILE_SECRET_KEY is set). For local / E2E only. */
+const TURNSTILE_UI_OFF =
+  typeof process !== "undefined" &&
+  process.env.NEXT_PUBLIC_TURNSTILE_UI_OFF === "true";
+
 export default function LoginModal({
   open,
   onOpenChange,
@@ -281,7 +286,7 @@ export default function LoginModal({
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginErrorMessage(null);
-    if (!loginTurnstileToken) {
+    if (!TURNSTILE_UI_OFF && !loginTurnstileToken) {
       const verifyMsg = t("auth.pleaseVerify");
       setLoginErrorMessage(verifyMsg);
       toast({
@@ -294,13 +299,13 @@ export default function LoginModal({
     loginMutation.mutate({
       email,
       password,
-      turnstileToken: loginTurnstileToken,
+      turnstileToken: loginTurnstileToken || "",
     });
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!registerTurnstileToken) {
+    if (!TURNSTILE_UI_OFF && !registerTurnstileToken) {
       toast({
         variant: "destructive",
         title: t("auth.verificationRequired"),
@@ -314,7 +319,7 @@ export default function LoginModal({
       firstName: registerFirstName || undefined,
       lastName: registerLastName || undefined,
       phone: registerPhone,
-      turnstileToken: registerTurnstileToken,
+      turnstileToken: registerTurnstileToken || "",
     });
   };
 
@@ -438,37 +443,39 @@ export default function LoginModal({
                     </button>
                   </div>
                 </div>
-                <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Shield className="h-4 w-4" />
-                    <span>{t("auth.securityVerification")}</span>
-                  </div>
-
-                  {loginVerified ? (
-                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 px-4 py-2 rounded-lg">
-                      <CheckCircle className="h-4 w-4" />
-                      <span>{t("auth.verified")}</span>
+                {!TURNSTILE_UI_OFF && (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Shield className="h-4 w-4" />
+                      <span>{t("auth.securityVerification")}</span>
                     </div>
-                  ) : (
-                    <Turnstile
-                      ref={loginTurnstileRef}
-                      siteKey={TURNSTILE_SITE_KEY}
-                      onSuccess={handleLoginTurnstileSuccess}
-                      onError={() => {
-                        setLoginVerified(false);
-                        setLoginTurnstileToken("");
-                      }}
-                      onExpire={() => {
-                        setLoginVerified(false);
-                        setLoginTurnstileToken("");
-                      }}
-                      options={{
-                        theme: "light",
-                        size: "normal",
-                      }}
-                    />
-                  )}
-                </div>
+
+                    {loginVerified ? (
+                      <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 px-4 py-2 rounded-lg">
+                        <CheckCircle className="h-4 w-4" />
+                        <span>{t("auth.verified")}</span>
+                      </div>
+                    ) : (
+                      <Turnstile
+                        ref={loginTurnstileRef}
+                        siteKey={TURNSTILE_SITE_KEY}
+                        onSuccess={handleLoginTurnstileSuccess}
+                        onError={() => {
+                          setLoginVerified(false);
+                          setLoginTurnstileToken("");
+                        }}
+                        onExpire={() => {
+                          setLoginVerified(false);
+                          setLoginTurnstileToken("");
+                        }}
+                        options={{
+                          theme: "light",
+                          size: "normal",
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
 
                 <Button
                   type="submit"
@@ -591,42 +598,47 @@ export default function LoginModal({
                     data-testid="input-register-phone"
                   />
                 </div>
-                <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Shield className="h-4 w-4" />
-                    <span>{t("auth.securityVerification")}</span>
-                  </div>
-
-                  {registerVerified ? (
-                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 px-4 py-2 rounded-lg">
-                      <CheckCircle className="h-4 w-4" />
-                      <span>{t("auth.verified")}</span>
+                {!TURNSTILE_UI_OFF && (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Shield className="h-4 w-4" />
+                      <span>{t("auth.securityVerification")}</span>
                     </div>
-                  ) : (
-                    <Turnstile
-                      ref={registerTurnstileRef}
-                      siteKey={TURNSTILE_SITE_KEY}
-                      onSuccess={handleRegisterTurnstileSuccess}
-                      onError={() => {
-                        setRegisterVerified(false);
-                        setRegisterTurnstileToken("");
-                      }}
-                      onExpire={() => {
-                        setRegisterVerified(false);
-                        setRegisterTurnstileToken("");
-                      }}
-                      options={{
-                        theme: "light",
-                        size: "normal",
-                      }}
-                    />
-                  )}
-                </div>
+
+                    {registerVerified ? (
+                      <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 px-4 py-2 rounded-lg">
+                        <CheckCircle className="h-4 w-4" />
+                        <span>{t("auth.verified")}</span>
+                      </div>
+                    ) : (
+                      <Turnstile
+                        ref={registerTurnstileRef}
+                        siteKey={TURNSTILE_SITE_KEY}
+                        onSuccess={handleRegisterTurnstileSuccess}
+                        onError={() => {
+                          setRegisterVerified(false);
+                          setRegisterTurnstileToken("");
+                        }}
+                        onExpire={() => {
+                          setRegisterVerified(false);
+                          setRegisterTurnstileToken("");
+                        }}
+                        options={{
+                          theme: "light",
+                          size: "normal",
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
 
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={registerMutation.isPending || !registerVerified}
+                  disabled={
+                    registerMutation.isPending ||
+                    (!TURNSTILE_UI_OFF && !registerVerified)
+                  }
                   data-testid="button-register-submit"
                 >
                   {registerMutation.isPending

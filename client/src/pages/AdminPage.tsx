@@ -432,11 +432,12 @@ import {
   CreditCard,
   Star,
   FileSpreadsheet,
+  Building2,
 } from "lucide-react";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import type { User, Listing, EnrichedPayment } from "@shared/schema";
+import type { User, Listing, EnrichedPayment, Dealer } from "@shared/schema";
 
 type AdminCebiaReport = {
   id: string;
@@ -533,6 +534,19 @@ export default function AdminPage() {
     ...adminRealtimeQueryOptions,
   });
 
+  const {
+    data: dealersResponse,
+    isLoading: dealersLoading,
+    error: dealersError,
+  } = useQuery<{ dealers: Dealer[] }>({
+    queryKey: ["/api/admin/dealers"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/admin/dealers");
+      return res.json();
+    },
+    ...adminRealtimeQueryOptions,
+  });
+
   const { data: listingAnalyticsData } = useQuery<AdminListingAnalyticsResponse>({
     queryKey: ["/api/admin/listings/analytics"],
     ...adminRealtimeQueryOptions,
@@ -556,6 +570,10 @@ export default function AdminPage() {
   };
 
   const users = useMemo(() => byCreatedAtDesc(usersData || []), [usersData]);
+  const dealers = useMemo(
+    () => byCreatedAtDesc(dealersResponse?.dealers || []),
+    [dealersResponse?.dealers],
+  );
   const listings = useMemo(
     () => byCreatedAtDesc(listingsData || []),
     [listingsData],
@@ -580,8 +598,13 @@ export default function AdminPage() {
   const hasListingsError = !!listingsError;
   const hasPaymentsError = !!paymentsError;
   const hasCebiaReportsError = !!cebiaReportsError;
+  const hasDealersError = !!dealersError;
   const hasAnyAdminDataError =
-    hasUsersError || hasListingsError || hasPaymentsError || hasCebiaReportsError;
+    hasUsersError ||
+    hasListingsError ||
+    hasPaymentsError ||
+    hasCebiaReportsError ||
+    hasDealersError;
 
   const downloadFromAuthorizedApi = async (
     url: string,
@@ -705,6 +728,33 @@ export default function AdminPage() {
     },
   });
 
+  const patchDealerMutation = useMutation({
+    mutationFn: async ({
+      id,
+      body,
+    }: {
+      id: string;
+      body: { isVerified?: boolean; maxListings?: number };
+    }) => {
+      const res = await apiRequest("PATCH", `/api/admin/dealers/${id}`, body);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/dealers"] });
+      toast({
+        title: t("admin.dealerUpdated"),
+        description: t("admin.dealerUpdatedDescription"),
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: t("admin.error"),
+        description: error.message,
+      });
+    },
+  });
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -746,6 +796,7 @@ export default function AdminPage() {
                   hasListingsError ? "listings" : null,
                   hasPaymentsError ? "payments" : null,
                   hasCebiaReportsError ? "cebia" : null,
+                  hasDealersError ? "dealers" : null,
                 ]
                   .filter(Boolean)
                   .join(", ")}
@@ -756,22 +807,26 @@ export default function AdminPage() {
         ) : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 max-w-4xl">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 max-w-5xl gap-1 h-auto py-1">
             <TabsTrigger value="users" data-testid="tab-admin-users">
-              <Users className="h-4 w-4 mr-2" />
+              <Users className="h-4 w-4 mr-2 shrink-0" />
               {t("admin.users")} {users && `(${users.length})`}
             </TabsTrigger>
             <TabsTrigger value="listings" data-testid="tab-admin-listings">
-              <Car className="h-4 w-4 mr-2" />
+              <Car className="h-4 w-4 mr-2 shrink-0" />
               {t("admin.listings")} {listings && `(${listings.length})`}
             </TabsTrigger>
             <TabsTrigger value="payments" data-testid="tab-admin-payments">
-              <CreditCard className="h-4 w-4 mr-2" />
+              <CreditCard className="h-4 w-4 mr-2 shrink-0" />
               {t("admin.payments")} {payments && `(${payments.length})`}
             </TabsTrigger>
             <TabsTrigger value="cebia" data-testid="tab-admin-cebia">
-              <FileSpreadsheet className="h-4 w-4 mr-2" />
-              Cebia Reports {cebiaReports && `(${cebiaReports.length})`}
+              <FileSpreadsheet className="h-4 w-4 mr-2 shrink-0" />
+              Cebia {cebiaReports && `(${cebiaReports.length})`}
+            </TabsTrigger>
+            <TabsTrigger value="dealers" data-testid="tab-admin-dealers">
+              <Building2 className="h-4 w-4 mr-2 shrink-0" />
+              {t("admin.dealers")} {dealers && `(${dealers.length})`}
             </TabsTrigger>
           </TabsList>
 
@@ -958,21 +1013,32 @@ export default function AdminPage() {
                               )}
                             </TableCell>
                             <TableCell>
-                              {listing.isTopListing ? (
-                                <Badge
-                                  variant="default"
-                                  data-testid={`badge-top-${listing.id}`}
-                                >
-                                  TOP
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="secondary"
-                                  data-testid={`badge-standard-${listing.id}`}
-                                >
-                                  {t("admin.standard")}
-                                </Badge>
-                              )}
+                              <div className="flex flex-wrap gap-1">
+                                {listing.isTopListing ? (
+                                  <Badge
+                                    variant="default"
+                                    data-testid={`badge-top-${listing.id}`}
+                                  >
+                                    TOP
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="secondary"
+                                    data-testid={`badge-standard-${listing.id}`}
+                                  >
+                                    {t("admin.standard")}
+                                  </Badge>
+                                )}
+                                {listing.isSold ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-zinc-500 text-zinc-700 dark:text-zinc-300"
+                                    data-testid={`badge-sold-${listing.id}`}
+                                  >
+                                    {t("listing.soldBadge")}
+                                  </Badge>
+                                ) : null}
+                              </div>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-2">
@@ -1227,6 +1293,143 @@ export default function AdminPage() {
                 ) : (
                   <p className="text-center py-8 text-muted-foreground">
                     Ще немає куплених Cebia-репортів.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="dealers" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t("admin.dealersManagement")}</CardTitle>
+                <CardDescription>
+                  {t("admin.dealersManagementDescription")}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dealersLoading ? (
+                  <p className="text-center py-8 text-muted-foreground">
+                    {t("admin.loading")}
+                  </p>
+                ) : dealers.length > 0 ? (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t("dealer.companyName")}</TableHead>
+                          <TableHead className="whitespace-nowrap">
+                            {t("admin.dealerOwnerId")}
+                          </TableHead>
+                          <TableHead>{t("admin.dealerVerified")}</TableHead>
+                          <TableHead className="text-right whitespace-nowrap">
+                            {t("admin.dealerMaxListings")}
+                          </TableHead>
+                          <TableHead className="text-right">
+                            {t("admin.actions")}
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dealers.map((d) => (
+                          <TableRow
+                            key={d.id}
+                            data-testid={`row-dealer-${d.id}`}
+                          >
+                            <TableCell
+                              className="font-medium max-w-[200px] truncate"
+                              title={d.companyName}
+                            >
+                              {d.companyName}
+                            </TableCell>
+                            <TableCell
+                              className="font-mono text-xs max-w-[120px] truncate"
+                              title={d.ownerId}
+                            >
+                              {d.ownerId}
+                            </TableCell>
+                            <TableCell>
+                              {d.isVerified ? (
+                                <Badge variant="default">
+                                  {t("admin.dealerVerifiedYes")}
+                                </Badge>
+                              ) : (
+                                <Badge variant="secondary">
+                                  {t("admin.dealerVerifiedNo")}
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {d.maxListings}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex flex-wrap items-center justify-end gap-2">
+                                <Button
+                                  variant={
+                                    d.isVerified ? "outline" : "default"
+                                  }
+                                  size="sm"
+                                  disabled={patchDealerMutation.isPending}
+                                  data-testid={`button-dealer-toggle-verified-${d.id}`}
+                                  onClick={() =>
+                                    patchDealerMutation.mutate({
+                                      id: d.id,
+                                      body: {
+                                        isVerified: !d.isVerified,
+                                      },
+                                    })
+                                  }
+                                >
+                                  {d.isVerified
+                                    ? t("admin.dealerUnverify")
+                                    : t("admin.dealerVerify")}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={patchDealerMutation.isPending}
+                                  data-testid={`button-dealer-set-max-${d.id}`}
+                                  onClick={() => {
+                                    const raw = window.prompt(
+                                      t("admin.dealerMaxListingsPrompt"),
+                                      String(d.maxListings),
+                                    );
+                                    if (raw === null) return;
+                                    const n = parseInt(raw, 10);
+                                    if (
+                                      !Number.isFinite(n) ||
+                                      n < 1 ||
+                                      n > 10_000
+                                    ) {
+                                      toast({
+                                        variant: "destructive",
+                                        title: t("admin.error"),
+                                        description: t(
+                                          "admin.dealerMaxListingsInvalid",
+                                        ),
+                                      });
+                                      return;
+                                    }
+                                    if (n !== d.maxListings) {
+                                      patchDealerMutation.mutate({
+                                        id: d.id,
+                                        body: { maxListings: n },
+                                      });
+                                    }
+                                  }}
+                                >
+                                  {t("admin.dealerSetMax")}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-center py-8 text-muted-foreground">
+                    {t("admin.noDealers")}
                   </p>
                 )}
               </CardContent>

@@ -3048,7 +3048,15 @@
 //     </>
 //   );
 // }
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  lazy,
+  Suspense,
+} from "react";
 import { useLocation, Link, useParams } from "@/lib/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
@@ -3087,6 +3095,7 @@ import {
   ChevronRight,
   Video,
   Play,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -3140,6 +3149,8 @@ import {
   getThumbnailUrl,
 } from "@/lib/imageOptimizer";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
+
+const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
 // Type for public contact information returned by /api/users/:id
 type PublicContact = {
@@ -3202,6 +3213,7 @@ export default function ListingDetailPage() {
   );
   const [cebiaGuestStatus, setCebiaGuestStatus] = useState<string | null>(null);
   const [cebiaGuestHasPdf, setCebiaGuestHasPdf] = useState(false);
+  const [listingEditOpen, setListingEditOpen] = useState(false);
 
   const redirectToCheckout = useCallback((url: string) => {
     try {
@@ -3648,8 +3660,38 @@ export default function ListingDetailPage() {
     },
   });
 
+  const toggleSoldMutation = useMutation({
+    mutationFn: async ({ isSold }: { isSold: boolean }) => {
+      if (!listingId) throw new Error("Missing listing");
+      const res = await apiRequest("PUT", `/api/listings/${listingId}`, {
+        isSold,
+      });
+      return (await res.json()) as Listing;
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData([`/api/listings/${listingId}`], updated);
+      queryClient.invalidateQueries({
+        predicate: (q) => q.queryKey[0] === "/api/listings",
+        refetchType: "all",
+      });
+      toast({
+        title: t("listing.soldStatusUpdated"),
+        description: t("listing.soldStatusUpdatedDescription"),
+      });
+    },
+    onError: (err: any) => {
+      const parsed = parseApiError(err);
+      toast({
+        variant: "destructive",
+        title: t("listing.updateError"),
+        description: parsed.message || t("listing.updateErrorDescription"),
+      });
+    },
+  });
+
   const isOwner = !!user && !!listing && user.id === listing.userId;
-  const canPromote = isOwner && !listing?.isTopListing;
+  const canPromote =
+    isOwner && !listing?.isTopListing && !listing?.isSold;
 
   const cebiaCheckoutMutation = useMutation({
     mutationFn: async () => {
@@ -4728,16 +4770,61 @@ export default function ListingDetailPage() {
               {/* Title and basic info */}
               <div className="space-y-4">
                 <div>
-                  <h1
-                    className="text-3xl md:text-4xl font-bold tracking-tight mb-2"
-                    data-testid="text-listing-title"
-                  >
-                    {getListingMainTitle(listing)}
-                  </h1>
+                  <div className="flex flex-wrap items-center gap-3 mb-2">
+                    <h1
+                      className="text-3xl md:text-4xl font-bold tracking-tight"
+                      data-testid="text-listing-title"
+                    >
+                      {getListingMainTitle(listing)}
+                    </h1>
+                    {listing.isSold ? (
+                      <Badge
+                        variant="secondary"
+                        className="bg-zinc-800 text-white border-zinc-600 text-sm"
+                      >
+                        {t("listing.soldBadge")}
+                      </Badge>
+                    ) : null}
+                  </div>
                   {listing.title ? (
                     <p className="text-sm text-muted-foreground">
                       {listing.title}
                     </p>
+                  ) : null}
+                  {isOwner && listing && !isEmbedded ? (
+                    <div className="flex flex-wrap gap-2 pt-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setListingEditOpen(true)}
+                        className="gap-1.5"
+                        data-testid="button-detail-edit-listing"
+                      >
+                        <Pencil className="h-4 w-4" />
+                        {t("listing.editButton")}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          toggleSoldMutation.mutate({
+                            isSold: !listing.isSold,
+                          })
+                        }
+                        disabled={toggleSoldMutation.isPending}
+                        className="gap-1.5"
+                        data-testid="button-detail-toggle-sold"
+                      >
+                        {toggleSoldMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : null}
+                        {listing.isSold
+                          ? t("listing.markAvailable")
+                          : t("listing.markSold")}
+                      </Button>
+                    </div>
                   ) : null}
                 </div>
 
@@ -5700,6 +5787,15 @@ export default function ListingDetailPage() {
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
       />
+      {listing ? (
+        <Suspense fallback={null}>
+          <EditListingDialog
+            open={listingEditOpen}
+            onOpenChange={setListingEditOpen}
+            listing={listing}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

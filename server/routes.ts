@@ -27,7 +27,13 @@ import { POPULAR_BRAND_MODEL_CATALOG } from "@shared/brandModelCatalog";
 import { MODEL_GENERATION_CATALOG } from "@shared/modelGenerationCatalog";
 import { carBrands, carModels } from "@shared/carDatabase";
 import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
-import { setupAuth, isAuthenticated, isAdmin, isDealer } from "./auth";
+import {
+  setupAuth,
+  isAuthenticated,
+  isAdmin,
+  isDealer,
+  getOptionalViewer,
+} from "./auth";
 import "./types";
 import bcrypt from "bcrypt";
 import {
@@ -3105,8 +3111,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Listing not found" });
       }
 
-      // Verify user owns this listing
-      if (existingListing.userId !== req.session.userId) {
+      const actingUser = await storage.getUser(req.session.userId!);
+      if (
+        existingListing.userId !== req.session.userId &&
+        !actingUser?.isAdmin
+      ) {
         return res
           .status(403)
           .json({ error: "Cannot update another user's listing" });
@@ -3131,8 +3140,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Listing not found" });
       }
 
-      // Verify user owns this listing
-      if (existingListing.userId !== req.session.userId) {
+      const actingUser = await storage.getUser(req.session.userId!);
+      if (
+        existingListing.userId !== req.session.userId &&
+        !actingUser?.isAdmin
+      ) {
         return res
           .status(403)
           .json({ error: "Cannot delete another user's listing" });
@@ -5428,6 +5440,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const q = req.query;
 
+      const viewer = await getOptionalViewer(req);
+      const cabinetUserIdEarly =
+        typeof q.userId === "string" ? q.userId.trim() : "";
+      const includeSoldListings = Boolean(
+        cabinetUserIdEarly &&
+          viewer &&
+          (viewer.id === cabinetUserIdEarly || viewer.isAdmin),
+      );
+
       const sort = normalizeSort(q.sort);
 
       const pageNum = Math.max(1, toInt(q.page) ?? 1);
@@ -5450,7 +5471,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const totalRow = await withDbRetry("listings-total", () =>
-          db.select({ count: sql<number>`count(*)::int` }).from(listingsTable),
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(listingsTable)
+            .where(eq(listingsTable.isSold, false)),
         );
         const total = Number(totalRow?.[0]?.count ?? 0);
 
@@ -5512,6 +5536,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           db
             .select()
             .from(listingsTable)
+            .where(eq(listingsTable.isSold, false))
             .orderBy(...orderBy)
             .limit(limitNum)
             .offset(start),
@@ -5617,6 +5642,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .from(listingsTable)
               .where(and(...dbPrefilters))
           : await storage.getListings();
+
+      if (!includeSoldListings) {
+        allListings = allListings.filter((l) => !l.isSold);
+      }
 
       // --- filters ---
       const userId = typeof q.userId === "string" ? q.userId.trim() : "";

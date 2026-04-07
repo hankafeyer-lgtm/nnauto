@@ -2007,7 +2007,15 @@
 // }
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+  lazy,
+  Suspense,
+} from "react";
 
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
@@ -2057,6 +2065,7 @@ import type { Listing } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 import {
   apiRequest,
+  listingsFetchHeaders,
   parseApiError,
   prefetchListing,
   prefetchListingDocument,
@@ -2078,6 +2087,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
+const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
 import sedanImage from "@assets/generated_images/Featured_car_sedan_3670cf96.png";
 import suvImage from "@assets/generated_images/Featured_car_SUV_65e6ecf7.png";
@@ -2221,6 +2232,8 @@ export default function HomePage() {
   const [deletingListingId, setDeletingListingId] = useState<string | null>(
     null,
   );
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const desktopSidebarRef = useRef<HTMLElement | null>(null);
   const filterToggleButtonRef = useRef<HTMLButtonElement | null>(null);
   const pendingRestoreRef = useRef<PendingHomeRestore | null>(null);
@@ -2492,7 +2505,10 @@ export default function HomePage() {
   const { data, isLoading, isFetching } = useQuery<ListingsResponse>({
     queryKey: ["listings", listUrl],
     queryFn: async () => {
-      const res = await fetch(listUrl, { credentials: "include" });
+      const res = await fetch(listUrl, {
+        credentials: "include",
+        headers: listingsFetchHeaders({ Accept: "application/json" }),
+      });
       if (!res.ok) throw new Error(`Failed to load listings: ${res.status}`);
       return res.json();
     },
@@ -2503,6 +2519,13 @@ export default function HomePage() {
   });
 
   const listings = data?.listings ?? [];
+
+  const listingsById = useMemo(() => {
+    const m = new Map<string, Listing>();
+    for (const l of listings) m.set(l.id, l);
+    return m;
+  }, [listings]);
+
   const { data: cebiaConfig } = useQuery<{
     enabled: boolean;
     paymentsFrozen: boolean;
@@ -2556,7 +2579,10 @@ export default function HomePage() {
     queryClient.prefetchQuery({
       queryKey: ["listings", nextUrl],
       queryFn: async () => {
-        const res = await fetch(nextUrl, { credentials: "include" });
+        const res = await fetch(nextUrl, {
+          credentials: "include",
+          headers: listingsFetchHeaders({ Accept: "application/json" }),
+        });
         if (!res.ok) throw new Error("prefetch failed");
         return res.json();
       },
@@ -2593,6 +2619,47 @@ export default function HomePage() {
   const confirmDelete = () => {
     if (deletingListingId) deleteMutation.mutate(deletingListingId);
   };
+
+  const toggleSoldMutation = useMutation({
+    mutationFn: async (payload: { listingId: string; isSold: boolean }) => {
+      const res = await apiRequest("PUT", `/api/listings/${payload.listingId}`, {
+        isSold: payload.isSold,
+      });
+      return (await res.json()) as Listing;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["listings"] });
+      toast({
+        title: t("listing.soldStatusUpdated"),
+        description: t("listing.soldStatusUpdatedDescription"),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t("listing.updateError"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleEditListing = useCallback((id: string) => {
+    const listing = listingsById.get(id);
+    if (!listing) return;
+    setEditingListing(listing);
+    setEditDialogOpen(true);
+  }, [listingsById]);
+
+  const handleToggleSoldHome = useCallback(
+    (listingId: string) => {
+      const listing = listingsById.get(listingId);
+      if (!listing) return;
+      toggleSoldMutation.mutate({
+        listingId,
+        isSold: !listing.isSold,
+      });
+    },
+    [listingsById, toggleSoldMutation],
+  );
 
   const cards = useMemo(() => {
     const currentYear = new Date().getFullYear();
@@ -2659,6 +2726,7 @@ export default function HomePage() {
           datePosted,
           condition,
           isOwner,
+          isSold: Boolean(listing.isSold),
         },
       };
     });
@@ -3335,15 +3403,30 @@ export default function HomePage() {
                           </p>
                         </div>
                       ) : (
-                        cards.map((c, index) => (
-                          <CarCard
-                            key={c.props.id}
-                            {...c.props}
-                            onOpenListing={openListingOverlay}
-                            priority={index < 4}
-                            onDelete={handleDelete}
-                          />
-                        ))
+                        cards.map((c, index) => {
+                          const isTogglingSold =
+                            toggleSoldMutation.isPending &&
+                            toggleSoldMutation.variables?.listingId ===
+                              c.props.id;
+                          return (
+                            <CarCard
+                              key={c.props.id}
+                              {...c.props}
+                              onOpenListing={openListingOverlay}
+                              priority={index < 4}
+                              onDelete={handleDelete}
+                              onEdit={
+                                c.props.isOwner ? handleEditListing : undefined
+                              }
+                              onToggleSold={
+                                c.props.isOwner
+                                  ? handleToggleSoldHome
+                                  : undefined
+                              }
+                              isTogglingSold={isTogglingSold}
+                            />
+                          );
+                        })
                       )}
                     </div>
 
@@ -3451,15 +3534,27 @@ export default function HomePage() {
                       </p>
                     </div>
                   ) : (
-                    cards.map((c, index) => (
-                      <CarCard
-                        key={c.props.id}
-                        {...c.props}
-                        onOpenListing={openListingOverlay}
-                        priority={index < 4}
-                        onDelete={handleDelete}
-                      />
-                    ))
+                    cards.map((c, index) => {
+                      const isTogglingSold =
+                        toggleSoldMutation.isPending &&
+                        toggleSoldMutation.variables?.listingId === c.props.id;
+                      return (
+                        <CarCard
+                          key={c.props.id}
+                          {...c.props}
+                          onOpenListing={openListingOverlay}
+                          priority={index < 4}
+                          onDelete={handleDelete}
+                          onEdit={
+                            c.props.isOwner ? handleEditListing : undefined
+                          }
+                          onToggleSold={
+                            c.props.isOwner ? handleToggleSoldHome : undefined
+                          }
+                          isTogglingSold={isTogglingSold}
+                        />
+                      );
+                    })
                   )}
                 </div>
 
@@ -3594,6 +3689,18 @@ export default function HomePage() {
         </section>
       </main>
       <Footer />
+      {editingListing ? (
+        <Suspense fallback={null}>
+          <EditListingDialog
+            open={editDialogOpen}
+            onOpenChange={(open) => {
+              setEditDialogOpen(open);
+              if (!open) setEditingListing(null);
+            }}
+            listing={editingListing}
+          />
+        </Suspense>
+      ) : null}
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

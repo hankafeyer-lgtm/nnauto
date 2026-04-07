@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { json, error, withAuth } from "@lib/api-helpers";
+import { getCurrentUser } from "@lib/auth";
 import { storage } from "@lib/storage";
 import { db } from "@lib/db";
 import { listings as listingsTable, insertListingSchema } from "@shared/schema";
@@ -161,6 +162,14 @@ export async function GET(req: NextRequest) {
   try {
     const params = req.nextUrl.searchParams;
 
+    const viewer = await getCurrentUser();
+    const cabinetUserIdEarly = qStr(params, "userId");
+    const includeSoldListings = Boolean(
+      cabinetUserIdEarly &&
+        viewer &&
+        (viewer.id === cabinetUserIdEarly || viewer.isAdmin),
+    );
+
     const sort = normalizeSort(params.get("sort"));
     const pageNum = Math.max(1, toInt(params.get("page")) ?? 1);
     const limitNum = Math.min(100, Math.max(1, toInt(params.get("limit")) ?? 20));
@@ -175,7 +184,8 @@ export async function GET(req: NextRequest) {
     if (!hasAnyFilters) {
       const totalRow = await db
         .select({ count: sql<number>`count(*)::int` })
-        .from(listingsTable);
+        .from(listingsTable)
+        .where(eq(listingsTable.isSold, false));
       const total = Number(totalRow?.[0]?.count ?? 0);
 
       const totalPages = Math.max(1, Math.ceil(total / limitNum));
@@ -194,6 +204,7 @@ export async function GET(req: NextRequest) {
       const paginated = await db
         .select()
         .from(listingsTable)
+        .where(eq(listingsTable.isSold, false))
         .orderBy(...orderBy)
         .limit(limitNum)
         .offset(start);
@@ -279,6 +290,10 @@ export async function GET(req: NextRequest) {
             .from(listingsTable)
             .where(and(...dbPrefilters))
         : await storage.getListings();
+
+    if (!includeSoldListings) {
+      allListings = allListings.filter((l) => !(l as { isSold?: boolean }).isSold);
+    }
 
     // ----- In-memory post-filters (match Express behaviour exactly) -----
 

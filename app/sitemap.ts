@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db } from "@lib/db";
 import { listings } from "@shared/schema";
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 const BASE_URL = "https://nnauto.cz";
 
@@ -13,6 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       createdAt: listings.createdAt,
     })
     .from(listings)
+    .where(eq(listings.isSold, false))
     .orderBy(desc(listings.updatedAt));
 
   const staticPages: MetadataRoute.Sitemap = [
