@@ -181,6 +181,17 @@ const findModelByDecodedModel = (
   return null;
 };
 
+/** Model slug remains valid when narrowing/setting vehicle type; avoid wiping early brand/model/trim picks. */
+function isModelValidForVehicleType(
+  brand: string,
+  modelSlug: string,
+  vehicleType: string,
+): boolean {
+  if (!brand || !modelSlug) return true;
+  const allowed = getModelsForVehicleType(brand, vehicleType || undefined);
+  return allowed.some((m) => modelToValue(m) === modelSlug);
+}
+
 const NewCarIcon = ({ className }: { className?: string }) => (
   <img 
     src={newCarIcon} 
@@ -681,6 +692,31 @@ export default function AddListingPage() {
   const { generations: availableGenerations } = useModelGenerations(
     selectedBrand,
     selectedModel,
+  );
+
+  const handleVehicleCategoryChange = useCallback(
+    (
+      bodyTypeField: { onChange: (v: unknown) => void },
+      nextType: string,
+      isCurrentlySelected: boolean,
+    ) => {
+      if (isCurrentlySelected) {
+        form.setValue("vehicleType", "" as any);
+        form.setValue("bodyType", undefined as any);
+        bodyTypeField.onChange(undefined);
+        return;
+      }
+      form.setValue("vehicleType", nextType as any);
+      form.setValue("bodyType", undefined as any);
+      bodyTypeField.onChange(undefined);
+      const brand = form.getValues("brand");
+      const model = form.getValues("model");
+      if (brand && model && !isModelValidForVehicleType(brand, model, nextType)) {
+        form.setValue("model", "" as any);
+        form.setValue("trim", undefined as any);
+      }
+    },
+    [form],
   );
 
   useEffect(() => {
@@ -1323,19 +1359,13 @@ export default function AddListingPage() {
                                           type="button"
                                           variant={isSelected ? "default" : "outline"}
                                           className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                          onClick={() => {
-                                            if (isSelected) {
-                                              form.setValue("vehicleType", "" as any);
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            } else {
-                                              form.setValue("vehicleType", "osobni-auta");
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            }
-                                          }}
+                                          onClick={() =>
+                                            handleVehicleCategoryChange(
+                                              field,
+                                              "osobni-auta",
+                                              isSelected,
+                                            )
+                                          }
                                           data-testid="button-vehicle-cars"
                                         >
                                           <CarGoldIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
@@ -1351,19 +1381,9 @@ export default function AddListingPage() {
                                           type="button"
                                           variant={isSelected ? "default" : "outline"}
                                           className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                          onClick={() => {
-                                            if (isSelected) {
-                                              form.setValue("vehicleType", "" as any);
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            } else {
-                                              form.setValue("vehicleType", "dodavky");
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            }
-                                          }}
+                                          onClick={() =>
+                                            handleVehicleCategoryChange(field, "dodavky", isSelected)
+                                          }
                                           data-testid="button-vehicle-vans"
                                         >
                                           <VanIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
@@ -1379,19 +1399,13 @@ export default function AddListingPage() {
                                           type="button"
                                           variant={isSelected ? "default" : "outline"}
                                           className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                          onClick={() => {
-                                            if (isSelected) {
-                                              form.setValue("vehicleType", "" as any);
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            } else {
-                                              form.setValue("vehicleType", "nakladni-vozy");
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            }
-                                          }}
+                                          onClick={() =>
+                                            handleVehicleCategoryChange(
+                                              field,
+                                              "nakladni-vozy",
+                                              isSelected,
+                                            )
+                                          }
                                           data-testid="button-vehicle-trucks"
                                         >
                                           <TruckGoldIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
@@ -1407,19 +1421,9 @@ export default function AddListingPage() {
                                           type="button"
                                           variant={isSelected ? "default" : "outline"}
                                           className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                          onClick={() => {
-                                            if (isSelected) {
-                                              form.setValue("vehicleType", "" as any);
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            } else {
-                                              form.setValue("vehicleType", "motorky");
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            }
-                                          }}
+                                          onClick={() =>
+                                            handleVehicleCategoryChange(field, "motorky", isSelected)
+                                          }
                                           data-testid="button-vehicle-motorky"
                                         >
                                           <MotorcycleIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
@@ -1435,19 +1439,13 @@ export default function AddListingPage() {
                                           type="button"
                                           variant={isSelected ? "default" : "outline"}
                                           className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                          onClick={() => {
-                                            if (isSelected) {
-                                              form.setValue("vehicleType", "" as any);
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            } else {
-                                              form.setValue("vehicleType", "suv-offroad");
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            }
-                                          }}
+                                          onClick={() =>
+                                            handleVehicleCategoryChange(
+                                              field,
+                                              "suv-offroad",
+                                              isSelected,
+                                            )
+                                          }
                                           data-testid="button-vehicle-suv-offroad"
                                         >
                                           <SuvIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
@@ -1463,19 +1461,9 @@ export default function AddListingPage() {
                                           type="button"
                                           variant={isSelected ? "default" : "outline"}
                                           className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
-                                          onClick={() => {
-                                            if (isSelected) {
-                                              form.setValue("vehicleType", "" as any);
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            } else {
-                                              form.setValue("vehicleType", "elektro");
-                                              form.setValue("model", "" as any);
-                                              form.setValue("bodyType", undefined as any);
-                                              field.onChange(undefined);
-                                            }
-                                          }}
+                                          onClick={() =>
+                                            handleVehicleCategoryChange(field, "elektro", isSelected)
+                                          }
                                           data-testid="button-vehicle-elektro"
                                         >
                                           <ElektroIcon className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0" />
