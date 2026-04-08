@@ -199,24 +199,9 @@ function CarCard({
   const listingHref = buildListingHref();
   const navigateToListingWithState = useCallback(
     (href: string) => {
-      if (typeof window === "undefined") {
-        navigate(href);
-        return;
-      }
-      const from = `${window.location.pathname}${window.location.search}`;
-      const scrollY = Number.isFinite(window.scrollY) ? Math.max(0, window.scrollY) : 0;
       navigate(href);
-      const currentState =
-        window.history.state && typeof window.history.state === "object"
-          ? window.history.state
-          : {};
-      window.history.replaceState(
-        { ...currentState, from, scrollY, listingId: id },
-        "",
-        href,
-      );
     },
-    [id, navigate],
+    [navigate],
   );
 
   const handleListingClick = useCallback(

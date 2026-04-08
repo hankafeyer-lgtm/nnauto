@@ -54,3 +54,9 @@ export async function requireAdmin() {
   if (!user.isAdmin) throw new Error("Forbidden");
   return user;
 }
+
+export async function requireDealer() {
+  const user = await requireAuth();
+  if (!user.isDealer) throw new Error("Forbidden");
+  return user;
+}

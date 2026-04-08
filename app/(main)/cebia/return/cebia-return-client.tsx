@@ -1,22 +1,15 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { Suspense } from "react";
-
-const CebiaReturnPage = dynamic(() => import("@/pages/CebiaReturnPage"), {
-  ssr: false,
-});
+import CebiaReturnPage from "@/pages/CebiaReturnPage";
+import { NoSSR } from "../../no-ssr";
 
 export default function CebiaReturnClient() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-        </div>
-      }
-    >
-      <CebiaReturnPage />
-    </Suspense>
+    <NoSSR>
+      <Suspense>
+        <CebiaReturnPage />
+      </Suspense>
+    </NoSSR>
   );
 }

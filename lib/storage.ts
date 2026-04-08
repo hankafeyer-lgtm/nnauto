@@ -132,6 +132,54 @@ export const storage = {
     return user || undefined;
   },
 
+  async setVerificationCode(
+    id: string,
+    code: string,
+    expiry: Date,
+    pendingEmail?: string,
+  ): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({
+        verificationCode: code,
+        verificationCodeExpiry: expiry,
+        pendingEmail: pendingEmail ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  },
+
+  async verifyUserEmail(id: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({
+        emailVerified: true,
+        verificationCode: null,
+        verificationCodeExpiry: null,
+        pendingEmail: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  },
+
+  async clearVerificationCode(id: string): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({
+        verificationCode: null,
+        verificationCodeExpiry: null,
+        pendingEmail: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return user || undefined;
+  },
+
   async getAllCebiaReports() {
     return await db.select().from(cebiaReports);
   },

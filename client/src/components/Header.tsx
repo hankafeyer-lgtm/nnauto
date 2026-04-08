@@ -413,17 +413,7 @@ function HeaderContent({
       return;
     }
 
-    // 1) пробуємо стандартну навігацію wouter
-    try {
-      // якщо твоя версія wouter підтримує replace
-      (navigate as any)("/", { replace: true });
-    } catch {
-      navigate("/");
-    }
-
-    // 2) якщо wouter вважає що "і так /" і не прибирає query — форсимо чистий URL
-    window.history.replaceState(null, "", "/");
-    window.dispatchEvent(new Event("popstate")); // щоб wouter підхопив зміну
+    navigate("/", { replace: true });
   };
 
   return (
