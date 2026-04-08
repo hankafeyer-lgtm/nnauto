@@ -1073,9 +1073,15 @@ const INDEX_CANDIDATES = [
   path.join(process.cwd(), "index.html"),
 ];
 
+let cachedIndexHtml: string | null = null;
+
 function readIndexHtml() {
+  if (cachedIndexHtml) return cachedIndexHtml;
   for (const p of INDEX_CANDIDATES) {
-    if (fs.existsSync(p)) return fs.readFileSync(p, "utf-8");
+    if (fs.existsSync(p)) {
+      cachedIndexHtml = fs.readFileSync(p, "utf-8");
+      return cachedIndexHtml;
+    }
   }
   throw new Error(
     `index.html not found. Tried:\n${INDEX_CANDIDATES.join("\n")}`,
@@ -1273,6 +1279,8 @@ app.use((_req, res, next) => {
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("Vary", "Accept-Encoding");
   next();
 });
 
@@ -1592,12 +1600,27 @@ app.use((req, res, next) => {
 
 // ---------- bootstrap ----------
 (async function bootstrap() {
-  // Ensure dealer columns exist before any user queries
   try {
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_dealer BOOLEAN NOT NULL DEFAULT false`);
     await db.execute(sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS dealer_id VARCHAR`);
+    await db.execute(sql`ALTER TABLE listings ADD COLUMN IF NOT EXISTS is_sold BOOLEAN NOT NULL DEFAULT false`);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS deleted_listings (
+        id VARCHAR PRIMARY KEY DEFAULT gen_random_uuid(),
+        listing_id VARCHAR NOT NULL,
+        user_id VARCHAR NOT NULL,
+        deleted_by VARCHAR NOT NULL,
+        brand TEXT NOT NULL,
+        model TEXT NOT NULL,
+        title TEXT NOT NULL,
+        year INTEGER,
+        price DECIMAL(10,2),
+        photo TEXT,
+        deleted_at TIMESTAMP NOT NULL DEFAULT now()
+      )
+    `);
   } catch (e) {
-    console.warn("[bootstrap] dealer columns migration skipped:", (e as any)?.message);
+    console.warn("[bootstrap] column migration skipped:", (e as any)?.message);
   }
 
   try {
@@ -1690,10 +1713,14 @@ app.use((req, res, next) => {
 
   const port = parseInt(process.env.PORT || "5000", 10);
 
+  server.maxConnections = 0;
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
+
   const tryListen = (p: number) =>
     new Promise<void>((resolve, reject) => {
       server.once("error", reject);
-      server.listen({ port: p, host: "0.0.0.0", reusePort: true }, () => {
+      server.listen({ port: p, host: "0.0.0.0", backlog: 1024 }, () => {
         server.off("error", reject);
         resolve();
       });

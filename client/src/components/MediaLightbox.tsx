@@ -1580,6 +1580,7 @@ export function MediaLightbox({
             onClick={(e) => e.stopPropagation()}
           />
         ) : null}
+
       </div>
 
       {/* Zoom indicator */}

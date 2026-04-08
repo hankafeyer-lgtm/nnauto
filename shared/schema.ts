@@ -277,6 +277,7 @@ export const listings = pgTable(
     isTopListing: boolean("is_top_listing").default(false).notNull(),
     topListingExpiresAt: timestamp("top_listing_expires_at"),
     vatDeductible: boolean("vat_deductible").default(true).notNull(),
+    isSold: boolean("is_sold").default(false).notNull(),
     isImported: boolean("is_imported").default(false).notNull(),
     importCountry: text("import_country"),
     photos: text("photos").array(),
@@ -301,6 +302,24 @@ export const listings = pgTable(
     index("listings_user_id_idx").on(t.userId),
   ],
 );
+
+// ── Deleted listings log ─────────────────────────────────────────────────────
+
+export const deletedListings = pgTable("deleted_listings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  listingId: varchar("listing_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  deletedBy: varchar("deleted_by").notNull(),
+  brand: text("brand").notNull(),
+  model: text("model").notNull(),
+  title: text("title").notNull(),
+  year: integer("year"),
+  price: decimal("price", { precision: 10, scale: 2 }),
+  photo: text("photo"),
+  deletedAt: timestamp("deleted_at").default(sql`now()`).notNull(),
+});
+
+export type DeletedListing = typeof deletedListings.$inferSelect;
 
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/;
 

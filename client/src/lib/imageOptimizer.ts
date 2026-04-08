@@ -28,17 +28,17 @@ export function getOptimizedImageUrl(
 }
 
 export function getCardSrcSet(photoPath: string): string {
-  const widths = [320, 480, 640];
+  const widths = [320, 480];
   return widths
     .map(
       (w) =>
-        `${getOptimizedImageUrl(photoPath, { width: w, quality: 68, format: "webp" })} ${w}w`,
+        `${getOptimizedImageUrl(photoPath, { width: w, quality: 60, format: "webp" })} ${w}w`,
     )
     .join(", ");
 }
 
 export function getCardImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 400, quality: 68 });
+  return getOptimizedImageUrl(photoPath, { width: 400, quality: 60 });
 }
 
 export function getThumbnailUrl(photoPath: string): string {

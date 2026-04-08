@@ -151,7 +151,7 @@ export function useAuth() {
 
   return {
     user,
-    isLoading: tokenInvalid ? false : isLoading || isFetching,
+    isLoading: tokenInvalid ? false : isLoading,
     isAuthenticated: !!user,
     error,
     logout, // 👈 викликай з кнопки “Вийти”

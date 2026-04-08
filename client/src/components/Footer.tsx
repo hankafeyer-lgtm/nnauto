@@ -1,6 +1,6 @@
 import { Link } from "@/lib/navigation";
 import { SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
-import logoImage from "@assets/ADEE73F1-9859-4FA3-9185-00DC43A78326_1764497749332.png";
+const logoImage = "/logo-192.png";
 import { useAuth } from "@/hooks/useAuth";
 import { dispatchOpenAddListingAuth } from "@/lib/authRedirect";
 
@@ -16,6 +16,10 @@ function Footer() {
               <img
                 src={logoImage}
                 alt="NNAuto"
+                width={80}
+                height={80}
+                decoding="async"
+                loading="lazy"
                 className="w-14 h-14 sm:w-20 sm:h-20 object-contain"
               />
               <span className="text-xl sm:text-2xl font-semibold tracking-tight">

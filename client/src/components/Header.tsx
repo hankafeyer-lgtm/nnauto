@@ -39,10 +39,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient, setSessionId } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import LoginModal from "@/components/LoginModal";
+const LoginModal = lazy(() => import("@/components/LoginModal"));
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { carBrands, carModels } from "@shared/carDatabase";
-import logoImage from "@assets/ADEE73F1-9859-4FA3-9185-00DC43A78326_1764497749332.png";
+const logoImage = "/logo-icon-only.png";
 
 const FavoritesModal = lazy(() =>
   import("@/components/FavoritesModal").then((m) => ({
@@ -71,12 +71,18 @@ const normalizeSearchText = (value: string) =>
 
 const brandLabelByValue = new Map(carBrands.map((brand) => [brand.value, brand.label]));
 
-const staticModelSuggestions = Object.entries(carModels).flatMap(([brandValue, models]) =>
-  models.map((model) => ({
-    brand: brandLabelByValue.get(brandValue) ?? brandValue,
-    model,
-  })),
-);
+let _cachedModelSuggestions: Array<{ brand: string; model: string }> | null = null;
+function getStaticModelSuggestions() {
+  if (!_cachedModelSuggestions) {
+    _cachedModelSuggestions = Object.entries(carModels).flatMap(([brandValue, models]) =>
+      models.map((model) => ({
+        brand: brandLabelByValue.get(brandValue) ?? brandValue,
+        model,
+      })),
+    );
+  }
+  return _cachedModelSuggestions;
+}
 
 export default function Header(props: HeaderProps) {
   return <HeaderContent {...props} />;
@@ -196,7 +202,9 @@ function HeaderContent({
     pagination?: { total: number };
   }>({
     queryKey: [listingsCountApiUrl],
-    staleTime: 15 * 60 * 1000,
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    refetchOnMount: false,
   });
 
   const baseListingsCount = listingsCountData?.pagination?.total ?? 0;
@@ -223,7 +231,7 @@ function HeaderContent({
       });
     }
 
-    for (const entry of staticModelSuggestions) {
+    for (const entry of getStaticModelSuggestions()) {
       const brandQuery = normalizeSearchText(entry.brand);
       const modelQuery = normalizeSearchText(entry.model);
       const modelKey = `${brandQuery}-${modelQuery}`;
@@ -459,6 +467,10 @@ function HeaderContent({
                 <img
                   src={logoImage}
                   alt="NNAuto"
+                  width={96}
+                  height={96}
+                  decoding="async"
+                  fetchPriority="high"
                   className={`object-contain ${
                     compactMobile
                       ? "w-9 h-9 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
@@ -827,11 +839,15 @@ function HeaderContent({
         </div>
       </div>
 
-      <LoginModal
-        open={loginModalOpen}
-        onOpenChange={setLoginModalOpen}
-        initialTab={loginModalTab}
-      />
+      {loginModalOpen && (
+        <Suspense fallback={null}>
+          <LoginModal
+            open={loginModalOpen}
+            onOpenChange={setLoginModalOpen}
+            initialTab={loginModalTab}
+          />
+        </Suspense>
+      )}
       {favoritesModalOpen && (
         <Suspense fallback={null}>
           <FavoritesModal

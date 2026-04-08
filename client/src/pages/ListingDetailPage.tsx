@@ -3403,9 +3403,12 @@ export default function ListingDetailPage() {
   const { data: listingAnalytics } = useQuery<ListingAnalytics>({
     queryKey: [`/api/listings/${listingId}/analytics`],
     enabled: !!listingId && canSeeListingAnalytics,
-    refetchInterval: canSeeListingAnalytics ? 15000 : false,
+    refetchInterval: canSeeListingAnalytics ? 60000 : false,
     retry: false,
   });
+
+  const listingVinRaw = (listing?.vin || "").trim().toUpperCase();
+  const hasValidVin = /^[A-HJ-NPR-Z0-9]{17}$/.test(listingVinRaw);
 
   const { data: cebiaConfig } = useQuery<{
     enabled: boolean;
@@ -3415,11 +3418,13 @@ export default function ListingDetailPage() {
     currency?: string;
   }>({
     queryKey: ["/api/cebia/config"],
+    enabled: hasValidVin,
+    staleTime: 30 * 60 * 1000,
   });
 
   const cebiaPaymentsFrozen = cebiaConfig?.paymentsFrozen === true;
-  const listingVin = (listing?.vin || "").trim().toUpperCase();
-  const listingVinValid = /^[A-HJ-NPR-Z0-9]{17}$/.test(listingVin);
+  const listingVin = listingVinRaw;
+  const listingVinValid = hasValidVin;
 
   const clearInteractionLocks = useCallback(() => {
     document.body.style.pointerEvents = "";
@@ -3567,7 +3572,7 @@ export default function ListingDetailPage() {
     };
   }, [carouselApi]);
 
-  // Preload ALL photos on first load for instant swipe; dedupe via ref.
+  // Preload nearby photos (current + next 2) for fast swipe; rest load on demand.
   useEffect(() => {
     const len = photoKeys.length;
     if (!len) return;
@@ -3577,9 +3582,12 @@ export default function ListingDetailPage() {
     const isDesktop = isLgViewport();
     const preloadWidth = isDesktop ? 960 : 560;
     const preloadQuality = isDesktop ? 76 : 68;
+    const preloadCount = Math.min(3, len);
 
     const preload = () => {
-      for (const key of photoKeys) {
+      for (let i = 0; i < preloadCount; i++) {
+        const idx = (currentCarouselIndex + i) % len;
+        const key = photoKeys[idx];
         const url = getOptimizedImageUrl(key, {
           width: preloadWidth,
           quality: preloadQuality,
@@ -3594,20 +3602,17 @@ export default function ListingDetailPage() {
     };
 
     const idleApi = w as Window & {
-      requestIdleCallback?: (
-        cb: () => void,
-        opts?: { timeout: number },
-      ) => number;
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
       cancelIdleCallback?: (id: number) => void;
     };
     if (idleApi.requestIdleCallback) {
-      const idleId = idleApi.requestIdleCallback(preload, { timeout: 160 });
+      const idleId = idleApi.requestIdleCallback(preload, { timeout: 200 });
       return () => idleApi.cancelIdleCallback?.(idleId);
     }
-    const timeoutId = w.setTimeout(preload, 40);
+    const timeoutId = w.setTimeout(preload, 60);
     return () => w.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [photoKeys.length]);
+  }, [photoKeys.length, currentCarouselIndex]);
 
   const scrollToCarouselItem = useCallback(
     (index: number) => {
@@ -4490,7 +4495,7 @@ export default function ListingDetailPage() {
                                 data-testid={`img-listing-${index}`}
                               />
 
-                              <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20">
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity bg-black/20 z-20">
                                 <div className="bg-black/60 text-white px-4 py-2 rounded-full text-sm font-medium">
                                   {t("detail.clickToEnlarge") ||
                                     "Click to enlarge"}

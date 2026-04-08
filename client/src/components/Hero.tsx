@@ -2365,7 +2365,8 @@ function Hero() {
     total?: number;
   }>({
     queryKey: [listingsApiUrl],
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     placeholderData: (previousData) => previousData,
@@ -2798,7 +2799,7 @@ function Hero() {
 
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center mb-4 sm:mb-6 lg:mb-8">
-          <div className="bg-background/30 backdrop-blur-md rounded-xl px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-10 border border-white/10">
+          <div className="bg-background/70 rounded-xl px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-10 border border-white/10">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-primary mb-2 sm:mb-3 lg:mb-5 tracking-tight leading-tight">
               {t("hero.title")}
             </h1>
@@ -2811,7 +2812,7 @@ function Hero() {
         <div className="max-w-7xl mx-auto">
           <form
             onSubmit={handleSearch}
-            className="bg-background/95 backdrop-blur-2xl rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 shadow-2xl border border-white/10"
+            className="bg-background/[.97] rounded-lg sm:rounded-xl p-3 sm:p-4 lg:p-6 shadow-2xl border border-white/10"
           >
             <input
               type="hidden"

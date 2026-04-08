@@ -30,6 +30,7 @@ import {
   Car,
   FileSpreadsheet,
   Plus,
+  Check,
   CheckCircle2,
   XCircle,
   Clock,
@@ -38,7 +39,18 @@ import {
   ArrowUpRight,
   Pencil,
   Trash2,
+  Rocket,
+  Crown,
+  Star,
+  Zap,
+  Sparkles,
+  Wallet,
+  ChevronRight,
+  Timer,
+  Pause,
+  CircleDot,
 } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -551,6 +563,726 @@ function BulkImportTab({ t }: { t: (key: string) => string }) {
   );
 }
 
+// ── My Listings Tab ───────────────────────────────────────────────────────────
+
+type DealerListing = {
+  id: string;
+  title: string;
+  brand: string;
+  model: string;
+  year: number;
+  price: string;
+  photos: string[] | null;
+  is_top_listing: boolean;
+  top_listing_expires_at: string | null;
+  is_sold: boolean;
+  created_at: string;
+  views: number;
+  contacts: number;
+  whatsapp: number;
+  mileage?: number;
+  region?: string;
+};
+
+function getListingStatus(l: DealerListing): "sold" | "top" | "reserve" | "active" {
+  if (l.is_sold) return "sold";
+  if (l.is_top_listing) return "top";
+  return "active";
+}
+
+function getTimeSince(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days < 1) return "dnes";
+  if (days === 1) return "1 den";
+  if (days < 5) return `${days} dny`;
+  return `${days} dní`;
+}
+
+const STATUS_CONFIG = {
+  active: { label: "Aktivní", color: "bg-emerald-100 text-emerald-700", icon: CircleDot },
+  top: { label: "TOP", color: "bg-amber-100 text-amber-700", icon: Crown },
+  sold: { label: "Prodáno", color: "bg-red-100 text-red-700", icon: Check },
+  reserve: { label: "Rezervace", color: "bg-blue-100 text-blue-700", icon: Pause },
+};
+
+function MyListingsTab({ t }: { t: (key: string) => string }) {
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [editingListing, setEditingListing] = useState<any>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/dealer/listings"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/dealer/listings");
+      return res.json();
+    },
+  });
+
+  const toggleSoldMutation = useMutation({
+    mutationFn: async ({ id, isSold }: { id: string; isSold: boolean }) => {
+      await apiRequest("PATCH", `/api/listings/${id}/sold`, { isSold });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+    },
+  });
+
+  const removeTopMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("PATCH", `/api/listings/${id}/promote`, { isTopListing: false });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+      toast({ title: t("dealer.listings.topRemoved") });
+    },
+  });
+
+  const handleEdit = useCallback(async (id: string) => {
+    try {
+      const res = await apiRequest("GET", `/api/listings/${id}`);
+      const listing = await res.json();
+      setEditingListing(listing);
+      setEditDialogOpen(true);
+    } catch {
+      toast({ title: "Error", variant: "destructive" });
+    }
+  }, [toast]);
+
+  const allListings = (data?.listings || []) as DealerListing[];
+
+  const filteredListings = statusFilter === "all"
+    ? allListings
+    : allListings.filter((l) => getListingStatus(l) === statusFilter);
+
+  const statusCounts = {
+    all: allListings.length,
+    active: allListings.filter((l) => getListingStatus(l) === "active").length,
+    top: allListings.filter((l) => getListingStatus(l) === "top").length,
+    sold: allListings.filter((l) => getListingStatus(l) === "sold").length,
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Status filter bar */}
+      <div className="flex gap-2 flex-wrap">
+        {(["all", "active", "top", "sold"] as const).map((s) => (
+          <Button
+            key={s}
+            size="sm"
+            variant={statusFilter === s ? "default" : "outline"}
+            className={statusFilter === s ? "bg-amber-700 hover:bg-amber-800" : ""}
+            onClick={() => setStatusFilter(s)}
+          >
+            {s === "all" ? t("dealer.listings.all") : STATUS_CONFIG[s].label}
+            <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">
+              {statusCounts[s]}
+            </Badge>
+          </Button>
+        ))}
+      </div>
+
+      {/* Listings */}
+      <div className="space-y-2">
+        {filteredListings.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              {t("dealer.listings.empty")}
+            </CardContent>
+          </Card>
+        ) : (
+          filteredListings.map((l) => {
+            const status = getListingStatus(l);
+            const cfg = STATUS_CONFIG[status];
+            const StatusIcon = cfg.icon;
+            const photo = l.photos?.[0];
+            const isExpanded = expandedId === l.id;
+            const totalInteractions = (l.contacts || 0) + (l.whatsapp || 0);
+            const conversionRate = l.views > 0 ? ((totalInteractions / l.views) * 100).toFixed(1) : "0.0";
+            const viewsBarWidth = Math.min(100, Math.round((l.views / Math.max(1, ...allListings.map(x => x.views))) * 100));
+
+            return (
+              <Card key={l.id} className={`transition-all ${status === "sold" ? "opacity-60" : ""}`}>
+                <CardContent className="p-3 sm:p-4">
+                  <div
+                    className="flex items-center gap-3 cursor-pointer"
+                    onClick={() => setExpandedId(isExpanded ? null : l.id)}
+                  >
+                    {/* Фото */}
+                    <div
+                      className="h-14 w-20 sm:h-16 sm:w-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 relative"
+                      onClick={(e) => { e.stopPropagation(); navigate(`/listing/${l.id}`); }}
+                    >
+                      {photo ? (
+                        <img src={`/img/${photo}?w=192&h=128&fit=cover`} alt={`${l.brand} ${l.model}`} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><Car className="h-5 w-5 text-muted-foreground" /></div>
+                      )}
+                      {status === "sold" && (
+                        <div className="absolute inset-0 bg-white/40 flex items-center justify-center">
+                          <span className="text-[10px] font-black text-red-600 tracking-wider">PRODÁNO</span>
+                        </div>
+                      )}
+                      {status === "top" && (
+                        <div className="absolute top-0.5 left-0.5">
+                          <Crown className="h-3.5 w-3.5 text-amber-500 drop-shadow" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Інфо */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <p className="font-semibold text-sm truncate">{l.brand} {l.model} {l.year}</p>
+                        <Badge className={`${cfg.color} text-[10px] px-1.5 py-0 h-5 flex-shrink-0`}>
+                          <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
+                          {cfg.label}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="font-medium">{Number(l.price).toLocaleString()} Kč</span>
+                        <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{l.views}</span>
+                        <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{l.contacts}</span>
+                        <span className="flex items-center gap-0.5"><MessageCircle className="h-3 w-3" />{l.whatsapp}</span>
+                        <span className="flex items-center gap-0.5"><Timer className="h-3 w-3" />{getTimeSince(l.created_at)}</span>
+                      </div>
+                    </div>
+
+                    {/* Кнопки */}
+                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {status === "top" && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => removeTopMutation.mutate(l.id)}>
+                          <Crown className="h-3 w-3 mr-1 text-amber-500" />
+                          {t("dealer.listings.removeTop")}
+                        </Button>
+                      )}
+                      {status !== "sold" ? (
+                        <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => toggleSoldMutation.mutate({ id: l.id, isSold: true })}>
+                          <Check className="h-3 w-3 mr-1" />
+                          {t("dealer.listings.markSold")}
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => toggleSoldMutation.mutate({ id: l.id, isSold: false })}>
+                          <CircleDot className="h-3 w-3 mr-1" />
+                          {t("dealer.listings.markActive")}
+                        </Button>
+                      )}
+                      <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleEdit(l.id)}>
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Розгорнута статистика */}
+                  {isExpanded && (
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-blue-50 rounded-lg p-2.5 text-center">
+                          <Eye className="h-4 w-4 mx-auto text-blue-600 mb-1" />
+                          <p className="text-lg font-bold text-blue-700">{l.views}</p>
+                          <p className="text-[10px] text-blue-600/70">{t("dealer.views")}</p>
+                        </div>
+                        <div className="bg-emerald-50 rounded-lg p-2.5 text-center">
+                          <Phone className="h-4 w-4 mx-auto text-emerald-600 mb-1" />
+                          <p className="text-lg font-bold text-emerald-700">{l.contacts}</p>
+                          <p className="text-[10px] text-emerald-600/70">{t("dealer.contacts")}</p>
+                        </div>
+                        <div className="bg-green-50 rounded-lg p-2.5 text-center">
+                          <MessageCircle className="h-4 w-4 mx-auto text-green-600 mb-1" />
+                          <p className="text-lg font-bold text-green-700">{l.whatsapp}</p>
+                          <p className="text-[10px] text-green-600/70">WhatsApp</p>
+                        </div>
+                        <div className="bg-amber-50 rounded-lg p-2.5 text-center">
+                          <TrendingUp className="h-4 w-4 mx-auto text-amber-600 mb-1" />
+                          <p className="text-lg font-bold text-amber-700">{conversionRate}%</p>
+                          <p className="text-[10px] text-amber-600/70">{t("dealer.conversionRate")}</p>
+                        </div>
+                      </div>
+
+                      {/* Візуальний прогрес-бар переглядів */}
+                      <div className="mt-3 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{t("dealer.views")}</span>
+                          <span>{l.views}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-500 rounded-full transition-all"
+                            style={{ width: `${viewsBarWidth}%` }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{t("dealer.contacts")} + WhatsApp</span>
+                          <span>{totalInteractions}</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all"
+                            style={{ width: `${l.views > 0 ? Math.min(100, Math.round((totalInteractions / l.views) * 100 * 5)) : 0}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Додаткова інформація */}
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        {l.mileage != null && (
+                          <span className="bg-muted px-2 py-0.5 rounded">{l.mileage.toLocaleString()} km</span>
+                        )}
+                        {l.region && (
+                          <span className="bg-muted px-2 py-0.5 rounded">{l.region}</span>
+                        )}
+                        <span className="bg-muted px-2 py-0.5 rounded">
+                          {new Date(l.created_at).toLocaleDateString("cs-CZ")}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {editingListing && (
+        <Suspense fallback={null}>
+          <EditListingDialog
+            open={editDialogOpen}
+            onOpenChange={(open: boolean) => {
+              setEditDialogOpen(open);
+              if (!open) {
+                setEditingListing(null);
+                queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+                queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+              }
+            }}
+            listing={editingListing}
+          />
+        </Suspense>
+      )}
+    </div>
+  );
+}
+
+// ── Promotion packages ────────────────────────────────────────────────────────
+
+const PROMO_PACKAGES = [
+  {
+    id: "top" as const,
+    icon: ArrowUpRight,
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+    border: "border-blue-200 hover:border-blue-400",
+    badge: "bg-blue-100 text-blue-700",
+    boost: "+40%",
+  },
+  {
+    id: "vip" as const,
+    icon: Crown,
+    color: "text-amber-600",
+    bg: "bg-amber-50",
+    border: "border-amber-200 hover:border-amber-400",
+    badge: "bg-amber-100 text-amber-700",
+    boost: "+80%",
+  },
+];
+
+function PromotionTab({
+  stats,
+  t,
+}: {
+  stats: DealerStats;
+  t: (key: string) => string;
+}) {
+  const { toast } = useToast();
+  const [selectedListings, setSelectedListings] = useState<Set<string>>(new Set());
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<Record<string, "14" | "30">>({});
+  const [autoBudget, setAutoBudget] = useState(500);
+  const [autoBudgetEnabled, setAutoBudgetEnabled] = useState(false);
+
+  const toggleListing = useCallback((id: string) => {
+    setSelectedListings((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const getPrice = useCallback(() => {
+    if (!selectedPackage) return 0;
+    const dur = selectedDuration[selectedPackage] || "30";
+    const prices: Record<string, Record<string, number>> = {
+      top: { "14": 69, "30": 99 },
+      vip: { "14": 119, "30": 159 },
+    };
+    return (prices[selectedPackage]?.[dur] || 0) * selectedListings.size;
+  }, [selectedPackage, selectedDuration, selectedListings.size]);
+
+  const handlePayment = useCallback(() => {
+    if (!selectedPackage) {
+      toast({ title: t("dealer.promo.selectPackageFirst") });
+      return;
+    }
+    if (selectedListings.size === 0) {
+      toast({ title: t("dealer.promo.selectListingsFirst") });
+      return;
+    }
+    const dur = selectedDuration[selectedPackage] || "30";
+    toast({
+      title: t("dealer.promo.redirectingToPayment"),
+      description: `${selectedPackage.toUpperCase()} × ${selectedListings.size} — ${getPrice()} Kč`,
+    });
+  }, [selectedPackage, selectedListings, selectedDuration, getPrice, t, toast]);
+
+  return (
+    <div className="space-y-6">
+      {/* Recommendation banner */}
+      <Card className="border-amber-200 bg-gradient-to-r from-amber-50 via-white to-yellow-50">
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <div className="h-14 w-14 rounded-2xl bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <Crown className="h-7 w-7 text-amber-600" />
+            </div>
+            <div className="flex-1 text-center sm:text-left">
+              <h3 className="font-semibold text-lg">
+                {t("dealer.promo.recommendTitle")}
+              </h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {t("dealer.promo.recommendDescription")}
+              </p>
+            </div>
+            <Button className="bg-amber-700 hover:bg-amber-800 px-6 flex-shrink-0">
+              <Crown className="h-4 w-4 mr-2" />
+              {t("dealer.promo.activateVip")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Promotion packages */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {PROMO_PACKAGES.map((pkg) => {
+          const Icon = pkg.icon;
+          return (
+            <Card
+              key={pkg.id}
+              className={`cursor-pointer transition-all duration-200 ${pkg.border} ${
+                selectedPackage === pkg.id ? "ring-2 ring-offset-2 ring-amber-400 shadow-lg" : ""
+              }`}
+              onClick={() => setSelectedPackage(pkg.id)}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className={`h-10 w-10 rounded-xl ${pkg.bg} flex items-center justify-center`}>
+                    <Icon className={`h-5 w-5 ${pkg.color}`} />
+                  </div>
+                  <Badge className={pkg.badge}>{pkg.boost}</Badge>
+                </div>
+                <CardTitle className="text-lg mt-3">
+                  {t(`dealer.promo.${pkg.id}.title`)}
+                </CardTitle>
+                <CardDescription>
+                  {t(`dealer.promo.${pkg.id}.description`)}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <button
+                    type="button"
+                    className={`p-3 rounded-lg text-center transition-all cursor-pointer ${
+                      selectedDuration[pkg.id] === "14"
+                        ? `${pkg.bg} border-2 ${pkg.border.split(" ")[0]} shadow-sm`
+                        : "bg-muted/50 border-2 border-transparent hover:border-gray-200"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDuration((prev) => ({ ...prev, [pkg.id]: "14" }));
+                      setSelectedPackage(pkg.id);
+                      toast({ title: `${t(`dealer.promo.${pkg.id}.title`)} — ${t("dealer.promo.per14days")}` });
+                    }}
+                  >
+                    <span className="text-xl font-bold">{t(`dealer.promo.${pkg.id}.price14`)}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("dealer.promo.per14days")}</p>
+                  </button>
+                  <button
+                    type="button"
+                    className={`p-3 rounded-lg text-center transition-all cursor-pointer ${
+                      !selectedDuration[pkg.id] || selectedDuration[pkg.id] === "30"
+                        ? `${pkg.bg} border-2 ${pkg.border.split(" ")[0]} shadow-sm`
+                        : "bg-muted/50 border-2 border-transparent hover:border-gray-200"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedDuration((prev) => ({ ...prev, [pkg.id]: "30" }));
+                      setSelectedPackage(pkg.id);
+                      toast({ title: `${t(`dealer.promo.${pkg.id}.title`)} — ${t("dealer.promo.per30days")}` });
+                    }}
+                  >
+                    <span className="text-xl font-bold">{t(`dealer.promo.${pkg.id}.price30`)}</span>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("dealer.promo.per30days")}</p>
+                    <Badge variant="secondary" className="mt-1 text-[10px]">{t("dealer.promo.bestValue")}</Badge>
+                  </button>
+                </div>
+                <ul className="space-y-2 text-sm mb-4">
+                  {[1, 2, 3].map((i) => {
+                    const key = `dealer.promo.${pkg.id}.feature${i}`;
+                    const text = t(key);
+                    if (text === key) return null;
+                    return (
+                      <li key={i} className="flex items-center gap-2">
+                        <CheckCircle2 className={`h-4 w-4 flex-shrink-0 ${pkg.color}`} />
+                        <span>{text}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <Button
+                  className={`w-full ${
+                    selectedPackage === pkg.id
+                      ? "bg-amber-700 hover:bg-amber-800"
+                      : pkg.id === "vip"
+                        ? "bg-amber-600 hover:bg-amber-700"
+                        : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPackage(pkg.id);
+                    toast({ title: `${t(`dealer.promo.${pkg.id}.title`)} ${t("dealer.promo.selected")}` });
+                  }}
+                >
+                  {selectedPackage === pkg.id ? (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      {t("dealer.promo.selected")}
+                    </>
+                  ) : (
+                    <>
+                      <ChevronRight className="h-4 w-4 mr-2" />
+                      {t("dealer.promo.select")}
+                    </>
+                  )}
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Per-listing promotion */}
+      {stats.perListing.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Rocket className="h-4 w-4" />
+                  {t("dealer.promo.boostListings")}
+                </CardTitle>
+                <CardDescription>{t("dealer.promo.boostDescription")}</CardDescription>
+              </div>
+              {selectedListings.size > 0 && (
+                <Badge className="bg-amber-100 text-amber-700">
+                  {selectedListings.size} {t("dealer.promo.selectedCount")}
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-2">
+              {stats.perListing.map((item) => {
+                const isSelected = selectedListings.has(item.listing_id);
+                return (
+                  <div
+                    key={item.listing_id}
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-amber-50 border border-amber-300 shadow-sm"
+                        : "bg-muted/50 hover:bg-muted border border-transparent"
+                    }`}
+                    onClick={() => toggleListing(item.listing_id)}
+                  >
+                    <div className={`h-5 w-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isSelected ? "bg-amber-700 border-amber-700" : "border-gray-300"
+                    }`}>
+                      {isSelected && <CheckCircle2 className="h-3.5 w-3.5 text-white" />}
+                    </div>
+                    <div className="h-10 w-14 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                      {item.photo ? (
+                        <img
+                          src={`/img/${item.photo}?w=112&h=80&fit=cover`}
+                          alt={`${item.brand} ${item.model}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <Car className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">
+                        {item.brand} {item.model}
+                      </p>
+                      <div className="flex gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Eye className="h-3 w-3" /> {item.views}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Phone className="h-3 w-3" /> {item.contacts}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={isSelected ? "default" : "outline"}
+                      className={isSelected ? "bg-amber-700 hover:bg-amber-800" : ""}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleListing(item.listing_id);
+                      }}
+                    >
+                      {isSelected ? (
+                        <>
+                          <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          {t("dealer.promo.selected")}
+                        </>
+                      ) : (
+                        <>
+                          <Rocket className="h-3.5 w-3.5 mr-1" />
+                          {t("dealer.promo.boost")}
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Payment summary */}
+            {selectedListings.size > 0 && (
+              <div className="pt-3 border-t space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {selectedPackage
+                      ? `${t(`dealer.promo.${selectedPackage}.title`)} × ${selectedListings.size}`
+                      : t("dealer.promo.selectPackageFirst")}
+                  </span>
+                  {selectedPackage && (
+                    <span className="text-lg font-bold text-amber-700">{getPrice()} Kč</span>
+                  )}
+                </div>
+                <Button
+                  className="w-full bg-amber-700 hover:bg-amber-800 text-base py-5"
+                  disabled={!selectedPackage}
+                  onClick={handlePayment}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  {selectedPackage
+                    ? `${t("dealer.promo.pay")} ${getPrice()} Kč`
+                    : t("dealer.promo.selectPackageFirst")}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Auto-budget */}
+      <Card className="border-amber-200">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                <Wallet className="h-5 w-5 text-amber-700" />
+              </div>
+              <div>
+                <CardTitle className="text-base">{t("dealer.promo.autoBudgetTitle")}</CardTitle>
+                <CardDescription>{t("dealer.promo.autoBudgetDescription")}</CardDescription>
+              </div>
+            </div>
+            <Button
+              variant={autoBudgetEnabled ? "default" : "outline"}
+              size="sm"
+              className={autoBudgetEnabled ? "bg-amber-700 hover:bg-amber-800" : ""}
+              onClick={() => {
+                setAutoBudgetEnabled(!autoBudgetEnabled);
+                toast({
+                  title: autoBudgetEnabled
+                    ? t("dealer.promo.autoBudgetDisabled")
+                    : t("dealer.promo.autoBudgetEnabled"),
+                });
+              }}
+            >
+              {autoBudgetEnabled ? t("dealer.promo.active") : t("dealer.promo.activate")}
+            </Button>
+          </div>
+        </CardHeader>
+        {autoBudgetEnabled && (
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label>{t("dealer.promo.monthlyBudget")}</Label>
+                <span className="text-xl font-bold text-amber-700">{autoBudget} Kč</span>
+              </div>
+              <Slider
+                value={[autoBudget]}
+                onValueChange={(v) => setAutoBudget(v[0])}
+                min={100}
+                max={5000}
+                step={100}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>100 Kč</span>
+                <span>5 000 Kč</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-lg font-bold text-amber-700">
+                  ~{Math.round(autoBudget / 15)}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("dealer.promo.estimatedBoosts")}</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-lg font-bold text-emerald-600">
+                  +{Math.round(autoBudget * 0.8)}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("dealer.promo.estimatedViews")}</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-lg font-bold text-blue-600">
+                  +{Math.round(autoBudget * 0.04)}
+                </p>
+                <p className="text-xs text-muted-foreground">{t("dealer.promo.estimatedContacts")}</p>
+              </div>
+            </div>
+            <Button className="w-full bg-amber-700 hover:bg-amber-800">
+              <Wallet className="h-4 w-4 mr-2" />
+              {t("dealer.promo.saveBudget")}
+            </Button>
+          </CardContent>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 function DealerSettingsTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string }) {
   const { toast } = useToast();
   const [form, setForm] = useState({
@@ -678,12 +1410,13 @@ export default function DealerPage() {
     enabled: !!user?.isDealer,
   });
 
-  if (!authLoading && !isAuthenticated) {
-    navigate("/");
-    return null;
-  }
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate("/");
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
-  if (authLoading) {
+  if (authLoading || (!authLoading && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -718,23 +1451,37 @@ export default function DealerPage() {
           </div>
         ) : (
           <Tabs defaultValue="dashboard">
-            <TabsList className="mb-6 grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
-              <TabsTrigger value="dashboard" className="gap-2">
-                <BarChart3 className="h-4 w-4 hidden sm:block" />
+            <TabsList className="mb-6 grid w-full grid-cols-3 sm:grid-cols-5 lg:w-auto lg:inline-flex gap-1 h-auto p-1">
+              <TabsTrigger value="dashboard" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.dashboard")}
               </TabsTrigger>
-              <TabsTrigger value="import" className="gap-2">
-                <Upload className="h-4 w-4 hidden sm:block" />
+              <TabsTrigger value="mylistings" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {t("dealer.myListings")}
+              </TabsTrigger>
+              <TabsTrigger value="promotion" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {t("dealer.promo.tab")}
+              </TabsTrigger>
+              <TabsTrigger value="import" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.bulkImport")}
               </TabsTrigger>
-              <TabsTrigger value="settings" className="gap-2">
-                <Settings className="h-4 w-4 hidden sm:block" />
+              <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+                <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.settings")}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="dashboard">
               <DashboardTab stats={stats} dealer={dealer} t={t} />
+            </TabsContent>
+            <TabsContent value="mylistings">
+              <MyListingsTab t={t} />
+            </TabsContent>
+            <TabsContent value="promotion">
+              <PromotionTab stats={stats} t={t} />
             </TabsContent>
             <TabsContent value="import">
               <BulkImportTab t={t} />
