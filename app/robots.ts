@@ -5,18 +5,27 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: "/",
-        disallow: ["/api/", "/admin", "/profile", "/settings", "/cebia/return"],
+        allow: ["/", "/brand/", "/blog/", "/listings", "/listing/"],
+        disallow: [
+          "/api/",
+          "/admin",
+          "/profile",
+          "/settings",
+          "/cebia/return",
+          "/dealer",
+          "/my-listings",
+          "/add-listing",
+        ],
       },
       {
         userAgent: "Googlebot",
-        allow: "/",
-        disallow: ["/api/", "/admin", "/profile", "/settings"],
+        allow: ["/", "/brand/", "/blog/", "/listings", "/listing/"],
+        disallow: ["/api/", "/admin", "/profile", "/settings", "/dealer"],
       },
       {
         userAgent: "SeznamBot",
-        allow: "/",
-        disallow: ["/api/", "/admin", "/profile", "/settings"],
+        allow: ["/", "/brand/", "/blog/", "/listings", "/listing/"],
+        disallow: ["/api/", "/admin", "/profile", "/settings", "/dealer"],
       },
     ],
     sitemap: "https://nnauto.cz/sitemap.xml",

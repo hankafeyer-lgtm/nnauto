@@ -471,3 +471,42 @@ export const updateCebiaReportSchema = insertCebiaReportSchema.partial().strict(
 export type InsertCebiaReport = z.infer<typeof insertCebiaReportSchema>;
 export type UpdateCebiaReport = z.infer<typeof updateCebiaReportSchema>;
 export type CebiaReport = typeof cebiaReports.$inferSelect;
+
+// ── Articles / Blog ──────────────────────────────────────────────────────────
+
+export const articles = pgTable(
+  "articles",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    slug: varchar("slug", { length: 240 }).notNull(),
+    title: text("title").notNull(),
+    excerpt: text("excerpt"),
+    content: text("content").notNull(),
+    coverImage: text("cover_image"),
+    author: text("author"),
+    tags: text("tags").array(),
+    relatedBrands: text("related_brands").array(),
+    relatedModels: text("related_models").array(),
+    isPublished: boolean("is_published").default(false).notNull(),
+    publishedAt: timestamp("published_at"),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    uniqueIndex("articles_slug_unique").on(t.slug),
+    index("articles_published_at_idx").on(t.publishedAt),
+    index("articles_is_published_idx").on(t.isPublished),
+  ],
+);
+
+export const insertArticleSchema = createInsertSchema(articles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const updateArticleSchema = insertArticleSchema.partial().strict();
+
+export type InsertArticle = z.infer<typeof insertArticleSchema>;
+export type UpdateArticle = z.infer<typeof updateArticleSchema>;
+export type Article = typeof articles.$inferSelect;

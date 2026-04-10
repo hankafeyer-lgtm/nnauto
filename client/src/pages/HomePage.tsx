@@ -2743,13 +2743,13 @@ export default function HomePage() {
 
   useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;
-    if (!pendingRestore || isFetching || openListingId || cards.length === 0) return;
+    if (!pendingRestore || isLoading || openListingId || cards.length === 0) return;
     const isMobileRestore = isMobileViewport();
     restoreDebug("home", "restore-started", {
       isMobileRestore,
       pendingRestore,
       cardsCount: cards.length,
-      isFetching,
+      isLoading,
       openListingId,
     });
 
@@ -2891,7 +2891,7 @@ export default function HomePage() {
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [cards, isFetching, openListingId, restoreTick]);
+  }, [cards, isLoading, openListingId, restoreTick]);
 
   const seoDescriptions = {
     cs: "NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání.",

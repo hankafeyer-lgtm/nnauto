@@ -4056,7 +4056,7 @@ export default function ListingsPage() {
     if (
       !pendingRestore ||
       didApplyScrollRestoreRef.current ||
-      isFetching ||
+      isPending ||
       openListingId ||
       sortedListings.length === 0
     ) {
@@ -4241,7 +4241,7 @@ export default function ListingsPage() {
       window.clearTimeout(t2);
       window.clearTimeout(t3);
     };
-  }, [isFetching, openListingId, sortedListings, restoreTick]);
+  }, [isPending, openListingId, sortedListings, restoreTick]);
 
   const listingsById = useMemo(() => {
     const map = new Map<string, Listing>();

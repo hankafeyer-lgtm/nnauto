@@ -1,20 +1,16 @@
 import type { Metadata } from "next";
+import { buildSearchMetadata } from "@lib/seo/metadata";
 import ListingsClient from "./listings-client";
 
-export const metadata: Metadata = {
-  title: "Inzeráty vozidel | NNAuto",
-  description: "Prohlédněte si nabídku automobilů na NNAuto.",
-  openGraph: {
-    title: "Inzeráty vozidel | NNAuto",
-    description: "Prohlédněte si nabídku automobilů na NNAuto.",
-    url: "https://nnauto.cz/listings",
-    siteName: "NNAuto",
-    images: [{ url: "https://nnauto.cz/og-image.png", width: 1200, height: 630 }],
-    locale: "cs_CZ",
-    type: "website",
-  },
-  alternates: { canonical: "https://nnauto.cz/listings" },
+export const dynamic = "force-dynamic";
+
+type Props = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
+  return buildSearchMetadata(await searchParams);
+}
 
 export default function Listings() {
   return <ListingsClient />;
