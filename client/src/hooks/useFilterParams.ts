@@ -584,7 +584,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
   }, []);
 
   const parseFiltersFromURL = useCallback((): FilterParams => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
 
     return {
       search: params.get("search") || undefined,
@@ -716,7 +716,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       if (!autoNavigate) return;
       // Build URL exclusively from newFilters to avoid stale query string issues
       // Only preserve non-filter params like userId from current URL
-      const currentParams = new URLSearchParams(window.location.search);
+      const currentParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
       const userId = currentParams.get("userId");
 
       // Start with a fresh URLSearchParams and build from newFilters only
@@ -1105,7 +1105,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
   const applyFilters = useCallback(() => {
     const currentFilters = latestFiltersRef.current;
-    const currentParams = new URLSearchParams(window.location.search);
+    const currentParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
     const userId = currentParams.get("userId");
     const params = new URLSearchParams();
 

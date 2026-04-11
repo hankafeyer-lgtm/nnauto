@@ -2139,6 +2139,7 @@ function getPageFromUrl(): number {
 }
 
 function setPageToUrl(page: number, mode: "replace" | "push" = "replace") {
+  if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
   if (page <= 1) url.searchParams.delete("page");
   else url.searchParams.set("page", String(page));
@@ -2156,6 +2157,7 @@ type PendingHomeRestore = {
 };
 
 function getPendingHomeRestore(): PendingHomeRestore | null {
+  if (typeof window === "undefined") return null;
   const restoreState = readListingsRestoreState();
   const hashTargetId = window.location.hash.startsWith("#listing-")
     ? decodeURIComponent(window.location.hash.slice("#listing-".length))

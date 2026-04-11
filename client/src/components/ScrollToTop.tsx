@@ -65,6 +65,7 @@ export function setDocumentScrollTop(top: number) {
 }
 
 export function readListingsRestoreState(): ListingsRestoreState | null {
+  if (typeof sessionStorage === "undefined") return null;
   const raw = sessionStorage.getItem(LISTINGS_RESTORE_STATE_KEY);
   if (!raw) return null;
   try {

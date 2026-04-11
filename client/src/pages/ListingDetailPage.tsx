@@ -5815,6 +5815,7 @@ function phoneToDigits(phone: string | null | undefined) {
 }
 
 async function copyToClipboard(text: string) {
+  if (typeof document === "undefined") return false;
   try {
     await navigator.clipboard.writeText(text);
     return true;

@@ -3103,7 +3103,7 @@ const forceScrollToTop = () => {
   const run = () => w.scrollTo({ top: 0, left: 0, behavior: "auto" });
   run();
   requestAnimationFrame(run);
-  window.setTimeout(run, 120);
+  w.setTimeout(run, 120);
 };
 
 const hasPendingListingsRestore = (w: Window) => {
@@ -3112,6 +3112,7 @@ const hasPendingListingsRestore = (w: Window) => {
     const [returnPath] = restoreState.returnUrl.split("#");
     return returnPath === `${w.location.pathname}${w.location.search}`;
   }
+  if (typeof sessionStorage === "undefined") return false;
   const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
   const returnUrl = sessionStorage.getItem(LISTINGS_RETURN_URL_KEY);
   if (!savedPosition || !returnUrl) return false;
