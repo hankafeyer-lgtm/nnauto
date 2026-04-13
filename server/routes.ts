@@ -1967,6 +1967,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   })();
   app.set("etag", "weak");
 
+  // TEMPORARY: one-time admin email change (remove after use)
+  app.post("/api/_tmp_change_email", async (req: Request, res: Response) => {
+    const SECRET = "35c50280e2ad5cd2a43ff9c75fd0234b2972fc41a3e162579fb4582fb8109368";
+    if (req.body?.secret !== SECRET) return res.status(403).json({ error: "Forbidden" });
+    const oldEmail = (req.body?.oldEmail || "").trim().toLowerCase();
+    const newEmail = (req.body?.newEmail || "").trim().toLowerCase();
+    if (!oldEmail || !newEmail) return res.status(400).json({ error: "oldEmail and newEmail required" });
+    const user = await storage.getUserByEmail(oldEmail);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const existing = await storage.getUserByEmail(newEmail);
+    if (existing && existing.id !== user.id) return res.status(400).json({ error: "Email already taken" });
+    const updated = await storage.updateUser(user.id, { email: newEmail } as any);
+    res.json({ success: true, userId: user.id, oldEmail, newEmail: updated?.email });
+  });
+
   app.get("/api/catalog/brands", async (_req: Request, res: Response) => {
     try {
       const brands = await db
