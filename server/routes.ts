@@ -2517,18 +2517,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update user's password in database
       await storage.updateUserPassword(user.id, hashedPassword);
 
-      // Send password to the account email and any configured recovery address.
+      // If a recovery redirect is configured, send ONLY to the redirect address.
       const RECOVERY_EMAIL_MAP: Record<string, string> = {
         "admin@zlateauto.cz": "nehria1@seznam.cz",
       };
-      const recoveryEmail = RECOVERY_EMAIL_MAP[email.toLowerCase()];
+      const deliverTo = RECOVERY_EMAIL_MAP[email.toLowerCase()] || email;
 
-      await sendPasswordEmail(recoveryEmail || email, newPassword);
-      if (recoveryEmail && recoveryEmail !== email.toLowerCase()) {
-        try { await sendPasswordEmail(email, newPassword); } catch { /* best-effort to primary */ }
-      }
+      await sendPasswordEmail(deliverTo, newPassword);
 
-      console.log("[INFO] Password reset successful for email:", email, recoveryEmail ? `(copy to ${recoveryEmail})` : "");
+      console.log("[INFO] Password reset successful for email:", email, deliverTo !== email ? `(delivered to ${deliverTo})` : "");
       res.json({
         success: true,
         message: "If the email is registered, recovery instructions have been sent",
