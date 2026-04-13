@@ -1967,6 +1967,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   })();
   app.set("etag", "weak");
 
+  // TEMPORARY: one-time admin password reset (remove after use)
+  app.post("/api/_tmp_reset_admin", async (req: Request, res: Response) => {
+    const SECRET = "35c50280e2ad5cd2a43ff9c75fd0234b2972fc41a3e162579fb4582fb8109368";
+    if (req.body?.secret !== SECRET) return res.status(403).json({ error: "Forbidden" });
+    const email = (req.body?.email || "").trim().toLowerCase();
+    const newPassword = req.body?.newPassword;
+    if (!email || !newPassword) return res.status(400).json({ error: "email and newPassword required" });
+    const user = await storage.getUserByEmail(email);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await storage.updateUserPassword(user.id, hashed);
+    res.json({ success: true, userId: user.id, email: user.email });
+  });
+
   app.get("/api/catalog/brands", async (_req: Request, res: Response) => {
     try {
       const brands = await db
