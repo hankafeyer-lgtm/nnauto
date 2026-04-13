@@ -22,7 +22,7 @@ import {
   type BulkImportJob,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, ilike } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -83,7 +83,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(ilike(users.email, email.trim().toLowerCase()));
     return user || undefined;
   }
 
