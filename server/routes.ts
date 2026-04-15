@@ -27,7 +27,13 @@ import { POPULAR_BRAND_MODEL_CATALOG } from "@shared/brandModelCatalog";
 import { MODEL_GENERATION_CATALOG } from "@shared/modelGenerationCatalog";
 import { carBrands, carModels } from "@shared/carDatabase";
 import { and, asc, desc, eq, gte, ilike, lte, or, sql, type SQL } from "drizzle-orm";
-import { setupAuth, isAuthenticated, isAdmin, isDealer } from "./auth";
+import {
+  setupAuth,
+  isAuthenticated,
+  isAdmin,
+  isDealer,
+  getOptionalViewer,
+} from "./auth";
 import "./types";
 import bcrypt from "bcrypt";
 import {
@@ -49,48 +55,13 @@ import {
 import multer from "multer";
 import sharp from "sharp";
 
-sharp.concurrency(2);
-
-// LRU-style in-memory cache for optimized images (access bumps to end)
+// In-memory cache for optimized images
 const imageCache = new Map<
   string,
   { buffer: Buffer; contentType: string; timestamp: number }
 >();
 const IMAGE_CACHE_TTL = 4 * 60 * 60 * 1000; // 4 hours
-const MAX_CACHE_SIZE = 500;
-const MAX_CACHE_BYTES = 256 * 1024 * 1024; // 256MB RAM cap
-let currentCacheBytes = 0;
-
-function imageCacheGet(key: string) {
-  const entry = imageCache.get(key);
-  if (!entry) return undefined;
-  if (Date.now() - entry.timestamp > IMAGE_CACHE_TTL) {
-    currentCacheBytes -= entry.buffer.length;
-    imageCache.delete(key);
-    return undefined;
-  }
-  imageCache.delete(key);
-  imageCache.set(key, entry);
-  return entry;
-}
-
-function imageCacheSet(key: string, entry: { buffer: Buffer; contentType: string; timestamp: number }) {
-  const existing = imageCache.get(key);
-  if (existing) {
-    currentCacheBytes -= existing.buffer.length;
-    imageCache.delete(key);
-  }
-  while ((imageCache.size >= MAX_CACHE_SIZE || currentCacheBytes + entry.buffer.length > MAX_CACHE_BYTES) && imageCache.size > 0) {
-    const oldest = imageCache.keys().next().value;
-    if (oldest) {
-      const old = imageCache.get(oldest);
-      if (old) currentCacheBytes -= old.buffer.length;
-      imageCache.delete(oldest);
-    }
-  }
-  imageCache.set(key, entry);
-  currentCacheBytes += entry.buffer.length;
-}
+const MAX_CACHE_SIZE = 1000; // aggressive in-memory cache for processed images
 
 const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
 const MAX_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
@@ -358,14 +329,6 @@ const ensureListingsIndexes = async () => {
     CREATE INDEX IF NOT EXISTS listings_user_id_idx
     ON listings (user_id)
   `);
-  await db.execute(sql`
-    CREATE INDEX IF NOT EXISTS listings_is_sold_created_at_idx
-    ON listings (is_sold, is_top_listing DESC, created_at DESC)
-  `);
-  await db.execute(sql`
-    CREATE INDEX IF NOT EXISTS listings_color_idx
-    ON listings (color)
-  `);
 };
 
 const ensureBrandModelCatalog = async () => {
@@ -510,7 +473,7 @@ type ListingsFastCacheEntry = {
 
 const LISTINGS_FAST_CACHE_TTL_MS = Math.max(
   0,
-  Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "180000", 10) || 0,
+  Number.parseInt(process.env.LISTINGS_FAST_CACHE_TTL_MS || "60000", 10) || 0,
 );
 const LISTINGS_FAST_CACHE_STALE_MS = Math.max(
   LISTINGS_FAST_CACHE_TTL_MS,
@@ -2894,21 +2857,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/auth/user", async (req, res) => {
     try {
-      // Same as isAuthenticated: honor Bearer JWT so the SPA sees the user when
-      // the session cookie is missing (cross-domain / cookie issues).
-      const authHeader = req.headers.authorization;
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        const token = authHeader.substring(7);
-        try {
-          const payload = verifyToken(token);
-          if (payload?.userId) {
-            req.session.userId = payload.userId;
-          }
-        } catch {
-          /* ignore invalid token */
-        }
-      }
-
       // Session header fallback for compatibility in non-production only.
       if (
         !req.session.userId &&
@@ -3168,8 +3116,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Listing not found" });
       }
 
-      // Verify user owns this listing
-      if (existingListing.userId !== req.session.userId) {
+      const actingUser = await storage.getUser(req.session.userId!);
+      if (
+        existingListing.userId !== req.session.userId &&
+        !actingUser?.isAdmin
+      ) {
         return res
           .status(403)
           .json({ error: "Cannot update another user's listing" });
@@ -3188,21 +3139,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
 
+      // Get existing listing to verify ownership
       const existingListing = await storage.getListing(id);
       if (!existingListing) {
         return res.status(404).json({ error: "Listing not found" });
       }
 
-      if (existingListing.userId !== req.session.userId) {
+      const actingUser = await storage.getUser(req.session.userId!);
+      if (
+        existingListing.userId !== req.session.userId &&
+        !actingUser?.isAdmin
+      ) {
         return res
           .status(403)
           .json({ error: "Cannot delete another user's listing" });
       }
-
-      await db.execute(sql`
-        INSERT INTO deleted_listings (listing_id, user_id, deleted_by, brand, model, title, year, price, photo)
-        VALUES (${id}, ${existingListing.userId}, ${req.session.userId!}, ${existingListing.brand}, ${existingListing.model}, ${existingListing.title}, ${existingListing.year}, ${existingListing.price}, ${existingListing.photos?.[0] || null})
-      `);
 
       const deleted = await storage.deleteListing(id);
       if (deleted) {
@@ -5000,23 +4951,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Mark listing as sold / unsold
-  app.patch("/api/listings/:id/sold", isAuthenticated, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const listing = await storage.getListing(id);
-      if (!listing) return res.status(404).json({ error: "Listing not found" });
-      if (listing.userId !== req.session.userId) return res.status(403).json({ error: "Forbidden" });
-
-      const isSold = req.body.isSold !== false;
-      const updated = await storage.updateListing(id, { isSold } as any);
-      res.json(updated);
-    } catch (error: any) {
-      console.error("[listings/:id/sold]", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // Legacy promote endpoint - now requires payment (kept for admin use)
   app.patch("/api/listings/:id/promote", isAuthenticated, async (req, res) => {
     try {
@@ -5511,6 +5445,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const q = req.query;
 
+      const viewer = await getOptionalViewer(req);
+      const cabinetUserIdEarly =
+        typeof q.userId === "string" ? q.userId.trim() : "";
+      const includeSoldListings = Boolean(
+        cabinetUserIdEarly &&
+          viewer &&
+          (viewer.id === cabinetUserIdEarly || viewer.isAdmin),
+      );
+
       const sort = normalizeSort(q.sort);
 
       const pageNum = Math.max(1, toInt(q.page) ?? 1);
@@ -5533,7 +5476,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         const totalRow = await withDbRetry("listings-total", () =>
-          db.select({ count: sql<number>`count(*)::int` }).from(listingsTable),
+          db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(listingsTable)
+            .where(eq(listingsTable.isSold, false)),
         );
         const total = Number(totalRow?.[0]?.count ?? 0);
 
@@ -5560,7 +5506,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.json(payload);
         }
 
-        const orderBy = [asc(listingsTable.isSold), desc(listingsTable.isTopListing)];
+        const orderBy = [desc(listingsTable.isTopListing)];
         switch (sort) {
           case "oldest":
             orderBy.push(asc(listingsTable.createdAt));
@@ -5595,15 +5541,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           db
             .select()
             .from(listingsTable)
+            .where(eq(listingsTable.isSold, false))
             .orderBy(...orderBy)
             .limit(limitNum)
             .offset(start),
         );
 
-        const slimListings = paginated.map(({ description, equipment, extras, video, ...rest }) => rest);
-
         const payload = {
-          listings: slimListings,
+          listings: paginated,
           pagination: {
             total,
             page: safePage,
@@ -5621,16 +5566,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(payload);
       }
 
-      // Filtered path: narrow DB candidate set then apply JS-level filters
-      const filterCacheKey = `f:${JSON.stringify(q)}`;
-      if (process.env.NODE_ENV === "production") {
-        const cached = getListingsFastCache(filterCacheKey);
-        if (cached) {
-          res.setHeader("X-Listings-Data-Source", "filter-cache");
-          return res.json(cached);
-        }
-      }
-
+      // Fallback (filters supported): preserve current logic, but narrow the DB
+      // candidate set first to avoid loading all listings on every filtered request.
       const dbPrefilters: SQL[] = [];
       const userIdPrefilter = typeof q.userId === "string" ? q.userId.trim() : "";
       if (userIdPrefilter) {
@@ -5690,41 +5627,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dbPrefilters.push(eq(listingsTable.hasServiceBook, true));
       }
 
-      const brandPrefilter = typeof q.brand === "string" ? q.brand.trim() : "";
-      if (brandPrefilter) {
-        dbPrefilters.push(ilike(listingsTable.brand, brandPrefilter));
-      }
-
-      const vehicleTypePrefilter = typeof q.vehicleType === "string" ? q.vehicleType.trim() : "";
-      if (vehicleTypePrefilter) {
-        dbPrefilters.push(eq(listingsTable.vehicleType, vehicleTypePrefilter));
-      }
-
-      const bodyTypePrefilter = typeof q.bodyType === "string" ? q.bodyType.trim().split(",")[0] : "";
-      if (bodyTypePrefilter) {
-        dbPrefilters.push(eq(listingsTable.bodyType, bodyTypePrefilter));
-      }
-
-      const regionPrefilter = typeof q.region === "string" ? q.region.trim() : "";
-      if (regionPrefilter) {
-        dbPrefilters.push(eq(listingsTable.region, regionPrefilter));
-      }
-
-      const conditionPrefilter = typeof q.condition === "string" ? q.condition.trim().split(",") : [];
-      if (conditionPrefilter.length === 1) {
-        dbPrefilters.push(eq(listingsTable.condition, conditionPrefilter[0]));
-      }
-
-      const modelPrefilter = typeof q.model === "string" ? q.model.trim() : "";
-      if (modelPrefilter) {
-        dbPrefilters.push(ilike(listingsTable.model, modelPrefilter));
-      }
-
-      const colorPrefilter = typeof q.color === "string" ? q.color.trim() : "";
-      if (colorPrefilter) {
-        dbPrefilters.push(ilike(listingsTable.color, colorPrefilter));
-      }
-
       const listingAgeMinPrefilter = toInt(q.listingAgeMin);
       const listingAgeMaxPrefilter = toInt(q.listingAgeMax);
       if (listingAgeMinPrefilter !== undefined) {
@@ -5745,6 +5647,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .from(listingsTable)
               .where(and(...dbPrefilters))
           : await storage.getListings();
+
+      if (!includeSoldListings) {
+        allListings = allListings.filter((l) => !l.isSold);
+      }
 
       // --- filters ---
       const userId = typeof q.userId === "string" ? q.userId.trim() : "";
@@ -6036,10 +5942,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const end = start + limitNum;
       const paginated = allListings.slice(start, end);
 
-      const slimPaginated = paginated.map(({ description, video, ...rest }) => rest);
-
-      const filteredPayload = {
-        listings: slimPaginated,
+      return res.json({
+        listings: paginated,
         pagination: {
           total,
           page: safePage,
@@ -6047,13 +5951,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           totalPages,
           hasMore: safePage * limitNum < total,
         },
-      };
-
-      if (process.env.NODE_ENV === "production") {
-        setListingsFastCache(filterCacheKey, filteredPayload);
-      }
-
-      return res.json(filteredPayload);
+      });
     } catch (error: any) {
       if (process.env.NODE_ENV === "production" && fastCacheKeyForFallback) {
         const stalePayload = getListingsFastCache(fastCacheKeyForFallback, {
@@ -6228,18 +6126,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/listings/:id", isAdmin, async (req, res) => {
     try {
       const listingId = req.params.id;
-      const existingListing = await storage.getListing(listingId);
-
-      if (!existingListing) {
-        return res.status(404).json({ error: "Listing not found" });
-      }
-
-      await db.execute(sql`
-        INSERT INTO deleted_listings (listing_id, user_id, deleted_by, brand, model, title, year, price, photo)
-        VALUES (${listingId}, ${existingListing.userId}, ${req.session.userId!}, ${existingListing.brand}, ${existingListing.model}, ${existingListing.title}, ${existingListing.year}, ${existingListing.price}, ${existingListing.photos?.[0] || null})
-      `);
-
       const deleted = await storage.deleteListing(listingId);
+
       if (!deleted) {
         return res.status(404).json({ error: "Listing not found" });
       }
@@ -6274,27 +6162,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedListing);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.get("/api/admin/deleted-listings", isAdmin, async (_req: Request, res: Response) => {
-    try {
-      const result = (await db.execute(sql`
-        SELECT
-          dl.*,
-          u_owner.username AS owner_username,
-          u_owner.email AS owner_email,
-          u_deleter.username AS deleted_by_username
-        FROM deleted_listings dl
-        LEFT JOIN users u_owner ON u_owner.id = dl.user_id
-        LEFT JOIN users u_deleter ON u_deleter.id = dl.deleted_by
-        ORDER BY dl.deleted_at DESC
-        LIMIT 200
-      `)) as any;
-      res.json({ items: result?.rows || [] });
-    } catch (error: any) {
-      console.error("[admin/deleted-listings]", error);
-      res.status(500).json({ message: "Failed to fetch deleted listings" });
     }
   });
 
@@ -6572,7 +6439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Parse query parameters for optimization
       const width = parseInt(req.query.w as string) || undefined;
-      const quality = parseInt(req.query.q as string) || 72;
+      const quality = parseInt(req.query.q as string) || 80;
       const format = (req.query.f as string) || "webp";
 
       // Limit width to reasonable values
@@ -6595,9 +6462,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Generate cache key
       const cacheKey = `${actualKey}-w${maxWidth}-q${quality}-${format}`;
 
-      // Check in-memory LRU cache
-      const cached = imageCacheGet(cacheKey);
-      if (cached) {
+      // Check in-memory cache
+      const cached = imageCache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < IMAGE_CACHE_TTL) {
         res.set("Content-Type", cached.contentType);
         res.set("Cache-Control", "public, max-age=31536000, immutable");
         res.set("X-Image-Cache", "HIT");
@@ -6641,9 +6508,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Convert to requested format
       let contentType = "image/webp";
       if (format === "webp") {
-        pipeline = pipeline.webp({ quality, effort: 2, smartSubsample: true });
+        pipeline = pipeline.webp({ quality, effort: 4, smartSubsample: true });
       } else if (format === "avif") {
-        pipeline = pipeline.avif({ quality, effort: 2 });
+        pipeline = pipeline.avif({ quality, effort: 4 });
         contentType = "image/avif";
       } else {
         pipeline = pipeline.jpeg({ quality, mozjpeg: true, trellisQuantisation: true });
@@ -6652,7 +6519,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const optimizedBuffer = await pipeline.toBuffer();
 
-      imageCacheSet(cacheKey, {
+      // Store in cache (with size limit)
+      if (imageCache.size >= MAX_CACHE_SIZE) {
+        const oldestKey = imageCache.keys().next().value;
+        if (oldestKey) imageCache.delete(oldestKey);
+      }
+      imageCache.set(cacheKey, {
         buffer: optimizedBuffer,
         contentType,
         timestamp: Date.now(),
@@ -6692,17 +6564,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.set("Cache-Control", "public, max-age=31536000, immutable");
       res.set("Vary", "Accept-Encoding");
 
+      // Check if this is an image that might need rotation
       const isImagePath = /\.(jpg|jpeg|png|webp)$/i.test(req.path);
 
       if (isImagePath) {
-        const objCacheKey = `obj-${objectKey}`;
-        const cachedObj = imageCacheGet(objCacheKey);
-        if (cachedObj) {
-          res.set("Content-Type", cachedObj.contentType);
-          res.set("X-Image-Cache", "HIT");
-          return res.send(cachedObj.buffer);
-        }
-
+        // Download and auto-rotate image based on EXIF orientation
         try {
           const chunks: Buffer[] = [];
           const originalStream =
@@ -6713,8 +6579,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           const originalBuffer = Buffer.concat(chunks);
 
+          // Auto-rotate based on EXIF and return
           const rotatedBuffer = await sharp(originalBuffer).rotate().toBuffer();
 
+          // Determine content type
           const ext = req.path.split(".").pop()?.toLowerCase();
           const contentType =
             ext === "png"
@@ -6723,14 +6591,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 ? "image/webp"
                 : "image/jpeg";
 
-          imageCacheSet(objCacheKey, {
-            buffer: rotatedBuffer,
-            contentType,
-            timestamp: Date.now(),
-          });
-
           res.set("Content-Type", contentType);
-          res.set("X-Image-Cache", "MISS");
           return res.send(rotatedBuffer);
         } catch (rotateError) {
           console.error(

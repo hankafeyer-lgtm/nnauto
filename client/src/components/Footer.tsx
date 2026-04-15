@@ -1,4 +1,4 @@
-import { Link } from "wouter";
+import { Link } from "@/lib/navigation";
 import { SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 const logoImage = "/logo-192.png";
 import { useAuth } from "@/hooks/useAuth";

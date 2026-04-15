@@ -58,6 +58,22 @@ export function setSessionId(sessionId: string | null) {
   }
 }
 
+/** Headers so GET /api/listings sees the current user (cabinet: include sold listings). */
+export function listingsFetchHeaders(
+  extra: Record<string, string> = {},
+): Record<string, string> {
+  const headers: Record<string, string> = { ...extra };
+  const token = getJwtToken();
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const sessionId = getSessionId();
+  if (sessionId) {
+    headers["X-Session-Id"] = sessionId;
+  }
+  return headers;
+}
+
 export async function apiRequest(
   method: string,
   url: string,

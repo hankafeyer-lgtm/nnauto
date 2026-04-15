@@ -1,9 +1,10 @@
 import session from "express-session";
-import type { Express, RequestHandler } from "express";
+import type { Express, Request, RequestHandler } from "express";
 import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import { verifyToken } from "./jwt";
+import type { User } from "@shared/schema";
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -131,6 +132,27 @@ export function getSession() {
 export function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
+}
+
+/** Resolve the current user when present (JWT or session), without sending 401. */
+export async function getOptionalViewer(req: Request): Promise<User | null> {
+  let userId: string | null = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      const payload = verifyToken(authHeader.substring(7));
+      if (payload?.userId) userId = payload.userId;
+    } catch {
+      /* invalid token */
+    }
+  }
+  if (!userId && req.session?.userId) {
+    userId = req.session.userId;
+  }
+  if (!userId) return null;
+  const { storage } = await import("./storage");
+  const user = await storage.getUser(userId);
+  return user ?? null;
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {

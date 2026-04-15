@@ -8,7 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation, useSearch } from "wouter";
+import { useLocation, useSearch } from "@/lib/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
@@ -1236,10 +1236,15 @@ export default function AddListingPage() {
                           <FormLabel>{t("listing.price")}</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder={t("listing.price")}
                               data-testid="input-price"
                               {...field}
+                              onChange={(e) => {
+                                const cleaned = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
+                                field.onChange(cleaned);
+                              }}
                             />
                           </FormControl>
                           <FormMessage />

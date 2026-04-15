@@ -430,7 +430,7 @@
 //   };
 // }
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useLocation } from "wouter";
+import { useLocation } from "@/lib/navigation";
 
 export interface FilterParams {
   search?: string;
@@ -569,7 +569,9 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
   const [location, setLocation] = useLocation();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [urlSearchState, setUrlSearchState] = useState(window.location.search);
+  const [urlSearchState, setUrlSearchState] = useState(
+    typeof window !== "undefined" ? window.location.search : "",
+  );
 
   // Prevent a pending debounced URL update from firing after unmount (e.g. user opens a listing)
   useEffect(() => {
