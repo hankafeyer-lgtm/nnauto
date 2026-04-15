@@ -1236,10 +1236,15 @@ export default function AddListingPage() {
                           <FormLabel>{t("listing.price")}</FormLabel>
                           <FormControl>
                             <Input
-                              type="number"
+                              type="text"
+                              inputMode="numeric"
                               placeholder={t("listing.price")}
                               data-testid="input-price"
                               {...field}
+                              onChange={(e) => {
+                                const cleaned = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
+                                field.onChange(cleaned);
+                              }}
                             />
                           </FormControl>
                           <FormMessage />
