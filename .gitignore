@@ -35,3 +35,12 @@ reports/
 # Cursor / local assets
 attached_assets/
 .next/
+
+# Local DB backups (contain sensitive data — keep only on this machine)
+backups/
+
+# Generated / temp files
+listings.json
+next
+rest-express@1.0.0
+test-results/

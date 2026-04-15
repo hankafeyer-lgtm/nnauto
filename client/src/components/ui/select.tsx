@@ -6,7 +6,32 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-const Select = SelectPrimitive.Root
+type SelectProps = React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>
+
+const Select = React.forwardRef<
+  React.ElementRef<typeof SelectPrimitive.Trigger>,
+  SelectProps
+>(({ value, onValueChange, ...props }, _ref) => {
+  const normalizedValue = value === "" ? undefined : value
+
+  const handleValueChange = React.useCallback(
+    (nextValue: string) => {
+      // Prevent needless parent state updates when value is unchanged.
+      if (nextValue === normalizedValue) return
+      onValueChange?.(nextValue)
+    },
+    [onValueChange, normalizedValue]
+  )
+
+  return (
+    <SelectPrimitive.Root
+      value={normalizedValue}
+      onValueChange={handleValueChange}
+      {...props}
+    />
+  )
+})
+Select.displayName = SelectPrimitive.Root.displayName
 
 const SelectGroup = SelectPrimitive.Group
 

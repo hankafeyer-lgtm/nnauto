@@ -2962,6 +2962,7 @@ import {
   queryClient,
   warmListingFrame,
 } from "@/lib/queryClient";
+import { resolveListingPhotoUrl } from "@/lib/imageOptimizer";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -4303,7 +4304,7 @@ export default function ListingsPage() {
       const firstPhoto = listing.photos?.[0];
 
       if (typeof firstPhoto === "string" && firstPhoto.trim()) {
-        image = `/objects/${firstPhoto.trim().replace(/^\/+/, "")}`;
+        image = resolveListingPhotoUrl(firstPhoto.trim());
       } else if (listing.bodyType && bodyTypeImages[listing.bodyType]) {
         image = bodyTypeImages[listing.bodyType];
       }
@@ -4318,7 +4319,7 @@ export default function ListingsPage() {
 
       const photos = (listing.photos || [])
         .filter((p): p is string => typeof p === "string" && p.trim() !== "")
-        .map((p) => `/objects/${p.replace(/^\/+/, "")}`);
+        .map((p) => resolveListingPhotoUrl(p.trim()));
 
       return {
         id: listing.id,

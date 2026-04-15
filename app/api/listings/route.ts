@@ -2,20 +2,7 @@ import { NextRequest } from "next/server";
 import { json, error, withAuth } from "@lib/api-helpers";
 import { getCurrentUser } from "@lib/auth";
 import { storage } from "@lib/storage";
-import { db } from "@lib/db";
-import { listings as listingsTable, insertListingSchema } from "@shared/schema";
-import {
-  eq,
-  and,
-  or,
-  gte,
-  lte,
-  ilike,
-  desc,
-  asc,
-  sql,
-  type SQL,
-} from "drizzle-orm";
+import { insertListingSchema } from "@shared/schema";
 
 // ---------------------------------------------------------------------------
 // Utility helpers (ported from server/routes.ts)
@@ -155,147 +142,36 @@ function qStr(params: URLSearchParams, key: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// GET /api/listings
+// GET /api/listings  — reads from PostgreSQL (listings table)
 // ---------------------------------------------------------------------------
 
 export async function GET(req: NextRequest) {
   try {
     const params = req.nextUrl.searchParams;
 
-    const viewer = await getCurrentUser();
-    const cabinetUserIdEarly = qStr(params, "userId");
-    const includeSoldListings = Boolean(
-      cabinetUserIdEarly &&
-        viewer &&
-        (viewer.id === cabinetUserIdEarly || viewer.isAdmin),
-    );
-
     const sort = normalizeSort(params.get("sort"));
     const pageNum = Math.max(1, toInt(params.get("page")) ?? 1);
     const limitNum = Math.min(100, Math.max(1, toInt(params.get("limit")) ?? 20));
     const countOnly = toBool(params.get("countOnly"));
 
-    // Fast path: no filters ⇒ DB pagination/sort directly
-    const allowedNonFilterKeys = new Set(["page", "limit", "sort", "countOnly"]);
-    const hasAnyFilters = Array.from(params.keys()).some(
-      (k) => !allowedNonFilterKeys.has(k),
+    // Determine if sold listings should be visible (owner or admin viewing their cabinet)
+    const viewer = await getCurrentUser();
+    const cabinetUserId = qStr(params, "userId");
+    const includeSoldListings = Boolean(
+      cabinetUserId &&
+        viewer &&
+        (viewer.id === cabinetUserId || viewer.isAdmin),
     );
 
-    if (!hasAnyFilters) {
-      const totalRow = await db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(listingsTable)
-        .where(eq(listingsTable.isSold, false));
-      const total = Number(totalRow?.[0]?.count ?? 0);
-
-      const totalPages = Math.max(1, Math.ceil(total / limitNum));
-      const safePage = Math.min(pageNum, totalPages);
-      const start = (safePage - 1) * limitNum;
-
-      if (countOnly) {
-        return json({
-          listings: [],
-          pagination: { total, page: safePage, limit: limitNum, totalPages, hasMore: safePage * limitNum < total },
-        });
-      }
-
-      const orderBy = buildOrderBy(sort);
-
-      const paginated = await db
-        .select()
-        .from(listingsTable)
-        .where(eq(listingsTable.isSold, false))
-        .orderBy(...orderBy)
-        .limit(limitNum)
-        .offset(start);
-
-      return json({
-        listings: paginated,
-        pagination: { total, page: safePage, limit: limitNum, totalPages, hasMore: safePage * limitNum < total },
-      });
-    }
-
-    // -----------------------------------------------------------------------
-    // Filtered path: build DB pre-filters, then apply in-memory post-filters
-    // -----------------------------------------------------------------------
-    const dbPrefilters: SQL[] = [];
-
-    const userIdPrefilter = qStr(params, "userId");
-    if (userIdPrefilter) {
-      dbPrefilters.push(eq(listingsTable.userId, userIdPrefilter));
-    }
-
-    const searchPrefilter = qStr(params, "search");
-    if (searchPrefilter) {
-      const s = `%${searchPrefilter}%`;
-      dbPrefilters.push(
-        or(
-          ilike(listingsTable.brand, s),
-          ilike(listingsTable.model, s),
-          ilike(listingsTable.title, s),
-          ilike(listingsTable.description, s),
-        ) as SQL,
-      );
-    }
-
-    const priceMinPre = toNumber(params.get("priceMin"));
-    const priceMaxPre = toNumber(params.get("priceMax"));
-    if (priceMinPre !== undefined)
-      dbPrefilters.push(gte(listingsTable.price, String(priceMinPre)));
-    if (priceMaxPre !== undefined)
-      dbPrefilters.push(lte(listingsTable.price, String(priceMaxPre)));
-
-    const yearMinPre = toInt(params.get("yearMin"));
-    const yearMaxPre = toInt(params.get("yearMax"));
-    if (yearMinPre !== undefined)
-      dbPrefilters.push(gte(listingsTable.year, yearMinPre));
-    if (yearMaxPre !== undefined)
-      dbPrefilters.push(lte(listingsTable.year, yearMaxPre));
-
-    const mileageMinPre = toInt(params.get("mileageMin"));
-    const mileageMaxPre = toInt(params.get("mileageMax"));
-    if (mileageMinPre !== undefined)
-      dbPrefilters.push(gte(listingsTable.mileage, mileageMinPre));
-    if (mileageMaxPre !== undefined)
-      dbPrefilters.push(lte(listingsTable.mileage, mileageMaxPre));
-
-    const powerMinPre = toInt(params.get("powerMin"));
-    const powerMaxPre = toInt(params.get("powerMax"));
-    if (powerMinPre !== undefined)
-      dbPrefilters.push(gte(listingsTable.power, powerMinPre));
-    if (powerMaxPre !== undefined)
-      dbPrefilters.push(lte(listingsTable.power, powerMaxPre));
-
-    if (toBool(params.get("hasServiceBook"))) {
-      dbPrefilters.push(eq(listingsTable.hasServiceBook, true));
-    }
-
-    const listingAgeMinPre = toInt(params.get("listingAgeMin"));
-    const listingAgeMaxPre = toInt(params.get("listingAgeMax"));
-    if (listingAgeMinPre !== undefined) {
-      const maxDate = new Date();
-      maxDate.setDate(maxDate.getDate() - listingAgeMinPre);
-      dbPrefilters.push(lte(listingsTable.createdAt, maxDate));
-    }
-    if (listingAgeMaxPre !== undefined) {
-      const minDate = new Date();
-      minDate.setDate(minDate.getDate() - listingAgeMaxPre);
-      dbPrefilters.push(gte(listingsTable.createdAt, minDate));
-    }
-
+    // Load all listings from DB, then apply in-memory filters
     let allListings: Record<string, unknown>[] =
-      dbPrefilters.length > 0
-        ? await db
-            .select()
-            .from(listingsTable)
-            .where(and(...dbPrefilters))
-        : await storage.getListings();
+      (await storage.getListings()) as unknown as Record<string, unknown>[];
 
     if (!includeSoldListings) {
       allListings = allListings.filter((l) => !(l as { isSold?: boolean }).isSold);
     }
 
-    // ----- In-memory post-filters (match Express behaviour exactly) -----
+    // ----- In-memory filters (same semantics as previous handler) -----
 
     const userId = qStr(params, "userId");
     if (userId)
@@ -333,9 +209,10 @@ export async function GET(req: NextRequest) {
     if (generation) {
       const wanted = slugify(generation);
       allListings = allListings.filter((l) => {
+        const lr = l as Record<string, unknown>;
         const generationSource =
-          (l as Record<string, unknown>).generation as string | undefined ||
-          (l.trim as string) ||
+          (typeof lr.generation === "string" ? lr.generation : "") ||
+          (typeof lr.trim === "string" ? lr.trim : "") ||
           "";
         return slugify(generationSource) === wanted;
       });
@@ -403,7 +280,9 @@ export async function GET(req: NextRequest) {
     const trimParam = qStr(params, "trim");
     if (trimParam) {
       allListings = allListings.filter((l) =>
-        normalizeText(String(l.trim || "")).includes(normalizeText(trimParam)),
+        normalizeText(
+          String((l as Record<string, unknown>).trim ?? ""),
+        ).includes(normalizeText(trimParam)),
       );
     }
 
@@ -589,46 +468,6 @@ export async function GET(req: NextRequest) {
     const message = err instanceof Error ? err.message : "Server error";
     return error(message, 500);
   }
-}
-
-// ---------------------------------------------------------------------------
-// Helper: build Drizzle orderBy array for fast-path queries
-// ---------------------------------------------------------------------------
-
-function buildOrderBy(sort: SortKey) {
-  const orderBy: ReturnType<typeof desc>[] = [desc(listingsTable.isTopListing)];
-
-  switch (sort) {
-    case "oldest":
-      orderBy.push(asc(listingsTable.createdAt));
-      break;
-    case "price-asc":
-      orderBy.push(asc(listingsTable.price));
-      break;
-    case "price-desc":
-      orderBy.push(desc(listingsTable.price));
-      break;
-    case "year-asc":
-      orderBy.push(asc(listingsTable.year));
-      break;
-    case "year-desc":
-      orderBy.push(desc(listingsTable.year));
-      break;
-    case "mileage-asc":
-      orderBy.push(asc(listingsTable.mileage));
-      break;
-    case "mileage-desc":
-      orderBy.push(desc(listingsTable.mileage));
-      break;
-    case "newest":
-    default:
-      orderBy.push(desc(listingsTable.createdAt));
-      break;
-  }
-
-  // Stable tiebreaker
-  orderBy.push(desc(listingsTable.createdAt));
-  return orderBy;
 }
 
 // ---------------------------------------------------------------------------
