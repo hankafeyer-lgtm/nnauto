@@ -5344,8 +5344,8 @@ export default function ListingDetailPage() {
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6">
-              <Card className="sticky top-24 rounded-2xl shadow-xl">
+            <div className="space-y-6 lg:self-start lg:sticky lg:top-24">
+              <Card className="rounded-2xl shadow-xl">
                 <CardContent className="p-6 md:p-8 space-y-6">
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">
