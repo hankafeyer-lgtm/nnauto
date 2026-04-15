@@ -4510,6 +4510,8 @@ export default function ListingsPage() {
 
       <div className="flex-1 container mx-auto px-4 py-6">
         <div className="flex gap-6">
+          {/* Sidebar — hidden in cabinet (userId in URL) */}
+          {!userId && (
           <aside
             ref={desktopSidebarRef}
             className={[
@@ -4558,6 +4560,7 @@ export default function ListingsPage() {
               </button>
             ) : null}
           </aside>
+          )}
 
           {/* <main className="flex-1">
             {cars.length === 0 ? (
