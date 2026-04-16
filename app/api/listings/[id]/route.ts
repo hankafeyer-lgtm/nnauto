@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { json, error, withAuth } from "@lib/api-helpers";
 import { storage } from "@lib/storage";
+import { db } from "@lib/db";
+import { sql } from "drizzle-orm";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -74,6 +76,11 @@ export async function DELETE(
       if (existingListing.userId !== user.id && !user.isAdmin) {
         return error("Cannot delete another user's listing", 403);
       }
+
+      await db.execute(sql`
+        INSERT INTO deleted_listings (listing_id, user_id, deleted_by, brand, model, title, year, price, photo)
+        VALUES (${id}, ${existingListing.userId}, ${user.id}, ${existingListing.brand}, ${existingListing.model}, ${existingListing.title}, ${existingListing.year}, ${existingListing.price}, ${existingListing.photos?.[0] || null})
+      `);
 
       const deleted = await storage.deleteListing(id);
       if (deleted) {
