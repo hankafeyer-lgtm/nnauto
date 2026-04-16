@@ -29,8 +29,8 @@ pnpm-debug.log*
 # misc
 cookies.txt
 
-# generated reports
-reports/
+# generated reports (only root-level reports folder)
+/reports/
 
 # Cursor / local assets
 attached_assets/
