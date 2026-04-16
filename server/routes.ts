@@ -5924,12 +5924,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // --- sort: TOP first, потім сортування усередині ---
+      // --- sort: TOP first (by updatedAt = promotion date), then rest by sort ---
       allListings.sort((a, b) => {
         const aTop = !!a.isTopListing;
         const bTop = !!b.isTopListing;
         if (aTop && !bTop) return -1;
         if (!aTop && bTop) return 1;
+
+        if (aTop && bTop) {
+          return dateMs(b.updatedAt) - dateMs(a.updatedAt);
+        }
 
         const by = compareBySort(a, b, sort);
         if (by !== 0) return by;

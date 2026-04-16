@@ -444,12 +444,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // TOP listings first, then by requested sort, then newest as tiebreaker
+    // TOP listings first (sorted by updatedAt = when promoted), then rest by requested sort
     allListings.sort((a, b) => {
       const aTop = !!a.isTopListing;
       const bTop = !!b.isTopListing;
       if (aTop && !bTop) return -1;
       if (!aTop && bTop) return 1;
+
+      if (aTop && bTop) {
+        return dateMs(b.updatedAt) - dateMs(a.updatedAt);
+      }
 
       const by = compareBySort(a, b, sort);
       if (by !== 0) return by;
