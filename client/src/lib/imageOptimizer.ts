@@ -42,31 +42,34 @@ export function getOptimizedImageUrl(
   if (!originalPath) return "";
 
   const trimmed = originalPath.trim();
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
 
-  const cdnUrl = resolveListingPhotoUrl(originalPath);
-  if (/^https?:\/\//i.test(cdnUrl)) return cdnUrl;
+  let key = trimmed;
+  if (/^https?:\/\//i.test(key)) {
+    try {
+      const u = new URL(key);
+      if (u.hostname.includes("r2.dev")) {
+        key = u.pathname.replace(/^\/+/, "");
+      } else {
+        return key;
+      }
+    } catch {
+      return key;
+    }
+  }
+
+  key = normalizePath(key);
+  if (!key) return trimmed;
 
   const { width, quality = 70, format = "webp" } = options;
-  const path = normalizePath(originalPath);
-
   const params = new URLSearchParams();
   if (width) params.set("w", width.toString());
   params.set("q", quality.toString());
   params.set("f", format);
 
-  return `/img/${path}?${params.toString()}`;
+  return `/img/${key}?${params.toString()}`;
 }
 
 export function getCardSrcSet(photoPath: string): string {
-  const trimmed = photoPath.trim();
-  if (/^https?:\/\//i.test(trimmed)) {
-    return `${trimmed} 320w, ${trimmed} 480w`;
-  }
-  const cdn = resolveListingPhotoUrl(photoPath);
-  if (/^https?:\/\//i.test(cdn)) {
-    return `${cdn} 320w, ${cdn} 480w`;
-  }
   const widths = [320, 480];
   return widths
     .map(
