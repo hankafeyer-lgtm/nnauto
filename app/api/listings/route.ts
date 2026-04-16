@@ -142,6 +142,28 @@ function qStr(params: URLSearchParams, key: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// In-memory cache for listings (avoids DB round-trip on every request)
+// ---------------------------------------------------------------------------
+
+let _listingsCache: Record<string, unknown>[] | null = null;
+let _listingsCacheTime = 0;
+const LISTINGS_CACHE_TTL_MS = 30_000;
+
+export function invalidateListingsCache() {
+  _listingsCache = null;
+}
+
+async function getCachedListings(): Promise<Record<string, unknown>[]> {
+  const now = Date.now();
+  if (_listingsCache && now - _listingsCacheTime < LISTINGS_CACHE_TTL_MS) {
+    return _listingsCache;
+  }
+  _listingsCache = (await storage.getListings()) as unknown as Record<string, unknown>[];
+  _listingsCacheTime = now;
+  return _listingsCache;
+}
+
+// ---------------------------------------------------------------------------
 // GET /api/listings  — reads from PostgreSQL (listings table)
 // ---------------------------------------------------------------------------
 
@@ -163,9 +185,8 @@ export async function GET(req: NextRequest) {
         (viewer.id === cabinetUserId || viewer.isAdmin),
     );
 
-    // Load all listings from DB, then apply in-memory filters
-    let allListings: Record<string, unknown>[] =
-      (await storage.getListings()) as unknown as Record<string, unknown>[];
+    // Load listings (cached for 30s to avoid DB round-trip on every page/filter)
+    let allListings: Record<string, unknown>[] = await getCachedListings();
 
     if (!includeSoldListings) {
       allListings = allListings.filter((l) => !(l as { isSold?: boolean }).isSold);
@@ -489,6 +510,7 @@ export async function POST(req: NextRequest) {
       }
 
       const listing = await storage.createListing(validatedData);
+      invalidateListingsCache();
       return json(listing);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Bad request";

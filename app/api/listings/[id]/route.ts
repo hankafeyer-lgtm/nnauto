@@ -3,6 +3,7 @@ import { json, error, withAuth } from "@lib/api-helpers";
 import { storage } from "@lib/storage";
 import { db } from "@lib/db";
 import { sql } from "drizzle-orm";
+import { invalidateListingsCache } from "../route";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -49,6 +50,7 @@ export async function PUT(
 
       const body = await _req.json();
       const updatedListing = await storage.updateListing(id, body);
+      invalidateListingsCache();
       return json(updatedListing);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Bad request";
@@ -84,6 +86,7 @@ export async function DELETE(
 
       const deleted = await storage.deleteListing(id);
       if (deleted) {
+        invalidateListingsCache();
         return json({ message: "Listing deleted successfully" });
       }
       return error("Listing not found", 404);
