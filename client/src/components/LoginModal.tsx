@@ -463,14 +463,19 @@ export default function LoginModal({
                         onError={() => {
                           setLoginVerified(false);
                           setLoginTurnstileToken("");
+                          loginTurnstileRef.current?.reset();
                         }}
                         onExpire={() => {
                           setLoginVerified(false);
                           setLoginTurnstileToken("");
+                          loginTurnstileRef.current?.reset();
                         }}
                         options={{
                           theme: "light",
-                          size: "normal",
+                          size: "compact",
+                          retry: "auto",
+                          retryInterval: 2000,
+                          refreshExpired: "auto",
                         }}
                       />
                     )}
@@ -618,14 +623,19 @@ export default function LoginModal({
                         onError={() => {
                           setRegisterVerified(false);
                           setRegisterTurnstileToken("");
+                          registerTurnstileRef.current?.reset();
                         }}
                         onExpire={() => {
                           setRegisterVerified(false);
                           setRegisterTurnstileToken("");
+                          registerTurnstileRef.current?.reset();
                         }}
                         options={{
                           theme: "light",
-                          size: "normal",
+                          size: "compact",
+                          retry: "auto",
+                          retryInterval: 2000,
+                          refreshExpired: "auto",
                         }}
                       />
                     )}
