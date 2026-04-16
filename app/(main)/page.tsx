@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import JsonLd from "@lib/seo/JsonLd";
+import { buildHomePageJsonLdGraph } from "@lib/seo/structured-data";
 import HomeClient from "./home-client";
 
 export const metadata: Metadata = {
@@ -18,5 +20,10 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return <HomeClient />;
+  return (
+    <>
+      <JsonLd data={buildHomePageJsonLdGraph()} />
+      <HomeClient />
+    </>
+  );
 }

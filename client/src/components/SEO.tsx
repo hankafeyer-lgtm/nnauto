@@ -80,7 +80,7 @@ export function SEO({
 
     setLink("canonical", url);
 
-    setMeta("og:type", fullTitle, "property");
+    setMeta("og:type", type, "property");
     setMeta("og:url", url, "property");
     setMeta("og:title", fullTitle, "property");
     setMeta("og:description", description, "property");
@@ -107,7 +107,17 @@ export function SEO({
     } else if (jsonLdEl) {
       jsonLdEl.remove();
     }
-  }, [fullTitle, description, keywords, image, url, type, locale, noindex, structuredData]);
+  }, [
+    fullTitle,
+    description,
+    keywords,
+    image,
+    url,
+    type,
+    locale,
+    noindex,
+    structuredData,
+  ]);
 
   return null;
 }
@@ -175,7 +185,8 @@ export function generateVehicleSchema(listing: {
   const images =
     listing.photos && listing.photos.length > 0
       ? listing.photos.map(
-          (p) => `${baseUrl}/objects/${p.replace(/^\/+/, "")}`,
+          (p) =>
+            `${baseUrl}/img/${p.replace(/^\/+/, "")}?w=1200&q=80&f=webp`,
         )
       : [`${baseUrl}/og-image.png`];
 

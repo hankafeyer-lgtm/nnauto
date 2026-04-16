@@ -8,14 +8,28 @@ export const metadata: Metadata = {
     template: "%s",
   },
   description:
-    "NNAuto je prémiový marketplace pro prodej a nákup nových i ojetých vozidel v České republice.",
+    "NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání. Najděte své vysněné auto ještě dnes!",
   keywords:
-    "prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, NNAuto, autobazar, Česká republika",
+    "prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, nákladní vozy, autobazar, Česká republika, NNAuto, prémiový marketplace, auto inzerce, авто базар Чехія, car marketplace Czech Republic",
   authors: [{ name: "NNAuto" }],
+  alternates: {
+    languages: {
+      cs: "/",
+      uk: "/?lang=uk",
+      en: "/?lang=en",
+      de: "/?lang=de",
+      "x-default": "/",
+    },
+  },
   openGraph: {
     type: "website",
+    url: "https://nnauto.cz",
+    title: "NNAuto - Prémiový Marketplace Aut v České Republice",
+    description:
+      "Najděte své vysněné auto na NNAuto. Tisíce ověřených inzerátů osobních aut, motocyklů a nákladních vozidel. Prémiová kvalita, snadné vyhledávání.",
     siteName: "NNAuto",
     locale: "cs_CZ",
+    alternateLocale: ["uk_UA", "en_US", "de_DE"],
     images: [
       {
         url: "/og-image.png",
@@ -27,6 +41,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    title: "NNAuto - Prémiový Marketplace Aut v České Republice",
+    description:
+      "Najděte své vysněné auto na NNAuto. Tisíce ověřených inzerátů osobních aut, motocyklů a nákladních vozidel.",
     images: ["/og-image.png"],
   },
   icons: {
@@ -54,6 +71,23 @@ export const metadata: Metadata = {
   },
   verification: {
     other: { "seznam-wmt": "vQCSLREi3JbWqT5OfoYSc8Jp6LVwXk4v" },
+  },
+  other: {
+    googlebot: "index, follow",
+    seznambot: "index, follow",
+    language: "cs",
+    "content-language": "cs-CZ",
+    "geo.region": "CZ",
+    "geo.placename": "Česká republika",
+    "geo.position": "49.8175;15.4730",
+    ICBM: "49.8175, 15.4730",
+    "revisit-after": "1 days",
+    rating: "general",
+    distribution: "global",
+    target: "all",
+    audience: "all",
+    coverage: "Worldwide",
+    classification: "Automotive, Vehicles, Cars, Marketplace",
   },
 };
 
