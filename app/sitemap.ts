@@ -4,6 +4,9 @@ import { SITE_ORIGIN } from "@lib/seo/constants";
 import { listings } from "@shared/schema";
 import { desc, eq } from "drizzle-orm";
 
+/** Regenerate sitemap periodically so new listings appear before Google’s next full sitemap read. */
+export const revalidate = 300;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const allListings = await db
     .select({

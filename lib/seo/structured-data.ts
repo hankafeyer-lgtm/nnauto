@@ -136,3 +136,21 @@ export function buildHomePageJsonLdGraph() {
     "@graph": [buildOrganizationJsonLd(), buildWebSiteJsonLd()],
   };
 }
+
+/** ItemList of recent listing URLs — emitted on `/listings` HTML for crawlers (SPA shell uses NoSSR). */
+export function buildListingIndexItemListJsonLd(
+  rows: { id: string; title: string; brand: string; model: string }[],
+) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Aktuální inzeráty NNAuto",
+    numberOfItems: rows.length,
+    itemListElement: rows.map((row, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: `${SITE_ORIGIN}/listing/${row.id}`,
+      name: row.title || `${row.brand} ${row.model}`.trim(),
+    })),
+  };
+}
