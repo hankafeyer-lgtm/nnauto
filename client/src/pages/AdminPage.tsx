@@ -433,6 +433,7 @@ import {
   Star,
   FileSpreadsheet,
   Building2,
+  History,
 } from "lucide-react";
 import { format } from "date-fns";
 import Header from "@/components/Header";
@@ -472,6 +473,23 @@ type AdminListingAnalyticsItem = {
 type AdminListingAnalyticsResponse = {
   count: number;
   items: AdminListingAnalyticsItem[];
+};
+
+type DeletedListingItem = {
+  id: string;
+  listing_id: string;
+  user_id: string;
+  deleted_by: string;
+  brand: string;
+  model: string;
+  title: string;
+  year: number | null;
+  price: string | null;
+  photo: string | null;
+  deleted_at: string;
+  owner_username: string | null;
+  owner_email: string | null;
+  deleted_by_username: string | null;
 };
 
 export default function AdminPage() {
@@ -552,6 +570,14 @@ export default function AdminPage() {
     ...adminRealtimeQueryOptions,
   });
 
+  const {
+    data: deletedListingsData,
+    isLoading: deletedListingsLoading,
+  } = useQuery<{ items: DeletedListingItem[] }>({
+    queryKey: ["/api/admin/deleted-listings"],
+    ...adminRealtimeQueryOptions,
+  });
+
   const byCreatedAtDesc = <
     T extends {
       createdAt?: string | Date | null;
@@ -585,6 +611,10 @@ export default function AdminPage() {
   const cebiaReports = useMemo(
     () => byCreatedAtDesc(cebiaReportsData?.items || []),
     [cebiaReportsData],
+  );
+  const deletedListings = useMemo(
+    () => deletedListingsData?.items || [],
+    [deletedListingsData],
   );
   const listingAnalyticsMap = useMemo(() => {
     const map = new Map<string, AdminListingAnalyticsItem>();
@@ -807,7 +837,7 @@ export default function AdminPage() {
         ) : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 max-w-5xl gap-1 h-auto py-1">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 max-w-5xl gap-1 h-auto py-1">
             <TabsTrigger value="users" data-testid="tab-admin-users">
               <Users className="h-4 w-4 mr-2 shrink-0" />
               {t("admin.users")} {users && `(${users.length})`}
@@ -827,6 +857,10 @@ export default function AdminPage() {
             <TabsTrigger value="dealers" data-testid="tab-admin-dealers">
               <Building2 className="h-4 w-4 mr-2 shrink-0" />
               {t("admin.dealers")} {dealers && `(${dealers.length})`}
+            </TabsTrigger>
+            <TabsTrigger value="deleted" data-testid="tab-admin-deleted">
+              <History className="h-4 w-4 mr-2 shrink-0" />
+              Smazané {deletedListings.length > 0 && `(${deletedListings.length})`}
             </TabsTrigger>
           </TabsList>
 
@@ -1430,6 +1464,85 @@ export default function AdminPage() {
                 ) : (
                   <p className="text-center py-8 text-muted-foreground">
                     {t("admin.noDealers")}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="deleted" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Smazané inzeráty</CardTitle>
+                <CardDescription>
+                  Historie smazaných inzerátů — kdo, kdy a jaké auto smazal
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {deletedListingsLoading ? (
+                  <p className="text-center py-8 text-muted-foreground">
+                    {t("admin.loading")}
+                  </p>
+                ) : deletedListings.length > 0 ? (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Foto</TableHead>
+                          <TableHead>Auto</TableHead>
+                          <TableHead>Cena</TableHead>
+                          <TableHead>Vlastník</TableHead>
+                          <TableHead>Smazal</TableHead>
+                          <TableHead>Datum</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {deletedListings.map((dl) => (
+                          <TableRow key={dl.id}>
+                            <TableCell>
+                              {dl.photo ? (
+                                <img
+                                  src={`/img/${dl.photo}?w=80&h=56&fit=cover`}
+                                  alt={`${dl.brand} ${dl.model}`}
+                                  className="h-10 w-14 rounded object-cover"
+                                />
+                              ) : (
+                                <div className="h-10 w-14 rounded bg-muted flex items-center justify-center">
+                                  <Car className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <p className="font-medium text-sm">{dl.brand} {dl.model} {dl.year || ""}</p>
+                              <p className="text-xs text-muted-foreground truncate max-w-[200px]">{dl.title}</p>
+                            </TableCell>
+                            <TableCell>
+                              {dl.price
+                                ? `${new Intl.NumberFormat("cs-CZ").format(Number(dl.price))} Kč`
+                                : "—"}
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-sm">{dl.owner_username || "—"}</p>
+                              <p className="text-xs text-muted-foreground">{dl.owner_email || ""}</p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={dl.deleted_by === dl.user_id ? "secondary" : "destructive"}>
+                                {dl.deleted_by === dl.user_id
+                                  ? (dl.owner_username || "vlastník")
+                                  : (dl.deleted_by_username || "admin")}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-sm">
+                              {format(new Date(dl.deleted_at), "dd.MM.yyyy HH:mm")}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-center py-8 text-muted-foreground">
+                    Zatím nebylo nic smazáno.
                   </p>
                 )}
               </CardContent>
