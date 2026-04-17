@@ -10,7 +10,7 @@ const JWT_SECRET =
   process.env.JWT_SECRET || process.env.SESSION_SECRET || "dev-secret";
 
 function signToken(payload: { userId: string; email: string }) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "24h" });
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }
 
 async function verifyTurnstileToken(token: string): Promise<boolean> {

@@ -18,7 +18,7 @@ if (
   );
 }
 const JWT_EXPIRES_IN: SignOptions["expiresIn"] =
-  (process.env.JWT_EXPIRES_IN as SignOptions["expiresIn"]) || "24h";
+  (process.env.JWT_EXPIRES_IN as SignOptions["expiresIn"]) || "7d";
 const AUTH_DEBUG_LOGS = process.env.AUTH_DEBUG_LOGS === "true";
 
 export interface JWTPayload {
