@@ -73,7 +73,7 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    other: { "seznam-wmt": "DHHqQWAAw3s3W1pOy2AXANQH1cVBCMb" },
+    other: { "seznam-wmt": "SNCyP9RGIcE0br1iVidtn4njM3YwySrn" },
   },
   other: {
     googlebot: "index, follow",
