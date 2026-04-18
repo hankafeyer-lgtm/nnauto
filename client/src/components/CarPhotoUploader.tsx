@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, X, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { uploadImageViaPresignOrLegacy } from "@/lib/uploadImagePresignOrLegacy";
 import { useTranslation } from "@/lib/translations";
 
 interface PhotoItem {
@@ -123,33 +123,11 @@ export function CarPhotoUploader({
           throw new Error(`Soubor ${file.name} je příliš velký (max 20MB)`);
         }
 
-        if (!file.type.startsWith('image/')) {
+        if (file.type && !file.type.startsWith("image/")) {
           throw new Error(`Soubor ${file.name} není obrázek`);
         }
 
-        const presignRes = await apiRequest("POST", "/api/objects/upload", {
-          contentType: file.type,
-        });
-        const presign = await presignRes.json() as {
-          url: string;
-          objectKey: string;
-        };
-        const putRes = await fetch(presign.url, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-        });
-        if (!putRes.ok) {
-          throw new Error(`Nahrání selhalo (${putRes.status})`);
-        }
-        const finRes = await apiRequest("POST", "/api/objects/finalize-upload", {
-          objectKey: presign.objectKey,
-        });
-        const fin = await finRes.json() as { objectPath?: string };
-        const objectPath = fin.objectPath;
-        if (!objectPath) {
-          throw new Error("Chybí cesta k souboru po dokončení nahrání");
-        }
+        const objectPath = await uploadImageViaPresignOrLegacy(file);
 
         if (!isMountedRef.current) return;
         setPhotoItems(prev => {

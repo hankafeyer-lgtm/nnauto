@@ -3,7 +3,7 @@ import { Camera, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/translations";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { uploadImageViaPresignOrLegacy } from "@/lib/uploadImagePresignOrLegacy";
 
 interface AvatarUploaderProps {
   onUploadComplete: (objectPath: string) => void;
@@ -25,7 +25,7 @@ export function AvatarUploader({ onUploadComplete, buttonClassName }: AvatarUplo
       return;
     }
 
-    if (!file.type.startsWith('image/')) {
+    if (file.type && !file.type.startsWith("image/")) {
       toast({
         variant: "destructive",
         title: t("profile.avatarUpdateError"),
@@ -53,36 +53,8 @@ export function AvatarUploader({ onUploadComplete, buttonClassName }: AvatarUplo
     setIsUploading(true);
 
     try {
-      const presignRes = await apiRequest("POST", "/api/objects/upload", {
-        contentType: file.type,
-      });
-      const presign = await presignRes.json() as { url: string; objectKey: string };
-      const putRes = await fetch(presign.url, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-      if (!putRes.ok) {
-        throw new Error(`Nahrání selhalo (${putRes.status})`);
-      }
-      const finRes = await apiRequest("POST", "/api/objects/finalize-upload", {
-        objectKey: presign.objectKey,
-      });
-      const fin = await finRes.json() as { objectPath?: string };
-      if (!fin?.objectPath) {
-        toast({
-          variant: "destructive",
-          title: t("profile.avatarUpdateError"),
-          description: "Nepodařilo se nahrát soubor - chybí cesta k objektu",
-        });
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
-        setIsUploading(false);
-        return;
-      }
-
-      const bareKey = fin.objectPath.replace(/^\/objects\//, "");
+      const objectPath = await uploadImageViaPresignOrLegacy(file);
+      const bareKey = objectPath.replace(/^\/objects\//, "");
       onUploadComplete(bareKey);
 
       if (fileInputRef.current) {
