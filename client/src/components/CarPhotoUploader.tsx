@@ -118,41 +118,38 @@ export function CarPhotoUploader({
       const itemId = newItems[i].id;
 
       try {
-        // Max 1000MB file size
-        if (file.size > 1000 * 1024 * 1024) {
-          throw new Error(`Soubor ${file.name} je příliš velký (max 1000MB)`);
+        const maxBytes = 20 * 1024 * 1024;
+        if (file.size > maxBytes) {
+          throw new Error(`Soubor ${file.name} je příliš velký (max 20MB)`);
         }
 
         if (!file.type.startsWith('image/')) {
           throw new Error(`Soubor ${file.name} není obrázek`);
         }
 
-        const fileData = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const result = reader.result;
-            if (typeof result !== "string" || !result.includes(",")) {
-              reject(new Error(`Nepodařilo se načíst soubor ${file.name}`));
-              return;
-            }
-            const base64 = result.split(",")[1];
-            if (!base64) {
-              reject(new Error(`Nepodařilo se zpracovat soubor ${file.name}`));
-              return;
-            }
-            resolve(base64);
-          };
-          reader.onerror = () => reject(new Error(`Chyba čtení souboru ${file.name}`));
-          reader.readAsDataURL(file);
-        });
-
-        const uploadRes = await apiRequest("POST", "/api/objects/upload-file", {
-          fileData,
-          fileName: file.name,
+        const presignRes = await apiRequest("POST", "/api/objects/upload", {
           contentType: file.type,
         });
-        const uploadData = await uploadRes.json();
-        const objectPath = uploadData.objectPath;
+        const presign = await presignRes.json() as {
+          url: string;
+          objectKey: string;
+        };
+        const putRes = await fetch(presign.url, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        });
+        if (!putRes.ok) {
+          throw new Error(`Nahrání selhalo (${putRes.status})`);
+        }
+        const finRes = await apiRequest("POST", "/api/objects/finalize-upload", {
+          objectKey: presign.objectKey,
+        });
+        const fin = await finRes.json() as { objectPath?: string };
+        const objectPath = fin.objectPath;
+        if (!objectPath) {
+          throw new Error("Chybí cesta k souboru po dokončení nahrání");
+        }
 
         if (!isMountedRef.current) return;
         setPhotoItems(prev => {

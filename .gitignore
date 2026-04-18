@@ -40,6 +40,7 @@ attached_assets/
 backups/
 
 # Generated / temp files
+*.tsbuildinfo
 listings.json
 next
 rest-express@1.0.0

@@ -2906,16 +2906,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Only return public contact information (email and phone for contact purposes)
-      // Don't send password, username, admin status, verification data, or other sensitive information
-      const publicContactData = {
+      const viewer = await getOptionalViewer(req);
+      const isOwner = viewer?.id === user.id;
+      const isAdminViewer = viewer?.isAdmin === true;
+
+      if (isOwner || isAdminViewer) {
+        const { password: _, ...rest } = user;
+        return res.json(rest);
+      }
+
+      return res.json({
         id: user.id,
-        email: user.email,
-        phone: user.phone,
+        username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
-      };
-      res.json(publicContactData);
+        avatarUrl: user.avatarUrl ?? null,
+        email: null,
+        phone: null,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

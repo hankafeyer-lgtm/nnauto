@@ -53,74 +53,54 @@ export function AvatarUploader({ onUploadComplete, buttonClassName }: AvatarUplo
     setIsUploading(true);
 
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Data = reader.result as string;
-        // Remove data URI prefix (e.g., "data:image/png;base64,")
-        const base64Only = base64Data.split(',')[1];
-
-        try {
-          const uploadRes = await apiRequest("POST", "/api/objects/upload-file", {
-            fileData: base64Only,
-            fileName: file.name,
-            contentType: file.type,
-          });
-
-          const uploadData = await uploadRes.json();
-          
-          if (!uploadData?.objectPath) {
-            toast({
-              variant: "destructive",
-              title: t("profile.avatarUpdateError"),
-              description: "Nepodařilo se nahrát soubor - chybí cesta k objektu",
-            });
-            if (fileInputRef.current) {
-              fileInputRef.current.value = '';
-            }
-            setIsUploading(false);
-            return;
-          }
-          
-          const bareKey = uploadData.objectPath.replace(/^\/objects\//, "");
-          onUploadComplete(bareKey);
-          
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-        } catch (error: any) {
-          console.error("Upload error:", error);
-          toast({
-            variant: "destructive",
-            title: t("profile.avatarUpdateError"),
-            description: error.message || "Nepodařilo se nahrát soubor",
-          });
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-        } finally {
-          setIsUploading(false);
-        }
-      };
-
-      reader.onerror = () => {
+      const presignRes = await apiRequest("POST", "/api/objects/upload", {
+        contentType: file.type,
+      });
+      const presign = await presignRes.json() as { url: string; objectKey: string };
+      const putRes = await fetch(presign.url, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!putRes.ok) {
+        throw new Error(`Nahrání selhalo (${putRes.status})`);
+      }
+      const finRes = await apiRequest("POST", "/api/objects/finalize-upload", {
+        objectKey: presign.objectKey,
+      });
+      const fin = await finRes.json() as { objectPath?: string };
+      if (!fin?.objectPath) {
         toast({
           variant: "destructive",
           title: t("profile.avatarUpdateError"),
-          description: "Nepodařilo se načíst soubor",
+          description: "Nepodařilo se nahrát soubor - chybí cesta k objektu",
         });
-        setIsUploading(false);
         if (fileInputRef.current) {
-          fileInputRef.current.value = '';
+          fileInputRef.current.value = "";
         }
-      };
-
-      reader.readAsDataURL(file);
-    } catch (error) {
-      console.error("File reading error:", error);
-      setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        setIsUploading(false);
+        return;
       }
+
+      const bareKey = fin.objectPath.replace(/^\/objects\//, "");
+      onUploadComplete(bareKey);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error: unknown) {
+      console.error("Upload error:", error);
+      toast({
+        variant: "destructive",
+        title: t("profile.avatarUpdateError"),
+        description:
+          error instanceof Error ? error.message : "Nepodařilo se nahrát soubor",
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } finally {
+      setIsUploading(false);
     }
   };
 

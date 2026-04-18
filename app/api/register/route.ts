@@ -1,58 +1,51 @@
 import { NextRequest } from "next/server";
+import { createHash } from "crypto";
 import { json, error } from "@lib/api-helpers";
+import { getJwtSecret } from "@lib/jwtSecret";
+import { securityLog } from "@lib/securityLog";
 import { storage } from "@lib/storage";
+import { verifyTurnstileToken } from "@lib/turnstile";
 import { insertUserSchema } from "@shared/schema";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || process.env.SESSION_SECRET || "dev-secret";
-
-function signToken(payload: { userId: string; email: string }) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
+function clientIp(req: NextRequest) {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
 }
 
-async function verifyTurnstileToken(token: string): Promise<boolean> {
-  const secretKey = process.env.TURNSTILE_SECRET_KEY;
-  if (!secretKey) return true;
+function ipHash(ip: string) {
+  return createHash("sha256").update(ip).digest("hex").slice(0, 12);
+}
 
-  const response = await fetch(
-    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ secret: secretKey, response: token }),
-    },
-  );
-
-  const data = (await response.json()) as {
-    success: boolean;
-    "error-codes"?: string[];
-  };
-
-  if (!data.success) {
-    console.log("[Turnstile] Verification failed:", data["error-codes"]);
-  }
-  return data.success;
+function signToken(payload: { userId: string; email: string }) {
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: "7d" });
 }
 
 export async function POST(req: NextRequest) {
+  const ip = clientIp(req);
   try {
     const body = await req.json();
-    const { turnstileToken, ...userData } = body;
-
-    if (turnstileToken) {
-      const isValid = await verifyTurnstileToken(turnstileToken);
-      if (!isValid) {
-        return error("Security verification failed. Please try again.");
-      }
-    } else if (process.env.TURNSTILE_SECRET_KEY) {
-      return error("Security verification required");
+    const turnstile = await verifyTurnstileToken(body.turnstileToken);
+    if (!turnstile.ok) {
+      securityLog("register_failure", {
+        reason: "turnstile",
+        detail: turnstile.reason || "failed",
+        ipHash: ipHash(ip),
+      });
+      return error("Security verification failed. Please try again.", 400);
     }
 
+    const { turnstileToken: _turnstile, ...userPayload } = body as Record<
+      string,
+      unknown
+    >;
     const { email, username, password, firstName, lastName, phone } =
-      insertUserSchema.parse(userData);
+      insertUserSchema.parse(userPayload);
 
     if (!phone || phone.trim() === "") {
       return error("Phone number is required");
@@ -112,11 +105,12 @@ export async function POST(req: NextRequest) {
     });
 
     const token = signToken({ userId: user.id, email: user.email });
-    console.log("[AUTH] Register - JWT token generated for user:", user.id);
+    securityLog("register_success", { userId: user.id, ipHash: ipHash(ip) });
 
     const { password: _, ...userWithoutPassword } = user;
     return json({ user: userWithoutPassword, token });
-  } catch (err: any) {
-    return error(err.message);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Bad request";
+    return error(message);
   }
 }

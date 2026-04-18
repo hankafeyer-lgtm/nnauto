@@ -3155,7 +3155,7 @@ const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 // Type for public contact information returned by /api/users/:id
 type PublicContact = {
   id: string;
-  email: string;
+  email: string | null;
   phone: string | null;
   firstName: string | null;
   lastName: string | null;

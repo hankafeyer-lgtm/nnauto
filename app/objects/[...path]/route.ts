@@ -21,8 +21,41 @@ function getR2Client() {
   });
 }
 
+/** Listing videos: stream from R2 and honor Range (required for reliable <video> playback). */
+async function getVideoObjectResponse(
+  req: NextRequest,
+  client: S3Client,
+  objectKey: string,
+) {
+  const range = req.headers.get("range") ?? undefined;
+  const command = new GetObjectCommand({
+    Bucket: R2_BUCKET,
+    Key: objectKey,
+    ...(range ? { Range: range } : {}),
+  });
+  const response = await client.send(command);
+  if (!response.Body) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const headers = new Headers();
+  headers.set("Content-Type", response.ContentType || "video/mp4");
+  headers.set("Accept-Ranges", "bytes");
+  headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  if (typeof response.ContentLength === "number") {
+    headers.set("Content-Length", String(response.ContentLength));
+  }
+  if (response.ContentRange) {
+    headers.set("Content-Range", response.ContentRange);
+  }
+
+  const status = response.$metadata?.httpStatusCode === 206 ? 206 : 200;
+  const body = response.Body as { transformToWebStream(): ReadableStream };
+  return new NextResponse(body.transformToWebStream(), { status, headers });
+}
+
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   try {
@@ -30,6 +63,11 @@ export async function GET(
     const objectKey = path.join("/");
 
     const client = getR2Client();
+
+    if (objectKey.startsWith("videos/")) {
+      return await getVideoObjectResponse(req, client, objectKey);
+    }
+
     const command = new GetObjectCommand({ Bucket: R2_BUCKET, Key: objectKey });
     const response = await client.send(command);
 
@@ -44,18 +82,34 @@ export async function GET(
     }
     const buffer = Buffer.concat(chunks);
 
-    const isImage =
+    const isJpeg = buffer.length > 8 && buffer[0] === 0xff && buffer[1] === 0xd8;
+    const isPng =
+      buffer.length > 8 && buffer[0] === 0x89 && buffer[1] === 0x50;
+    const isGif =
       buffer.length > 8 &&
-      ((buffer[0] === 0xff && buffer[1] === 0xd8) ||
-        (buffer[0] === 0x89 && buffer[1] === 0x50) ||
-        (buffer[0] === 0x52 && buffer[1] === 0x49));
+      buffer[0] === 0x47 &&
+      buffer[1] === 0x49 &&
+      buffer[2] === 0x46 &&
+      buffer[3] === 0x38;
+    const isWebp =
+      buffer.length >= 12 &&
+      buffer[0] === 0x52 &&
+      buffer[1] === 0x49 &&
+      buffer[2] === 0x46 &&
+      buffer[3] === 0x46 &&
+      buffer[8] === 0x57 &&
+      buffer[9] === 0x45 &&
+      buffer[10] === 0x42 &&
+      buffer[11] === 0x50;
+
+    const isImage = isJpeg || isPng || isGif || isWebp;
 
     if (isImage) {
       const rotated = await sharp(buffer).rotate().toBuffer();
       return new NextResponse(rotated, {
         headers: {
           "Cache-Control": "public, max-age=31536000, immutable",
-          "Vary": "Accept-Encoding",
+          Vary: "Accept-Encoding",
         },
       });
     }
@@ -67,8 +121,9 @@ export async function GET(
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     });
-  } catch (error: any) {
-    if (error?.name === "NoSuchKey" || error?.$metadata?.httpStatusCode === 404) {
+  } catch (error: unknown) {
+    const err = error as { name?: string; $metadata?: { httpStatusCode?: number } };
+    if (err?.name === "NoSuchKey" || err?.$metadata?.httpStatusCode === 404) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     console.error("Object fetch error:", error);

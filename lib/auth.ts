@@ -1,13 +1,13 @@
 import { cookies, headers } from "next/headers";
 import { db } from "./db";
+import { getJwtSecret } from "./jwtSecret";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 function verifyJwt(token: string): { userId: string } | null {
   try {
     const jwt = require("jsonwebtoken");
-    const secret =
-      process.env.JWT_SECRET || process.env.SESSION_SECRET || "dev-secret";
+    const secret = getJwtSecret();
     const payload = jwt.verify(token, secret) as { userId?: string };
     return payload?.userId ? { userId: payload.userId } : null;
   } catch {

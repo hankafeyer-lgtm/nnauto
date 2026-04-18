@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { db } from "@lib/db";
+import { securityLog } from "@lib/securityLog";
 import { storage } from "@lib/storage";
 import { getCurrentUser } from "@lib/auth";
 import { sql } from "drizzle-orm";
@@ -49,6 +50,13 @@ export async function POST(
       ON CONFLICT (listing_id, event_type, viewer_fingerprint)
       DO UPDATE SET updated_at = now()
     `);
+
+    if (eventType === "contact_click" || eventType === "whatsapp_click") {
+      securityLog("contact_interaction", {
+        listingId: listingId,
+        kind: eventType,
+      });
+    }
 
     return json({ ok: true });
   } catch (e: unknown) {

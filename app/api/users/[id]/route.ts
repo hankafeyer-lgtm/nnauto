@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { json, error, withAuth } from "@lib/api-helpers";
+import { getCurrentUser } from "@lib/auth";
 import { storage } from "@lib/storage";
 import { updateUserSchema } from "@shared/schema";
 
@@ -9,19 +10,30 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const viewer = await getCurrentUser();
     const user = await storage.getUser(id);
     if (!user) return error("User not found", 404);
 
-    const publicContactData = {
+    const isOwner = viewer?.id === id;
+    const isAdmin = viewer?.isAdmin === true;
+
+    if (isOwner || isAdmin) {
+      const { password: _, ...userWithoutPassword } = user;
+      return json(userWithoutPassword);
+    }
+
+    return json({
       id: user.id,
-      email: user.email,
-      phone: user.phone,
+      username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
-    };
-    return json(publicContactData);
-  } catch (e: any) {
-    return error(e.message, 500);
+      avatarUrl: user.avatarUrl ?? null,
+      email: null,
+      phone: null,
+    });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Server error";
+    return error(msg, 500);
   }
 }
 

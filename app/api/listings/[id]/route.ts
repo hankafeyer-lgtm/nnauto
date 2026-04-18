@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { json, error, withAuth } from "@lib/api-helpers";
+import { securityLog } from "@lib/securityLog";
 import { storage } from "@lib/storage";
 import { db } from "@lib/db";
 import { sql } from "drizzle-orm";
@@ -87,6 +88,11 @@ export async function DELETE(
       const deleted = await storage.deleteListing(id);
       if (deleted) {
         invalidateListingsCache();
+        securityLog("listing_delete", {
+          listingId: id,
+          actorId: user.id,
+          ownerId: existingListing.userId,
+        });
         return json({ message: "Listing deleted successfully" });
       }
       return error("Listing not found", 404);

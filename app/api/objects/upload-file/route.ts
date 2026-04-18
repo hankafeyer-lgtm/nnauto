@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
-import { uploadBuffer, setObjectAclPolicy } from "@lib/r2Storage";
+import { securityLog } from "@lib/securityLog";
+import {
+  assertAllowedUploadContentType,
+  uploadBuffer,
+  setObjectAclPolicy,
+} from "@lib/r2Storage";
 
 const MAX_IMAGE_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB
 
@@ -44,7 +49,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!contentType.startsWith("image/")) {
+    try {
+      assertAllowedUploadContentType(contentType);
+    } catch {
       return error("Only image files are allowed", 400);
     }
 
@@ -68,6 +75,7 @@ export async function POST(req: NextRequest) {
       visibility: "public",
     });
 
+    securityLog("upload_file_legacy", { userId: user.id, bytes: buffer.length });
     return json({ objectPath: objectKey });
   } catch (e: any) {
     if (e.message === "Unauthorized") return error("Unauthorized", 401);
