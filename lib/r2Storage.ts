@@ -115,18 +115,24 @@ export async function validatePresignedImageObject(objectKey: string): Promise<v
   }
 }
 
+export type ObjectAclPolicy = { owner: string; visibility: "public" | "private" };
+
 export async function uploadBuffer(
   buffer: Buffer,
   contentType: string,
   prefix = "uploads",
+  options?: { aclPolicy?: ObjectAclPolicy },
 ): Promise<string> {
   let ct: string;
   if (prefix === "videos") {
     const raw = String(contentType || "").trim().toLowerCase();
-    if (!raw.startsWith("video/") && raw !== "application/octet-stream") {
+    if (!raw || raw === "application/octet-stream") {
+      ct = "video/mp4";
+    } else if (raw.startsWith("video/")) {
+      ct = raw;
+    } else {
       throw new Error("Unsupported content type");
     }
-    ct = raw === "application/octet-stream" ? "video/mp4" : raw;
   } else {
     ct = assertAllowedUploadContentType(contentType);
   }
@@ -138,6 +144,13 @@ export async function uploadBuffer(
       Key: objectKey,
       Body: buffer,
       ContentType: ct,
+      ...(options?.aclPolicy
+        ? {
+            Metadata: {
+              aclpolicy: JSON.stringify(options.aclPolicy),
+            },
+          }
+        : {}),
     }),
   );
   return objectKey;
@@ -145,7 +158,7 @@ export async function uploadBuffer(
 
 export async function setObjectAclPolicy(
   key: string,
-  aclPolicy: { owner: string; visibility: "public" | "private" },
+  aclPolicy: ObjectAclPolicy,
 ): Promise<void> {
   const client = getR2Client();
 

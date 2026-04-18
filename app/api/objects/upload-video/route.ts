@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
-import { uploadBuffer, setObjectAclPolicy } from "@lib/r2Storage";
+import { uploadBuffer } from "@lib/r2Storage";
 
 const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
 
@@ -26,11 +26,10 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const contentType = file.type || "video/mp4";
 
-    const objectKey = await uploadBuffer(buffer, contentType, "videos");
-
-    await setObjectAclPolicy(objectKey, {
-      owner: user.id,
-      visibility: "public",
+    // Set ACL metadata on the initial PutObject — avoid setObjectAclPolicy here,
+    // which re-downloads the entire object (OOM / timeouts for large videos).
+    const objectKey = await uploadBuffer(buffer, contentType, "videos", {
+      aclPolicy: { owner: user.id, visibility: "public" },
     });
 
     return json({ success: true, objectPath: objectKey });
