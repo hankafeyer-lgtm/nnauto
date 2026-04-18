@@ -12,19 +12,24 @@ import {
   setObjectAclPolicy,
 } from "@lib/r2Storage";
 
+/**
+ * Same-origin multipart upload (binary body, no base64).
+ * Faster than /api/objects/upload-file for “přidat auto” photo flows on mobile.
+ */
 export async function POST(req: NextRequest) {
   try {
     const user = await requireAuth();
+    const formData = await req.formData();
+    const file = formData.get("file");
 
-    const body = await req.json();
-    const { fileData, fileName, contentType } = body;
-
-    if (!fileData || !fileName || !contentType) {
-      return error(
-        "Missing required fields: fileData, fileName, contentType",
-        400,
-      );
+    if (!file || !(file instanceof Blob)) {
+      return error("No file provided", 400);
     }
+
+    const contentType =
+      file.type && file.type.startsWith("image/")
+        ? file.type
+        : "image/jpeg";
 
     try {
       assertAllowedUploadContentType(contentType);
@@ -32,7 +37,7 @@ export async function POST(req: NextRequest) {
       return error("Only image files are allowed", 400);
     }
 
-    const buffer = Buffer.from(fileData, "base64");
+    const buffer = Buffer.from(await file.arrayBuffer());
 
     if (buffer.length > MAX_LISTING_IMAGE_BYTES) {
       return error(
@@ -55,13 +60,15 @@ export async function POST(req: NextRequest) {
     securityLog("upload_file_legacy", {
       userId: user.id,
       bytes: buffer.length,
-      transport: "json_base64",
+      transport: "multipart",
     });
     return json({ objectPath: objectKey });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "";
-    if (msg === "Unauthorized") return error("Unauthorized", 401);
-    console.error("Upload error:", e);
-    return error(msg || "Server error", 500);
+    if (e instanceof Error && e.message === "Unauthorized") {
+      return error("Unauthorized", 401);
+    }
+    console.error("Upload image error:", e);
+    const msg = e instanceof Error ? e.message : "Server error";
+    return error(msg, 500);
   }
 }

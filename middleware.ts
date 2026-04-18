@@ -46,6 +46,7 @@ export function middleware(req: NextRequest) {
   }
   if (
     (path === "/api/objects/upload-file" ||
+      path === "/api/objects/upload-image" ||
       path === "/api/objects/upload-video" ||
       path === "/api/objects/upload" ||
       path === "/api/objects/finalize-upload") &&

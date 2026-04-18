@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, listingsFetchHeaders } from "@/lib/queryClient";
 
 function readFileAsBase64Payload(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -21,51 +21,62 @@ function readFileAsBase64Payload(file: File): Promise<string> {
   });
 }
 
-/**
- * Prefer direct PUT to R2 (presigned). If that fails (e.g. missing R2 CORS → Safari "Load failed"),
- * fall back to same-origin JSON upload so listing photos always work.
- */
-export async function uploadImageViaPresignOrLegacy(file: File): Promise<string> {
+async function uploadMultipartSameOrigin(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", file, file.name || "photo.jpg");
+
+  const res = await fetch("/api/objects/upload-image", {
+    method: "POST",
+    headers: listingsFetchHeaders(),
+    body: formData,
+    credentials: "include",
+  });
+
+  const text = await res.text();
+  if (!res.ok) {
+    let msg = `Nahrání selhalo (${res.status})`;
+    try {
+      const j = JSON.parse(text) as { error?: string };
+      if (j?.error) msg = j.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+
+  const data = JSON.parse(text) as { objectPath?: string };
+  if (!data?.objectPath) {
+    throw new Error("Chybí cesta k souboru");
+  }
+  return data.objectPath;
+}
+
+async function uploadBase64Legacy(file: File): Promise<string> {
   const contentType =
     file.type && file.type.startsWith("image/")
       ? file.type
       : "image/jpeg";
+  const fileData = await readFileAsBase64Payload(file);
+  const uploadRes = await apiRequest("POST", "/api/objects/upload-file", {
+    fileData,
+    fileName: file.name || "photo.jpg",
+    contentType,
+  });
+  const uploadData = (await uploadRes.json()) as { objectPath?: string };
+  if (!uploadData?.objectPath) {
+    throw new Error("Nahrání přes server selhalo");
+  }
+  return uploadData.objectPath;
+}
 
+/**
+ * Fast path: multipart POST to same origin (no base64 bloat, no cross-origin R2 wait).
+ * Fallback: legacy JSON+base64 if multipart is rejected (e.g. strict body limits).
+ */
+export async function uploadImageViaPresignOrLegacy(file: File): Promise<string> {
   try {
-    const presignRes = await apiRequest("POST", "/api/objects/upload", {
-      contentType,
-    });
-    const presign = (await presignRes.json()) as {
-      url: string;
-      objectKey: string;
-    };
-    const putRes = await fetch(presign.url, {
-      method: "PUT",
-      body: file,
-      headers: { "Content-Type": contentType },
-    });
-    if (!putRes.ok) {
-      throw new Error(`presign_put_${putRes.status}`);
-    }
-    const finRes = await apiRequest("POST", "/api/objects/finalize-upload", {
-      objectKey: presign.objectKey,
-    });
-    const fin = (await finRes.json()) as { objectPath?: string };
-    if (!fin?.objectPath) {
-      throw new Error("finalize_missing_path");
-    }
-    return fin.objectPath;
+    return await uploadMultipartSameOrigin(file);
   } catch {
-    const fileData = await readFileAsBase64Payload(file);
-    const uploadRes = await apiRequest("POST", "/api/objects/upload-file", {
-      fileData,
-      fileName: file.name || "photo.jpg",
-      contentType,
-    });
-    const uploadData = (await uploadRes.json()) as { objectPath?: string };
-    if (!uploadData?.objectPath) {
-      throw new Error("Nahrání přes server selhalo");
-    }
-    return uploadData.objectPath;
+    return await uploadBase64Legacy(file);
   }
 }
