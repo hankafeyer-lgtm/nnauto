@@ -114,12 +114,16 @@ export function clearListingsRestoreState() {
 function trackPageView(path: string) {
   try {
     const w = window as Window & { gtag?: (...args: any[]) => void };
-    if (typeof w.gtag === "function") {
-      w.gtag("event", "page_view", {
-        page_path: path,
-        page_location: window.location.origin + path,
-      });
-    }
+    if (typeof w.gtag !== "function") return;
+    const pagePath =
+      path && path.startsWith("/")
+        ? path
+        : `${window.location.pathname}${window.location.search}`;
+    w.gtag("event", "page_view", {
+      page_path: pagePath,
+      page_location: window.location.href,
+      page_title: document.title,
+    });
   } catch { /* analytics should never break the app */ }
 }
 

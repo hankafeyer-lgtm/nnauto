@@ -17,7 +17,7 @@ const csp = [
   "img-src 'self' data: blob: https:",
   "media-src 'self' blob: data:",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' https://challenges.cloudflare.com https://*.cloudflare.com https://www.google-analytics.com https://region1.google-analytics.com https://analytics.google.com https://www.googletagmanager.com https://analytics.tiktok.com https://*.r2.cloudflarestorage.com https://api.stripe.com https://*.stripe.com",
+  "connect-src 'self' https://challenges.cloudflare.com https://*.cloudflare.com https://www.google-analytics.com https://*.google-analytics.com https://region1.google-analytics.com https://analytics.google.com https://*.analytics.google.com https://www.googletagmanager.com https://*.googletagmanager.com https://www.google.com https://www.googleadservices.com https://stats.g.doubleclick.net https://googleads.g.doubleclick.net https://analytics.tiktok.com https://*.tiktok.com https://*.r2.cloudflarestorage.com https://api.stripe.com https://*.stripe.com",
   "frame-src 'self' https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com",
 ].join("; ");
 
