@@ -1,6 +1,5 @@
 "use client";
 
-import { Suspense } from "react";
 import ListingDetailPage from "@/pages/ListingDetailPage";
 import type { Listing } from "@shared/schema";
 
@@ -14,11 +13,9 @@ export default function ListingDetailClient({
   initialListingId,
 }: ListingDetailClientProps) {
   return (
-    <Suspense>
-      <ListingDetailPage
-        initialListing={initialListing}
-        initialListingId={initialListingId}
-      />
-    </Suspense>
+    <ListingDetailPage
+      initialListing={initialListing}
+      initialListingId={initialListingId}
+    />
   );
 }
