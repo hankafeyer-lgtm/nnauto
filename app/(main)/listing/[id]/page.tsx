@@ -76,6 +76,19 @@ export default async function ListingDetail({ params, searchParams }: Props) {
   const listingName = `${brand} ${listing?.model ?? ""} ${listing?.year ?? ""}`.trim();
   const modelLabel = listing?.model ? String(listing.model) : "";
   const yearLabel = listing?.year ? String(listing.year) : "";
+  const summaryTitle = `${brand} ${modelLabel} ${yearLabel}`.trim();
+  const summaryMileage = listing?.mileage
+    ? `${listing.mileage.toLocaleString("cs-CZ")} km`
+    : "";
+  const summaryFuel = Array.isArray(listing?.fuelType)
+    ? listing.fuelType.join(", ")
+    : listing?.fuelType || "";
+  const summaryTransmission = Array.isArray(listing?.transmission)
+    ? listing.transmission.join(", ")
+    : listing?.transmission || "";
+  const summaryImage = listing?.photos?.[0]
+    ? `${SITE_ORIGIN}/img/${listing.photos[0].replace(/^\/+/, "")}?w=1200&q=80&f=webp`
+    : null;
   const brandFilterUrl = `${SITE_ORIGIN}/?brand=${encodeURIComponent(listing?.brand ?? "")}`;
   const modelFilterUrl = `${brandFilterUrl}&model=${encodeURIComponent(listing?.model ?? "")}`;
   const fuelText = Array.isArray(listing?.fuelType)
@@ -201,6 +214,21 @@ export default async function ListingDetail({ params, searchParams }: Props) {
             initialListingId={id}
             embeddedMode={false}
           />
+          {/* Keep a server-rendered listing summary for SEO without changing visible UI. */}
+          <article className="sr-only">
+            <h1>{summaryTitle}</h1>
+            <p>{price ? `${price} Kč` : ""}</p>
+            {listing.description ? <p>{listing.description}</p> : null}
+            {summaryImage ? <img src={summaryImage} alt={summaryTitle} /> : null}
+            <ul>
+              <li>{`Rok: ${yearLabel}`}</li>
+              {summaryMileage ? <li>{`Najeto: ${summaryMileage}`}</li> : null}
+              {summaryFuel ? <li>{`Palivo: ${summaryFuel}`}</li> : null}
+              {summaryTransmission ? <li>{`Převodovka: ${summaryTransmission}`}</li> : null}
+              {listing.region ? <li>{`Lokalita: ${listing.region}`}</li> : null}
+              {listing.vin ? <li>{`VIN: ${listing.vin}`}</li> : null}
+            </ul>
+          </article>
           {similarListings.length ? (
             <section className="container mx-auto mt-6 border-t px-3 py-6 sm:mt-8 sm:px-4 sm:py-8 max-w-7xl">
               <h2 className="text-xl font-semibold mb-4">Souvisejici auta</h2>
