@@ -43,6 +43,7 @@ const LoginModal = lazy(() => import("@/components/LoginModal"));
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { carBrands, carModels } from "@shared/carDatabase";
 const logoImage = "/logo-icon-only.png";
+const NNAUTO_RESET_HOME_FILTERS_EVENT = "nnauto:reset-home-filters";
 
 const FavoritesModal = lazy(() =>
   import("@/components/FavoritesModal").then((m) => ({
@@ -97,7 +98,7 @@ function HeaderContent({
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [location, navigate] = useLocation();
-  const { setSearch, filters } = useFilterParams();
+  const { setSearch, filters, resetFilters } = useFilterParams();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalTab, setLoginModalTab] = useState<"login" | "register">(
     "login",
@@ -405,7 +406,19 @@ function HeaderContent({
       return;
     }
 
+    window.dispatchEvent(new Event(NNAUTO_RESET_HOME_FILTERS_EVENT));
+
     const hasQueryOrHash = !!window.location.search || !!window.location.hash;
+    const hasActiveFilters = Object.entries(filters).some(([, value]) => {
+      if (value === undefined || value === null) return false;
+      if (typeof value === "string") return value.trim().length > 0;
+      if (Array.isArray(value)) return value.length > 0;
+      return true;
+    });
+
+    if (hasActiveFilters) {
+      resetFilters();
+    }
 
     // Якщо вже на чистій головній — просто скрол вгору
     if (window.location.pathname === "/" && !hasQueryOrHash) {

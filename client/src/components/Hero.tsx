@@ -1882,6 +1882,8 @@ import {
   BrandIconRenderer,
 } from "@/lib/brandIcons";
 
+const NNAUTO_RESET_HOME_FILTERS_EVENT = "nnauto:reset-home-filters";
+
 const ConvertibleIcon = ({ className }: { className?: string }) => (
   <img
     src={convertibleIcon}
@@ -2153,6 +2155,29 @@ function Hero() {
   const [priceMaxValue, setPriceMaxValue] = useState("");
   const [mileageMinValue, setMileageMinValue] = useState("");
   const [mileageMaxValue, setMileageMaxValue] = useState("");
+
+  useEffect(() => {
+    const handleResetFromHeader = () => {
+      pendingVehicleTypeRef.current = undefined;
+      pendingConditionRef.current = [];
+      setDesktopConditionDraft([]);
+      setPriceMinValue("");
+      setPriceMaxValue("");
+      setMileageMinValue("");
+      setMileageMaxValue("");
+      setFilters({});
+    };
+
+    window.addEventListener(
+      NNAUTO_RESET_HOME_FILTERS_EVENT,
+      handleResetFromHeader,
+    );
+    return () =>
+      window.removeEventListener(
+        NNAUTO_RESET_HOME_FILTERS_EVENT,
+        handleResetFromHeader,
+      );
+  }, [setFilters]);
 
   const fuelTypes = [
     { value: "benzin", label: t("hero.benzin") },
