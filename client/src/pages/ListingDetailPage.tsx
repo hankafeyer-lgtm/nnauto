@@ -3181,7 +3181,15 @@ function PageLoaderInline({ text }: { text: string }) {
   );
 }
 
-export default function ListingDetailPage() {
+type ListingDetailPageProps = {
+  initialListing?: Listing | null;
+  initialListingId?: string;
+};
+
+export default function ListingDetailPage({
+  initialListing = null,
+  initialListingId,
+}: ListingDetailPageProps = {}) {
   const t = useTranslation();
   const { language } = useLanguage();
   const localizedOptions = useLocalizedOptions();
@@ -3192,6 +3200,7 @@ export default function ListingDetailPage() {
 
   const routeParams = useParams();
   const listingId = (routeParams?.id as string) ||
+    initialListingId ||
     (typeof window !== "undefined"
       ? window.location.pathname.split("/listing/")[1]?.split("?")[0]
       : undefined);
@@ -3373,6 +3382,10 @@ export default function ListingDetailPage() {
   } = useQuery<Listing>({
     queryKey: [`/api/listings/${listingId}`],
     enabled: !!listingId,
+    initialData:
+      initialListing && listingId && initialListing.id === listingId
+        ? initialListing
+        : undefined,
   });
 
   const { data: seller } = useQuery<PublicContact>({

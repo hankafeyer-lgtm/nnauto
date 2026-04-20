@@ -59,34 +59,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ListingDetail({ params }: Props) {
   const { id } = await params;
   const listing = await getListingById(id);
-  const brand = listing?.brand
-    ? listing.brand.charAt(0).toUpperCase() + listing.brand.slice(1)
-    : "";
-  const price = listing ? Number(listing.price).toLocaleString("cs-CZ") : null;
-  const descriptionText = listing?.description?.trim() || "";
+  const initialListing = listing
+    ? (JSON.parse(JSON.stringify(listing)) as typeof listing)
+    : null;
 
   return (
     <>
       {listing ? <JsonLd data={buildListingCarJsonLd(listing)} /> : null}
-      {listing ? (
-        <section
-          aria-label="Listing SEO content"
-          className="sr-only"
-          data-testid="listing-seo-content"
-        >
-          <h1>{`${brand} ${listing.model} ${listing.year}`}</h1>
-          <p>{price ? `${price} Kč` : ""}</p>
-          {descriptionText ? <p>{descriptionText}</p> : null}
-          <ul>
-            <li>{`Rok: ${listing.year}`}</li>
-            <li>{`Najeto: ${listing.mileage?.toLocaleString("cs-CZ")} km`}</li>
-            <li>{`Palivo: ${Array.isArray(listing.fuelType) ? listing.fuelType.join(", ") : listing.fuelType || ""}`}</li>
-            <li>{`Převodovka: ${Array.isArray(listing.transmission) ? listing.transmission.join(", ") : listing.transmission || ""}`}</li>
-            <li>{`Lokalita: ${listing.region || ""}`}</li>
-          </ul>
-        </section>
-      ) : null}
-      <ListingDetailClient />
+      <ListingDetailClient initialListing={initialListing} initialListingId={id} />
     </>
   );
 }
