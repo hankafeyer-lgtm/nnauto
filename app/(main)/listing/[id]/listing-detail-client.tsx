@@ -8,20 +8,35 @@ import { NoSSR } from "../../no-ssr";
 type ListingDetailClientProps = {
   initialListing?: Listing | null;
   initialListingId?: string;
+  disableSsr?: boolean;
+  embeddedMode?: boolean;
 };
 
 export default function ListingDetailClient({
   initialListing = null,
   initialListingId,
+  disableSsr = false,
+  embeddedMode,
 }: ListingDetailClientProps) {
+  if (disableSsr) {
+    return (
+      <NoSSR>
+        <Suspense>
+          <ListingDetailPage
+            initialListing={initialListing}
+            initialListingId={initialListingId}
+            embeddedMode={embeddedMode}
+          />
+        </Suspense>
+      </NoSSR>
+    );
+  }
+
   return (
-    <NoSSR>
-      <Suspense>
-        <ListingDetailPage
-          initialListing={initialListing}
-          initialListingId={initialListingId}
-        />
-      </Suspense>
-    </NoSSR>
+    <ListingDetailPage
+      initialListing={initialListing}
+      initialListingId={initialListingId}
+      embeddedMode={embeddedMode}
+    />
   );
 }

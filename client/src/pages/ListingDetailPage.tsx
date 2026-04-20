@@ -3184,11 +3184,13 @@ function PageLoaderInline({ text }: { text: string }) {
 type ListingDetailPageProps = {
   initialListing?: Listing | null;
   initialListingId?: string;
+  embeddedMode?: boolean;
 };
 
 export default function ListingDetailPage({
   initialListing = null,
   initialListingId,
+  embeddedMode,
 }: ListingDetailPageProps = {}) {
   const t = useTranslation();
   const { language } = useLanguage();
@@ -3204,9 +3206,10 @@ export default function ListingDetailPage({
     (typeof window !== "undefined"
       ? window.location.pathname.split("/listing/")[1]?.split("?")[0]
       : undefined);
-  const isEmbedded =
+  const isEmbedded = embeddedMode ?? (
     typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("embedded") === "1";
+    new URLSearchParams(window.location.search).get("embedded") === "1"
+  );
 
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [embeddedSearchQuery, setEmbeddedSearchQuery] = useState("");

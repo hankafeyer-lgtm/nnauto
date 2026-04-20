@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import JsonLd from "@lib/seo/JsonLd";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 import ListingDetailClient from "./listing-detail-client";
@@ -61,7 +62,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ListingDetail({ params, searchParams }: Props) {
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
-  const isEmbedded = resolvedSearchParams?.embedded === "1";
+  const requestHeaders = await headers();
+  const isIframeRequest = requestHeaders.get("sec-fetch-dest") === "iframe";
+  const isEmbedded = resolvedSearchParams?.embedded === "1" && isIframeRequest;
   const listing = await getListingById(id);
   const initialListing = listing
     ? (JSON.parse(JSON.stringify(listing)) as typeof listing)
@@ -163,7 +166,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
         {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
         {breadcrumbJsonLd ? <JsonLd data={breadcrumbJsonLd} /> : null}
         <main className="min-h-screen bg-background">
-          <article className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+          <div className="container mx-auto px-4 pt-4 max-w-7xl">
             <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
               <a href="/" className="hover:underline">NNAuto</a>
               <span className="mx-2">{">"}</span>
@@ -180,53 +183,43 @@ export default async function ListingDetail({ params, searchParams }: Props) {
               <span className="mx-2">{">"}</span>
               <span aria-current="page">{yearLabel}</span>
             </nav>
-            <h1 className="text-3xl font-bold">{`${brand} ${listing.model} ${listing.year}`}</h1>
-            <p className="text-2xl font-semibold text-primary">{`${price} Kč`}</p>
-            {listing.description ? (
-              <p className="text-base leading-relaxed whitespace-pre-line">
-                {listing.description}
-              </p>
-            ) : null}
-            <section className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <p>{`Rok: ${listing.year}`}</p>
-              <p>{`Najeto: ${listing.mileage?.toLocaleString("cs-CZ")} km`}</p>
-              <p>{`Palivo: ${Array.isArray(listing.fuelType) ? listing.fuelType.join(", ") : listing.fuelType || ""}`}</p>
-              <p>{`Převodovka: ${Array.isArray(listing.transmission) ? listing.transmission.join(", ") : listing.transmission || ""}`}</p>
-              <p>{`Lokalita: ${listing.region || ""}`}</p>
-              <p>{`VIN: ${listing.vin || "neuvedeno"}`}</p>
+          </div>
+          <ListingDetailClient
+            initialListing={initialListing}
+            initialListingId={id}
+            embeddedMode={false}
+          />
+          {similarListings.length ? (
+            <section className="container mx-auto px-4 py-8 max-w-7xl border-t">
+              <h2 className="text-xl font-semibold mb-4">Souvisejici auta</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {similarListings.map((item) => {
+                  const itemPhoto = item.photos?.[0];
+                  const itemPrice = Number(item.price).toLocaleString("cs-CZ");
+                  return (
+                    <a
+                      key={item.id}
+                      href={`/listing/${item.id}`}
+                      className="block rounded-lg border border-border bg-card hover:bg-accent/40 transition-colors overflow-hidden"
+                    >
+                      {itemPhoto ? (
+                        <img
+                          src={`${SITE_ORIGIN}/img/${itemPhoto.replace(/^\/+/, "")}?w=480&q=76&f=webp`}
+                          alt={item.title}
+                          loading="lazy"
+                          className="w-full h-36 object-cover"
+                        />
+                      ) : null}
+                      <div className="p-3 space-y-1">
+                        <p className="text-sm font-medium line-clamp-2">{item.title}</p>
+                        <p className="text-primary font-semibold">{itemPrice} Kč</p>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
             </section>
-            {similarListings.length ? (
-              <section className="pt-4 border-t">
-                <h2 className="text-xl font-semibold mb-4">Souvisejici auta</h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {similarListings.map((item) => {
-                    const itemPhoto = item.photos?.[0];
-                    const itemPrice = Number(item.price).toLocaleString("cs-CZ");
-                    return (
-                      <a
-                        key={item.id}
-                        href={`/listing/${item.id}`}
-                        className="block rounded-lg border border-border bg-card hover:bg-accent/40 transition-colors overflow-hidden"
-                      >
-                        {itemPhoto ? (
-                          <img
-                            src={`${SITE_ORIGIN}/img/${itemPhoto.replace(/^\/+/, "")}?w=480&q=76&f=webp`}
-                            alt={item.title}
-                            loading="lazy"
-                            className="w-full h-36 object-cover"
-                          />
-                        ) : null}
-                        <div className="p-3 space-y-1">
-                          <p className="text-sm font-medium line-clamp-2">{item.title}</p>
-                          <p className="text-primary font-semibold">{itemPrice} Kč</p>
-                        </div>
-                      </a>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-          </article>
+          ) : null}
         </main>
       </>
     );
@@ -236,7 +229,12 @@ export default async function ListingDetail({ params, searchParams }: Props) {
     <>
       {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
       {breadcrumbJsonLd ? <JsonLd data={breadcrumbJsonLd} /> : null}
-      <ListingDetailClient initialListing={initialListing} initialListingId={id} />
+      <ListingDetailClient
+        initialListing={initialListing}
+        initialListingId={id}
+        disableSsr
+        embeddedMode
+      />
     </>
   );
 }
