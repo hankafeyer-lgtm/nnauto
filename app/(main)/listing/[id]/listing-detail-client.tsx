@@ -1,7 +1,9 @@
 "use client";
 
+import { Suspense } from "react";
 import ListingDetailPage from "@/pages/ListingDetailPage";
 import type { Listing } from "@shared/schema";
+import { NoSSR } from "../../no-ssr";
 
 type ListingDetailClientProps = {
   initialListing?: Listing | null;
@@ -13,9 +15,13 @@ export default function ListingDetailClient({
   initialListingId,
 }: ListingDetailClientProps) {
   return (
-    <ListingDetailPage
-      initialListing={initialListing}
-      initialListingId={initialListingId}
-    />
+    <NoSSR>
+      <Suspense>
+        <ListingDetailPage
+          initialListing={initialListing}
+          initialListingId={initialListingId}
+        />
+      </Suspense>
+    </NoSSR>
   );
 }
