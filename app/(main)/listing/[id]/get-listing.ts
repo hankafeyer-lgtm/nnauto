@@ -1,9 +1,70 @@
 import { cache } from "react";
 import { db } from "@lib/db";
 import { listings } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, ne, or } from "drizzle-orm";
 
 export const getListingById = cache(async (id: string) => {
   const [listing] = await db.select().from(listings).where(eq(listings.id, id));
   return listing ?? null;
 });
+
+type ListingRecord = typeof listings.$inferSelect;
+
+export type SimilarListing = Pick<
+  ListingRecord,
+  "id" | "title" | "price" | "brand" | "model" | "year" | "photos"
+>;
+
+export const getSimilarListings = cache(
+  async (listing: ListingRecord, take = 6): Promise<SimilarListing[]> => {
+    if (!listing) return [];
+
+    const primary = await db
+      .select({
+        id: listings.id,
+        title: listings.title,
+        price: listings.price,
+        brand: listings.brand,
+        model: listings.model,
+        year: listings.year,
+        photos: listings.photos,
+      })
+      .from(listings)
+      .where(
+        and(
+          ne(listings.id, listing.id),
+          eq(listings.isSold, false),
+          or(eq(listings.brand, listing.brand), eq(listings.model, listing.model)),
+        ),
+      )
+      .orderBy(desc(listings.updatedAt), desc(listings.createdAt))
+      .limit(take);
+
+    if (primary.length >= take) return primary;
+
+    const fallback = await db
+      .select({
+        id: listings.id,
+        title: listings.title,
+        price: listings.price,
+        brand: listings.brand,
+        model: listings.model,
+        year: listings.year,
+        photos: listings.photos,
+      })
+      .from(listings)
+      .where(and(ne(listings.id, listing.id), eq(listings.isSold, false)))
+      .orderBy(desc(listings.updatedAt), desc(listings.createdAt))
+      .limit(take * 3);
+
+    const merged: SimilarListing[] = [];
+    const seen = new Set<string>();
+    for (const item of [...primary, ...fallback]) {
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      merged.push(item);
+      if (merged.length >= take) break;
+    }
+    return merged;
+  },
+);

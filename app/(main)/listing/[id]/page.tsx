@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import JsonLd from "@lib/seo/JsonLd";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 import ListingDetailClient from "./listing-detail-client";
-import { getListingById } from "./get-listing";
+import { getListingById, getSimilarListings } from "./get-listing";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -107,6 +107,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
         },
       }
     : null;
+  const similarListings = listing ? await getSimilarListings(listing, 6) : [];
 
   if (!listing) {
     return (
@@ -142,6 +143,37 @@ export default async function ListingDetail({ params, searchParams }: Props) {
               <p>{`Lokalita: ${listing.region || ""}`}</p>
               <p>{`VIN: ${listing.vin || "neuvedeno"}`}</p>
             </section>
+            {similarListings.length ? (
+              <section className="pt-4 border-t">
+                <h2 className="text-xl font-semibold mb-4">Souvisejici auta</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {similarListings.map((item) => {
+                    const itemPhoto = item.photos?.[0];
+                    const itemPrice = Number(item.price).toLocaleString("cs-CZ");
+                    return (
+                      <a
+                        key={item.id}
+                        href={`/listing/${item.id}`}
+                        className="block rounded-lg border border-border bg-card hover:bg-accent/40 transition-colors overflow-hidden"
+                      >
+                        {itemPhoto ? (
+                          <img
+                            src={`${SITE_ORIGIN}/img/${itemPhoto.replace(/^\/+/, "")}?w=480&q=76&f=webp`}
+                            alt={item.title}
+                            loading="lazy"
+                            className="w-full h-36 object-cover"
+                          />
+                        ) : null}
+                        <div className="p-3 space-y-1">
+                          <p className="text-sm font-medium line-clamp-2">{item.title}</p>
+                          <p className="text-primary font-semibold">{itemPrice} Kč</p>
+                        </div>
+                      </a>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : null}
           </article>
         </main>
       </>
