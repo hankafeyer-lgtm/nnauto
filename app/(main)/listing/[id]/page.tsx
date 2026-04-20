@@ -171,7 +171,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
               href={`/?brand=${encodeURIComponent(listing.brand)}`}
               className="block truncate text-sm text-muted-foreground hover:underline sm:hidden"
             >
-              {`\u2190 Nazad do ${brand}`}
+              {`\u2190 Zpět na ${brand}`}
             </a>
             <nav
               aria-label="Breadcrumb"
