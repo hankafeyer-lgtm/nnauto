@@ -71,6 +71,23 @@ export default async function ListingDetail({ params, searchParams }: Props) {
     ? listing.brand.charAt(0).toUpperCase() + listing.brand.slice(1)
     : "";
   const price = listing ? Number(listing.price).toLocaleString("cs-CZ") : null;
+  const listingName = `${brand} ${listing?.model ?? ""} ${listing?.year ?? ""}`.trim();
+  const productJsonLd = listing
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: listingName,
+        description: listing.description || `${listingName} - inzerat na NNAuto`,
+        brand: brand || undefined,
+        offers: {
+          "@type": "Offer",
+          price: String(Number(listing.price)),
+          priceCurrency: "CZK",
+          availability: "https://schema.org/InStock",
+          url: `${SITE_ORIGIN}/listing/${id}`,
+        },
+      }
+    : null;
 
   if (!listing) {
     return (
@@ -89,6 +106,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
     return (
       <>
         <JsonLd data={buildListingCarJsonLd(listing)} />
+        {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
         <main className="min-h-screen bg-background">
           <article className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
             <h1 className="text-3xl font-bold">{`${brand} ${listing.model} ${listing.year}`}</h1>
@@ -115,6 +133,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
   return (
     <>
       <JsonLd data={buildListingCarJsonLd(listing)} />
+      {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
       <ListingDetailClient initialListing={initialListing} initialListingId={id} />
     </>
   );
