@@ -9,6 +9,49 @@ import { insertListingSchema } from "@shared/schema";
 /** Kept for compatibility: listings are no longer cached in RAM on this route. */
 export function invalidateListingsCache() {}
 
+type PublicListingsCacheEntry = {
+  expiresAt: number;
+  payload: unknown;
+};
+
+const PUBLIC_LISTINGS_CACHE_TTL_MS = 20_000;
+const PUBLIC_LISTINGS_CACHE_MAX_KEYS = 120;
+const publicListingsCache = new Map<string, PublicListingsCacheEntry>();
+
+function isPublicCacheableRequest(
+  params: URLSearchParams,
+  includeSoldListings: boolean,
+  countOnly: boolean,
+) {
+  if (countOnly) return false;
+  if (includeSoldListings) return false;
+  if (H.qStr(params, "userId")) return false;
+  return true;
+}
+
+function getCachedPublicListings(key: string) {
+  const cached = publicListingsCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    publicListingsCache.delete(key);
+    return null;
+  }
+  return cached.payload;
+}
+
+function setCachedPublicListings(key: string, payload: unknown) {
+  if (publicListingsCache.size >= PUBLIC_LISTINGS_CACHE_MAX_KEYS) {
+    const firstKey = publicListingsCache.keys().next().value;
+    if (typeof firstKey === "string") {
+      publicListingsCache.delete(firstKey);
+    }
+  }
+  publicListingsCache.set(key, {
+    expiresAt: Date.now() + PUBLIC_LISTINGS_CACHE_TTL_MS,
+    payload,
+  });
+}
+
 export async function GET(req: NextRequest) {
   try {
     const params = req.nextUrl.searchParams;
@@ -22,6 +65,19 @@ export async function GET(req: NextRequest) {
         (viewer.id === cabinetUserId || viewer.isAdmin),
     );
 
+    const cacheable = isPublicCacheableRequest(
+      params,
+      includeSoldListings,
+      countOnly,
+    );
+    const cacheKey = cacheable ? params.toString() : null;
+    if (cacheKey) {
+      const cachedPayload = getCachedPublicListings(cacheKey);
+      if (cachedPayload) {
+        return json(cachedPayload);
+      }
+    }
+
     const { rows, total, page, limit, totalPages } = await queryListingsFromDb(
       params,
       { includeSoldListings },
@@ -29,11 +85,16 @@ export async function GET(req: NextRequest) {
     );
 
     const hasMore = page * limit < total;
-
-    return json({
+    const payload = {
       listings: rows,
       pagination: { total, page, limit, totalPages, hasMore },
-    });
+    };
+
+    if (cacheKey) {
+      setCachedPublicListings(cacheKey, payload);
+    }
+
+    return json(payload);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Server error";
     return error(message, 500);
