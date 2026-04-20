@@ -18,25 +18,15 @@ export default function ListingDetailClient({
   disableSsr = false,
   embeddedMode,
 }: ListingDetailClientProps) {
-  if (disableSsr) {
-    return (
-      <NoSSR>
-        <Suspense>
-          <ListingDetailPage
-            initialListing={initialListing}
-            initialListingId={initialListingId}
-            embeddedMode={embeddedMode}
-          />
-        </Suspense>
-      </NoSSR>
-    );
-  }
-
   return (
-    <ListingDetailPage
-      initialListing={initialListing}
-      initialListingId={initialListingId}
-      embeddedMode={embeddedMode}
-    />
+    <NoSSR>
+      <Suspense>
+        <ListingDetailPage
+          initialListing={initialListing}
+          initialListingId={initialListingId}
+          embeddedMode={embeddedMode}
+        />
+      </Suspense>
+    </NoSSR>
   );
 }
