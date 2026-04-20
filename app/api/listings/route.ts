@@ -15,6 +15,7 @@ type PublicListingsCacheEntry = {
 };
 
 const PUBLIC_LISTINGS_CACHE_TTL_MS = 20_000;
+const PUBLIC_COUNT_CACHE_TTL_MS = 15_000;
 const PUBLIC_LISTINGS_CACHE_MAX_KEYS = 120;
 const publicListingsCache = new Map<string, PublicListingsCacheEntry>();
 
@@ -23,9 +24,9 @@ function isPublicCacheableRequest(
   includeSoldListings: boolean,
   countOnly: boolean,
 ) {
-  if (countOnly) return false;
   if (includeSoldListings) return false;
   if (H.qStr(params, "userId")) return false;
+  if (countOnly) return true;
   return true;
 }
 
@@ -70,7 +71,9 @@ export async function GET(req: NextRequest) {
       includeSoldListings,
       countOnly,
     );
-    const cacheKey = cacheable ? params.toString() : null;
+    const cacheKey = cacheable
+      ? `${countOnly ? "count" : "list"}:${params.toString()}`
+      : null;
     if (cacheKey) {
       const cachedPayload = getCachedPublicListings(cacheKey);
       if (cachedPayload) {
@@ -91,7 +94,18 @@ export async function GET(req: NextRequest) {
     };
 
     if (cacheKey) {
-      setCachedPublicListings(cacheKey, payload);
+      const ttl =
+        countOnly ? PUBLIC_COUNT_CACHE_TTL_MS : PUBLIC_LISTINGS_CACHE_TTL_MS;
+      if (publicListingsCache.size >= PUBLIC_LISTINGS_CACHE_MAX_KEYS) {
+        const firstKey = publicListingsCache.keys().next().value;
+        if (typeof firstKey === "string") {
+          publicListingsCache.delete(firstKey);
+        }
+      }
+      publicListingsCache.set(cacheKey, {
+        expiresAt: Date.now() + ttl,
+        payload,
+      });
     }
 
     return json(payload);
