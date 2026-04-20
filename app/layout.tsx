@@ -141,8 +141,11 @@ export default function RootLayout({
             __html: `
               window.dataLayer = window.dataLayer || [];
               function gtag() { dataLayer.push(arguments); }
-              window.addEventListener('load', function() {
-                setTimeout(function() {
+              (function () {
+                var started = false;
+                function startAnalytics() {
+                  if (started) return;
+                  started = true;
                   var s = document.createElement('script');
                   s.src = 'https://www.googletagmanager.com/gtag/js?id=G-1VPRCXDLKP';
                   s.async = true;
@@ -151,8 +154,13 @@ export default function RootLayout({
                   gtag('config', 'G-1VPRCXDLKP', { send_page_view: true });
                   gtag('config', 'AW-17794544456');
                   gtag('config', 'AW-17768541644');
-                }, 1500);
-              });
+                }
+                var idle = window.requestIdleCallback || function (cb) { return setTimeout(cb, 2200); };
+                idle(startAnalytics, { timeout: 3000 });
+                window.addEventListener('pointerdown', startAnalytics, { once: true, passive: true });
+                window.addEventListener('keydown', startAnalytics, { once: true });
+                window.addEventListener('scroll', startAnalytics, { once: true, passive: true });
+              })();
             `,
           }}
         />
@@ -160,8 +168,11 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              window.addEventListener('load', function() {
-                setTimeout(function() {
+              (function () {
+                var started = false;
+                function startTikTok() {
+                  if (started) return;
+                  started = true;
                   !function (w, d, t) {
                     w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
                     ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"];
@@ -175,8 +186,13 @@ export default function RootLayout({
                     e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
                     ttq.load("D6OHV8BC77UBTM3F5GBG");ttq.page();
                   }(window, document, "ttq");
-                }, 2500);
-              });
+                }
+                var idle = window.requestIdleCallback || function (cb) { return setTimeout(cb, 3500); };
+                idle(startTikTok, { timeout: 5000 });
+                window.addEventListener('pointerdown', startTikTok, { once: true, passive: true });
+                window.addEventListener('keydown', startTikTok, { once: true });
+                window.addEventListener('scroll', startTikTok, { once: true, passive: true });
+              })();
             `,
           }}
         />

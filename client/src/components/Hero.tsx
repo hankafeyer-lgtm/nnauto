@@ -2791,9 +2791,14 @@ function Hero() {
           : "min-h-[400px] sm:min-h-[480px] lg:min-h-[550px]"
       }`}
     >
-      <div
-        className="absolute inset-0 bg-cover bg-center -z-10"
-        style={{ backgroundImage: `url(${heroImage})` }}
+      <img
+        src={heroImage}
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 h-full w-full object-cover -z-10"
+        loading="eager"
+        fetchPriority="high"
+        decoding="async"
       />
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70 -z-10" />
 
