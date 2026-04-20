@@ -71,6 +71,10 @@ export default async function ListingDetail({ params, searchParams }: Props) {
     : "";
   const price = listing ? Number(listing.price).toLocaleString("cs-CZ") : null;
   const listingName = `${brand} ${listing?.model ?? ""} ${listing?.year ?? ""}`.trim();
+  const modelLabel = listing?.model ? String(listing.model) : "";
+  const yearLabel = listing?.year ? String(listing.year) : "";
+  const brandFilterUrl = `${SITE_ORIGIN}/?brand=${encodeURIComponent(listing?.brand ?? "")}`;
+  const modelFilterUrl = `${brandFilterUrl}&model=${encodeURIComponent(listing?.model ?? "")}`;
   const fuelText = Array.isArray(listing?.fuelType)
     ? listing.fuelType.join(", ")
     : listing?.fuelType || "";
@@ -107,6 +111,37 @@ export default async function ListingDetail({ params, searchParams }: Props) {
         },
       }
     : null;
+  const breadcrumbJsonLd = listing
+    ? {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "NNAuto",
+            item: `${SITE_ORIGIN}/`,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: brand,
+            item: brandFilterUrl,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: modelLabel,
+            item: modelFilterUrl,
+          },
+          {
+            "@type": "ListItem",
+            position: 4,
+            name: yearLabel,
+          },
+        ],
+      }
+    : null;
   const similarListings = listing ? await getSimilarListings(listing, 6) : [];
 
   if (!listing) {
@@ -126,8 +161,25 @@ export default async function ListingDetail({ params, searchParams }: Props) {
     return (
       <>
         {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
+        {breadcrumbJsonLd ? <JsonLd data={breadcrumbJsonLd} /> : null}
         <main className="min-h-screen bg-background">
           <article className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+            <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
+              <a href="/" className="hover:underline">NNAuto</a>
+              <span className="mx-2">{">"}</span>
+              <a href={`/?brand=${encodeURIComponent(listing.brand)}`} className="hover:underline">
+                {brand}
+              </a>
+              <span className="mx-2">{">"}</span>
+              <a
+                href={`/?brand=${encodeURIComponent(listing.brand)}&model=${encodeURIComponent(listing.model)}`}
+                className="hover:underline"
+              >
+                {modelLabel}
+              </a>
+              <span className="mx-2">{">"}</span>
+              <span aria-current="page">{yearLabel}</span>
+            </nav>
             <h1 className="text-3xl font-bold">{`${brand} ${listing.model} ${listing.year}`}</h1>
             <p className="text-2xl font-semibold text-primary">{`${price} Kč`}</p>
             {listing.description ? (
@@ -183,6 +235,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
   return (
     <>
       {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
+      {breadcrumbJsonLd ? <JsonLd data={breadcrumbJsonLd} /> : null}
       <ListingDetailClient initialListing={initialListing} initialListingId={id} />
     </>
   );
