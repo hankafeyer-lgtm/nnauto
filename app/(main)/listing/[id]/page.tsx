@@ -166,22 +166,34 @@ export default async function ListingDetail({ params, searchParams }: Props) {
         {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
         {breadcrumbJsonLd ? <JsonLd data={breadcrumbJsonLd} /> : null}
         <main className="min-h-screen bg-background">
-          <div className="container mx-auto px-4 pt-4 max-w-7xl">
-            <nav aria-label="Breadcrumb" className="text-sm text-muted-foreground">
-              <a href="/" className="hover:underline">NNAuto</a>
-              <span className="mx-2">{">"}</span>
-              <a href={`/?brand=${encodeURIComponent(listing.brand)}`} className="hover:underline">
+          <div className="container mx-auto px-3 pt-3 sm:px-4 sm:pt-4 max-w-7xl">
+            <a
+              href={`/?brand=${encodeURIComponent(listing.brand)}`}
+              className="block truncate text-sm text-muted-foreground hover:underline sm:hidden"
+            >
+              {`\u2190 Nazad do ${brand}`}
+            </a>
+            <nav
+              aria-label="Breadcrumb"
+              className="hidden flex-wrap items-center gap-x-2 gap-y-1 overflow-x-auto text-sm leading-relaxed text-muted-foreground sm:flex"
+            >
+              <a href="/" className="shrink-0 hover:underline">NNAuto</a>
+              <span className="text-muted-foreground/70">{">"}</span>
+              <a
+                href={`/?brand=${encodeURIComponent(listing.brand)}`}
+                className="max-w-[40vw] truncate hover:underline sm:max-w-none"
+              >
                 {brand}
               </a>
-              <span className="mx-2">{">"}</span>
+              <span className="text-muted-foreground/70">{">"}</span>
               <a
                 href={`/?brand=${encodeURIComponent(listing.brand)}&model=${encodeURIComponent(listing.model)}`}
-                className="hover:underline"
+                className="max-w-[40vw] truncate hover:underline sm:max-w-none"
               >
                 {modelLabel}
               </a>
-              <span className="mx-2">{">"}</span>
-              <span aria-current="page">{yearLabel}</span>
+              <span className="text-muted-foreground/70">{">"}</span>
+              <span aria-current="page" className="shrink-0">{yearLabel}</span>
             </nav>
           </div>
           <ListingDetailClient
@@ -190,7 +202,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
             embeddedMode={false}
           />
           {similarListings.length ? (
-            <section className="container mx-auto px-4 py-8 max-w-7xl border-t">
+            <section className="container mx-auto mt-6 border-t px-3 py-6 sm:mt-8 sm:px-4 sm:py-8 max-w-7xl">
               <h2 className="text-xl font-semibold mb-4">Souvisejici auta</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {similarListings.map((item) => {
