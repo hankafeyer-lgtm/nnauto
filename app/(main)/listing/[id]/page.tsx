@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import JsonLd from "@lib/seo/JsonLd";
 import { SITE_ORIGIN } from "@lib/seo/constants";
-import { buildListingCarJsonLd } from "@lib/seo/structured-data";
 import ListingDetailClient from "./listing-detail-client";
 import { getListingById } from "./get-listing";
 
@@ -72,6 +71,12 @@ export default async function ListingDetail({ params, searchParams }: Props) {
     : "";
   const price = listing ? Number(listing.price).toLocaleString("cs-CZ") : null;
   const listingName = `${brand} ${listing?.model ?? ""} ${listing?.year ?? ""}`.trim();
+  const fuelText = Array.isArray(listing?.fuelType)
+    ? listing.fuelType.join(", ")
+    : listing?.fuelType || "";
+  const transmissionText = Array.isArray(listing?.transmission)
+    ? listing.transmission.join(", ")
+    : listing?.transmission || "";
   const productJsonLd = listing
     ? {
         "@context": "https://schema.org",
@@ -79,6 +84,20 @@ export default async function ListingDetail({ params, searchParams }: Props) {
         name: listingName,
         description: listing.description || `${listingName} - inzerat na NNAuto`,
         brand: brand || undefined,
+        additionalProperty: [
+          { "@type": "PropertyValue", name: "Rok", value: String(listing.year) },
+          {
+            "@type": "PropertyValue",
+            name: "Najeto",
+            value: `${listing.mileage?.toLocaleString("cs-CZ")} km`,
+          },
+          { "@type": "PropertyValue", name: "Palivo", value: fuelText || undefined },
+          {
+            "@type": "PropertyValue",
+            name: "Prevodovka",
+            value: transmissionText || undefined,
+          },
+        ].filter((item) => Boolean(item.value)),
         offers: {
           "@type": "Offer",
           price: String(Number(listing.price)),
@@ -105,7 +124,6 @@ export default async function ListingDetail({ params, searchParams }: Props) {
   if (!isEmbedded) {
     return (
       <>
-        <JsonLd data={buildListingCarJsonLd(listing)} />
         {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
         <main className="min-h-screen bg-background">
           <article className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
@@ -132,7 +150,6 @@ export default async function ListingDetail({ params, searchParams }: Props) {
 
   return (
     <>
-      <JsonLd data={buildListingCarJsonLd(listing)} />
       {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
       <ListingDetailClient initialListing={initialListing} initialListingId={id} />
     </>
