@@ -32,6 +32,10 @@ export function warmCoreRoutes() {
   const isMobileLikeViewport = isMobileViewport();
   const shouldUseLightWarmup = isConstrainedNetwork || isMobileLikeViewport;
 
+  // Keep first load responsive on mobile/slow networks.
+  // Route warmup is an enhancement, so safely skip it when device/network is constrained.
+  if (shouldUseLightWarmup) return;
+
   const warmPrimary = () => {
     void loadListingsPage();
     if (!shouldUseLightWarmup) {

@@ -3122,6 +3122,7 @@ import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
+import { canPrefetchHeavyResources } from "@/lib/queryClient";
 import { getListingMainTitle } from "@/lib/listingTitle";
 import { format } from "date-fns";
 import Header from "@/components/Header";
@@ -3594,11 +3595,12 @@ export default function ListingDetailPage({
     if (!len) return;
     const w = safeWindow();
     if (!w) return;
+    if (!canPrefetchHeavyResources()) return;
 
     const isDesktop = isLgViewport();
-    const preloadWidth = isDesktop ? 960 : 560;
-    const preloadQuality = isDesktop ? 76 : 68;
-    const preloadCount = Math.min(3, len);
+    const preloadWidth = isDesktop ? 960 : 520;
+    const preloadQuality = isDesktop ? 76 : 64;
+    const preloadCount = Math.min(isDesktop ? 3 : 1, len);
 
     const preload = () => {
       for (let i = 0; i < preloadCount; i++) {
@@ -3622,10 +3624,10 @@ export default function ListingDetailPage({
       cancelIdleCallback?: (id: number) => void;
     };
     if (idleApi.requestIdleCallback) {
-      const idleId = idleApi.requestIdleCallback(preload, { timeout: 200 });
+      const idleId = idleApi.requestIdleCallback(preload, { timeout: isDesktop ? 220 : 700 });
       return () => idleApi.cancelIdleCallback?.(idleId);
     }
-    const timeoutId = w.setTimeout(preload, 60);
+    const timeoutId = w.setTimeout(preload, isDesktop ? 80 : 300);
     return () => w.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoKeys.length, currentCarouselIndex]);

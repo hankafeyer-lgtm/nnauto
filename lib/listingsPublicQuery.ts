@@ -318,15 +318,35 @@ export async function queryListingsFromDb(
   const parts = buildWhereParts(params, ctx);
   const where = parts.length ? and(...parts) : sql`true`;
 
-  const [countRow] = await db.select({ c: count() }).from(listings).where(where);
-  const total = Number(countRow?.c ?? 0);
-
   const sort = H.normalizeSort(params.get("sort"));
   const limitNum = Math.min(100, Math.max(1, H.toInt(params.get("limit")) ?? 20));
   const pageNum = Math.max(1, H.toInt(params.get("page")) ?? 1);
+  const offset = (pageNum - 1) * limitNum;
+
+  // Fast path for the most frequent initial request: first page of listings.
+  // Run count and rows in parallel to reduce TTFB without changing response shape.
+  if (!opts?.countOnly && pageNum === 1) {
+    const orderSql = ORDER_SQL[sort];
+    const [countRows, rows] = await Promise.all([
+      db.select({ c: count() }).from(listings).where(where),
+      db
+        .select()
+        .from(listings)
+        .where(where)
+        .orderBy(sql.raw(orderSql))
+        .limit(limitNum)
+        .offset(offset),
+    ]);
+    const total = Number(countRows[0]?.c ?? 0);
+    const totalPages = Math.max(1, Math.ceil(total / limitNum));
+    return { rows, total, page: 1, limit: limitNum, totalPages };
+  }
+
+  const [countRow] = await db.select({ c: count() }).from(listings).where(where);
+  const total = Number(countRow?.c ?? 0);
   const totalPages = Math.max(1, Math.ceil(total / limitNum));
   const safePage = Math.min(pageNum, totalPages);
-  const offset = (safePage - 1) * limitNum;
+  const safeOffset = (safePage - 1) * limitNum;
 
   if (opts?.countOnly) {
     return { rows: [], total, page: safePage, limit: limitNum, totalPages };
@@ -340,7 +360,7 @@ export async function queryListingsFromDb(
     .where(where)
     .orderBy(sql.raw(orderSql))
     .limit(limitNum)
-    .offset(offset);
+    .offset(safeOffset);
 
   return { rows, total, page: safePage, limit: limitNum, totalPages };
 }
