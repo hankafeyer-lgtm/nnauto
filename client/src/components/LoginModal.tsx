@@ -254,7 +254,7 @@ export default function LoginModal({
         window.location.assign(next);
         return;
       }
-      setLocation("/add-listing");
+      window.location.assign("/profile");
     },
     onError: (error: any) => {
       // Reset Turnstile for retry (tokens are single-use)

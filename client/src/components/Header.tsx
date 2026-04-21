@@ -396,6 +396,11 @@ function HeaderContent({
     logoutMutation.mutate();
   };
 
+  const openLoginModal = (tab: "login" | "register") => {
+    setLoginModalTab(tab);
+    setLoginModalOpen(true);
+  };
+
   const handleLogoClick = () => {
     const isEmbeddedListing =
       new URLSearchParams(window.location.search).get("embedded") === "1";
@@ -455,8 +460,8 @@ function HeaderContent({
             <div
               className={`hover-elevate active-elevate-2 rounded-xl py-2 flex items-center cursor-pointer ${
                 compactMobile
-                  ? "px-1 sm:px-4 -ml-2 sm:-ml-4 gap-1.5 sm:gap-3.5"
-                  : "px-2.5 sm:px-4 -ml-3.5 sm:-ml-4 gap-2 sm:gap-3.5"
+                  ? "px-1 sm:px-4 -ml-2.5 sm:-ml-4 gap-1 sm:gap-3"
+                  : "px-2.5 sm:px-4 -ml-4 sm:-ml-4 gap-1.5 sm:gap-3"
               }`}
             >
               <div
@@ -484,7 +489,7 @@ function HeaderContent({
               <span
                 className={`font-bold tracking-tight ${
                   compactMobile
-                    ? "text-[1.65rem] leading-none max-[390px]:text-[1.4rem] sm:text-2xl md:text-3xl lg:text-4xl"
+                    ? "text-[1.65rem] leading-none max-[390px]:text-[1.35rem] sm:text-2xl md:text-3xl lg:text-4xl"
                     : "text-xl sm:text-2xl md:text-3xl lg:text-4xl"
                 }`}
               >
@@ -570,20 +575,18 @@ function HeaderContent({
 
           <div className="relative z-30 ml-auto flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
             <Button
-              asChild
               variant="outline"
               size="sm"
               className={`gap-1 px-1.5 pr-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
+              onClick={() => navigate("/add-listing")}
+              data-testid="button-open-add-listing"
             >
-              <Link
-                href="/add-listing"
-                data-testid="button-open-add-listing"
-              >
+              <span className="inline-flex items-center gap-1">
                 <Plus className="w-4 h-4" />
                 <span className="text-[11px] leading-none whitespace-nowrap sm:text-sm">
-                  {t("header.addListing")}
+                  Přidat inzerát
                 </span>
-              </Link>
+              </span>
             </Button>
             <Button
               variant="outline"
@@ -724,10 +727,11 @@ function HeaderContent({
                 {!isLoading && !isAuthenticated ? (
                   <>
                     <DropdownMenuItem
-                      onClick={() => {
-                        setLoginModalTab("login");
-                        setLoginModalOpen(true);
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        openLoginModal("login");
                       }}
+                      onClick={() => openLoginModal("login")}
                       className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
                       data-testid="menu-item-login"
                     >
@@ -735,10 +739,11 @@ function HeaderContent({
                       <span>{t("auth.login")}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      onClick={() => {
-                        setLoginModalTab("register");
-                        setLoginModalOpen(true);
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        openLoginModal("register");
                       }}
+                      onClick={() => openLoginModal("register")}
                       className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
                       data-testid="menu-item-register"
                     >
