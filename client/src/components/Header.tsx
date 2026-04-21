@@ -448,7 +448,7 @@ function HeaderContent({
         }`}
       >
         <div
-          className={`flex items-center min-w-0 max-md:justify-start max-md:gap-1.5 md:justify-between md:gap-4 lg:gap-8 ${
+          className={`flex items-center min-w-0 max-md:justify-start max-md:gap-1 md:justify-between md:gap-4 lg:gap-8 ${
             compactMobile ? "h-14 sm:h-20 lg:h-24" : "h-16 sm:h-20 lg:h-24"
           }`}
         >
@@ -460,8 +460,8 @@ function HeaderContent({
             <div
               className={`hover-elevate active-elevate-2 rounded-xl py-2 flex items-center cursor-pointer ${
                 compactMobile
-                  ? "px-1 sm:px-4 -ml-2.5 sm:-ml-4 gap-1 sm:gap-3"
-                  : "px-2.5 sm:px-4 -ml-4 sm:-ml-4 gap-1.5 sm:gap-3"
+                  ? "px-1 sm:px-4 -ml-3 sm:-ml-4 gap-0.5 sm:gap-3"
+                  : "px-2 sm:px-4 -ml-4 sm:-ml-4 gap-1 sm:gap-3"
               }`}
             >
               <div
@@ -723,7 +723,7 @@ function HeaderContent({
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-2" />
-                {!isLoading && !isAuthenticated ? (
+                {!isAuthenticated ? (
                   <>
                     <DropdownMenuItem asChild>
                       <button
@@ -824,11 +824,7 @@ function HeaderContent({
         </div>
 
         <div
-          className={`md:hidden pb-3 sm:pb-4 transition-all duration-300 ease-in-out overflow-hidden ${
-            isSearchVisible
-              ? "max-h-20 opacity-100 translate-y-0"
-              : "max-h-0 opacity-0 -translate-y-4 pb-0 pointer-events-none"
-          } ${showMobileSearch ? "" : "hidden"}`}
+          className={`md:hidden pb-3 sm:pb-4 ${showMobileSearch ? "" : "hidden"}`}
         >
           <form onSubmit={handleSearch} className="w-full">
             <div className="relative">
