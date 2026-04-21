@@ -25,7 +25,8 @@ export async function GET(
       SELECT
         COUNT(*) FILTER (WHERE event_type = 'view')::int AS views,
         COUNT(*) FILTER (WHERE event_type = 'contact_click')::int AS contact_clicks,
-        COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS whatsapp_clicks
+        COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS whatsapp_clicks,
+        COUNT(*) FILTER (WHERE event_type = 'telegram_click')::int AS telegram_clicks
       FROM listing_analytics_events
       WHERE listing_id = ${listingId}
     `)) as any;
@@ -36,6 +37,7 @@ export async function GET(
       views: Number(row?.views || 0),
       contactClicks: Number(row?.contact_clicks || 0),
       whatsappClicks: Number(row?.whatsapp_clicks || 0),
+      telegramClicks: Number(row?.telegram_clicks || 0),
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";

@@ -8,7 +8,12 @@ import { sql } from "drizzle-orm";
 import { headers } from "next/headers";
 import crypto from "crypto";
 
-const VALID_EVENT_TYPES = new Set(["view", "contact_click", "whatsapp_click"]);
+const VALID_EVENT_TYPES = new Set([
+  "view",
+  "contact_click",
+  "whatsapp_click",
+  "telegram_click",
+]);
 
 function getViewerFingerprint(ip: string, ua: string): string {
   const raw = `${ip}|${ua}`;
@@ -51,7 +56,11 @@ export async function POST(
       DO UPDATE SET updated_at = now()
     `);
 
-    if (eventType === "contact_click" || eventType === "whatsapp_click") {
+    if (
+      eventType === "contact_click" ||
+      eventType === "whatsapp_click" ||
+      eventType === "telegram_click"
+    ) {
       securityLog("contact_interaction", {
         listingId: listingId,
         kind: eventType,

@@ -169,18 +169,24 @@ const czLocationCache = new Map<
   { expiresAt: number; items: CzLocationSuggestion[] }
 >();
 
-type ListingAnalyticsEventType = "view" | "contact_click" | "whatsapp_click";
+type ListingAnalyticsEventType =
+  | "view"
+  | "contact_click"
+  | "whatsapp_click"
+  | "telegram_click";
 type ListingAnalyticsCounts = {
   listingId: string;
   views: number;
   contactClicks: number;
   whatsappClicks: number;
+  telegramClicks: number;
 };
 
 const LISTING_ANALYTICS_EVENT_TYPES = new Set<ListingAnalyticsEventType>([
   "view",
   "contact_click",
   "whatsapp_click",
+  "telegram_click",
 ]);
 
 const stableHash = (input: string): string => {
@@ -609,6 +615,7 @@ const getListingAnalyticsByIds = async (
       views: 0,
       contactClicks: 0,
       whatsappClicks: 0,
+      telegramClicks: 0,
     };
   }
 
@@ -623,7 +630,8 @@ const getListingAnalyticsByIds = async (
       listing_id,
       COUNT(*) FILTER (WHERE event_type = 'view')::int AS views,
       COUNT(*) FILTER (WHERE event_type = 'contact_click')::int AS contact_clicks,
-      COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS whatsapp_clicks
+      COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS whatsapp_clicks,
+      COUNT(*) FILTER (WHERE event_type = 'telegram_click')::int AS telegram_clicks
     FROM listing_analytics_events
     WHERE listing_id IN (${listingIdsSql})
     GROUP BY listing_id
@@ -638,6 +646,7 @@ const getListingAnalyticsByIds = async (
       views: Number(row?.views || 0),
       contactClicks: Number(row?.contact_clicks || 0),
       whatsappClicks: Number(row?.whatsapp_clicks || 0),
+      telegramClicks: Number(row?.telegram_clicks || 0),
     };
   }
 

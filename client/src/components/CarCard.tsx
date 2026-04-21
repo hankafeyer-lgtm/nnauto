@@ -16,6 +16,7 @@ import {
   Eye,
   Phone,
   MessageCircle,
+  Send,
 } from "lucide-react";
 import { Link, useLocation } from "@/lib/navigation";
 import { useFavorites } from "@/contexts/FavoritesContext";
@@ -70,6 +71,7 @@ interface CarCardProps {
     views: number;
     contactClicks: number;
     whatsappClicks: number;
+    telegramClicks: number;
   };
 }
 
@@ -137,6 +139,14 @@ function CarCard({
         >
           <MessageCircle className={`${iconCls} shrink-0`} />
           {stats.whatsappClicks}
+        </span>
+        <span
+          className="inline-flex items-center gap-1 font-medium"
+          title="Kliknutí na Telegram"
+          data-testid={`card-stat-telegram-${id}`}
+        >
+          <Send className={`${iconCls} shrink-0`} />
+          {stats.telegramClicks}
         </span>
       </div>
     );

@@ -3167,6 +3167,7 @@ type ListingAnalytics = {
   views: number;
   contactClicks: number;
   whatsappClicks: number;
+  telegramClicks: number;
 };
 
 const safeWindow = () => (typeof window !== "undefined" ? window : null);
@@ -3431,6 +3432,7 @@ export default function ListingDetailPage({
     views: 0,
     contactClicks: 0,
     whatsappClicks: 0,
+    telegramClicks: 0,
   };
 
   const listingVinRaw = (listing?.vin || "").trim().toUpperCase();
@@ -4141,7 +4143,13 @@ export default function ListingDetailPage({
   }, [listing, toast, t]);
 
   const trackListingAnalyticsEvent = useCallback(
-    async (eventType: "view" | "contact_click" | "whatsapp_click") => {
+    async (
+      eventType:
+        | "view"
+        | "contact_click"
+        | "whatsapp_click"
+        | "telegram_click",
+    ) => {
       if (!listingId) return;
       try {
         await apiRequest(
@@ -4757,7 +4765,7 @@ export default function ListingDetailPage({
                       </span>
                     </div>
 
-                    <div className="mt-4 grid grid-cols-3 gap-3">
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <div className="rounded-lg border bg-background/70 p-3 text-center">
                         <p className="text-muted-foreground text-xs">
                           {language === "uk"
@@ -4792,6 +4800,15 @@ export default function ListingDetailPage({
                           data-testid="text-analytics-card-whatsapp-clicks"
                         >
                           {listingAnalyticsSafe.whatsappClicks}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-background/70 p-3 text-center">
+                        <p className="text-muted-foreground text-xs">Telegram</p>
+                        <p
+                          className="font-semibold text-base"
+                          data-testid="text-analytics-card-telegram-clicks"
+                        >
+                          {listingAnalyticsSafe.telegramClicks}
                         </p>
                       </div>
                     </div>
@@ -5484,6 +5501,9 @@ export default function ListingDetailPage({
                         onWhatsAppClick={() =>
                           void trackListingAnalyticsEvent("whatsapp_click")
                         }
+                        onTelegramClick={() =>
+                          void trackListingAnalyticsEvent("telegram_click")
+                        }
                       />
                     ) : null}
 
@@ -5555,7 +5575,7 @@ export default function ListingDetailPage({
                             ? "Statistiky inzerátu"
                             : "Listing analytics"}
                       </p>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="text-center">
                           <p className="text-muted-foreground text-xs">
                             {language === "uk"
@@ -5592,6 +5612,17 @@ export default function ListingDetailPage({
                             data-testid="text-analytics-whatsapp-clicks"
                           >
                             {listingAnalyticsSafe.whatsappClicks}
+                          </p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-muted-foreground text-xs">
+                            Telegram
+                          </p>
+                          <p
+                            className="font-semibold"
+                            data-testid="text-analytics-telegram-clicks"
+                          >
+                            {listingAnalyticsSafe.telegramClicks}
                           </p>
                         </div>
                       </div>
@@ -5872,6 +5903,7 @@ function ContactChatButtons({
   className = "",
   toastFn,
   onWhatsAppClick,
+  onTelegramClick,
 }: {
   phone?: string | null;
   carTitle: string;
@@ -5884,6 +5916,7 @@ function ContactChatButtons({
     variant?: "default" | "destructive";
   }) => void;
   onWhatsAppClick?: () => void;
+  onTelegramClick?: () => void;
 }) {
   const digits = phoneToDigits(phone);
   if (!digits) return null;
@@ -5931,6 +5964,12 @@ function ContactChatButtons({
         size="lg"
         className={`${btn} border-[#B8860B]/30 hover:border-[#B8860B] hover:bg-[#B8860B]/5`}
         onClick={async () => {
+          // Track owner analytics: Telegram click.
+          try {
+            onTelegramClick?.();
+          } catch {
+            /* analytics never blocks UX */
+          }
           // 1) копіюємо текст (і перевіряємо чи реально скопіювало)
           const ok = await copyToClipboard(message);
 

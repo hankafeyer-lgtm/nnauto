@@ -32,9 +32,10 @@ export async function GET(req: NextRequest) {
     const result = (await db.execute(sql`
       SELECT
         listing_id,
-        COUNT(*) FILTER (WHERE event_type = 'view')::int         AS views,
+        COUNT(*) FILTER (WHERE event_type = 'view')::int          AS views,
         COUNT(*) FILTER (WHERE event_type = 'contact_click')::int  AS contact_clicks,
-        COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS whatsapp_clicks
+        COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS whatsapp_clicks,
+        COUNT(*) FILTER (WHERE event_type = 'telegram_click')::int AS telegram_clicks
       FROM listing_analytics_events
       WHERE listing_id = ANY(${ids}::text[])
         AND ${ownerFilter}
@@ -43,19 +44,30 @@ export async function GET(req: NextRequest) {
 
     const items: Record<
       string,
-      { views: number; contactClicks: number; whatsappClicks: number }
+      {
+        views: number;
+        contactClicks: number;
+        whatsappClicks: number;
+        telegramClicks: number;
+      }
     > = {};
     for (const r of result?.rows ?? []) {
       items[String(r.listing_id)] = {
         views: Number(r.views || 0),
         contactClicks: Number(r.contact_clicks || 0),
         whatsappClicks: Number(r.whatsapp_clicks || 0),
+        telegramClicks: Number(r.telegram_clicks || 0),
       };
     }
     // Fill in zeros for requested ids with no events yet — UI expects numbers.
     for (const id of ids) {
       if (!items[id]) {
-        items[id] = { views: 0, contactClicks: 0, whatsappClicks: 0 };
+        items[id] = {
+          views: 0,
+          contactClicks: 0,
+          whatsappClicks: 0,
+          telegramClicks: 0,
+        };
       }
     }
     return json({ items });
