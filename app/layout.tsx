@@ -152,6 +152,51 @@ export default function RootLayout({
         />
       </head>
       <body className={`${poppins.className} font-sans antialiased bg-background text-foreground`}>
+        {/* Resilience bootstrap: recover from stale chunk references & catch runtime errors */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var reloadedKey = 'nnauto_chunk_reload_ts';
+                  function safeSession() {
+                    try { return window.sessionStorage; } catch (e) { return null; }
+                  }
+                  function shouldReload() {
+                    var ss = safeSession();
+                    if (!ss) return true;
+                    var last = Number(ss.getItem(reloadedKey) || '0');
+                    var now = Date.now();
+                    if (now - last < 60000) return false;
+                    ss.setItem(reloadedKey, String(now));
+                    return true;
+                  }
+                  window.addEventListener('error', function (e) {
+                    try {
+                      var msg = (e && (e.message || (e.error && e.error.message))) || '';
+                      var src = (e && (e.filename || (e.target && e.target.src))) || '';
+                      var chunkLike = /ChunkLoadError|Loading chunk [^ ]+ failed|Loading CSS chunk [^ ]+ failed|Failed to fetch dynamically imported module|_next\\/static\\/chunks\\//i;
+                      if (chunkLike.test(msg) || chunkLike.test(src)) {
+                        if (shouldReload()) { window.location.reload(); }
+                      }
+                    } catch (err) {}
+                  }, true);
+                  window.addEventListener('unhandledrejection', function (e) {
+                    try {
+                      var reason = e && e.reason;
+                      var msg = reason && (reason.message || String(reason));
+                      if (!msg) return;
+                      var chunkLike = /ChunkLoadError|Loading chunk [^ ]+ failed|Loading CSS chunk [^ ]+ failed|Failed to fetch dynamically imported module/i;
+                      if (chunkLike.test(msg)) {
+                        if (shouldReload()) { window.location.reload(); }
+                      }
+                    } catch (err) {}
+                  });
+                } catch (err) {}
+              })();
+            `,
+          }}
+        />
         {children}
         {/* Google Analytics — deferred for performance */}
         <script

@@ -118,21 +118,30 @@ function HeaderContent({
   const [darkMode, setDarkMode] = useState(() => {
     if (typeof window === "undefined") return false;
     const THEME_VERSION = "v3_always_light_default";
-    const savedVersion = localStorage.getItem("zlateauto_theme_version");
+    try {
+      const savedVersion = localStorage.getItem("zlateauto_theme_version");
 
-    if (savedVersion !== THEME_VERSION) {
-      localStorage.setItem("zlateauto_theme", "light");
-      localStorage.setItem("zlateauto_theme_version", THEME_VERSION);
+      if (savedVersion !== THEME_VERSION) {
+        try {
+          localStorage.setItem("zlateauto_theme", "light");
+          localStorage.setItem("zlateauto_theme_version", THEME_VERSION);
+        } catch {
+          /* private mode / quota: silently ignore */
+        }
+        document.documentElement.classList.remove("dark");
+        return false;
+      }
+
+      const saved = localStorage.getItem("zlateauto_theme");
+      if (!saved || saved === "light") {
+        document.documentElement.classList.remove("dark");
+        return false;
+      }
+      return saved === "dark";
+    } catch {
       document.documentElement.classList.remove("dark");
       return false;
     }
-
-    const saved = localStorage.getItem("zlateauto_theme");
-    if (!saved || saved === "light") {
-      document.documentElement.classList.remove("dark");
-      return false;
-    }
-    return saved === "dark";
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchVisible, setIsSearchVisible] = useState(true);
@@ -267,12 +276,20 @@ function HeaderContent({
     const THEME_VERSION = "v3_always_light_default";
     if (darkMode) {
       document.documentElement.classList.add("dark");
-      localStorage.setItem("zlateauto_theme", "dark");
-      localStorage.setItem("zlateauto_theme_version", THEME_VERSION);
+      try {
+        localStorage.setItem("zlateauto_theme", "dark");
+        localStorage.setItem("zlateauto_theme_version", THEME_VERSION);
+      } catch {
+        /* iOS private mode / storage disabled */
+      }
     } else {
       document.documentElement.classList.remove("dark");
-      localStorage.setItem("zlateauto_theme", "light");
-      localStorage.setItem("zlateauto_theme_version", THEME_VERSION);
+      try {
+        localStorage.setItem("zlateauto_theme", "light");
+        localStorage.setItem("zlateauto_theme_version", THEME_VERSION);
+      } catch {
+        /* iOS private mode / storage disabled */
+      }
     }
   }, [darkMode]);
 
