@@ -94,9 +94,17 @@ const nextConfig = {
         ],
       },
       {
+        // HTML pages: never serve stale content to the browser. Next.js ISR
+        // can still cache server-side, but the client must always revalidate
+        // so deploys with new static chunks are picked up immediately.
         source: "/((?!_next/|api/|static/|assets/|brand-logos/|img/|objects/|hero-bg|favicon|logo-|apple-touch|site\\.webmanifest|robots|sitemap|feed\\.xml|.*\\..*$).*)",
         headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          {
+            key: "Cache-Control",
+            value:
+              "private, no-store, no-cache, must-revalidate, max-age=0",
+          },
+          { key: "Pragma", value: "no-cache" },
         ],
       },
     ];
