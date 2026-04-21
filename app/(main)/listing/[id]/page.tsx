@@ -16,21 +16,70 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!listing) return { title: "Inzerát nenalezen | NNAuto" };
 
-  const brand = listing.brand.charAt(0).toUpperCase() + listing.brand.slice(1);
+  const capitalize = (v: string) =>
+    v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+  const brand = capitalize(listing.brand || "");
+  const model = capitalize(listing.model || "");
   const price = Number(listing.price).toLocaleString("cs-CZ");
-  const title = `${brand} ${listing.model} ${listing.year} - ${price} Kč | NNAuto`;
+  const mileage = listing.mileage
+    ? listing.mileage.toLocaleString("cs-CZ")
+    : "";
+  const fuelList = Array.isArray(listing.fuelType)
+    ? listing.fuelType.filter(Boolean)
+    : [];
+  const transmissionList = Array.isArray(listing.transmission)
+    ? listing.transmission.filter(Boolean)
+    : [];
+  const fuel = capitalize(fuelList[0] || "");
+  const transmission = capitalize(transmissionList[0] || "");
+  const region = listing.region ? capitalize(String(listing.region)) : "";
+
+  // Rich, keyword-packed title — stays under Google's ~60 char soft limit in
+  // most cases while covering "brand model rok palivo město cena".
+  const titleParts = [
+    `${brand} ${model} ${listing.year}`.trim(),
+    fuel,
+    mileage ? `${mileage} km` : "",
+    `${price} Kč`,
+    region,
+  ].filter(Boolean);
+  const title = `${titleParts.join(" · ")} | NNAuto`;
+
   const photo = listing.photos?.[0];
   const imageUrl = photo
     ? `${SITE_ORIGIN}/img/${photo.replace(/^\/+/, "")}?w=1200&q=80&f=webp`
     : `${SITE_ORIGIN}/og-image.png`;
-  const desc = `${brand} ${listing.model}, rok ${listing.year}, ${listing.mileage?.toLocaleString("cs-CZ")} km, ${price} Kč.`;
+
+  // Richer meta description: auto-generates a human-readable summary that
+  // still reads natural, with concrete numbers and a call-to-action. Much
+  // better for CTR in Google than the old "brand, rok, km, cena." line.
+  const descParts: string[] = [];
+  descParts.push(`Prodám ${brand} ${model}, rok ${listing.year}`);
+  if (mileage) descParts.push(`najeto ${mileage} km`);
+  if (fuel) descParts.push(fuel.toLowerCase());
+  if (transmission) descParts.push(transmission.toLowerCase());
+  if (region) descParts.push(region);
+  let desc = descParts.join(", ") + `. Cena ${price} Kč.`;
+  if (listing.description && listing.description.trim().length) {
+    const snippet = listing.description.replace(/\s+/g, " ").trim().slice(0, 80);
+    desc += ` ${snippet}${snippet.length === 80 ? "…" : ""}`;
+  }
+  desc += " Prohlédněte si fotky a kontaktujte prodejce na NNAuto.cz.";
+  desc = desc.slice(0, 300);
+
   const keywords = [
     brand,
-    listing.model,
-    `${brand} ${listing.model}`,
-    String(listing.year),
-    listing.region,
+    model,
+    `${brand} ${model}`,
+    `${brand} ${model} ${listing.year}`,
+    `${brand} ${model} ${fuel}`.trim(),
+    `prodej ${brand} ${model}`,
+    `ojeté ${brand}`,
+    fuel ? `${fuel} ${brand}` : "",
+    region ? `auta ${region}` : "",
+    region ? `autobazar ${region}` : "",
     "prodej aut",
+    "bazar aut",
     "NNAuto",
   ]
     .filter(Boolean)

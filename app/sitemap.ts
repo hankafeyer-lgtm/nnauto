@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { db } from "@lib/db";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 import { listings } from "@shared/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 /** Regenerate sitemap periodically so new listings appear before Google’s next full sitemap read. */
 export const revalidate = 300;
@@ -17,6 +17,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .from(listings)
     .where(eq(listings.isSold, false))
     .orderBy(desc(listings.updatedAt));
+
+  // Distinct brands that currently have at least one active listing. Each
+  // gets its own SEO landing page at /auta/<brand>.
+  const brandRows = await db
+    .select({
+      brand: listings.brand,
+      lastUpdate: sql<Date>`max(${listings.updatedAt})`,
+    })
+    .from(listings)
+    .where(eq(listings.isSold, false))
+    .groupBy(listings.brand);
 
   const staticPages: MetadataRoute.Sitemap = [
     {
@@ -70,5 +81,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...staticPages, ...listingPages];
+  const brandPages: MetadataRoute.Sitemap = brandRows
+    .filter((b) => !!b.brand)
+    .map((b) => ({
+      url: `${SITE_ORIGIN}/auta/${encodeURIComponent(String(b.brand).toLowerCase())}`,
+      lastModified: b.lastUpdate ? new Date(b.lastUpdate) : new Date(),
+      changeFrequency: "daily" as const,
+      priority: 0.75,
+    }));
+
+  return [...staticPages, ...brandPages, ...listingPages];
 }
