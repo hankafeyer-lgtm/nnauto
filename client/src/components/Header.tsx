@@ -575,18 +575,17 @@ function HeaderContent({
 
           <div className="relative z-30 ml-auto flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
             <Button
+              asChild
               variant="outline"
               size="sm"
               className={`gap-1 px-1.5 pr-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
-              onClick={() => navigate("/add-listing")}
-              data-testid="button-open-add-listing"
             >
-              <span className="inline-flex items-center gap-1">
+              <a href="/add-listing" data-testid="button-open-add-listing" className="inline-flex items-center gap-1">
                 <Plus className="w-4 h-4" />
                 <span className="text-[11px] leading-none whitespace-nowrap sm:text-sm">
                   Přidat inzerát
                 </span>
-              </span>
+              </a>
             </Button>
             <Button
               variant="outline"
@@ -726,29 +725,27 @@ function HeaderContent({
                 <DropdownMenuSeparator className="my-2" />
                 {!isLoading && !isAuthenticated ? (
                   <>
-                    <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        openLoginModal("login");
-                      }}
-                      onClick={() => openLoginModal("login")}
-                      className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
-                      data-testid="menu-item-login"
-                    >
-                      <LogIn className="mr-3 h-5 w-5" />
-                      <span>{t("auth.login")}</span>
+                    <DropdownMenuItem asChild>
+                      <button
+                        type="button"
+                        onClick={() => openLoginModal("login")}
+                        className="w-full px-3 py-3 text-base rounded-lg border border-transparent hover:border-border text-left flex items-center"
+                        data-testid="menu-item-login"
+                      >
+                        <LogIn className="mr-3 h-5 w-5" />
+                        <span>{t("auth.login")}</span>
+                      </button>
                     </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        openLoginModal("register");
-                      }}
-                      onClick={() => openLoginModal("register")}
-                      className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
-                      data-testid="menu-item-register"
-                    >
-                      <UserPlus className="mr-3 h-5 w-5" />
-                      <span>{t("auth.register")}</span>
+                    <DropdownMenuItem asChild>
+                      <button
+                        type="button"
+                        onClick={() => openLoginModal("register")}
+                        className="w-full px-3 py-3 text-base rounded-lg border border-transparent hover:border-border text-left flex items-center"
+                        data-testid="menu-item-register"
+                      >
+                        <UserPlus className="mr-3 h-5 w-5" />
+                        <span>{t("auth.register")}</span>
+                      </button>
                     </DropdownMenuItem>
                   </>
                 ) : isAuthenticated ? (
