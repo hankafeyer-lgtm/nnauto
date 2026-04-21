@@ -3421,8 +3421,17 @@ export default function ListingDetailPage({
     queryKey: [`/api/listings/${listingId}/analytics`],
     enabled: !!listingId && canSeeListingAnalytics,
     refetchInterval: canSeeListingAnalytics ? 60000 : false,
-    retry: false,
+    retry: 2,
+    retryDelay: 1500,
+    staleTime: 15_000,
   });
+
+  const listingAnalyticsSafe: ListingAnalytics = listingAnalytics ?? {
+    listingId: listingId,
+    views: 0,
+    contactClicks: 0,
+    whatsappClicks: 0,
+  };
 
   const listingVinRaw = (listing?.vin || "").trim().toUpperCase();
   const hasValidVin = /^[A-HJ-NPR-Z0-9]{17}$/.test(listingVinRaw);
@@ -4728,7 +4737,7 @@ export default function ListingDetailPage({
                 )}
               </Card>
 
-              {canSeeListingAnalytics && listingAnalytics ? (
+              {canSeeListingAnalytics ? (
                 <Card className="rounded-2xl border-[#B8860B]/20 bg-[#B8860B]/5">
                   <CardContent className="p-4 md:p-5">
                     <div className="flex items-center justify-between gap-3">
@@ -4758,7 +4767,7 @@ export default function ListingDetailPage({
                               : "Views"}
                         </p>
                         <p className="font-semibold text-base" data-testid="text-analytics-card-views">
-                          {listingAnalytics.views}
+                          {listingAnalyticsSafe.views}
                         </p>
                       </div>
                       <div className="rounded-lg border bg-background/70 p-3 text-center">
@@ -4773,7 +4782,7 @@ export default function ListingDetailPage({
                           className="font-semibold text-base"
                           data-testid="text-analytics-card-contact-clicks"
                         >
-                          {listingAnalytics.contactClicks}
+                          {listingAnalyticsSafe.contactClicks}
                         </p>
                       </div>
                       <div className="rounded-lg border bg-background/70 p-3 text-center">
@@ -4782,7 +4791,7 @@ export default function ListingDetailPage({
                           className="font-semibold text-base"
                           data-testid="text-analytics-card-whatsapp-clicks"
                         >
-                          {listingAnalytics.whatsappClicks}
+                          {listingAnalyticsSafe.whatsappClicks}
                         </p>
                       </div>
                     </div>
@@ -5537,7 +5546,7 @@ export default function ListingDetailPage({
 
                   <Separator />
 
-                  {canSeeListingAnalytics && listingAnalytics ? (
+                  {canSeeListingAnalytics ? (
                     <div className="space-y-3 text-sm rounded-xl border p-3 bg-muted/20">
                       <p className="font-semibold">
                         {language === "uk"
@@ -5556,7 +5565,7 @@ export default function ListingDetailPage({
                                 : "Views"}
                           </p>
                           <p className="font-semibold" data-testid="text-analytics-views">
-                            {listingAnalytics.views}
+                            {listingAnalyticsSafe.views}
                           </p>
                         </div>
                         <div className="text-center">
@@ -5571,7 +5580,7 @@ export default function ListingDetailPage({
                             className="font-semibold"
                             data-testid="text-analytics-contact-clicks"
                           >
-                            {listingAnalytics.contactClicks}
+                            {listingAnalyticsSafe.contactClicks}
                           </p>
                         </div>
                         <div className="text-center">
@@ -5582,7 +5591,7 @@ export default function ListingDetailPage({
                             className="font-semibold"
                             data-testid="text-analytics-whatsapp-clicks"
                           >
-                            {listingAnalytics.whatsappClicks}
+                            {listingAnalyticsSafe.whatsappClicks}
                           </p>
                         </div>
                       </div>
