@@ -94,19 +94,7 @@ const nextConfig = {
         ],
       },
       {
-        source: "/",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-        ],
-      },
-      {
-        source: "/listing/:id*",
-        headers: [
-          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
-        ],
-      },
-      {
-        source: "/listings",
+        source: "/((?!_next/|api/|static/|assets/|brand-logos/|img/|objects/|hero-bg|favicon|logo-|apple-touch|site\\.webmanifest|robots|sitemap|feed\\.xml|.*\\..*$).*)",
         headers: [
           { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
         ],

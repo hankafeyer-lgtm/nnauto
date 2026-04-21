@@ -1,5 +1,26 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { Poppins } from "next/font/google";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f3ea" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+  colorScheme: "light dark",
+};
+
+const poppins = Poppins({
+  subsets: ["latin", "latin-ext"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
+  display: "swap",
+  preload: true,
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://nnauto.cz"),
@@ -100,18 +121,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="cs-CZ" suppressHydrationWarning>
+    <html lang="cs-CZ" className={poppins.variable} suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
         <link
           rel="preconnect"
           href="https://pub-d325306cbf594d02a62f39fb6a92a0fd.r2.dev"
@@ -140,7 +151,7 @@ export default function RootLayout({
           imageSrcSet="/hero-bg.webp"
         />
       </head>
-      <body className="font-sans antialiased bg-background text-foreground">
+      <body className={`${poppins.className} font-sans antialiased bg-background text-foreground`}>
         {children}
         {/* Google Analytics — deferred for performance */}
         <script
