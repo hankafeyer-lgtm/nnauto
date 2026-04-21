@@ -129,18 +129,8 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          rel="preconnect"
-          href="https://challenges.cloudflare.com"
-          crossOrigin="anonymous"
-        />
-        <link
           rel="dns-prefetch"
           href="https://challenges.cloudflare.com"
-        />
-        <script
-          src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
-          async
-          defer
         />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
         <link
@@ -346,11 +336,13 @@ export default function RootLayout({
                   gtag('config', 'AW-17794544456');
                   gtag('config', 'AW-17768541644');
                 }
-                var idle = window.requestIdleCallback || function (cb) { return setTimeout(cb, 2200); };
-                idle(startAnalytics, { timeout: 3000 });
+                // Kick off analytics only after a real user gesture. If nothing happens within 12s,
+                // start anyway so bounce-at-top visits are still measured.
                 window.addEventListener('pointerdown', startAnalytics, { once: true, passive: true });
                 window.addEventListener('keydown', startAnalytics, { once: true });
                 window.addEventListener('scroll', startAnalytics, { once: true, passive: true });
+                window.addEventListener('touchstart', startAnalytics, { once: true, passive: true });
+                window.setTimeout(startAnalytics, 12000);
               })();
             `,
           }}
@@ -378,11 +370,13 @@ export default function RootLayout({
                     ttq.load("D6OHV8BC77UBTM3F5GBG");ttq.page();
                   }(window, document, "ttq");
                 }
-                var idle = window.requestIdleCallback || function (cb) { return setTimeout(cb, 3500); };
-                idle(startTikTok, { timeout: 5000 });
+                // TikTok pixel is the heaviest remote script — only load on actual user activity,
+                // and as a fallback after 15s so long-tail conversions still count.
                 window.addEventListener('pointerdown', startTikTok, { once: true, passive: true });
                 window.addEventListener('keydown', startTikTok, { once: true });
                 window.addEventListener('scroll', startTikTok, { once: true, passive: true });
+                window.addEventListener('touchstart', startTikTok, { once: true, passive: true });
+                window.setTimeout(startTikTok, 15000);
               })();
             `,
           }}
