@@ -2751,7 +2751,9 @@ function FilterSidebar() {
   // =========================
   // ✅ AUTO APPLY (без кнопки)
   // =========================
-  const APPLY_DEBOUNCE_MS = 350;
+  // Short debounce: click-style filters (brand/body/fuel/etc) should feel instant.
+  // Range sliders use their own longer debounce inside useFilterParams.setXxxRange.
+  const APPLY_DEBOUNCE_MS = 80;
   const AUTO_APPLY_FILTERS = true;
 
   const applyRef = useRef(applyFilters);
@@ -2773,21 +2775,9 @@ function FilterSidebar() {
     }
 
     const id = window.setTimeout(() => {
-      const preservedScrollY = window.scrollY;
       applyRef.current();
-      // Keep user in the current filter area after auto-apply.
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
-      });
-      window.setTimeout(() => {
-        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
-      }, 120);
-      window.setTimeout(() => {
-        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
-      }, 260);
-      window.setTimeout(() => {
-        window.scrollTo({ top: preservedScrollY, left: 0, behavior: "auto" });
-      }, 420);
+      // No scroll compensation: ListingsPage keeps the current scroll position
+      // when only query params change, so filter clicks feel stable on desktop.
     }, APPLY_DEBOUNCE_MS);
 
     return () => window.clearTimeout(id);
@@ -2797,9 +2787,6 @@ function FilterSidebar() {
     // Let pending state updates flush before applying URL filters.
     window.setTimeout(() => {
       applyRef.current();
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
-      });
     }, 0);
   };
 

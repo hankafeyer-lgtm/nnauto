@@ -3965,7 +3965,8 @@ export default function ListingsPage() {
       p.delete("page");
     });
 
-    scrollToTop();
+    // Intentionally no scrollToTop() here: changing a filter should update
+    // the list in place without yanking the user back to the top.
   }, [filterOnlyKey]);
 
   /* ----- accumulation (load more) ----- */

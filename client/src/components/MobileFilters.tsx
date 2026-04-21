@@ -3052,7 +3052,9 @@ function MobileFilters({
   // =========================
   // ✅ AUTO APPLY (як у sidebar)
   // =========================
-  const APPLY_DEBOUNCE_MS = 350;
+  // Short debounce so a single filter click is reflected in the list near-instantly.
+  // Range sliders use their own longer debounce inside useFilterParams.setXxxRange.
+  const APPLY_DEBOUNCE_MS = 80;
 
   const applyRef = useRef(applyFilters);
   useEffect(() => {
