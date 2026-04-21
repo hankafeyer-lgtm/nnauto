@@ -152,6 +152,50 @@ export default function RootLayout({
         />
       </head>
       <body className={`${poppins.className} font-sans antialiased bg-background text-foreground`}>
+        {/* Safe storage shim: replace broken localStorage/sessionStorage (iOS private mode, disabled cookies) with in-memory fallback */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                function makeMemoryStorage() {
+                  var map = Object.create(null);
+                  return {
+                    getItem: function (k) { return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null; },
+                    setItem: function (k, v) { map[k] = String(v); },
+                    removeItem: function (k) { delete map[k]; },
+                    clear: function () { map = Object.create(null); },
+                    key: function (i) { var keys = Object.keys(map); return i < keys.length ? keys[i] : null; },
+                    get length() { return Object.keys(map).length; },
+                  };
+                }
+                function isBroken(kind) {
+                  try {
+                    var s = window[kind];
+                    if (!s) return true;
+                    var probe = '__nn_probe__';
+                    s.setItem(probe, '1');
+                    s.removeItem(probe);
+                    return false;
+                  } catch (e) { return true; }
+                }
+                try {
+                  if (isBroken('localStorage')) {
+                    Object.defineProperty(window, 'localStorage', { value: makeMemoryStorage(), configurable: true });
+                  }
+                } catch (e) {
+                  try { Object.defineProperty(window, 'localStorage', { value: makeMemoryStorage(), configurable: true }); } catch (e2) {}
+                }
+                try {
+                  if (isBroken('sessionStorage')) {
+                    Object.defineProperty(window, 'sessionStorage', { value: makeMemoryStorage(), configurable: true });
+                  }
+                } catch (e) {
+                  try { Object.defineProperty(window, 'sessionStorage', { value: makeMemoryStorage(), configurable: true }); } catch (e2) {}
+                }
+              })();
+            `,
+          }}
+        />
         {/* Resilience bootstrap: recover from stale chunk references & catch runtime errors */}
         <script
           dangerouslySetInnerHTML={{
