@@ -103,11 +103,10 @@ function CarCard({
   onOpenListing,
   stats,
 }: CarCardProps) {
-  // Inline stats strip for "Moje inzeráty" — no need to open the listing
-  // to see view / contact / WhatsApp / Telegram counts. The block shows as
-  // soon as we know this is an owner-view card; if batch analytics have not
-  // arrived yet we render zeros and they hydrate to real numbers without
-  // any layout shift.
+  // Owner-only inline analytics block shown on each listing card in
+  // "Moje inzeráty" — matches the layout of the detailed analytics card on
+  // the listing page so the owner sees the same information without
+  // opening the listing.
   const StatsRow = ({ compact = false }: { compact?: boolean }) => {
     if (!isOwner) return null;
     const safe = stats ?? {
@@ -117,46 +116,71 @@ function CarCard({
       telegramClicks: 0,
     };
     const iconCls = compact ? "h-3.5 w-3.5" : "h-4 w-4";
-    const textCls = compact ? "text-[11px]" : "text-xs sm:text-sm";
     return (
       <div
-        className={`flex items-center gap-3 sm:gap-4 pt-2 mt-2 border-t border-[#B8860B]/20 text-[#6b5a2a] dark:text-[#D4AF37] ${textCls}`}
+        className="pt-3 mt-3 border-t border-[#B8860B]/25"
         data-testid={`card-stats-${id}`}
         aria-label="Statistiky inzerátu"
         onClick={(e) => e.stopPropagation()}
       >
-        <span
-          className="inline-flex items-center gap-1 font-medium"
-          title="Zobrazení"
-          data-testid={`card-stat-views-${id}`}
-        >
-          <Eye className={`${iconCls} shrink-0`} />
-          {safe.views}
-        </span>
-        <span
-          className="inline-flex items-center gap-1 font-medium"
-          title="Kliknutí na kontakt"
-          data-testid={`card-stat-contact-${id}`}
-        >
-          <Phone className={`${iconCls} shrink-0`} />
-          {safe.contactClicks}
-        </span>
-        <span
-          className="inline-flex items-center gap-1 font-medium"
-          title="Kliknutí na WhatsApp"
-          data-testid={`card-stat-whatsapp-${id}`}
-        >
-          <MessageCircle className={`${iconCls} shrink-0`} />
-          {safe.whatsappClicks}
-        </span>
-        <span
-          className="inline-flex items-center gap-1 font-medium"
-          title="Kliknutí na Telegram"
-          data-testid={`card-stat-telegram-${id}`}
-        >
-          <Send className={`${iconCls} shrink-0`} />
-          {safe.telegramClicks}
-        </span>
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <p className="text-[11px] sm:text-xs font-semibold text-[#6b5a2a] dark:text-[#D4AF37] uppercase tracking-wide">
+            Statistiky inzerátu
+          </p>
+          <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+            Pouze pro vlastníka
+          </span>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2">
+          <div
+            className="rounded-md border border-[#B8860B]/20 bg-[#B8860B]/5 px-2 py-1.5 text-center"
+            data-testid={`card-stat-views-${id}`}
+          >
+            <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+              <Eye className={`${iconCls} shrink-0 text-[#6b5a2a] dark:text-[#D4AF37]`} />
+              <span>Zobrazení</span>
+            </div>
+            <p className="font-semibold text-sm sm:text-base text-black dark:text-white">
+              {safe.views}
+            </p>
+          </div>
+          <div
+            className="rounded-md border border-[#B8860B]/20 bg-[#B8860B]/5 px-2 py-1.5 text-center"
+            data-testid={`card-stat-contact-${id}`}
+          >
+            <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+              <Phone className={`${iconCls} shrink-0 text-[#6b5a2a] dark:text-[#D4AF37]`} />
+              <span>Kontakt</span>
+            </div>
+            <p className="font-semibold text-sm sm:text-base text-black dark:text-white">
+              {safe.contactClicks}
+            </p>
+          </div>
+          <div
+            className="rounded-md border border-[#B8860B]/20 bg-[#B8860B]/5 px-2 py-1.5 text-center"
+            data-testid={`card-stat-whatsapp-${id}`}
+          >
+            <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+              <MessageCircle className={`${iconCls} shrink-0 text-[#25D366]`} />
+              <span>WhatsApp</span>
+            </div>
+            <p className="font-semibold text-sm sm:text-base text-black dark:text-white">
+              {safe.whatsappClicks}
+            </p>
+          </div>
+          <div
+            className="rounded-md border border-[#B8860B]/20 bg-[#B8860B]/5 px-2 py-1.5 text-center"
+            data-testid={`card-stat-telegram-${id}`}
+          >
+            <div className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+              <Send className={`${iconCls} shrink-0 text-[#229ED9]`} />
+              <span>Telegram</span>
+            </div>
+            <p className="font-semibold text-sm sm:text-base text-black dark:text-white">
+              {safe.telegramClicks}
+            </p>
+          </div>
+        </div>
       </div>
     );
   };
