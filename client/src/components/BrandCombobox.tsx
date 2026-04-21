@@ -43,6 +43,20 @@ const normalizeSearchText = (value: string) =>
 
 const warmedBrandIconUrls = new Set<string>();
 
+// Prefer the 120x-smaller WebP version when the source is a bundled brand logo.
+function brandIconWarmUrl(src: string): string {
+  try {
+    if (src.startsWith("/brand-logos/")) {
+      return src
+        .replace("/brand-logos/", "/brand-logos-webp/")
+        .replace(/\.(png|jpg|jpeg)$/i, ".webp");
+    }
+  } catch {
+    /* fall back to original */
+  }
+  return src;
+}
+
 export function BrandCombobox({
   brands,
   value,
@@ -68,7 +82,7 @@ export function BrandCombobox({
       warmedBrandIconUrls.add(url);
       const img = new Image();
       img.decoding = "async";
-      img.src = url;
+      img.src = brandIconWarmUrl(url);
     };
 
     // Warm visible part quickly, rest in idle to avoid UI jank.
