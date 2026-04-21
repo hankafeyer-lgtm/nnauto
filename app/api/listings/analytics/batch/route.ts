@@ -25,21 +25,25 @@ export async function GET(req: NextRequest) {
     );
     if (!ids.length) return json({ items: {} });
 
+    // Security: instead of trusting listing_analytics_events.owner_user_id
+    // (which historically may be NULL for older rows), join on listings.user_id.
+    // Admins get stats for any id. Regular users only see their own listings.
     const ownerFilter = user.isAdmin
       ? sql`true`
-      : sql`owner_user_id = ${user.id}`;
+      : sql`l.user_id = ${user.id}`;
 
     const result = (await db.execute(sql`
       SELECT
-        listing_id,
-        COUNT(*) FILTER (WHERE event_type = 'view')::int          AS views,
-        COUNT(*) FILTER (WHERE event_type = 'contact_click')::int  AS contact_clicks,
-        COUNT(*) FILTER (WHERE event_type = 'whatsapp_click')::int AS whatsapp_clicks,
-        COUNT(*) FILTER (WHERE event_type = 'telegram_click')::int AS telegram_clicks
-      FROM listing_analytics_events
-      WHERE listing_id = ANY(${ids}::text[])
+        lae.listing_id,
+        COUNT(*) FILTER (WHERE lae.event_type = 'view')::int          AS views,
+        COUNT(*) FILTER (WHERE lae.event_type = 'contact_click')::int  AS contact_clicks,
+        COUNT(*) FILTER (WHERE lae.event_type = 'whatsapp_click')::int AS whatsapp_clicks,
+        COUNT(*) FILTER (WHERE lae.event_type = 'telegram_click')::int AS telegram_clicks
+      FROM listing_analytics_events lae
+      JOIN listings l ON l.id = lae.listing_id
+      WHERE lae.listing_id = ANY(${ids}::text[])
         AND ${ownerFilter}
-      GROUP BY listing_id
+      GROUP BY lae.listing_id
     `)) as any;
 
     const items: Record<
