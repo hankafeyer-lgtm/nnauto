@@ -430,7 +430,7 @@
 //   };
 // }
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useLocation } from "@/lib/navigation";
+import { useLocation, useSearch } from "@/lib/navigation";
 
 export interface FilterParams {
   search?: string;
@@ -569,9 +569,18 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
   const [location, setLocation] = useLocation();
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  // Reactive Next.js search params — updates automatically on router.push/replace,
+  // so every useFilterParams consumer resynchronises on URL changes without relying
+  // on manual popstate events.
+  const nextSearch = useSearch();
   const [urlSearchState, setUrlSearchState] = useState(
     typeof window !== "undefined" ? window.location.search : "",
   );
+
+  // Keep the internal mirror in sync with the live search string from Next router.
+  useEffect(() => {
+    setUrlSearchState(nextSearch);
+  }, [nextSearch]);
 
   // Prevent a pending debounced URL update from firing after unmount (e.g. user opens a listing)
   useEffect(() => {

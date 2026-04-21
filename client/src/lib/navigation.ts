@@ -8,15 +8,29 @@ export { useParams } from "next/navigation";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
-export function useLocation(): [string, (to: string, options?: { replace?: boolean }) => void] {
+export function useLocation(): [
+  string,
+  (
+    to: string,
+    options?: { replace?: boolean; scroll?: boolean },
+  ) => void,
+] {
   const pathname = usePathname();
   const router = useRouter();
 
-  const navigate = (to: string, options?: { replace?: boolean }) => {
+  const navigate = (
+    to: string,
+    options?: { replace?: boolean; scroll?: boolean },
+  ) => {
+    // Next.js App Router scrolls the window to the top on every push/replace by
+    // default, which caused the "filter click yanks the page back to top" bug
+    // on desktop. We default to scroll: false so callers stay put unless they
+    // explicitly request otherwise (e.g. clicking the logo / nav links).
+    const navOptions = { scroll: options?.scroll ?? false };
     if (options?.replace) {
-      router.replace(to);
+      router.replace(to, navOptions);
     } else {
-      router.push(to);
+      router.push(to, navOptions);
     }
   };
 

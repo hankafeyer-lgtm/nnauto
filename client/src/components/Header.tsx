@@ -448,7 +448,8 @@ function HeaderContent({
       return;
     }
 
-    navigate("/", { replace: true });
+    // Logo click explicitly scrolls the user back to the top of the home page.
+    navigate("/", { replace: true, scroll: true });
   };
 
   return (
