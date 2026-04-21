@@ -13,6 +13,9 @@ import {
   Pencil,
   Trash2,
   CheckCircle2,
+  Eye,
+  Phone,
+  MessageCircle,
 } from "lucide-react";
 import { Link, useLocation } from "@/lib/navigation";
 import { useFavorites } from "@/contexts/FavoritesContext";
@@ -62,6 +65,12 @@ interface CarCardProps {
   priority?: boolean;
   vatDeductible?: boolean;
   onOpenListing?: (id: string) => void;
+  /** Owner-only inline stats: shown on cards under "Moje inzeráty". */
+  stats?: {
+    views: number;
+    contactClicks: number;
+    whatsappClicks: number;
+  };
 }
 
 function CarCard({
@@ -90,7 +99,48 @@ function CarCard({
   priority = false,
   vatDeductible = false,
   onOpenListing,
+  stats,
 }: CarCardProps) {
+  // Inline stats strip for "Moje inzeráty" — no need to open the listing
+  // to see views / contact / WhatsApp counts.
+  const StatsRow = ({ compact = false }: { compact?: boolean }) => {
+    if (!isOwner || !stats) return null;
+    const iconCls = compact ? "h-3.5 w-3.5" : "h-4 w-4";
+    const textCls = compact ? "text-[11px]" : "text-xs sm:text-sm";
+    return (
+      <div
+        className={`flex items-center gap-3 sm:gap-4 pt-2 mt-2 border-t border-[#B8860B]/20 text-[#6b5a2a] dark:text-[#D4AF37] ${textCls}`}
+        data-testid={`card-stats-${id}`}
+        aria-label="Statistiky inzerátu"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span
+          className="inline-flex items-center gap-1 font-medium"
+          title="Zobrazení"
+          data-testid={`card-stat-views-${id}`}
+        >
+          <Eye className={`${iconCls} shrink-0`} />
+          {stats.views}
+        </span>
+        <span
+          className="inline-flex items-center gap-1 font-medium"
+          title="Kliknutí na kontakt"
+          data-testid={`card-stat-contact-${id}`}
+        >
+          <Phone className={`${iconCls} shrink-0`} />
+          {stats.contactClicks}
+        </span>
+        <span
+          className="inline-flex items-center gap-1 font-medium"
+          title="Kliknutí na WhatsApp"
+          data-testid={`card-stat-whatsapp-${id}`}
+        >
+          <MessageCircle className={`${iconCls} shrink-0`} />
+          {stats.whatsappClicks}
+        </span>
+      </div>
+    );
+  };
   const [, navigate] = useLocation();
   const { isFavorite, toggleFavorite } = useFavorites();
   const t = useTranslation();
@@ -441,6 +491,7 @@ function CarCard({
                   </div>
                   {/* <span className="truncate ml-2">{datePosted}</span> */}
                 </div>
+                <StatsRow compact />
               </CardContent>
             </div>
           </Card>
@@ -684,6 +735,7 @@ function CarCard({
               </div>
               {/* <span className="truncate ml-2">{datePosted}</span> */}
             </div>
+            <StatsRow />
           </CardContent>
         </Card>
       </Link>

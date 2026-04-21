@@ -4297,6 +4297,53 @@ export default function ListingsPage() {
     return map;
   }, [regions]);
 
+  // Owner-only batch analytics for "Moje inzeráty": one request for all
+  // visible cards that belong to the current user. Shown inline on the card
+  // so the owner does not have to open the listing to see view/contact counts.
+  const ownedListingIds = useMemo(() => {
+    if (!user?.id) return [] as string[];
+    return sortedListings
+      .filter((l) => l.userId === user.id)
+      .map((l) => l.id);
+  }, [sortedListings, user?.id]);
+
+  const ownedIdsKey = useMemo(
+    () => [...ownedListingIds].sort().join(","),
+    [ownedListingIds],
+  );
+
+  const { data: ownerStatsData } = useQuery<{
+    items: Record<
+      string,
+      { views: number; contactClicks: number; whatsappClicks: number }
+    >;
+  }>({
+    queryKey: [
+      "/api/listings/analytics/batch",
+      ownedIdsKey,
+    ],
+    enabled: ownedListingIds.length > 0,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: 1,
+    queryFn: async () => {
+      if (!ownedListingIds.length) return { items: {} };
+      const res = await apiRequest(
+        "GET",
+        `/api/listings/analytics/batch?ids=${encodeURIComponent(
+          ownedListingIds.join(","),
+        )}`,
+      );
+      return (await res.json()) as {
+        items: Record<
+          string,
+          { views: number; contactClicks: number; whatsappClicks: number }
+        >;
+      };
+    },
+  });
+  const ownerStats = ownerStatsData?.items ?? {};
+
   const cars = useMemo(() => {
     return sortedListings.map((listing) => {
       const regionLabel = regionLabelMap.get(listing.region || "") || listing.region || "";
@@ -4616,6 +4663,7 @@ export default function ListingsPage() {
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         priority={index < 3}
+                        stats={isOwner ? ownerStats[car.id] : undefined}
                       />
                     );
                   })}
@@ -4780,6 +4828,7 @@ export default function ListingsPage() {
                         onToggleSold={isOwner ? handleToggleSold : undefined}
                         isTogglingSold={isTogglingSold}
                         priority={index < 3}
+                        stats={isOwner ? ownerStats[car.id] : undefined}
                       />
                     );
                   })}
