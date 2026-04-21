@@ -55,6 +55,18 @@ function getToken(): string | null {
   }
 }
 
+function getCachedUser(): SafeUser | null {
+  try {
+    const raw = localStorage.getItem(LS_USER_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SafeUser | null;
+    if (!parsed || typeof parsed !== "object" || !parsed.id) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 function isJwtExpired(token: string): boolean {
   try {
     const parts = token.split(".");
@@ -132,26 +144,56 @@ export function useAuth() {
   const { data, isLoading, isFetching, error } = useQuery<{ user: SafeUser | null }>({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    retry: false,
-    enabled: true,
+    // One retry with a short back-off: temporary network blips on mobile
+    // Safari should not silently log the user out.
+    retry: 1,
+    retryDelay: 800,
+    // While we hold a locally-cached user, react-query can keep it as
+    // initialData so the UI does not flash "logged out" between requests.
+    staleTime: 60_000,
   });
 
   const serverUser = data?.user ?? null;
+  const cachedUser = useMemo(
+    () => (typeof window === "undefined" ? null : getCachedUser()),
+    // cachedUser is read once on mount; later writes happen via LoginModal/logout.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
 
-  // If a token exists but server returns user:null (or 401->returnNull),
-  // perform a full logout/cleanup.
+  // If the server genuinely confirms the token is unauthorised (401 -> null)
+  // we want to log the user out. Network errors must NOT log them out.
+  // Heuristic: we consider it "confirmed unauthorised" only when the query
+  // successfully resolved with user:null (not when it errored). getQueryFn
+  // with on401=returnNull returns `{ user: null }` for 401; for network
+  // errors it throws, which leaves `data` undefined (so `data` is defined
+  // only for successful responses).
+  const confirmedUnauthorized =
+    data !== undefined && serverUser === null && hasToken && !tokenInvalid;
+
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (hasToken && !tokenInvalid && !isLoading && !isFetching && !serverUser) {
+    if (confirmedUnauthorized) {
       logout();
     }
-  }, [hasToken, tokenInvalid, isLoading, isFetching, serverUser, logout]);
+  }, [confirmedUnauthorized, logout]);
 
-  const user = tokenInvalid ? null : serverUser;
+  // Resolve the effective user. Priority:
+  //   1. JWT expired locally → logged out
+  //   2. Server returned fresh user → use it (source of truth)
+  //   3. No server response yet but we have a cached user + valid token → use cache
+  //      so users stay logged in across hard-refresh / tab re-open for the whole
+  //      7-day JWT lifetime even on flaky mobile networks.
+  const user = tokenInvalid
+    ? null
+    : serverUser ?? (hasToken ? cachedUser : null);
+
+  const stillResolving =
+    !tokenInvalid && hasToken && isLoading && !cachedUser && !serverUser;
 
   return {
     user,
-    isLoading: tokenInvalid ? false : isLoading,
+    isLoading: stillResolving,
     isAuthenticated: !!user,
     error,
     logout, // 👈 викликай з кнопки “Вийти”
