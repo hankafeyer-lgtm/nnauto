@@ -1,8 +1,19 @@
-import { NextRequest } from "next/server";
-import { json, error } from "@lib/api-helpers";
+import { NextRequest, NextResponse } from "next/server";
+import { error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { db } from "@lib/db";
 import { sql } from "drizzle-orm";
+
+/** Force-fresh response (owner stats change whenever someone views). */
+function freshJson(data: unknown, status = 200) {
+  return NextResponse.json(data, {
+    status,
+    headers: {
+      "Cache-Control": "private, no-store, no-cache, must-revalidate, max-age=0",
+      Pragma: "no-cache",
+    },
+  });
+}
 
 /**
  * Batch analytics: returns {views, contactClicks, whatsappClicks} for a set of
@@ -23,7 +34,7 @@ export async function GET(req: NextRequest) {
           .slice(0, 200), // safety cap
       ),
     );
-    if (!ids.length) return json({ items: {} });
+    if (!ids.length) return freshJson({ items: {} });
 
     // Security: instead of trusting listing_analytics_events.owner_user_id
     // (which historically may be NULL for older rows), join on listings.user_id.
@@ -74,7 +85,7 @@ export async function GET(req: NextRequest) {
         };
       }
     }
-    return json({ items });
+    return freshJson({ items });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     if (msg === "Unauthorized") return error("Unauthorized", 401);

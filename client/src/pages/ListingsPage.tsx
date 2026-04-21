@@ -4330,11 +4330,14 @@ export default function ListingsPage() {
     retry: 1,
     queryFn: async () => {
       if (!analyticsListingIds.length) return { items: {} };
+      // Cache-bust once per minute so Safari never serves a stale {} response
+      // while still letting our in-memory react-query staleTime do its job.
+      const bust = Math.floor(Date.now() / 60_000);
       const res = await apiRequest(
         "GET",
         `/api/listings/analytics/batch?ids=${encodeURIComponent(
           analyticsListingIds.join(","),
-        )}`,
+        )}&_t=${bust}`,
       );
       return (await res.json()) as {
         items: Record<string, BatchStats>;

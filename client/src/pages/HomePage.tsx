@@ -2769,11 +2769,12 @@ export default function HomePage() {
     retry: 1,
     queryFn: async () => {
       if (!analyticsListingIds.length) return { items: {} };
+      const bust = Math.floor(Date.now() / 60_000);
       const res = await apiRequest(
         "GET",
         `/api/listings/analytics/batch?ids=${encodeURIComponent(
           analyticsListingIds.join(","),
-        )}`,
+        )}&_t=${bust}`,
       );
       return (await res.json()) as { items: Record<string, HomeBatchStats> };
     },
