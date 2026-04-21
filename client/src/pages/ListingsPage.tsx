@@ -4297,48 +4297,47 @@ export default function ListingsPage() {
     return map;
   }, [regions]);
 
-  // Owner-only batch analytics for "Moje inzeráty": one request for all
-  // visible cards that belong to the current user. Shown inline on the card
-  // so the owner does not have to open the listing to see view/contact counts.
-  const ownedListingIds = useMemo(() => {
+  // Batch analytics request: a single round-trip for all cards the current
+  // user is allowed to see stats for. Owners get stats for their own listings,
+  // admins get stats for every visible listing. Regular visitors skip the call.
+  const analyticsListingIds = useMemo(() => {
     if (!user?.id) return [] as string[];
+    if (user.isAdmin) return sortedListings.map((l) => l.id);
     return sortedListings
       .filter((l) => l.userId === user.id)
       .map((l) => l.id);
-  }, [sortedListings, user?.id]);
+  }, [sortedListings, user?.id, user?.isAdmin]);
 
-  const ownedIdsKey = useMemo(
-    () => [...ownedListingIds].sort().join(","),
-    [ownedListingIds],
+  const analyticsIdsKey = useMemo(
+    () => [...analyticsListingIds].sort().join(","),
+    [analyticsListingIds],
   );
 
+  type BatchStats = {
+    views: number;
+    contactClicks: number;
+    whatsappClicks: number;
+    telegramClicks: number;
+  };
+
   const { data: ownerStatsData } = useQuery<{
-    items: Record<
-      string,
-      { views: number; contactClicks: number; whatsappClicks: number }
-    >;
+    items: Record<string, BatchStats>;
   }>({
-    queryKey: [
-      "/api/listings/analytics/batch",
-      ownedIdsKey,
-    ],
-    enabled: ownedListingIds.length > 0,
+    queryKey: ["/api/listings/analytics/batch", analyticsIdsKey],
+    enabled: analyticsListingIds.length > 0,
     staleTime: 30_000,
     refetchInterval: 60_000,
     retry: 1,
     queryFn: async () => {
-      if (!ownedListingIds.length) return { items: {} };
+      if (!analyticsListingIds.length) return { items: {} };
       const res = await apiRequest(
         "GET",
         `/api/listings/analytics/batch?ids=${encodeURIComponent(
-          ownedListingIds.join(","),
+          analyticsListingIds.join(","),
         )}`,
       );
       return (await res.json()) as {
-        items: Record<
-          string,
-          { views: number; contactClicks: number; whatsappClicks: number }
-        >;
+        items: Record<string, BatchStats>;
       };
     },
   });
@@ -4650,6 +4649,7 @@ export default function ListingsPage() {
                     const isTopListing = Boolean(listing?.isTopListing);
                     const isPromoting = promotingListingId === car.id;
 
+                    const canSeeStats = isOwner || Boolean(user?.isAdmin);
                     return (
                       <CarCard
                         key={car.id}
@@ -4663,7 +4663,8 @@ export default function ListingsPage() {
                         onEdit={handleEdit}
                         onDelete={handleDelete}
                         priority={index < 3}
-                        stats={isOwner ? ownerStats[car.id] : undefined}
+                        stats={canSeeStats ? ownerStats[car.id] : undefined}
+                        showStatsBlock={canSeeStats}
                       />
                     );
                   })}
@@ -4813,6 +4814,7 @@ export default function ListingsPage() {
                       toggleSoldMutation.isPending &&
                       toggleSoldMutation.variables?.listingId === car.id;
 
+                    const canSeeStats = isOwner || Boolean(user?.isAdmin);
                     return (
                       <CarCard
                         key={car.id}
@@ -4828,7 +4830,8 @@ export default function ListingsPage() {
                         onToggleSold={isOwner ? handleToggleSold : undefined}
                         isTogglingSold={isTogglingSold}
                         priority={index < 3}
-                        stats={isOwner ? ownerStats[car.id] : undefined}
+                        stats={canSeeStats ? ownerStats[car.id] : undefined}
+                        showStatsBlock={canSeeStats}
                       />
                     );
                   })}

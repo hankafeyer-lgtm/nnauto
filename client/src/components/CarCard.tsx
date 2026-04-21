@@ -73,6 +73,11 @@ interface CarCardProps {
     whatsappClicks: number;
     telegramClicks: number;
   };
+  /**
+   * When true, render the detailed analytics block regardless of ownership.
+   * Used for admin catalogue view where the moderator sees stats on every card.
+   */
+  showStatsBlock?: boolean;
 }
 
 function CarCard({
@@ -102,13 +107,16 @@ function CarCard({
   vatDeductible = false,
   onOpenListing,
   stats,
+  showStatsBlock = false,
 }: CarCardProps) {
   // Owner-only inline analytics block shown on each listing card in
   // "Moje inzeráty" — matches the layout of the detailed analytics card on
   // the listing page so the owner sees the same information without
   // opening the listing.
   const StatsRow = ({ compact = false }: { compact?: boolean }) => {
-    if (!isOwner) return null;
+    // Render the detailed analytics block for the owner of the listing and
+    // for admins viewing the catalogue. Everyone else sees the usual card.
+    if (!isOwner && !showStatsBlock) return null;
     const safe = stats ?? {
       views: 0,
       contactClicks: 0,

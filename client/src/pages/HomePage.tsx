@@ -2741,6 +2741,45 @@ export default function HomePage() {
     });
   }, [cards.length, currentPage, isFetching]);
 
+  // Batch analytics for the owner / admin: one request covers every card
+  // they are allowed to see stats for, so the detailed analytics block
+  // renders on the home catalogue too (not only under "Moje inzeráty").
+  type HomeBatchStats = {
+    views: number;
+    contactClicks: number;
+    whatsappClicks: number;
+    telegramClicks: number;
+  };
+  const analyticsListingIds = useMemo(() => {
+    if (!user?.id) return [] as string[];
+    if (user.isAdmin) return cards.map((c) => c.props.id);
+    return cards.filter((c) => c.props.isOwner).map((c) => c.props.id);
+  }, [cards, user?.id, user?.isAdmin]);
+  const analyticsIdsKey = useMemo(
+    () => [...analyticsListingIds].sort().join(","),
+    [analyticsListingIds],
+  );
+  const { data: analyticsData } = useQuery<{
+    items: Record<string, HomeBatchStats>;
+  }>({
+    queryKey: ["/api/listings/analytics/batch", "home", analyticsIdsKey],
+    enabled: analyticsListingIds.length > 0,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    retry: 1,
+    queryFn: async () => {
+      if (!analyticsListingIds.length) return { items: {} };
+      const res = await apiRequest(
+        "GET",
+        `/api/listings/analytics/batch?ids=${encodeURIComponent(
+          analyticsListingIds.join(","),
+        )}`,
+      );
+      return (await res.json()) as { items: Record<string, HomeBatchStats> };
+    },
+  });
+  const analyticsItems = analyticsData?.items ?? {};
+
   useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;
     if (!pendingRestore || isFetching || openListingId || cards.length === 0) return;
@@ -3408,6 +3447,8 @@ export default function HomePage() {
                             toggleSoldMutation.isPending &&
                             toggleSoldMutation.variables?.listingId ===
                               c.props.id;
+                          const canSeeStats =
+                            c.props.isOwner || Boolean(user?.isAdmin);
                           return (
                             <CarCard
                               key={c.props.id}
@@ -3424,6 +3465,12 @@ export default function HomePage() {
                                   : undefined
                               }
                               isTogglingSold={isTogglingSold}
+                              stats={
+                                canSeeStats
+                                  ? analyticsItems[c.props.id]
+                                  : undefined
+                              }
+                              showStatsBlock={canSeeStats}
                             />
                           );
                         })
@@ -3538,6 +3585,8 @@ export default function HomePage() {
                       const isTogglingSold =
                         toggleSoldMutation.isPending &&
                         toggleSoldMutation.variables?.listingId === c.props.id;
+                      const canSeeStats =
+                        c.props.isOwner || Boolean(user?.isAdmin);
                       return (
                         <CarCard
                           key={c.props.id}
@@ -3552,6 +3601,12 @@ export default function HomePage() {
                             c.props.isOwner ? handleToggleSoldHome : undefined
                           }
                           isTogglingSold={isTogglingSold}
+                          stats={
+                            canSeeStats
+                              ? analyticsItems[c.props.id]
+                              : undefined
+                          }
+                          showStatsBlock={canSeeStats}
                         />
                       );
                     })
