@@ -573,14 +573,16 @@ function HeaderContent({
               asChild
               variant="outline"
               size="sm"
-              className={`gap-1.5 px-2 sm:px-3 max-[390px]:px-1.5 ${compactMobile ? "h-9 rounded-xl" : ""}`}
+              className={`gap-1 px-1.5 pr-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
             >
               <Link
                 href="/add-listing"
                 data-testid="button-open-add-listing"
               >
                 <Plus className="w-4 h-4" />
-                <span className="text-sm max-[390px]:hidden">{t("header.addListing")}</span>
+                <span className="text-[11px] leading-none whitespace-nowrap sm:text-sm">
+                  {t("header.addListing")}
+                </span>
               </Link>
             </Button>
             <Button
