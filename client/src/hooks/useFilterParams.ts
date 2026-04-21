@@ -824,6 +824,15 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       if (newPath === currentPathWithSearch) {
         return;
       }
+      // Same-page query param updates must not scroll the user to the top.
+      // Next.js App Router can still scroll on router.push even with
+      // { scroll: false }, so we patch URL directly and let the app react.
+      if (currentPath === window.location.pathname) {
+        window.history.replaceState({}, "", newPath);
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
+        return;
+      }
       setLocation(newPath);
       window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
     },
@@ -1248,6 +1257,17 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     const targetUrl = queryString ? `/listings?${queryString}` : "/listings";
     const currentPathWithSearch = `${window.location.pathname}${window.location.search}`;
     if (targetUrl === currentPathWithSearch) {
+      return;
+    }
+    // If we are already on /listings we only change search params, and we
+    // want the user's scroll position to stay exactly where it is. Next.js
+    // App Router unconditionally scrolls to top on router.push even with
+    // { scroll: false } for some versions, so we prefer a raw history update
+    // here and nudge Next.js to pick it up via a popstate event.
+    if (window.location.pathname === "/listings") {
+      window.history.replaceState({}, "", targetUrl);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+      window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
       return;
     }
     setLocation(targetUrl);
