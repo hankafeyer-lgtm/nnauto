@@ -478,6 +478,50 @@ export interface FilterParams {
 
 const FILTERS_URL_CHANGE_EVENT = "nnauto:filters-url-change";
 
+/**
+ * Lock the current scroll position for the next ~600ms.
+ *
+ * Reason: changing URL search params on the listings page can still cause
+ * intermittent scroll jumps on desktop (Next.js App Router re-renders,
+ * sticky elements recalculating, etc). Whenever a filter URL update happens
+ * we snapshot scrollY and, if anything tries to move us significantly
+ * within the next few frames, we snap back. This is a defensive measure
+ * that is safe even if the underlying cause is fixed — it just no-ops.
+ */
+function lockScrollPosition() {
+  if (typeof window === "undefined") return;
+  try {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  } catch {
+    /* ignore */
+  }
+  const startX = window.scrollX;
+  const startY = window.scrollY;
+  const startAt = Date.now();
+  const THRESHOLD_PX = 16;
+  const GUARD_MS = 600;
+
+  let rafId = 0;
+  const tick = () => {
+    const elapsed = Date.now() - startAt;
+    if (elapsed > GUARD_MS) return;
+    const dx = Math.abs(window.scrollX - startX);
+    const dy = Math.abs(window.scrollY - startY);
+    if (dy > THRESHOLD_PX || dx > THRESHOLD_PX) {
+      window.scrollTo({ left: startX, top: startY, behavior: "auto" });
+    }
+    rafId = window.requestAnimationFrame(tick);
+  };
+  rafId = window.requestAnimationFrame(tick);
+
+  // Safety: always release, even if rAF stops for some reason.
+  window.setTimeout(() => {
+    if (rafId) window.cancelAnimationFrame(rafId);
+  }, GUARD_MS + 50);
+}
+
 const normalizeSingleVehicleType = (
   vehicleType?: string | null,
 ): string | undefined => {
@@ -828,6 +872,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       // Next.js App Router can still scroll on router.push even with
       // { scroll: false }, so we patch URL directly and let the app react.
       if (currentPath === window.location.pathname) {
+        lockScrollPosition();
         window.history.replaceState({}, "", newPath);
         window.dispatchEvent(new PopStateEvent("popstate"));
         window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
@@ -1265,6 +1310,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     // { scroll: false } for some versions, so we prefer a raw history update
     // here and nudge Next.js to pick it up via a popstate event.
     if (window.location.pathname === "/listings") {
+      lockScrollPosition();
       window.history.replaceState({}, "", targetUrl);
       window.dispatchEvent(new PopStateEvent("popstate"));
       window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
