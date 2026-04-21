@@ -443,7 +443,7 @@ function HeaderContent({
         }`}
       >
         <div
-          className={`flex items-center min-w-0 max-md:justify-start max-md:gap-2 md:justify-between md:gap-4 lg:gap-8 ${
+          className={`flex items-center min-w-0 max-md:justify-start max-md:gap-1.5 md:justify-between md:gap-4 lg:gap-8 ${
             compactMobile ? "h-14 sm:h-20 lg:h-24" : "h-16 sm:h-20 lg:h-24"
           }`}
         >
@@ -484,7 +484,7 @@ function HeaderContent({
               <span
                 className={`font-bold tracking-tight ${
                   compactMobile
-                    ? "text-[1.65rem] leading-none sm:text-2xl md:text-3xl lg:text-4xl"
+                    ? "text-[1.65rem] leading-none max-[390px]:text-[1.4rem] sm:text-2xl md:text-3xl lg:text-4xl"
                     : "text-xl sm:text-2xl md:text-3xl lg:text-4xl"
                 }`}
               >
@@ -568,19 +568,19 @@ function HeaderContent({
             </div>
           </form>
 
-          <div className="flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
+          <div className="relative z-30 ml-auto flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
             <Button
               asChild
               variant="outline"
               size="sm"
-              className={`gap-1.5 px-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
+              className={`gap-1.5 px-2 sm:px-3 max-[390px]:px-1.5 ${compactMobile ? "h-9 rounded-xl" : ""}`}
             >
               <Link
                 href="/add-listing"
                 data-testid="button-open-add-listing"
               >
                 <Plus className="w-4 h-4" />
-                <span className="text-sm">{t("header.addListing")}</span>
+                <span className="text-sm max-[390px]:hidden">{t("header.addListing")}</span>
               </Link>
             </Button>
             <Button
