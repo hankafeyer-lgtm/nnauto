@@ -104,9 +104,18 @@ function CarCard({
   stats,
 }: CarCardProps) {
   // Inline stats strip for "Moje inzeráty" — no need to open the listing
-  // to see views / contact / WhatsApp counts.
+  // to see view / contact / WhatsApp / Telegram counts. The block shows as
+  // soon as we know this is an owner-view card; if batch analytics have not
+  // arrived yet we render zeros and they hydrate to real numbers without
+  // any layout shift.
   const StatsRow = ({ compact = false }: { compact?: boolean }) => {
-    if (!isOwner || !stats) return null;
+    if (!isOwner) return null;
+    const safe = stats ?? {
+      views: 0,
+      contactClicks: 0,
+      whatsappClicks: 0,
+      telegramClicks: 0,
+    };
     const iconCls = compact ? "h-3.5 w-3.5" : "h-4 w-4";
     const textCls = compact ? "text-[11px]" : "text-xs sm:text-sm";
     return (
@@ -122,7 +131,7 @@ function CarCard({
           data-testid={`card-stat-views-${id}`}
         >
           <Eye className={`${iconCls} shrink-0`} />
-          {stats.views}
+          {safe.views}
         </span>
         <span
           className="inline-flex items-center gap-1 font-medium"
@@ -130,7 +139,7 @@ function CarCard({
           data-testid={`card-stat-contact-${id}`}
         >
           <Phone className={`${iconCls} shrink-0`} />
-          {stats.contactClicks}
+          {safe.contactClicks}
         </span>
         <span
           className="inline-flex items-center gap-1 font-medium"
@@ -138,7 +147,7 @@ function CarCard({
           data-testid={`card-stat-whatsapp-${id}`}
         >
           <MessageCircle className={`${iconCls} shrink-0`} />
-          {stats.whatsappClicks}
+          {safe.whatsappClicks}
         </span>
         <span
           className="inline-flex items-center gap-1 font-medium"
@@ -146,7 +155,7 @@ function CarCard({
           data-testid={`card-stat-telegram-${id}`}
         >
           <Send className={`${iconCls} shrink-0`} />
-          {stats.telegramClicks}
+          {safe.telegramClicks}
         </span>
       </div>
     );
