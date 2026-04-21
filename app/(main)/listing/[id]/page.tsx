@@ -97,13 +97,46 @@ export default async function ListingDetail({ params, searchParams }: Props) {
   const transmissionText = Array.isArray(listing?.transmission)
     ? listing.transmission.join(", ")
     : listing?.transmission || "";
+  // Resolve all listing photos to absolute URLs for schema.org `image`.
+  const productImageUrls = Array.isArray(listing?.photos)
+    ? listing!.photos
+        .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
+        .slice(0, 6)
+        .map(
+          (p) =>
+            `${SITE_ORIGIN}/img/${p.replace(/^\/+/, "")}?w=1200&q=80&f=webp`,
+        )
+    : [];
+  const primaryImage = productImageUrls[0] || summaryImage;
+
+  // Map our "condition" field to schema.org item conditions.
+  const conditionRaw = (listing?.condition || "").toLowerCase();
+  const itemConditionUrl = conditionRaw.includes("nov")
+    ? "https://schema.org/NewCondition"
+    : conditionRaw.includes("havar") || conditionRaw.includes("damag")
+      ? "https://schema.org/DamagedCondition"
+      : "https://schema.org/UsedCondition";
+
+  // Offer stays valid for a year — Merchant Listings requires a future date.
+  const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
   const productJsonLd = listing
     ? {
         "@context": "https://schema.org",
         "@type": "Product",
         name: listingName,
+        sku: listing.id,
         description: listing.description || `${listingName} - inzerat na NNAuto`,
-        brand: brand || undefined,
+        brand: brand
+          ? { "@type": "Brand", name: brand }
+          : undefined,
+        image: productImageUrls.length
+          ? productImageUrls
+          : primaryImage
+            ? [primaryImage]
+            : undefined,
         additionalProperty: [
           { "@type": "PropertyValue", name: "Rok", value: String(listing.year) },
           {
@@ -123,7 +156,35 @@ export default async function ListingDetail({ params, searchParams }: Props) {
           price: String(Number(listing.price)),
           priceCurrency: "CZK",
           availability: "https://schema.org/InStock",
+          itemCondition: itemConditionUrl,
+          priceValidUntil,
           url: `${SITE_ORIGIN}/listing/${id}`,
+          // Vehicles are picked up in person — state it explicitly so
+          // Google Merchant Listings stops warning about missing fields.
+          shippingDetails: {
+            "@type": "OfferShippingDetails",
+            shippingRate: {
+              "@type": "MonetaryAmount",
+              value: "0",
+              currency: "CZK",
+            },
+            shippingDestination: {
+              "@type": "DefinedRegion",
+              addressCountry: "CZ",
+            },
+            doesNotShip: true,
+          },
+          hasMerchantReturnPolicy: {
+            "@type": "MerchantReturnPolicy",
+            applicableCountry: "CZ",
+            returnPolicyCategory:
+              "https://schema.org/MerchantReturnNotPermitted",
+          },
+          seller: {
+            "@type": "Organization",
+            name: "NNAuto",
+            url: SITE_ORIGIN,
+          },
         },
       }
     : null;
