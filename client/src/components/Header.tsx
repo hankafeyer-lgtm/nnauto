@@ -438,8 +438,8 @@ function HeaderContent({
       <div
         className={`container mx-auto ${
           compactMobile
-            ? "pl-3 pr-[calc(0.875rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
-            : "pl-4 pr-[calc(1.125rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
+            ? "pl-2 pr-[calc(0.875rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
+            : "pl-2.5 pr-[calc(1.125rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
         }`}
       >
         <div
@@ -455,8 +455,8 @@ function HeaderContent({
             <div
               className={`hover-elevate active-elevate-2 rounded-xl py-2 flex items-center cursor-pointer ${
                 compactMobile
-                  ? "px-1.5 sm:px-4 -ml-1.5 sm:-ml-4 gap-2 sm:gap-4"
-                  : "px-3 sm:px-4 -ml-3 sm:-ml-4 gap-3 sm:gap-4"
+                  ? "px-1 sm:px-4 -ml-2 sm:-ml-4 gap-1.5 sm:gap-3.5"
+                  : "px-2.5 sm:px-4 -ml-3.5 sm:-ml-4 gap-2 sm:gap-3.5"
               }`}
             >
               <div
