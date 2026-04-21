@@ -2816,15 +2816,18 @@ function Hero() {
           : "min-h-[400px] sm:min-h-[480px] lg:min-h-[550px]"
       }`}
     >
-      <img
-        src={heroImage}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 h-full w-full object-cover -z-10"
-        loading="eager"
-        fetchPriority="high"
-        decoding="async"
-      />
+      <picture className="absolute inset-0 h-full w-full -z-10" aria-hidden="true">
+        <source srcSet="/hero-bg.webp" type="image/webp" />
+        <img
+          src="/hero-bg.png"
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover -z-10"
+          loading="eager"
+          fetchPriority="high"
+          decoding="async"
+        />
+      </picture>
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70 -z-10" />
 
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">

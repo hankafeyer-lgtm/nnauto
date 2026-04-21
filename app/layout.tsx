@@ -132,6 +132,13 @@ export default function RootLayout({
           defer
         />
         <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link
+          rel="preload"
+          as="image"
+          href="/hero-bg.webp"
+          type="image/webp"
+          imageSrcSet="/hero-bg.webp"
+        />
       </head>
       <body className="font-sans antialiased bg-background text-foreground">
         {children}

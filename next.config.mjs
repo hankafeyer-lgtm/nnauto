@@ -88,6 +88,12 @@ const nextConfig = {
         ],
       },
       {
+        source: "/hero-bg.:ext(webp|png)",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
         source: "/",
         headers: [
           { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
