@@ -5,6 +5,24 @@ export type BrandIconEntry =
   | { type: "component"; component: ComponentType<{ className?: string }> }
   | { type: "image"; src: string; alt: string };
 
+/**
+ * Rewrite /brand-logos/<name>.png → /brand-logos-webp/<name>.webp.
+ * We keep the original URL structure for back-compat (and as PNG fallback) but
+ * prefer the lightweight WebP which is roughly 100x smaller than the source PNGs.
+ */
+function toWebpUrl(src: string): string {
+  try {
+    if (src.startsWith("/brand-logos/")) {
+      return src
+        .replace("/brand-logos/", "/brand-logos-webp/")
+        .replace(/\.(png|jpg|jpeg)$/i, ".webp");
+    }
+  } catch {
+    /* ignore, fallback to original */
+  }
+  return src;
+}
+
 export const BrandIconRenderer = ({
   icon,
   className = "w-4 h-4",
@@ -15,22 +33,43 @@ export const BrandIconRenderer = ({
   loading?: "lazy" | "eager";
 }) => {
   if (!icon) return null;
-  
+
   if (icon.type === "component") {
     const Icon = icon.component;
     return <Icon className={className} />;
   }
-  
+
+  const webpSrc = toWebpUrl(icon.src);
+  const isWebp = webpSrc !== icon.src;
+
+  if (!isWebp) {
+    return (
+      <img
+        src={icon.src}
+        alt={icon.alt}
+        className={className}
+        loading={loading}
+        decoding="async"
+        draggable={false}
+        style={{ objectFit: "contain" }}
+      />
+    );
+  }
+
+  // <picture> keeps a PNG fallback for browsers where WebP is unavailable.
   return (
-    <img 
-      src={icon.src} 
-      alt={icon.alt} 
-      className={className}
-      loading={loading}
-      decoding="async"
-      draggable={false}
-      style={{ objectFit: "contain" }}
-    />
+    <picture>
+      <source srcSet={webpSrc} type="image/webp" />
+      <img
+        src={icon.src}
+        alt={icon.alt}
+        className={className}
+        loading={loading}
+        decoding="async"
+        draggable={false}
+        style={{ objectFit: "contain" }}
+      />
+    </picture>
   );
 };
 
