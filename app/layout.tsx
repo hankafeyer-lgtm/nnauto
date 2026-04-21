@@ -152,6 +152,58 @@ export default function RootLayout({
         />
       </head>
       <body className={`${poppins.className} font-sans antialiased bg-background text-foreground`}>
+        {/* Remote diagnostics: capture real-device runtime errors and ship to /api/diag.
+            This runs BEFORE any other app code so we see failures from iOS Safari, old Safari, etc. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                if (window.__nn_diag_installed) return; window.__nn_diag_installed = true;
+                var sent = 0; var MAX = 8;
+                function send(kind, info) {
+                  try {
+                    if (sent >= MAX) return;
+                    sent += 1;
+                    var payload = { kind: kind, t: Date.now(), url: String(location.href).slice(0, 400), ua: (navigator.userAgent || '').slice(0, 300), info: info };
+                    var body = JSON.stringify(payload);
+                    if (navigator.sendBeacon) {
+                      var blob = new Blob([body], { type: 'application/json' });
+                      navigator.sendBeacon('/api/diag', blob);
+                    } else {
+                      fetch('/api/diag', { method: 'POST', body: body, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(function(){});
+                    }
+                  } catch (_) {}
+                }
+                window.__nn_diag = send;
+                send('boot', { stage: 'before-storage-shim' });
+                window.addEventListener('error', function (ev) {
+                  var info = {};
+                  try {
+                    info.message = ev && ev.message ? String(ev.message).slice(0, 400) : '';
+                    info.filename = ev && ev.filename ? String(ev.filename).slice(0, 300) : '';
+                    info.lineno = ev && ev.lineno;
+                    info.colno = ev && ev.colno;
+                    if (ev && ev.error && ev.error.stack) info.stack = String(ev.error.stack).slice(0, 1200);
+                    if (ev && ev.target && ev.target !== window) {
+                      info.srcTag = ev.target.tagName || '';
+                      info.src = (ev.target.src || ev.target.href || '').toString().slice(0, 300);
+                    }
+                  } catch (_) {}
+                  send('error', info);
+                }, true);
+                window.addEventListener('unhandledrejection', function (ev) {
+                  var info = {};
+                  try {
+                    var r = ev && ev.reason;
+                    info.message = r && (r.message || String(r)).toString().slice(0, 400);
+                    if (r && r.stack) info.stack = String(r.stack).slice(0, 1200);
+                  } catch (_) {}
+                  send('rejection', info);
+                });
+              })();
+            `,
+          }}
+        />
         {/* Safe storage shim: replace broken localStorage/sessionStorage (iOS private mode, disabled cookies) with in-memory fallback */}
         <script
           dangerouslySetInnerHTML={{
@@ -237,6 +289,38 @@ export default function RootLayout({
                     } catch (err) {}
                   });
                 } catch (err) {}
+              })();
+            `,
+          }}
+        />
+        <noscript>
+          <div
+            style={{
+              minHeight: "60vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 24,
+              textAlign: "center",
+              fontFamily: "system-ui, -apple-system, sans-serif",
+            }}
+          >
+            Pro zobrazení NNAuto je potřeba zapnout JavaScript. Prosím povolte
+            JavaScript ve vašem prohlížeči.
+          </div>
+        </noscript>
+        {/* Mark hydration success so diagnostics can tell hydration never fired */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  setTimeout(function () {
+                    if (window.__nn_diag && !window.__nn_mounted) {
+                      window.__nn_diag('no-hydrate', { after: 7000 });
+                    }
+                  }, 7000);
+                } catch (_) {}
               })();
             `,
           }}
