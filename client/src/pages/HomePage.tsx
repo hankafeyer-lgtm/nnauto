@@ -2063,6 +2063,7 @@ import {
 
 import type { Listing } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
+import { useListingStatsBatch } from "@/hooks/useListingStats";
 import {
   apiRequest,
   listingsFetchHeaders,
@@ -2741,45 +2742,19 @@ export default function HomePage() {
     });
   }, [cards.length, currentPage, isFetching]);
 
-  // Batch analytics for the owner / admin: one request covers every card
-  // they are allowed to see stats for, so the detailed analytics block
-  // renders on the home catalogue too (not only under "Moje inzeráty").
-  type HomeBatchStats = {
-    views: number;
-    contactClicks: number;
-    whatsappClicks: number;
-    telegramClicks: number;
-  };
+  // Owner / admin analytics for every card we are allowed to see numbers for.
+  // Same shared hook as ListingsPage and the listing detail page — the numbers
+  // a user sees on a card are guaranteed to match the ones inside the opened
+  // listing because both render from the same react-query cache entry.
   const analyticsListingIds = useMemo(() => {
     if (!user?.id) return [] as string[];
     if (user.isAdmin) return cards.map((c) => c.props.id);
     return cards.filter((c) => c.props.isOwner).map((c) => c.props.id);
   }, [cards, user?.id, user?.isAdmin]);
-  const analyticsIdsKey = useMemo(
-    () => [...analyticsListingIds].sort().join(","),
-    [analyticsListingIds],
-  );
-  const { data: analyticsData } = useQuery<{
-    items: Record<string, HomeBatchStats>;
-  }>({
-    queryKey: ["/api/listings/analytics/batch", "home", analyticsIdsKey],
-    enabled: analyticsListingIds.length > 0,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-    retry: 1,
-    queryFn: async () => {
-      if (!analyticsListingIds.length) return { items: {} };
-      const bust = Math.floor(Date.now() / 60_000);
-      const res = await apiRequest(
-        "GET",
-        `/api/listings/analytics/batch?ids=${encodeURIComponent(
-          analyticsListingIds.join(","),
-        )}&_t=${bust}`,
-      );
-      return (await res.json()) as { items: Record<string, HomeBatchStats> };
-    },
-  });
-  const analyticsItems = analyticsData?.items ?? {};
+  const {
+    items: analyticsItems,
+    hasData: analyticsItemsLoaded,
+  } = useListingStatsBatch(analyticsListingIds);
 
   useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;
@@ -3471,6 +3446,9 @@ export default function HomePage() {
                                   ? analyticsItems[c.props.id]
                                   : undefined
                               }
+                              statsLoading={
+                                canSeeStats && !analyticsItemsLoaded
+                              }
                               showStatsBlock={canSeeStats}
                             />
                           );
@@ -3606,6 +3584,9 @@ export default function HomePage() {
                             canSeeStats
                               ? analyticsItems[c.props.id]
                               : undefined
+                          }
+                          statsLoading={
+                            canSeeStats && !analyticsItemsLoaded
                           }
                           showStatsBlock={canSeeStats}
                         />

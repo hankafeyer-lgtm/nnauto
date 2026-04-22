@@ -2965,6 +2965,7 @@ import {
 import { resolveListingPhotoUrl } from "@/lib/imageOptimizer";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useListingStatsBatch } from "@/hooks/useListingStats";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useFilterParams } from "@/hooks/useFilterParams";
@@ -4297,9 +4298,9 @@ export default function ListingsPage() {
     return map;
   }, [regions]);
 
-  // Batch analytics request: a single round-trip for all cards the current
-  // user is allowed to see stats for. Owners get stats for their own listings,
-  // admins get stats for every visible listing. Regular visitors skip the call.
+  // Owner / admin analytics for every card we are allowed to see numbers for.
+  // One shared hook powers both this list view and the detail page, so the
+  // stats in the card and inside the opened listing are always identical.
   const analyticsListingIds = useMemo(() => {
     if (!user?.id) return [] as string[];
     if (user.isAdmin) return sortedListings.map((l) => l.id);
@@ -4308,43 +4309,10 @@ export default function ListingsPage() {
       .map((l) => l.id);
   }, [sortedListings, user?.id, user?.isAdmin]);
 
-  const analyticsIdsKey = useMemo(
-    () => [...analyticsListingIds].sort().join(","),
-    [analyticsListingIds],
-  );
-
-  type BatchStats = {
-    views: number;
-    contactClicks: number;
-    whatsappClicks: number;
-    telegramClicks: number;
-  };
-
-  const { data: ownerStatsData } = useQuery<{
-    items: Record<string, BatchStats>;
-  }>({
-    queryKey: ["/api/listings/analytics/batch", analyticsIdsKey],
-    enabled: analyticsListingIds.length > 0,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-    retry: 1,
-    queryFn: async () => {
-      if (!analyticsListingIds.length) return { items: {} };
-      // Cache-bust once per minute so Safari never serves a stale {} response
-      // while still letting our in-memory react-query staleTime do its job.
-      const bust = Math.floor(Date.now() / 60_000);
-      const res = await apiRequest(
-        "GET",
-        `/api/listings/analytics/batch?ids=${encodeURIComponent(
-          analyticsListingIds.join(","),
-        )}&_t=${bust}`,
-      );
-      return (await res.json()) as {
-        items: Record<string, BatchStats>;
-      };
-    },
-  });
-  const ownerStats = ownerStatsData?.items ?? {};
+  const {
+    items: ownerStats,
+    hasData: ownerStatsLoaded,
+  } = useListingStatsBatch(analyticsListingIds);
 
   const cars = useMemo(() => {
     return sortedListings.map((listing) => {
@@ -4667,6 +4635,7 @@ export default function ListingsPage() {
                         onDelete={handleDelete}
                         priority={index < 3}
                         stats={canSeeStats ? ownerStats[car.id] : undefined}
+                        statsLoading={canSeeStats && !ownerStatsLoaded}
                         showStatsBlock={canSeeStats}
                       />
                     );
@@ -4834,6 +4803,7 @@ export default function ListingsPage() {
                         isTogglingSold={isTogglingSold}
                         priority={index < 3}
                         stats={canSeeStats ? ownerStats[car.id] : undefined}
+                        statsLoading={canSeeStats && !ownerStatsLoaded}
                         showStatsBlock={canSeeStats}
                       />
                     );

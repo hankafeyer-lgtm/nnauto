@@ -78,6 +78,8 @@ interface CarCardProps {
    * Used for admin catalogue view where the moderator sees stats on every card.
    */
   showStatsBlock?: boolean;
+  /** True while the first analytics batch request is in flight. */
+  statsLoading?: boolean;
 }
 
 function CarCard({
@@ -108,6 +110,7 @@ function CarCard({
   onOpenListing,
   stats,
   showStatsBlock = false,
+  statsLoading = false,
 }: CarCardProps) {
   // Owner-only inline analytics block shown on each listing card in
   // "Moje inzeráty" — matches the layout of the detailed analytics card on
@@ -117,6 +120,8 @@ function CarCard({
     // Render the detailed analytics block for the owner of the listing and
     // for admins viewing the catalogue. Everyone else sees the usual card.
     if (!isOwner && !showStatsBlock) return null;
+    const hasRealStats = !!stats;
+    const showSkeleton = statsLoading && !hasRealStats;
     const safe = stats ?? {
       views: 0,
       contactClicks: 0,
@@ -124,11 +129,23 @@ function CarCard({
       telegramClicks: 0,
     };
     const iconCls = compact ? "h-3.5 w-3.5" : "h-4 w-4";
+
+    const renderValue = (value: number) =>
+      showSkeleton ? (
+        <span
+          className="inline-block h-4 w-6 rounded bg-[#B8860B]/20 animate-pulse align-middle"
+          aria-hidden="true"
+        />
+      ) : (
+        value
+      );
+
     return (
       <div
         className="pt-3 mt-3 border-t border-[#B8860B]/25"
         data-testid={`card-stats-${id}`}
         aria-label="Statistiky inzerátu"
+        aria-busy={showSkeleton}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-2 mb-2">
@@ -149,7 +166,7 @@ function CarCard({
               <span>Zobrazení</span>
             </div>
             <p className="font-semibold text-sm sm:text-base text-black dark:text-white">
-              {safe.views}
+              {renderValue(safe.views)}
             </p>
           </div>
           <div
@@ -161,7 +178,7 @@ function CarCard({
               <span>Kontakt</span>
             </div>
             <p className="font-semibold text-sm sm:text-base text-black dark:text-white">
-              {safe.contactClicks}
+              {renderValue(safe.contactClicks)}
             </p>
           </div>
           <div
@@ -173,7 +190,7 @@ function CarCard({
               <span>WhatsApp</span>
             </div>
             <p className="font-semibold text-sm sm:text-base text-black dark:text-white">
-              {safe.whatsappClicks}
+              {renderValue(safe.whatsappClicks)}
             </p>
           </div>
           <div
@@ -185,7 +202,7 @@ function CarCard({
               <span>Telegram</span>
             </div>
             <p className="font-semibold text-sm sm:text-base text-black dark:text-white">
-              {safe.telegramClicks}
+              {renderValue(safe.telegramClicks)}
             </p>
           </div>
         </div>

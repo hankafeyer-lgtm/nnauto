@@ -3120,6 +3120,7 @@ import {
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useListingStats } from "@/hooks/useListingStats";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { canPrefetchHeavyResources } from "@/lib/queryClient";
@@ -3418,21 +3419,21 @@ export default function ListingDetailPage({
   const canSeeListingAnalytics =
     !!listing && !!user && (user.isAdmin || user.id === listing.userId);
 
-  const { data: listingAnalytics } = useQuery<ListingAnalytics>({
-    queryKey: [`/api/listings/${listingId}/analytics`],
-    enabled: !!listingId && canSeeListingAnalytics,
-    refetchInterval: canSeeListingAnalytics ? 60000 : false,
-    retry: 2,
-    retryDelay: 1500,
-    staleTime: 15_000,
-  });
+  // Use the shared batch hook so the numbers on the detail page come from
+  // the same react-query cache as the numbers shown on listing cards in
+  // /listings?userId=me and on the home catalogue for admins. The hook
+  // internally hits /api/listings/analytics/batch with a single id.
+  const { stats: sharedStats } = useListingStats(
+    listingId,
+    { enabled: canSeeListingAnalytics },
+  );
 
-  const listingAnalyticsSafe: ListingAnalytics = listingAnalytics ?? {
+  const listingAnalyticsSafe: ListingAnalytics = {
     listingId: listingId,
-    views: 0,
-    contactClicks: 0,
-    whatsappClicks: 0,
-    telegramClicks: 0,
+    views: sharedStats?.views ?? 0,
+    contactClicks: sharedStats?.contactClicks ?? 0,
+    whatsappClicks: sharedStats?.whatsappClicks ?? 0,
+    telegramClicks: sharedStats?.telegramClicks ?? 0,
   };
 
   const listingVinRaw = (listing?.vin || "").trim().toUpperCase();
@@ -4158,8 +4159,16 @@ export default function ListingDetailPage({
           {},
         );
         if (canSeeListingAnalytics) {
+          // Invalidate every batch-analytics cache entry so both the
+          // detail page and the listing cards pick up the fresh number.
           queryClient.invalidateQueries({
-            queryKey: [`/api/listings/${listingId}/analytics`],
+            predicate: (q) => {
+              const key = q.queryKey?.[0];
+              return (
+                typeof key === "string" &&
+                key.startsWith("/api/listings/analytics/batch")
+              );
+            },
           });
         }
       } catch {
