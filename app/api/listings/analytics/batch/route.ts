@@ -43,6 +43,14 @@ export async function GET(req: NextRequest) {
       ? sql`true`
       : sql`l.user_id = ${user.id}`;
 
+    // drizzle's `${array}` does not bind a JS array as a PG text[], which
+    // caused a runtime "malformed array literal" error. Explicitly expand the
+    // list of ids into an IN (...) clause with each id as its own parameter.
+    const idsSql = sql.join(
+      ids.map((id) => sql`${id}`),
+      sql`, `,
+    );
+
     const result = (await db.execute(sql`
       SELECT
         lae.listing_id,
@@ -52,7 +60,7 @@ export async function GET(req: NextRequest) {
         COUNT(*) FILTER (WHERE lae.event_type = 'telegram_click')::int AS telegram_clicks
       FROM listing_analytics_events lae
       JOIN listings l ON l.id = lae.listing_id
-      WHERE lae.listing_id = ANY(${ids}::text[])
+      WHERE lae.listing_id IN (${idsSql})
         AND ${ownerFilter}
       GROUP BY lae.listing_id
     `)) as any;
