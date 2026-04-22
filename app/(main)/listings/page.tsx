@@ -7,17 +7,27 @@ import ListingsClient from "./listings-client";
 /** Refresh server JSON-LD ItemList so new listings appear in HTML between builds. */
 export const revalidate = 300;
 
+const LISTINGS_TITLE = "Inzeráty vozidel – ojetá i nová auta v ČR | NNAuto";
+const LISTINGS_DESCRIPTION =
+  "Prohlédněte si aktuální nabídku osobních aut, motocyklů a nákladních vozidel na NNAuto. Ověřené inzeráty od soukromých prodejců i autobazarů. Filtrujte podle značky, modelu, roku výroby, ceny, najetých kilometrů a regionu. Kontaktujte prodejce přímo.";
+
 export const metadata: Metadata = {
-  title: "Inzeráty vozidel | NNAuto",
-  description: "Prohlédněte si nabídku automobilů na NNAuto.",
+  title: LISTINGS_TITLE,
+  description: LISTINGS_DESCRIPTION,
   openGraph: {
-    title: "Inzeráty vozidel | NNAuto",
-    description: "Prohlédněte si nabídku automobilů na NNAuto.",
+    title: LISTINGS_TITLE,
+    description: LISTINGS_DESCRIPTION,
     url: "https://nnauto.cz/listings",
     siteName: "NNAuto",
     images: [{ url: "https://nnauto.cz/og-image.png", width: 1200, height: 630 }],
     locale: "cs_CZ",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: LISTINGS_TITLE,
+    description: LISTINGS_DESCRIPTION,
+    images: ["https://nnauto.cz/og-image.png"],
   },
   alternates: { canonical: "https://nnauto.cz/listings" },
 };

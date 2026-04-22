@@ -17,9 +17,6 @@ Disallow: /en
 Disallow: /en/
 Disallow: /de
 Disallow: /de/
-Disallow: /listings/osobni/
-Disallow: /listings/audi
-Disallow: /listings/bmw
 Disallow: /*.json$
 
 # Allow important pages

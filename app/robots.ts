@@ -16,9 +16,6 @@ const DISALLOW_COMMON = [
   "/en/",
   "/de",
   "/de/",
-  "/listings/osobni/",
-  "/listings/audi",
-  "/listings/bmw",
   "/*.json$",
 ];
 
