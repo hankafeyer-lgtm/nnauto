@@ -107,9 +107,23 @@ export function buildOrganizationJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
+    "@id": `${SITE_ORIGIN}/#organization`,
     name: "NNAuto",
+    alternateName: "NNAuto.cz",
     url: SITE_ORIGIN,
-    logo: `${SITE_ORIGIN}/og-image.png`,
+    logo: {
+      "@type": "ImageObject",
+      url: `${SITE_ORIGIN}/og-image.png`,
+      width: 1200,
+      height: 630,
+    },
+    description:
+      "NNAuto je online autobazar v České republice s ověřenými inzeráty osobních aut, motocyklů a nákladních vozidel.",
+    areaServed: {
+      "@type": "Country",
+      name: "Czech Republic",
+    },
+    inLanguage: "cs-CZ",
   };
 }
 
@@ -117,8 +131,12 @@ export function buildWebSiteJsonLd() {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
+    "@id": `${SITE_ORIGIN}/#website`,
     name: "NNAuto",
+    alternateName: "NNAuto.cz",
     url: SITE_ORIGIN,
+    inLanguage: "cs-CZ",
+    publisher: { "@id": `${SITE_ORIGIN}/#organization` },
     potentialAction: {
       "@type": "SearchAction",
       target: {

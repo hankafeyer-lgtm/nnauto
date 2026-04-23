@@ -41,6 +41,12 @@ export default async function Listings() {
   return (
     <>
       <JsonLd data={itemListJsonLd} />
+      {/* SEO-only H1 (visually hidden). Present in SSR HTML for crawlers without
+          altering the visible catalog layout or filters. */}
+      <h1 className="sr-only">
+        Inzeráty vozidel – ojetá i nová auta, motocykly a nákladní vozidla v
+        České republice
+      </h1>
       <ListingsClient />
     </>
   );

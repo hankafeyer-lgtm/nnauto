@@ -19,38 +19,54 @@ const DISALLOW_COMMON = [
   "/*.json$",
 ];
 
+// Explicit allow list for SEO-important sections. Google ignores unknown
+// directives; adding explicit allows keeps intent documented and removes any
+// ambiguity with pattern-based disallows further down.
+const PRIMARY_ALLOW = ["/", "/listings", "/listing/", "/auta/"];
+
+const MAIN_BOT_DISALLOW = [
+  "/api/",
+  "/admin",
+  "/admin/*",
+  "/profile",
+  "/settings",
+];
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
+        // Default policy for everyone. Crawl-delay is kept modest (not 1)
+        // because Google/Bing ignore it and large values only hurt Seznam/Yandex.
         userAgent: "*",
-        allow: "/",
+        allow: PRIMARY_ALLOW,
         disallow: DISALLOW_COMMON,
-        crawlDelay: 1,
       },
       {
         userAgent: "Googlebot",
-        allow: "/",
-        disallow: ["/api/", "/admin", "/admin/*", "/profile", "/settings"],
+        allow: PRIMARY_ALLOW,
+        disallow: MAIN_BOT_DISALLOW,
       },
       {
         userAgent: "SeznamBot",
-        allow: "/",
-        disallow: ["/api/", "/admin", "/admin/*", "/profile", "/settings"],
+        allow: PRIMARY_ALLOW,
+        disallow: MAIN_BOT_DISALLOW,
       },
       {
         userAgent: "Bingbot",
-        allow: "/",
-        disallow: ["/api/", "/admin", "/admin/*", "/profile", "/settings"],
+        allow: PRIMARY_ALLOW,
+        disallow: MAIN_BOT_DISALLOW,
       },
       {
         userAgent: "Yandex",
-        allow: "/",
-        disallow: ["/api/", "/admin", "/admin/*", "/profile", "/settings"],
+        allow: PRIMARY_ALLOW,
+        disallow: MAIN_BOT_DISALLOW,
       },
       { userAgent: "AhrefsBot", disallow: "/" },
       { userAgent: "SemrushBot", disallow: "/" },
       { userAgent: "MJ12bot", disallow: "/" },
+      { userAgent: "DotBot", disallow: "/" },
+      { userAgent: "PetalBot", disallow: "/" },
     ],
     sitemap: `${SITE_ORIGIN}/sitemap.xml`,
   };
