@@ -43,7 +43,6 @@ import LoginModal from "@/components/LoginModal";
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { carBrands, carModels } from "@shared/carDatabase";
 const logoImage = "/logo-icon-only.png";
-const NNAUTO_RESET_HOME_FILTERS_EVENT = "nnauto:reset-home-filters";
 
 const FavoritesModal = lazy(() =>
   import("@/components/FavoritesModal").then((m) => ({
@@ -98,7 +97,7 @@ function HeaderContent({
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [location, navigate] = useLocation();
-  const { setSearch, filters, resetFilters } = useFilterParams();
+  const { setSearch, filters } = useFilterParams();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [loginModalTab, setLoginModalTab] = useState<"login" | "register">(
     "login",
@@ -423,33 +422,19 @@ function HeaderContent({
       new URLSearchParams(window.location.search).get("embedded") === "1";
     const isInIframe = window.parent && window.parent !== window;
 
+    // Embedded listing (in iframe) keeps its existing behaviour — ask the
+    // parent window to close the overlay instead of navigating ourselves.
     if (isEmbeddedListing && isInIframe) {
       window.parent.postMessage({ type: "nnauto-close-listing-overlay" }, "*");
       return;
     }
 
-    window.dispatchEvent(new Event(NNAUTO_RESET_HOME_FILTERS_EVENT));
-
-    const hasQueryOrHash = !!window.location.search || !!window.location.hash;
-    const hasActiveFilters = Object.entries(filters).some(([, value]) => {
-      if (value === undefined || value === null) return false;
-      if (typeof value === "string") return value.trim().length > 0;
-      if (Array.isArray(value)) return value.length > 0;
-      return true;
-    });
-
-    if (hasActiveFilters) {
-      resetFilters();
-    }
-
-    // Якщо вже на чистій головній — просто скрол вгору
-    if (window.location.pathname === "/" && !hasQueryOrHash) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      return;
-    }
-
-    // Logo click explicitly scrolls the user back to the top of the home page.
-    navigate("/", { replace: true, scroll: true });
+    // Logo always returns the user to a fresh home page. We use a real
+    // navigation instead of SPA `navigate("/")` so any in-memory state
+    // (filters, scroll, modals, opened listings) is wiped exactly the
+    // same way as a manual reload — which matches the user expectation
+    // of "go to the very first home page".
+    window.location.assign("/");
   };
 
   return (
