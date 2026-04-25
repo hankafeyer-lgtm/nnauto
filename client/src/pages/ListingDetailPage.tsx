@@ -3118,6 +3118,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
+import { displayViews } from "@/lib/displayStats";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useListingStats } from "@/hooks/useListingStats";
@@ -4784,7 +4785,7 @@ export default function ListingDetailPage({
                               : "Views"}
                         </p>
                         <p className="font-semibold text-base" data-testid="text-analytics-card-views">
-                          {listingAnalyticsSafe.views}
+                          {displayViews(listingAnalyticsSafe.views)}
                         </p>
                       </div>
                       <div className="rounded-lg border bg-background/70 p-3 text-center">
@@ -5594,7 +5595,7 @@ export default function ListingDetailPage({
                                 : "Views"}
                           </p>
                           <p className="font-semibold" data-testid="text-analytics-views">
-                            {listingAnalyticsSafe.views}
+                            {displayViews(listingAnalyticsSafe.views)}
                           </p>
                         </div>
                         <div className="text-center">

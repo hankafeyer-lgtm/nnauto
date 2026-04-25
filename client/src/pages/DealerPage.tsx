@@ -8,6 +8,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "@/lib/navigation";
+import { displayViews } from "@/lib/displayStats";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { SEO } from "@/components/SEO";
@@ -236,7 +237,7 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
         <CardContent>
           <div className="grid grid-cols-3 gap-6">
             <div className="text-center">
-              <p className="text-3xl font-bold text-amber-700">{stats.last30Days.views}</p>
+              <p className="text-3xl font-bold text-amber-700">{displayViews(stats.last30Days.views)}</p>
               <p className="text-sm text-muted-foreground">{t("dealer.views")}</p>
             </div>
             <div className="text-center">
@@ -285,7 +286,7 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
                   </div>
                   <div className="flex gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Eye className="h-3 w-3" /> {item.views}
+                      <Eye className="h-3 w-3" /> {displayViews(item.views)}
                     </span>
                     <span className="flex items-center gap-1">
                       <Phone className="h-3 w-3" /> {item.contacts}
@@ -754,7 +755,7 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="font-medium">{Number(l.price).toLocaleString()} Kč</span>
-                        <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{l.views}</span>
+                        <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{displayViews(l.views)}</span>
                         <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{l.contacts}</span>
                         <span className="flex items-center gap-0.5"><MessageCircle className="h-3 w-3" />{l.whatsapp}</span>
                         <span className="flex items-center gap-0.5"><Timer className="h-3 w-3" />{getTimeSince(l.created_at)}</span>
@@ -792,7 +793,7 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div className="bg-blue-50 rounded-lg p-2.5 text-center">
                           <Eye className="h-4 w-4 mx-auto text-blue-600 mb-1" />
-                          <p className="text-lg font-bold text-blue-700">{l.views}</p>
+                          <p className="text-lg font-bold text-blue-700">{displayViews(l.views)}</p>
                           <p className="text-[10px] text-blue-600/70">{t("dealer.views")}</p>
                         </div>
                         <div className="bg-emerald-50 rounded-lg p-2.5 text-center">
@@ -816,7 +817,7 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                       <div className="mt-3 space-y-1.5">
                         <div className="flex items-center justify-between text-xs text-muted-foreground">
                           <span>{t("dealer.views")}</span>
-                          <span>{l.views}</span>
+                          <span>{displayViews(l.views)}</span>
                         </div>
                         <div className="h-2 bg-muted rounded-full overflow-hidden">
                           <div
@@ -1140,7 +1141,7 @@ function PromotionTab({
                       </p>
                       <div className="flex gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
-                          <Eye className="h-3 w-3" /> {item.views}
+                          <Eye className="h-3 w-3" /> {displayViews(item.views)}
                         </span>
                         <span className="flex items-center gap-1">
                           <Phone className="h-3 w-3" /> {item.contacts}

@@ -404,6 +404,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useTranslation } from "@/lib/translations";
+import { displayViews } from "@/lib/displayStats";
 import {
   Card,
   CardContent,
@@ -1026,7 +1027,7 @@ export default function AdminPage() {
                             <TableCell
                               data-testid={`text-views-${listing.id}`}
                             >
-                              {analytics?.views ?? 0}
+                              {displayViews(analytics?.views)}
                             </TableCell>
                             <TableCell
                               data-testid={`text-contact-clicks-${listing.id}`}

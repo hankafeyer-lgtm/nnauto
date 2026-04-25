@@ -38,6 +38,7 @@ import {
 } from "@/lib/imageOptimizer";
 import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
+import { displayViews } from "@/lib/displayStats";
 
 interface CarCardProps {
   id: string;
@@ -166,7 +167,7 @@ function CarCard({
               <span>Zobrazení</span>
             </div>
             <p className="font-semibold text-sm sm:text-base text-black dark:text-white">
-              {renderValue(safe.views)}
+              {renderValue(displayViews(safe.views))}
             </p>
           </div>
           <div
