@@ -9,6 +9,16 @@ export const LISTING_PHOTO_PUBLIC_BASE_URL =
   "https://pub-d325306cbf594d02a62f39fb6a92a0fd.r2.dev";
 
 /**
+ * Bumped whenever the server-side `/img/` pipeline output changes
+ * (e.g. watermark style or version). The value is appended as `&v=...`
+ * to every optimized image URL so browsers and the CDN drop their
+ * `immutable` cached copies and refetch a fresh render.
+ *
+ * Keep in sync with `WATERMARK_VERSION` in `app/img/[...path]/route.ts`.
+ */
+export const IMAGE_PIPELINE_VERSION = "wm4";
+
+/**
  * Full image URL for <img src>. Absolute http(s) unchanged; `uploads/…` (optionally
  * prefixed with `/objects/`) → public R2 URL; other paths (e.g. bundled PNGs) unchanged.
  */
@@ -65,6 +75,11 @@ export function getOptimizedImageUrl(
   if (width) params.set("w", width.toString());
   params.set("q", quality.toString());
   params.set("f", format);
+  // Cache-bust whenever the server-side watermark/transform pipeline
+  // changes. The /img/ route ignores unknown params, so this only varies
+  // the URL — forcing browsers and the CDN to refetch the latest bake
+  // instead of serving stale immutable copies.
+  params.set("v", IMAGE_PIPELINE_VERSION);
 
   return `/img/${key}?${params.toString()}`;
 }
