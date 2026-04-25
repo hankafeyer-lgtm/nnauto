@@ -145,6 +145,46 @@ function HeaderContent({
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchVisible, setIsSearchVisible] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Hide-on-scroll-down / show-on-scroll-up behaviour for the sticky
+  // header. We keep `false` as the initial value so SSR markup matches
+  // the first client render (header always visible at the top of the
+  // page), and toggle the flag from a passive scroll listener that is
+  // throttled via requestAnimationFrame.
+  const [headerHidden, setHeaderHidden] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let lastScrollY = Math.max(0, window.scrollY || 0);
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const currentY = Math.max(0, window.scrollY || 0);
+        const delta = currentY - lastScrollY;
+
+        if (currentY < 10) {
+          // Near the very top — always show the header so users never
+          // see it floating mid-page on landing.
+          setHeaderHidden(false);
+        } else if (delta > 4) {
+          // Meaningful downward scroll → hide.
+          setHeaderHidden(true);
+        } else if (delta < -4) {
+          // Even a small upward swipe → show.
+          setHeaderHidden(false);
+        }
+
+        lastScrollY = currentY;
+        ticking = false;
+      });
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchMobileInputRef = useRef<HTMLInputElement>(null);
   const lastScrollYRef = useRef(0);
@@ -439,9 +479,9 @@ function HeaderContent({
 
   return (
     <header
-      className={`sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl shadow-lg ${
-        compactMobile ? "md:backdrop-blur-2xl" : ""
-      }`}
+      className={`sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl shadow-lg transition-transform duration-300 ease-out will-change-transform ${
+        headerHidden ? "-translate-y-full" : "translate-y-0"
+      } ${compactMobile ? "md:backdrop-blur-2xl" : ""}`}
     >
       <div
         className={`container mx-auto ${
