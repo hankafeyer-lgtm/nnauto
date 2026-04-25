@@ -45,3 +45,6 @@ listings.json
 next
 rest-express@1.0.0
 test-results/
+
+# Watermark preview renders (dev-only, regenerate via scripts/watermark-preview.mjs)
+public/watermark-preview/

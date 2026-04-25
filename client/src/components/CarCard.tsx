@@ -633,13 +633,6 @@ function CarCard({
               draggable={false}
             />
 
-            {/* Watermark */}
-            <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none select-none">
-              <span className="text-white/20 text-2xl sm:text-3xl lg:text-2xl font-bold tracking-wider rotate-[-20deg]">
-                NNAuto.cz
-              </span>
-            </div>
-
             {hasMultiplePhotos && (
               <div className="absolute bottom-2 left-2 z-20 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
                 {allPhotos.length} foto

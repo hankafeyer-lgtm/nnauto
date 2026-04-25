@@ -28,6 +28,39 @@ const imageCache = new Map<
 const CACHE_TTL = 4 * 60 * 60 * 1000;
 const MAX_CACHE = 1000;
 
+const WATERMARK_VERSION = "wm4";
+
+function shouldWatermark(objectKey: string): boolean {
+  return objectKey.startsWith("uploads/");
+}
+
+function buildWatermarkSvg(imageWidth: number, imageHeight: number): Buffer {
+  const fontSize = Math.max(
+    14,
+    Math.round(Math.min(imageWidth, imageHeight) * 0.048),
+  );
+  const padX = Math.max(12, Math.round(imageWidth * 0.022));
+  const padY = Math.max(12, Math.round(imageHeight * 0.028));
+  const strokeW = Math.max(1, Math.round(fontSize * 0.08));
+  const letterSpacing = Math.max(1, Math.round(fontSize * 0.08));
+  const y = padY + fontSize;
+
+  const svg = `<svg width="${imageWidth}" height="${imageHeight}" xmlns="http://www.w3.org/2000/svg">
+    <text x="${padX}" y="${y}"
+      font-family="Georgia, 'Times New Roman', 'Playfair Display', serif"
+      font-style="italic"
+      font-weight="600"
+      font-size="${fontSize}"
+      letter-spacing="${letterSpacing}"
+      fill="rgba(255,255,255,0.55)"
+      stroke="rgba(0,0,0,0.35)"
+      stroke-width="${strokeW}"
+      paint-order="stroke fill">NNAuto.cz</text>
+  </svg>`;
+
+  return Buffer.from(svg);
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
@@ -41,7 +74,7 @@ export async function GET(
     const format = req.nextUrl.searchParams.get("f") || "webp";
     const maxWidth = Math.min(width || 1920, 1920);
 
-    const cacheKey = `${objectKey}-w${maxWidth}-q${quality}-${format}`;
+    const cacheKey = `${objectKey}-w${maxWidth}-q${quality}-${format}-${WATERMARK_VERSION}`;
 
     const cached = imageCache.get(cacheKey);
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
@@ -91,6 +124,14 @@ export async function GET(
         fit: "inside",
         fastShrinkOnLoad: true,
       });
+    }
+
+    if (shouldWatermark(objectKey)) {
+      const resized = await pipeline.toBuffer({ resolveWithObject: true });
+      const wmSvg = buildWatermarkSvg(resized.info.width, resized.info.height);
+      pipeline = sharp(resized.data).composite([
+        { input: wmSvg, top: 0, left: 0 },
+      ]);
     }
 
     let contentType = "image/webp";
