@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import JsonLd from "@lib/seo/JsonLd";
 import { buildHomePageJsonLdGraph } from "@lib/seo/structured-data";
+import { formatBrandDisplay } from "@lib/seo/brand-format";
 import HomeClient from "./home-client";
 
 const HOME_TITLE =
@@ -9,6 +10,17 @@ const HOME_DESCRIPTION =
   "NNAuto – moderní online autobazar v ČR. Tisíce ověřených inzerátů osobních aut, motocyklů a nákladních vozidel. Filtrujte podle značky, modelu, ceny a regionu.";
 const HOME_OG_DESCRIPTION =
   "Najděte své vysněné auto na NNAuto. Osobní auta, motocykly i nákladní vozy. Ověření prodejci, pokročilé filtry a kontakt přímo s majitelem inzerátu.";
+
+const POPULAR_BRANDS = [
+  "bmw",
+  "audi",
+  "skoda",
+  "mercedes-benz",
+  "volkswagen",
+  "volvo",
+  "ford",
+  "jeep",
+];
 
 export const metadata: Metadata = {
   title: HOME_TITLE,
@@ -35,13 +47,116 @@ export default function Home() {
   return (
     <>
       <JsonLd data={buildHomePageJsonLdGraph()} />
-      {/* SEO-only H1 (visually hidden). Gives crawlers a clear top-level heading
-          without changing the visible hero design. */}
+      {/* SEO H1 — kept visually hidden so the hero design stays untouched. */}
       <h1 className="sr-only">
-        NNAuto – online autobazar v České republice. Prodej a nákup osobních
-        aut, motocyklů a nákladních vozidel.
+        Prodej a nákup ojetých aut v ČR
       </h1>
       <HomeClient />
+
+      {/* Visible SEO content block — placed below the dynamic hero / listings.
+          Server-rendered so crawlers see real text and internal links to brand
+          landings. Does not interfere with filters or any client-side state. */}
+      <section
+        aria-labelledby="home-seo-brands"
+        className="container mx-auto max-w-6xl px-4 py-10 border-t mt-8"
+      >
+        <h2
+          id="home-seo-brands"
+          className="text-xl md:text-2xl font-semibold mb-4"
+        >
+          Populární značky
+        </h2>
+        <ul className="flex flex-wrap gap-2">
+          {POPULAR_BRANDS.map((slug) => (
+            <li key={slug}>
+              <a
+                href={`/auta/${slug}`}
+                className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
+              >
+                {formatBrandDisplay(slug)}
+              </a>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Procházejte také{" "}
+          <a href="/listings" className="underline hover:text-foreground">
+            kompletní katalog inzerátů
+          </a>{" "}
+          nebo{" "}
+          <a href="/add-listing" className="underline hover:text-foreground">
+            přidejte vlastní inzerát
+          </a>
+          .
+        </p>
+      </section>
+
+      <section
+        aria-labelledby="home-seo-text"
+        className="container mx-auto max-w-6xl px-4 pb-12"
+      >
+        <h2
+          id="home-seo-text"
+          className="text-xl md:text-2xl font-semibold mb-3"
+        >
+          Online autobazar NNAuto – prodej a nákup ojetých aut
+        </h2>
+        <div className="prose max-w-none text-muted-foreground space-y-3 text-[15px] leading-relaxed">
+          <p>
+            <strong>NNAuto</strong> je moderní online autobazar pro Českou
+            republiku, kde najdete tisíce ověřených inzerátů osobních aut,
+            motocyklů a nákladních vozidel. Spojujeme prodejce a kupce
+            přímo, bez mezičlánků. Každý inzerát obsahuje detailní popis,
+            fotografie, technické parametry a kontakt přímo na majitele
+            nebo prověřený autobazar.
+          </p>
+          <p>
+            Vyberte si auto pomocí pokročilých filtrů – nastavte si značku
+            (například{" "}
+            <a href="/auta/bmw" className="underline">
+              BMW
+            </a>
+            ,{" "}
+            <a href="/auta/audi" className="underline">
+              Audi
+            </a>
+            ,{" "}
+            <a href="/auta/skoda" className="underline">
+              Škoda
+            </a>{" "}
+            nebo{" "}
+            <a href="/auta/mercedes-benz" className="underline">
+              Mercedes-Benz
+            </a>
+            ), model, rok výroby, rozsah ceny a najetých kilometrů, palivo,
+            převodovku nebo region prodejce. Inzeráty filtrujete v reálném
+            čase a okamžitě vidíte, kolik vozů odpovídá vašim parametrům.
+          </p>
+          <p>
+            Prodáváte auto? Vložte zdarma inzerát během několika minut.
+            Nahrajte fotografie, popište výbavu a servisní historii a
+            uveďte cenu. Pro rychlejší prodej můžete využít zvýraznění{" "}
+            <a href="/pricing" className="underline">
+              TOP inzerátu
+            </a>{" "}
+            – posune vaši nabídku nahoru ve výpisu a získá viditelný
+            štítek. Doplňkově nabízíme prověření vozu přes Cebia, který
+            online z VIN kódu odhalí historii, počet majitelů a případné
+            havárie.
+          </p>
+          <p>
+            Kupujete ojeté auto? Vždy si u staršího vozu prověřte servisní
+            knížku, stav karoserie a soulad reálného nájezdu s technickým
+            průkazem. Užitečné{" "}
+            <a href="/tips" className="underline">
+              tipy a rady při nákupu auta
+            </a>{" "}
+            jsme připravili v samostatné sekci. NNAuto je dostupné na
+            počítači i na mobilu – inzeráty si snadno uložíte a vrátíte se
+            k nim později.
+          </p>
+        </div>
+      </section>
     </>
   );
 }

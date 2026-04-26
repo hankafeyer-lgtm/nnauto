@@ -6,6 +6,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 import JsonLd from "@lib/seo/JsonLd";
 import { getListingMainTitleFromRow } from "@lib/seo/listing-title";
+import { formatBrandDisplay, formatVehicleTitle } from "@lib/seo/brand-format";
 
 /**
  * SEO landing page per brand (e.g. /auta/bmw, /auta/audi).
@@ -25,7 +26,8 @@ type Props = {
   params: Promise<Params>;
 };
 
-const CAPITALIZE = (s: string) =>
+/** Region label gets a simple Title Case for SEO display. */
+const titleCaseRegion = (s: string) =>
   s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
 async function queryBrandListings(brandSlug: string, limit = 30) {
@@ -41,7 +43,8 @@ async function queryBrandListings(brandSlug: string, limit = 30) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { brand } = await params;
-  const brandName = CAPITALIZE(decodeURIComponent(brand));
+  const brandSlug = decodeURIComponent(brand).toLowerCase();
+  const brandName = formatBrandDisplay(brandSlug);
   const rows = await queryBrandListings(brand, 1);
   const hasAny = rows.length > 0;
   const title = hasAny
@@ -91,7 +94,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BrandLandingPage({ params }: Props) {
   const { brand } = await params;
   const brandSlug = decodeURIComponent(brand).toLowerCase();
-  const brandName = CAPITALIZE(brandSlug);
+  const brandName = formatBrandDisplay(brandSlug);
   const rows = await queryBrandListings(brandSlug, 30);
 
   if (!rows.length) {
@@ -240,7 +243,7 @@ export default async function BrandLandingPage({ params }: Props) {
                 {img ? (
                   <img
                     src={img}
-                    alt={getListingMainTitleFromRow(l)}
+                    alt={formatVehicleTitle(l.brand, l.model, l.year)}
                     className="w-full h-48 object-cover"
                     loading="lazy"
                     decoding="async"
@@ -250,10 +253,10 @@ export default async function BrandLandingPage({ params }: Props) {
                 )}
                 <div className="p-3 space-y-1">
                   <h3 className="font-semibold group-hover:underline">
-                    {getListingMainTitleFromRow(l)}
+                    {formatVehicleTitle(l.brand, l.model, l.year)}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {[year, mileage, l.region ? CAPITALIZE(String(l.region)) : ""]
+                    {[year, mileage, l.region ? titleCaseRegion(String(l.region)) : ""]
                       .filter(Boolean)
                       .join(" · ")}
                   </p>
@@ -277,6 +280,13 @@ export default async function BrandLandingPage({ params }: Props) {
           výroby, najeté km, palivo, převodovka a lokalita.
         </p>
         <p>
+          Značka <strong>{brandName}</strong> patří mezi nejvyhledávanější vozy
+          na českém trhu. Na NNAuto najdete jak ojeté kusy s prověřenou
+          historií, tak novější ročníky. Každý inzerát obsahuje detailní popis,
+          fotografie, technické parametry a kontakt přímo na majitele nebo
+          autobazar – bez zbytečných mezičlánků a skrytých poplatků.
+        </p>
+        <p>
           Pokud hledáte konkrétní model <strong>{brandName}</strong>, využijte{" "}
           <a
             href={`/listings?brand=${encodeURIComponent(brandSlug)}`}
@@ -285,7 +295,51 @@ export default async function BrandLandingPage({ params }: Props) {
             kompletní filtr na stránce inzerátů
           </a>{" "}
           – nastavíte rozsah ceny, roku a najetých km a najdete přesně to auto,
-          které vám bude vyhovovat.
+          které vám bude vyhovovat. Můžete také kombinovat filtr značky s typem
+          paliva (benzín, diesel, hybrid, elektro), převodovkou (manuál,
+          automat) nebo regionem prodejce.
+        </p>
+        <p>
+          U každého vozu {brandName} doporučujeme zkontrolovat servisní knihu,
+          stav karoserie, nájezd a v případě staršího ročníku objednat
+          prověření přes <strong>Cebia</strong> – ušetříte si tak nepříjemná
+          překvapení s historií vozu. NNAuto u inzerátů s prověřením Cebia
+          zobrazuje speciální štítek, takže snadno poznáte ověřená auta.
+        </p>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-xl font-semibold mb-3">Související značky</h2>
+        <ul className="flex flex-wrap gap-2">
+          {[
+            "bmw",
+            "audi",
+            "skoda",
+            "mercedes-benz",
+            "volkswagen",
+            "volvo",
+            "ford",
+            "jeep",
+          ]
+            .filter((b) => b !== brandSlug)
+            .slice(0, 8)
+            .map((slug) => (
+              <li key={slug}>
+                <a
+                  href={`/auta/${slug}`}
+                  className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+                >
+                  {formatBrandDisplay(slug)}
+                </a>
+              </li>
+            ))}
+        </ul>
+        <p className="mt-4 text-sm text-muted-foreground">
+          Prohlédněte si také{" "}
+          <a href="/listings" className="underline">
+            všechny inzeráty napříč značkami
+          </a>
+          .
         </p>
       </section>
     </main>

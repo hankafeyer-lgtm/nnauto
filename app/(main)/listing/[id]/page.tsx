@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import JsonLd from "@lib/seo/JsonLd";
 import { SITE_ORIGIN } from "@lib/seo/constants";
+import {
+  formatBrandDisplay,
+  formatModelDisplay,
+  formatVehicleTitle,
+} from "@lib/seo/brand-format";
 import ListingDetailClient from "./listing-detail-client";
 import { getListingById, getSimilarListings } from "./get-listing";
 
@@ -18,8 +23,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const capitalize = (v: string) =>
     v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
-  const brand = capitalize(listing.brand || "");
-  const model = capitalize(listing.model || "");
+  const brand = formatBrandDisplay(listing.brand);
+  const model = formatModelDisplay(listing.model);
   const price = Number(listing.price).toLocaleString("cs-CZ");
   const mileage = listing.mileage
     ? listing.mileage.toLocaleString("cs-CZ")
@@ -118,14 +123,16 @@ export default async function ListingDetail({ params, searchParams }: Props) {
   const initialListing = listing
     ? (JSON.parse(JSON.stringify(listing)) as typeof listing)
     : null;
-  const brand = listing?.brand
-    ? listing.brand.charAt(0).toUpperCase() + listing.brand.slice(1)
-    : "";
+  const brand = formatBrandDisplay(listing?.brand);
   const price = listing ? Number(listing.price).toLocaleString("cs-CZ") : null;
-  const listingName = `${brand} ${listing?.model ?? ""} ${listing?.year ?? ""}`.trim();
-  const modelLabel = listing?.model ? String(listing.model) : "";
+  const modelLabel = formatModelDisplay(listing?.model);
   const yearLabel = listing?.year ? String(listing.year) : "";
-  const summaryTitle = `${brand} ${modelLabel} ${yearLabel}`.trim();
+  const summaryTitle = formatVehicleTitle(
+    listing?.brand,
+    listing?.model,
+    listing?.year,
+  );
+  const listingName = summaryTitle;
   const summaryMileage = listing?.mileage
     ? `${listing.mileage.toLocaleString("cs-CZ")} km`
     : "";
