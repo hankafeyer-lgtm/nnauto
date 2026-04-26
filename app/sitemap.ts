@@ -1,11 +1,15 @@
 import type { MetadataRoute } from "next";
 import { db } from "@lib/db";
 import { SITE_ORIGIN } from "@lib/seo/constants";
+import { normalizeSlug } from "@lib/seo/slug";
 import { listings } from "@shared/schema";
 import { desc, eq, sql } from "drizzle-orm";
 
 /** Regenerate sitemap periodically so new listings appear before Google’s next full sitemap read. */
 export const revalidate = 300;
+
+/** Minimum active inventory before we list a brand+model SEO page in the sitemap. */
+const MIN_MODEL_LISTINGS_FOR_SITEMAP = 3;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const allListings = await db
@@ -28,6 +32,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .from(listings)
     .where(eq(listings.isSold, false))
     .groupBy(listings.brand);
+
+  // Brand+model pairs with enough active inventory to warrant a dedicated SEO
+  // landing at /auta/<brand>/<model>. Pairs below the threshold are still
+  // reachable but render `noindex` and stay out of the sitemap to avoid thin
+  // pages getting indexed.
+  const modelRows = await db
+    .select({
+      brand: listings.brand,
+      model: listings.model,
+      lastUpdate: sql<Date>`max(${listings.updatedAt})`,
+      total: sql<number>`count(*)::int`,
+    })
+    .from(listings)
+    .where(eq(listings.isSold, false))
+    .groupBy(listings.brand, listings.model)
+    .having(sql`count(*) >= ${MIN_MODEL_LISTINGS_FOR_SITEMAP}`);
 
   const staticPages: MetadataRoute.Sitemap = [
     {
@@ -90,5 +110,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.75,
     }));
 
-  return [...staticPages, ...brandPages, ...listingPages];
+  const modelPages: MetadataRoute.Sitemap = modelRows
+    .filter((row) => !!row.brand && !!row.model)
+    .map((row) => {
+      const brandSlug = normalizeSlug(String(row.brand));
+      const modelSlug = normalizeSlug(String(row.model));
+      return {
+        url: `${SITE_ORIGIN}/auta/${brandSlug}/${modelSlug}`,
+        lastModified: row.lastUpdate ? new Date(row.lastUpdate) : new Date(),
+        changeFrequency: "daily" as const,
+        priority: 0.7,
+      };
+    })
+    .filter((entry) => {
+      // Sanity: skip entries where slug normalization produced an empty path
+      // segment so we never emit `/auta//something` style URLs.
+      const path = entry.url.replace(SITE_ORIGIN, "");
+      return path.split("/").every((seg, i) => i === 0 || seg.length > 0);
+    });
+
+  return [...staticPages, ...brandPages, ...modelPages, ...listingPages];
 }
