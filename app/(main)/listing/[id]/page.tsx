@@ -346,8 +346,41 @@ export default async function ListingDetail({ params, searchParams }: Props) {
               {listing.vin ? <li>{`VIN: ${listing.vin}`}</li> : null}
             </ul>
           </article>
+          {/* SEO cross-link: brand landing + full catalog. Server-rendered so
+              crawlers and users get a clear path back to the brand index and
+              listings catalog. Does not change any existing breadcrumb logic. */}
+          <section className="container mx-auto mt-6 border-t px-3 py-6 sm:mt-8 sm:px-4 sm:py-8 max-w-7xl">
+            <h2 className="text-xl font-semibold mb-3">
+              Další {brand} na NNAuto
+            </h2>
+            <p className="text-muted-foreground mb-4">
+              Prohlédněte si všechny aktuální inzeráty značky{" "}
+              <strong>{brand}</strong> nebo se vraťte do kompletního katalogu
+              vozidel.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={`/auta/${encodeURIComponent(listing.brand)}`}
+                className="rounded-md bg-[#B8860B] text-white px-4 py-2 text-sm font-medium"
+              >
+                Všechny inzeráty {brand}
+              </a>
+              <a
+                href="/listings"
+                className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+              >
+                Celý katalog
+              </a>
+              <a
+                href={`/listings?brand=${encodeURIComponent(listing.brand)}`}
+                className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+              >
+                Filtr {brand}
+              </a>
+            </div>
+          </section>
           {similarListings.length ? (
-            <section className="container mx-auto mt-6 border-t px-3 py-6 sm:mt-8 sm:px-4 sm:py-8 max-w-7xl">
+            <section className="container mx-auto mt-2 border-t px-3 py-6 sm:mt-4 sm:px-4 sm:py-8 max-w-7xl">
               <h2 className="text-xl font-semibold mb-4">Souvisejici auta</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {similarListings.map((item) => {

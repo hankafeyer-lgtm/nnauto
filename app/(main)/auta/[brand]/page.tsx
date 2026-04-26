@@ -268,43 +268,87 @@ export default async function BrandLandingPage({ params }: Props) {
         })}
       </ul>
 
-      <section className="mt-10 prose max-w-none text-muted-foreground">
+      <section className="mt-10 prose max-w-none text-muted-foreground space-y-3 text-[15px] leading-relaxed">
         <h2 className="text-xl font-semibold text-foreground">
           Proč si vybrat {brandName} na NNAuto?
         </h2>
         <p>
-          Nakupovat {brandName} skrze NNAuto znamená přímý kontakt s prodejcem,
-          transparentní cenu a možnost ověřit historii vozu přes Cebia report.
-          V nabídce najdete jak čerstvě přidané inzeráty, tak déle inzerovaná
-          auta se sníženou cenou. Vše přehledně se všemi parametry – rok
-          výroby, najeté km, palivo, převodovka a lokalita.
+          Nakupovat <strong>{brandName}</strong> přes NNAuto znamená přímý
+          kontakt s prodejcem, transparentní cenu a možnost ověřit historii
+          vozu přes Cebia report. V nabídce najdete jak čerstvě přidané
+          inzeráty, tak déle inzerovaná auta se sníženou cenou. Vše
+          přehledně se všemi parametry – rok výroby, najeté km, palivo,
+          převodovka, výbava a lokalita prodejce. Žádné mezičlánky, žádné
+          skryté provize.
         </p>
         <p>
-          Značka <strong>{brandName}</strong> patří mezi nejvyhledávanější vozy
-          na českém trhu. Na NNAuto najdete jak ojeté kusy s prověřenou
-          historií, tak novější ročníky. Každý inzerát obsahuje detailní popis,
-          fotografie, technické parametry a kontakt přímo na majitele nebo
-          autobazar – bez zbytečných mezičlánků a skrytých poplatků.
+          Značka <strong>{brandName}</strong> patří mezi nejvyhledávanější
+          na českém trhu ojetých vozů. Na NNAuto najdete jak ojeté kusy s
+          prověřenou historií od soukromých majitelů, tak novější ročníky
+          z autobazarů. Každý inzerát obsahuje detailní popis, fotografie
+          z více úhlů, technické parametry a kontakt přímo na majitele
+          nebo autobazar. Komunikace je rychlá – telefonicky nebo přes
+          integrovaný formulář bez prostředníků.
         </p>
         <p>
-          Pokud hledáte konkrétní model <strong>{brandName}</strong>, využijte{" "}
+          Pokud hledáte konkrétní model <strong>{brandName}</strong>,
+          využijte{" "}
           <a
             href={`/listings?brand=${encodeURIComponent(brandSlug)}`}
             className="underline"
           >
             kompletní filtr na stránce inzerátů
           </a>{" "}
-          – nastavíte rozsah ceny, roku a najetých km a najdete přesně to auto,
-          které vám bude vyhovovat. Můžete také kombinovat filtr značky s typem
-          paliva (benzín, diesel, hybrid, elektro), převodovkou (manuál,
-          automat) nebo regionem prodejce.
+          – nastavíte rozsah ceny, roku a najetých km a najdete přesně to
+          auto, které vám bude vyhovovat. Filtry lze libovolně kombinovat:
+          typ paliva (benzín, diesel, hybrid, elektro, LPG, CNG),
+          převodovka (manuál, automat, DSG, CVT), pohon (přední, zadní,
+          4×4), počet majitelů, region nebo vzdálenost od vašeho města.
+          Po každé změně filtru okamžitě uvidíte počet vozů, které
+          aktuálně vyhovují vašemu zadání.
         </p>
         <p>
-          U každého vozu {brandName} doporučujeme zkontrolovat servisní knihu,
-          stav karoserie, nájezd a v případě staršího ročníku objednat
-          prověření přes <strong>Cebia</strong> – ušetříte si tak nepříjemná
-          překvapení s historií vozu. NNAuto u inzerátů s prověřením Cebia
-          zobrazuje speciální štítek, takže snadno poznáte ověřená auta.
+          <strong>Kontrola vozu před koupí.</strong> U každého vozu{" "}
+          {brandName} doporučujeme zkontrolovat servisní knihu, stav
+          karoserie (zejména prahy, lemy kol, podběhy a víka), kvalitu
+          laku, stav motoru a převodovky a hlavně soulad reálného nájezdu
+          s údaji v technickém průkazu. U starších ročníků si vždy
+          vyžádejte výpis ze servisní historie nebo objednejte prověření
+          přes <strong>Cebia</strong> – online report z VIN kódu odhalí
+          předchozí majitele, případné havárie, zástavy nebo nesoulad v
+          nájezdu. Inzeráty s prověřením Cebia mají na NNAuto speciální
+          štítek, takže ověřená auta poznáte na první pohled.
+        </p>
+        <p>
+          <strong>Co u {brandName} sledovat.</strong> Mnoho vozů této
+          značky najdete jak ve verzích s benzínovým, tak dieselovým
+          motorem, často i v úspornějších hybridních variantách. Při
+          výběru zvažte, zda preferujete městský provoz (kde se vyplatí
+          spíše benzín nebo hybrid) nebo dlouhé trasy po dálnici (kde má
+          smysl dieselový motor). U vyšších ročníků s automatickou
+          převodovkou si nechte zkontrolovat hladinu i barvu oleje –
+          jakákoliv tmavá nebo spálená barva ukazuje na zanedbanou
+          údržbu. Vůz vždy zkuste i v horší roli: zařadit na první
+          rychlost, plně zatočit volantem do obou stran, projet hrbol –
+          jakékoliv klepání nebo praskání je signál k bližší prohlídce v
+          servisu.
+        </p>
+        <p>
+          <strong>Prodej {brandName} přes NNAuto.</strong> Vlastníte{" "}
+          {brandName} a chcete ho prodat? Vložte{" "}
+          <a href="/add-listing" className="underline">
+            vlastní inzerát zdarma
+          </a>{" "}
+          během několika minut. Nahrajte 8–12 kvalitních fotografií, popište
+          výbavu, servisní historii a uveďte aktuální cenu. Pro rychlejší
+          prodej využijte{" "}
+          <a href="/pricing" className="underline">
+            TOP zvýraznění
+          </a>{" "}
+          – inzerát se posune na začátek výpisu a získá výrazný barevný
+          štítek. Cenu doporučujeme stanovit podle aktuální nabídky
+          podobných vozů – srovnání najdete přímo zde na stránce{" "}
+          {brandName}.
         </p>
       </section>
 
@@ -338,6 +382,13 @@ export default async function BrandLandingPage({ params }: Props) {
           Prohlédněte si také{" "}
           <a href="/listings" className="underline">
             všechny inzeráty napříč značkami
+          </a>{" "}
+          nebo si nastavte vlastní filtry v{" "}
+          <a
+            href={`/listings?brand=${encodeURIComponent(brandSlug)}`}
+            className="underline"
+          >
+            katalogu {brandName}
           </a>
           .
         </p>
