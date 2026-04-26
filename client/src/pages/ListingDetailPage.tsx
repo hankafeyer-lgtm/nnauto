@@ -3152,6 +3152,7 @@ import {
   getThumbnailUrl,
 } from "@/lib/imageOptimizer";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
+import { trackContact, trackViewContent } from "@/lib/analytics";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
@@ -4185,6 +4186,16 @@ export default function ListingDetailPage({
     if (sessionStorage.getItem(sessionKey)) return;
     sessionStorage.setItem(sessionKey, "1");
     void trackListingAnalyticsEvent("view");
+    try {
+      const priceNum = Number.parseFloat(String(listing.price ?? ""));
+      trackViewContent({
+        contentId: listingId,
+        contentName: getListingMainTitle(listing),
+        contentCategory: listing.bodyType || listing.category || undefined,
+        value: Number.isFinite(priceNum) ? priceNum : undefined,
+        currency: "CZK",
+      });
+    } catch { /* analytics must never break the app */ }
   }, [listingId, listing, trackListingAnalyticsEvent]);
 
   // ⚠️ CRITICAL UX LOGIC
@@ -5446,6 +5457,12 @@ export default function ListingDetailPage({
                       size="lg"
                       onClick={() => {
                         void trackListingAnalyticsEvent("contact_click");
+                        try {
+                          trackContact("phone", {
+                            listingId,
+                            listingName: getListingMainTitle(listing),
+                          });
+                        } catch { /* noop */ }
                         setShowContactDialog(true);
                       }}
                       data-testid="button-contact-seller"
@@ -5508,12 +5525,24 @@ export default function ListingDetailPage({
                         tgText={t("detail.writeTelegram") || "Telegram"}
                         className="pt-2"
                         toastFn={toast}
-                        onWhatsAppClick={() =>
-                          void trackListingAnalyticsEvent("whatsapp_click")
-                        }
-                        onTelegramClick={() =>
-                          void trackListingAnalyticsEvent("telegram_click")
-                        }
+                        onWhatsAppClick={() => {
+                          void trackListingAnalyticsEvent("whatsapp_click");
+                          try {
+                            trackContact("whatsapp", {
+                              listingId,
+                              listingName: getListingMainTitle(listing),
+                            });
+                          } catch { /* noop */ }
+                        }}
+                        onTelegramClick={() => {
+                          void trackListingAnalyticsEvent("telegram_click");
+                          try {
+                            trackContact("telegram", {
+                              listingId,
+                              listingName: getListingMainTitle(listing),
+                            });
+                          } catch { /* noop */ }
+                        }}
                       />
                     ) : null}
 
@@ -5712,6 +5741,14 @@ export default function ListingDetailPage({
                       <a
                         href={`tel:${listing.phone}`}
                         className="text-base hover:underline"
+                        onClick={() => {
+                          try {
+                            trackContact("phone", {
+                              listingId,
+                              listingName: getListingMainTitle(listing),
+                            });
+                          } catch { /* noop */ }
+                        }}
                       >
                         {listing.phone}
                       </a>

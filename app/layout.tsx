@@ -136,7 +136,9 @@ export default function RootLayout({
           rel="dns-prefetch"
           href="https://challenges.cloudflare.com"
         />
-        <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+        <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://connect.facebook.net" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://analytics.tiktok.com" crossOrigin="anonymous" />
         <link
           rel="preload"
           as="image"
@@ -320,68 +322,116 @@ export default function RootLayout({
           }}
         />
         {children}
-        {/* Google Analytics — deferred for performance */}
+        {/* Landing attribution capture — runs as the very first analytics step
+            so UTM/click-id parameters are persisted before any history.replaceState
+            in the SPA layer can strip them from the URL. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              window.dataLayer = window.dataLayer || [];
-              function gtag() { dataLayer.push(arguments); }
               (function () {
-                var started = false;
-                function startAnalytics() {
-                  if (started) return;
-                  started = true;
-                  var s = document.createElement('script');
-                  s.src = 'https://www.googletagmanager.com/gtag/js?id=G-1VPRCXDLKP';
-                  s.async = true;
-                  document.head.appendChild(s);
-                  gtag('js', new Date());
-                  gtag('config', 'G-1VPRCXDLKP', { send_page_view: true });
-                  gtag('config', 'AW-17794544456');
-                  gtag('config', 'AW-17768541644');
-                }
-                // Kick off analytics only after a real user gesture. If nothing happens within 12s,
-                // start anyway so bounce-at-top visits are still measured.
-                window.addEventListener('pointerdown', startAnalytics, { once: true, passive: true });
-                window.addEventListener('keydown', startAnalytics, { once: true });
-                window.addEventListener('scroll', startAnalytics, { once: true, passive: true });
-                window.addEventListener('touchstart', startAnalytics, { once: true, passive: true });
-                window.setTimeout(startAnalytics, 12000);
+                try {
+                  var KEY = 'nn_utm_v1';
+                  var REF_KEY = 'nn_landing_referrer_v1';
+                  var KEYS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id','gclid','fbclid','ttclid','msclkid'];
+                  var search = window.location.search || '';
+                  var found = {};
+                  if (search) {
+                    var sp = new URLSearchParams(search);
+                    for (var i = 0; i < KEYS.length; i++) {
+                      var v = sp.get(KEYS[i]);
+                      if (v) found[KEYS[i]] = v;
+                    }
+                  }
+                  if (Object.keys(found).length > 0) {
+                    var enc = new URLSearchParams(found).toString();
+                    try { sessionStorage.setItem(KEY, enc); } catch (e) {}
+                    window.__nn_utm = enc;
+                  } else {
+                    try {
+                      var stored = sessionStorage.getItem(KEY);
+                      if (stored) window.__nn_utm = stored;
+                    } catch (e) {}
+                  }
+                  if (document.referrer) {
+                    try {
+                      var refHost = new URL(document.referrer).host;
+                      if (refHost && refHost !== window.location.host) {
+                        try {
+                          if (!sessionStorage.getItem(REF_KEY)) {
+                            sessionStorage.setItem(REF_KEY, document.referrer);
+                          }
+                        } catch (e) {}
+                        window.__nn_landing_referrer = document.referrer;
+                      }
+                    } catch (e) {}
+                  } else {
+                    try {
+                      var prevRef = sessionStorage.getItem(REF_KEY);
+                      if (prevRef) window.__nn_landing_referrer = prevRef;
+                    } catch (e) {}
+                  }
+                } catch (e) {}
               })();
             `,
           }}
         />
-        {/* TikTok Pixel — deferred for performance */}
+        {/* Google Analytics 4 + Google Ads — loaded immediately so even <5s
+            bounces from TikTok/Instagram/Facebook ads are tracked. */}
+        <script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-1VPRCXDLKP"
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              (function () {
-                var started = false;
-                function startTikTok() {
-                  if (started) return;
-                  started = true;
-                  !function (w, d, t) {
-                    w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
-                    ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"];
-                    ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
-                    for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
-                    ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};
-                    ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js";
-                    ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=r;ttq._t=ttq._t||{};ttq._t[e]=+new Date;
-                    ttq._o=ttq._o||{};ttq._o[e]=n||{};
-                    n=document.createElement("script");n.type="text/javascript";n.async=!0;n.src=r+"?sdkid="+e+"&lib="+t;
-                    e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
-                    ttq.load("D6OHV8BC77UBTM3F5GBG");ttq.page();
-                  }(window, document, "ttq");
-                }
-                // TikTok pixel is the heaviest remote script — only load on actual user activity,
-                // and as a fallback after 15s so long-tail conversions still count.
-                window.addEventListener('pointerdown', startTikTok, { once: true, passive: true });
-                window.addEventListener('keydown', startTikTok, { once: true });
-                window.addEventListener('scroll', startTikTok, { once: true, passive: true });
-                window.addEventListener('touchstart', startTikTok, { once: true, passive: true });
-                window.setTimeout(startTikTok, 15000);
-              })();
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){ dataLayer.push(arguments); }
+              window.gtag = gtag;
+              gtag('js', new Date());
+              gtag('config', 'G-1VPRCXDLKP', { send_page_view: true });
+              gtag('config', 'AW-17794544456');
+              gtag('config', 'AW-17768541644');
+            `,
+          }}
+        />
+        {/* Meta Pixel (Facebook + Instagram) — env-gated. To enable, set
+            NEXT_PUBLIC_META_PIXEL_ID on the Hetzner server and rebuild. */}
+        {process.env.NEXT_PUBLIC_META_PIXEL_ID ? (
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                !function(f,b,e,v,n,t,s){
+                  if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+                  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+                  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+                  n.queue=[];t=b.createElement(e);t.async=!0;
+                  t.src=v;s=b.getElementsByTagName(e)[0];
+                  s.parentNode.insertBefore(t,s)
+                }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+                fbq('init', '${process.env.NEXT_PUBLIC_META_PIXEL_ID}');
+                fbq('track', 'PageView');
+              `,
+            }}
+          />
+        ) : null}
+        {/* TikTok Pixel — loaded immediately. Without this, ads optimisation
+            inside TikTok Ads Manager can't attribute conversions on fast bounces. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              !function (w, d, t) {
+                w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
+                ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"];
+                ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
+                for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
+                ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};
+                ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js";
+                ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=r;ttq._t=ttq._t||{};ttq._t[e]=+new Date;
+                ttq._o=ttq._o||{};ttq._o[e]=n||{};
+                n=document.createElement("script");n.type="text/javascript";n.async=!0;n.src=r+"?sdkid="+e+"&lib="+t;
+                e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
+                ttq.load("D6OHV8BC77UBTM3F5GBG");ttq.page();
+              }(window, document, "ttq");
             `,
           }}
         />

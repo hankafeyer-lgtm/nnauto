@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "@/lib/navigation";
 import { restoreDebug } from "@/lib/restoreDebug";
+import { trackPageView, ensureInitialized } from "@/lib/analytics";
 
 // Key for storing scroll position in sessionStorage
 export const SCROLL_POSITION_KEY = "listings_scroll_position";
@@ -111,26 +112,11 @@ export function clearListingsRestoreState() {
   sessionStorage.removeItem(LISTINGS_TARGET_ID_KEY);
 }
 
-function trackPageView(path: string) {
-  try {
-    const w = window as Window & { gtag?: (...args: any[]) => void };
-    if (typeof w.gtag !== "function") return;
-    const pagePath =
-      path && path.startsWith("/")
-        ? path
-        : `${window.location.pathname}${window.location.search}`;
-    w.gtag("event", "page_view", {
-      page_path: pagePath,
-      page_location: window.location.href,
-      page_title: document.title,
-    });
-  } catch { /* analytics should never break the app */ }
-}
-
 export function ScrollToTop() {
   const [location] = useLocation();
 
   useEffect(() => {
+    ensureInitialized();
     trackPageView(location || "/");
   }, [location]);
 
