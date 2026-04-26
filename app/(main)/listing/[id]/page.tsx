@@ -7,6 +7,7 @@ import {
   formatModelDisplay,
   formatVehicleTitle,
 } from "@lib/seo/brand-format";
+import { buildListingCarJsonLd } from "@lib/seo/structured-data";
 import ListingDetailClient from "./listing-detail-client";
 import { getListingById, getSimilarListings } from "./get-listing";
 
@@ -275,6 +276,12 @@ export default async function ListingDetail({ params, searchParams }: Props) {
         ],
       }
     : null;
+  // schema.org Car / Vehicle JSON-LD — adds the more specific automotive type
+  // alongside the existing Product schema. Google supports both; the Vehicle
+  // type unlocks "Vehicle" rich result eligibility (year, mileage, fuel type,
+  // transmission, body type) that Product alone does not expose.
+  const carJsonLd = listing ? buildListingCarJsonLd(listing) : null;
+
   const similarListings = listing ? await getSimilarListings(listing, 6) : [];
 
   if (!listing) {
@@ -294,6 +301,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
     return (
       <>
         {productJsonLd ? <JsonLd data={productJsonLd} /> : null}
+        {carJsonLd ? <JsonLd data={carJsonLd} /> : null}
         {breadcrumbJsonLd ? <JsonLd data={breadcrumbJsonLd} /> : null}
         <main className="min-h-screen bg-background">
           <div className="container mx-auto px-3 pt-3 sm:px-4 sm:pt-4 max-w-7xl">
