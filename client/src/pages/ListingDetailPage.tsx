@@ -3126,6 +3126,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { canPrefetchHeavyResources } from "@/lib/queryClient";
 import { getListingMainTitle } from "@/lib/listingTitle";
+import { buildListingAbsoluteUrl } from "@/lib/listingUrl";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import MobileFilters from "@/components/MobileFilters";
@@ -4106,7 +4107,11 @@ export default function ListingDetailPage({
   const handleShare = useCallback(async () => {
     if (!listing) return;
 
-    const shareUrl = `https://nnauto.cz/listing/${listing.id}`;
+    const shareUrl = buildListingAbsoluteUrl({
+      id: listing.id,
+      brand: listing.brand,
+      model: listing.model,
+    });
     const mainTitle = getListingMainTitle(listing);
     const shareData = {
       title: mainTitle,
@@ -4288,7 +4293,14 @@ export default function ListingDetailPage({
 
   // --- SEO (memoized)
   const listingUrl = useMemo(
-    () => (listing ? `https://nnauto.cz/listing/${listing.id}` : ""),
+    () =>
+      listing
+        ? buildListingAbsoluteUrl({
+            id: listing.id,
+            brand: listing.brand,
+            model: listing.model,
+          })
+        : "",
     [listing],
   );
 
@@ -4334,7 +4346,11 @@ export default function ListingDetailPage({
       },
       {
         name: `${listing.year} ${listing.brand} ${listing.model}`,
-        url: `https://nnauto.cz/listing/${listing.id}`,
+        url: buildListingAbsoluteUrl({
+          id: listing.id,
+          brand: listing.brand,
+          model: listing.model,
+        }),
       },
     ]);
   }, [listing, language]);

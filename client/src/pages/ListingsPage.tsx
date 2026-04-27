@@ -3012,6 +3012,7 @@ import sportsImage from "@assets/generated_images/Featured_car_sports_0787b41f.p
 import hatchbackImage from "@assets/generated_images/Featured_car_hatchback_89d0679c.png";
 import truckImage from "@assets/generated_images/Featured_car_truck_55bea7bf.png";
 import { getListingMainTitle } from "@/lib/listingTitle";
+import { buildListingPath } from "@/lib/listingUrl";
 import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
 
@@ -4915,7 +4916,11 @@ export default function ListingsPage() {
             </div>
           ) : null}
           <iframe
-            src={`/listing/${openListingId}?embedded=1`}
+            src={`${buildListingPath({
+              id: openListingId,
+              brand: listingsById.get(openListingId)?.brand,
+              model: listingsById.get(openListingId)?.model,
+            })}?embedded=1`}
             loading="eager"
             fetchPriority="high"
             className={`w-full h-full border-0 bg-background transition-opacity duration-150 ${
