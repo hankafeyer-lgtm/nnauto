@@ -56,9 +56,13 @@ async function queryBrandListings(brandSlug: string, limit = 30) {
 async function queryPopularModels(brandSlug: string, limit = 12) {
   const norm = brandSlug.trim().toLowerCase();
   if (!norm) return [];
+  // Group by lower(model) so DB rows stored as "Octavia" and "octavia"
+  // collapse into one row with combined count. min(model) picks a
+  // deterministic representative spelling — formatModelDisplay /
+  // normalizeSlug downstream normalize both display and URL anyway.
   const rows = await db
     .select({
-      model: listings.model,
+      model: sql<string>`min(${listings.model})`,
       total: sql<number>`count(*)::int`,
     })
     .from(listings)
@@ -68,7 +72,7 @@ async function queryPopularModels(brandSlug: string, limit = 12) {
         sql`lower(${listings.brand}) = ${norm}`,
       ),
     )
-    .groupBy(listings.model)
+    .groupBy(sql`lower(${listings.model})`)
     .having(sql`count(*) >= 3`)
     .orderBy(desc(sql`count(*)`))
     .limit(limit);
@@ -345,30 +349,40 @@ export default async function BrandLandingPage({ params }: Props) {
         </p>
       </section>
 
-      {popularModels.length > 0 ? (
-        <section
-          aria-labelledby="popular-models-heading"
-          className="mt-10"
-        >
-          <h2
-            id="popular-models-heading"
-            className="text-xl font-semibold mb-3"
+      {(() => {
+        // Belt-and-suspenders dedup by normalized slug. SQL already groups by
+        // lower(model), but legacy DB rows with extra whitespace / accents
+        // could still collapse to the same slug — render only the first one.
+        const seen = new Set<string>();
+        const dedupedModels = popularModels
+          .map((m) => ({ ...m, slug: normalizeSlug(m.model) }))
+          .filter((m) => {
+            if (!m.slug || seen.has(m.slug)) return false;
+            seen.add(m.slug);
+            return true;
+          });
+        if (dedupedModels.length === 0) return null;
+        return (
+          <section
+            aria-labelledby="popular-models-heading"
+            className="mt-10"
           >
-            Populární modely {brandName}
-          </h2>
-          <p className="text-sm text-muted-foreground mb-4 max-w-3xl">
-            Nejhledanější modely značky {brandName} s aktuálně dostupnou
-            nabídkou na NNAuto. Klikněte pro zobrazení všech inzerátů
-            konkrétního modelu.
-          </p>
-          <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {popularModels.map((m) => {
-              const modelSlug = normalizeSlug(m.model);
-              if (!modelSlug) return null;
-              return (
-                <li key={modelSlug}>
+            <h2
+              id="popular-models-heading"
+              className="text-xl font-semibold mb-3"
+            >
+              Populární modely {brandName}
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4 max-w-3xl">
+              Nejhledanější modely značky {brandName} s aktuálně dostupnou
+              nabídkou na NNAuto. Klikněte pro zobrazení všech inzerátů
+              konkrétního modelu.
+            </p>
+            <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {dedupedModels.map((m) => (
+                <li key={m.slug}>
                   <a
-                    href={`/auta/${brandSlug}/${modelSlug}`}
+                    href={`/auta/${brandSlug}/${m.slug}`}
                     className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
                   >
                     <span className="truncate font-medium">
@@ -379,11 +393,11 @@ export default async function BrandLandingPage({ params }: Props) {
                     </span>
                   </a>
                 </li>
-              );
-            })}
-          </ul>
-        </section>
-      ) : null}
+              ))}
+            </ul>
+          </section>
+        );
+      })()}
 
       <section className="mt-8">
         <h2 className="text-xl font-semibold mb-3">Související značky</h2>
