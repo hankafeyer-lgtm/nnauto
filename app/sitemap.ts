@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { db } from "@lib/db";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 import { normalizeSlug } from "@lib/seo/slug";
+import { buildListingUrl } from "@lib/seo/listing-url";
 import { listings } from "@shared/schema";
 import { desc, eq, sql } from "drizzle-orm";
 
@@ -15,6 +16,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const allListings = await db
     .select({
       id: listings.id,
+      brand: listings.brand,
+      model: listings.model,
       updatedAt: listings.updatedAt,
       createdAt: listings.createdAt,
     })
@@ -95,7 +98,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const listingPages: MetadataRoute.Sitemap = allListings.map((l) => ({
-    url: `${SITE_ORIGIN}/listing/${l.id}`,
+    url: `${SITE_ORIGIN}${buildListingUrl({
+      id: l.id,
+      brand: l.brand,
+      model: l.model,
+    })}`,
     lastModified: l.updatedAt || l.createdAt || new Date(),
     changeFrequency: "daily" as const,
     priority: 0.8,

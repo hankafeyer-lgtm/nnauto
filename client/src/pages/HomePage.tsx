@@ -2075,6 +2075,7 @@ import {
 } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { getListingMainTitle } from "@/lib/listingTitle";
+import { buildListingPath } from "@/lib/listingUrl";
 import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
 
@@ -3664,7 +3665,11 @@ export default function HomePage() {
               </div>
             ) : null}
             <iframe
-              src={`/listing/${openListingId}?embedded=1`}
+              src={`${buildListingPath({
+                id: openListingId,
+                brand: listingsById.get(openListingId)?.brand,
+                model: listingsById.get(openListingId)?.model,
+              })}?embedded=1`}
               loading="eager"
               fetchPriority="high"
               className={`w-full h-full border-0 bg-background transition-opacity duration-150 ${

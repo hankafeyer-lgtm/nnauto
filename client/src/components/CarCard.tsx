@@ -39,9 +39,12 @@ import {
 import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
 import { displayViews } from "@/lib/displayStats";
+import { buildListingPath } from "@/lib/listingUrl";
 
 interface CarCardProps {
   id: string;
+  brand?: string;
+  model?: string;
   image: string;
   photos?: string[];
   title: string;
@@ -85,6 +88,8 @@ interface CarCardProps {
 
 function CarCard({
   id,
+  brand,
+  model,
   image,
   photos = [],
   title,
@@ -309,12 +314,13 @@ function CarCard({
   }, [id]);
 
   const buildListingHref = useCallback(() => {
-    if (typeof window === "undefined") return `/listing/${id}`;
+    const listingPath = buildListingPath({ id, brand, model });
+    if (typeof window === "undefined") return listingPath;
     const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
-    const targetUrl = new URL(`/listing/${id}`, window.location.origin);
+    const targetUrl = new URL(listingPath, window.location.origin);
     targetUrl.searchParams.set("from", sourceUrl);
     return `${targetUrl.pathname}${targetUrl.search}`;
-  }, [id]);
+  }, [brand, id, model]);
   const listingHref = buildListingHref();
   const navigateToListingWithState = useCallback(
     (href: string) => {
@@ -347,7 +353,7 @@ function CarCard({
         restoreDebug("card", "open-overlay-desktop", { id });
         window.setTimeout(() => {
           const overlayFrame = document.querySelector(
-            `iframe[src^="/listing/${id}"]`,
+            `iframe[src*="${id}"]`,
           );
           if (overlayFrame) return;
           const fallbackHref = buildListingHref();

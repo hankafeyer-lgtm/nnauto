@@ -9,6 +9,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useSearch } from "@/lib/navigation";
+import { buildListingPath } from "@/lib/listingUrl";
 import { useAuth } from "@/hooks/useAuth";
 import {
   Dialog,
@@ -388,8 +389,12 @@ export default function AddListingPage() {
   const [powerOpen, setPowerOpen] = useState(false);
   const [ownersOpen, setOwnersOpen] = useState(false);
   const navigateToListingWithState = useCallback(
-    (listingId: string) => {
-      const target = `/listing/${listingId}`;
+    (listing: { id: string; brand?: string | null; model?: string | null }) => {
+      const target = buildListingPath({
+        id: listing.id,
+        brand: listing.brand,
+        model: listing.model,
+      });
       if (typeof window === "undefined") {
         setLocation(target);
         return;
@@ -402,7 +407,7 @@ export default function AddListingPage() {
           ? window.history.state
           : {};
       window.history.replaceState(
-        { ...currentState, from, scrollY, listingId },
+        { ...currentState, from, scrollY, listingId: listing.id },
         "",
         target,
       );
@@ -479,7 +484,7 @@ export default function AddListingPage() {
         description: t("listing.successDescription") || "Váš inzerát byl úspěšně publikován.",
       });
       setPhotos([]);
-      navigateToListingWithState(newListing.id);
+      navigateToListingWithState(newListing);
       setOwnersFilterType('');
       setEngineFilterType('');
       setPowerFilterType('');
@@ -518,7 +523,7 @@ export default function AddListingPage() {
       });
       // Redirect to the newly created listing page
       if (newListing?.id) {
-        navigateToListingWithState(newListing.id);
+        navigateToListingWithState(newListing);
       } else {
         setLocation("/listings");
       }
@@ -763,7 +768,7 @@ export default function AddListingPage() {
       });
       setShowPaymentSuccessDialog(false);
       setStripeSessionId(null);
-      navigateToListingWithState(newListing.id);
+      navigateToListingWithState(newListing);
     },
     onError: (error: any) => {
       toast({

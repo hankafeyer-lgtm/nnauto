@@ -124,6 +124,7 @@ function Router() {
       <Switch>
         <Route path="/" component={SuspenseHome} />
         <Route path="/listings" component={SuspenseListings} />
+        <Route path="/auta/:brand/:model/:id" component={SuspenseListingDetail} />
         <Route path="/listing/:id" component={SuspenseListingDetail} />
         <Route path="/add-listing" component={SuspenseAddListing} />
         <Route path="/profile" component={SuspenseProfile} />

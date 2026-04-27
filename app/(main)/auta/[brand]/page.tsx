@@ -12,6 +12,7 @@ import {
   formatVehicleTitle,
 } from "@lib/seo/brand-format";
 import { normalizeSlug } from "@lib/seo/slug";
+import { buildListingUrl } from "@lib/seo/listing-url";
 
 /**
  * SEO landing page per brand (e.g. /auta/bmw, /auta/audi).
@@ -179,7 +180,11 @@ export default async function BrandLandingPage({ params }: Props) {
     itemListElement: rows.map((l, i) => ({
       "@type": "ListItem",
       position: i + 1,
-      url: `${SITE_ORIGIN}/listing/${l.id}`,
+      url: `${SITE_ORIGIN}${buildListingUrl({
+        id: l.id,
+        brand: l.brand,
+        model: l.model,
+      })}`,
       name: getListingMainTitleFromRow(l),
     })),
   };
@@ -280,7 +285,14 @@ export default async function BrandLandingPage({ params }: Props) {
               key={l.id}
               className="rounded-lg border bg-card overflow-hidden"
             >
-              <a href={`/listing/${l.id}`} className="block group">
+              <a
+                href={buildListingUrl({
+                  id: l.id,
+                  brand: l.brand,
+                  model: l.model,
+                })}
+                className="block group"
+              >
                 {img ? (
                   <img
                     src={img}

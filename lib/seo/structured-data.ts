@@ -1,5 +1,6 @@
 import type { Listing } from "@shared/schema";
 import { SITE_ORIGIN } from "./constants";
+import { buildListingAbsoluteUrl } from "./listing-url";
 
 const fuelTypeMap: Record<string, string> = {
   benzin: "Gasoline",
@@ -49,7 +50,11 @@ function listingPhotoUrls(photos: string[] | null | undefined, max = 10): string
 /** Schema.org Car + Offer for a DB listing row */
 export function buildListingCarJsonLd(listing: Listing) {
   const id = listing.id;
-  const url = `${SITE_ORIGIN}/listing/${id}`;
+  const url = buildListingAbsoluteUrl(SITE_ORIGIN, {
+    id,
+    brand: listing.brand,
+    model: listing.model,
+  });
   const conditionUrl =
     listing.condition === "new"
       ? "https://schema.org/NewCondition"
@@ -167,7 +172,11 @@ export function buildListingIndexItemListJsonLd(
     itemListElement: rows.map((row, index) => ({
       "@type": "ListItem",
       position: index + 1,
-      url: `${SITE_ORIGIN}/listing/${row.id}`,
+      url: buildListingAbsoluteUrl(SITE_ORIGIN, {
+        id: row.id,
+        brand: row.brand,
+        model: row.model,
+      }),
       name: row.title || `${row.brand} ${row.model}`.trim(),
     })),
   };

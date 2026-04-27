@@ -159,6 +159,8 @@ export function FavoritesModal({ isOpen, onClose }: FavoritesModalProps) {
                 <div key={listing.id} onClick={onClose}>
                   <CarCard
                     id={listing.id}
+                    brand={listing.brand}
+                    model={listing.model}
                     image={image}
                     title={getListingMainTitle(listing)}
                     price={Number(listing.price)}

@@ -9,6 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "@/lib/navigation";
 import { displayViews } from "@/lib/displayStats";
+import { buildListingPath } from "@/lib/listingUrl";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { SEO } from "@/components/SEO";
@@ -263,7 +264,15 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
                 <div
                   key={item.listing_id}
                   className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors cursor-pointer"
-                  onClick={() => navigate(`/listing/${item.listing_id}`)}
+                  onClick={() =>
+                    navigate(
+                      buildListingPath({
+                        id: item.listing_id,
+                        brand: item.brand,
+                        model: item.model,
+                      }),
+                    )
+                  }
                 >
                   <div className="h-12 w-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
                     {item.photo ? (
@@ -725,7 +734,16 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                     {/* Фото */}
                     <div
                       className="h-14 w-20 sm:h-16 sm:w-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 relative"
-                      onClick={(e) => { e.stopPropagation(); navigate(`/listing/${l.id}`); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(
+                          buildListingPath({
+                            id: l.id,
+                            brand: l.brand,
+                            model: l.model,
+                          }),
+                        );
+                      }}
                     >
                       {photo ? (
                         <img src={`/img/${photo}?w=192&h=128&fit=cover`} alt={`${l.brand} ${l.model}`} className="w-full h-full object-cover" />
