@@ -2250,6 +2250,35 @@ export default function HomePage() {
   });
 
   useEffect(() => {
+    const legacyOpenListingId =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search).get("openListing")
+        : null;
+    if (!legacyOpenListingId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiRequest("GET", `/api/listings/${legacyOpenListingId}`);
+        const listing = (await res.json()) as
+          | { id: string; brand?: string | null; model?: string | null }
+          | null;
+        if (!listing?.id || cancelled) return;
+        const target = buildListingPath({
+          id: listing.id,
+          brand: listing.brand,
+          model: listing.model,
+        });
+        window.location.replace(target);
+      } catch {
+        // keep legacy openListing behaviour if lookup fails
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const url = new URL(window.location.href);
     if (!url.searchParams.has("openListing")) return;
     const navigationEntries = window.performance.getEntriesByType(
@@ -2387,7 +2416,15 @@ export default function HomePage() {
     if (isMobileViewport()) {
       saveScrollPosition(id);
       const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
-      const targetUrl = new URL(`/listing/${id}`, window.location.origin);
+      const listing = listingsById.get(id);
+      const targetUrl = new URL(
+        buildListingPath({
+          id,
+          brand: listing?.brand,
+          model: listing?.model,
+        }),
+        window.location.origin,
+      );
       targetUrl.searchParams.set("from", sourceUrl);
       const targetPath = `${targetUrl.pathname}${targetUrl.search}`;
       const from = `${window.location.pathname}${window.location.search}`;
@@ -2417,7 +2454,7 @@ export default function HomePage() {
     window.history.pushState(window.history.state, "", url.toString());
     setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
-  }, [navigate]);
+  }, [navigate, listingsById]);
   const closeListingOverlay = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete("openListing");

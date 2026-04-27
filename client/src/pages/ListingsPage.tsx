@@ -3148,6 +3148,33 @@ export default function ListingsPage() {
     if (!w) return false;
     return !!new URLSearchParams(w.location.search).get("openListing");
   });
+  useEffect(() => {
+    const w = safeWindow();
+    if (!w) return;
+    const legacyOpenListingId = new URLSearchParams(w.location.search).get("openListing");
+    if (!legacyOpenListingId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiRequest("GET", `/api/listings/${legacyOpenListingId}`);
+        const listing = (await res.json()) as
+          | { id: string; brand?: string | null; model?: string | null }
+          | null;
+        if (!listing?.id || cancelled) return;
+        const target = buildListingPath({
+          id: listing.id,
+          brand: listing.brand,
+          model: listing.model,
+        });
+        w.location.replace(target);
+      } catch {
+        // keep legacy openListing behaviour if lookup fails
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const searchStringForListState = useMemo(() => {
     const p = new URLSearchParams(searchString);
     p.delete("openListing");
@@ -3399,6 +3426,23 @@ export default function ListingsPage() {
   }, [searchStringForListState]);
 
   const openListingOverlay = useCallback((id: string) => {
+    const w = safeWindow();
+    if (w && isMobileViewport()) {
+      saveScrollPosition(id);
+      const sourceUrl = `${w.location.pathname}${w.location.search}#listing-${encodeURIComponent(id)}`;
+      const listing = listingsById.get(id);
+      const targetUrl = new URL(
+        buildListingPath({
+          id,
+          brand: listing?.brand,
+          model: listing?.model,
+        }),
+        w.location.origin,
+      );
+      targetUrl.searchParams.set("from", sourceUrl);
+      w.location.assign(`${targetUrl.pathname}${targetUrl.search}`);
+      return;
+    }
     void prefetchListing(id);
     prefetchListingDocument(id);
     warmListingFrame(id);
@@ -3407,7 +3451,7 @@ export default function ListingsPage() {
     });
     setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
-  }, []);
+  }, [listingsById]);
 
   const closeListingOverlay = useCallback(() => {
     const w = safeWindow();

@@ -30,7 +30,7 @@ type Props = {
 };
 
 const ENABLE_LEGACY_LISTING_REDIRECT =
-  process.env.ENABLE_LEGACY_LISTING_REDIRECT === "true";
+  process.env.ENABLE_LEGACY_LISTING_REDIRECT !== "false";
 
 function appendSearchParams(
   pathname: string,
