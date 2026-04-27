@@ -2454,7 +2454,7 @@ export default function HomePage() {
     window.history.pushState(window.history.state, "", url.toString());
     setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
-  }, [navigate, listingsById]);
+  }, [navigate]);
   const closeListingOverlay = useCallback(() => {
     const url = new URL(window.location.href);
     url.searchParams.delete("openListing");

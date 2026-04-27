@@ -3451,7 +3451,7 @@ export default function ListingsPage() {
     });
     setIsOpenListingOverlayLoading(true);
     setOpenListingId(id);
-  }, [listingsById]);
+  }, []);
 
   const closeListingOverlay = useCallback(() => {
     const w = safeWindow();
