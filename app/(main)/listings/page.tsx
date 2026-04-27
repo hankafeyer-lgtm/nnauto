@@ -3,6 +3,7 @@ import JsonLd from "@lib/seo/JsonLd";
 import { getRecentActiveListings } from "@lib/seo/recent-listings";
 import { buildListingIndexItemListJsonLd } from "@lib/seo/structured-data";
 import { formatBrandDisplay } from "@lib/seo/brand-format";
+import { SITE_ORIGIN } from "@lib/seo/constants";
 import ListingsClient from "./listings-client";
 
 const POPULAR_BRANDS = [
@@ -71,9 +72,32 @@ export default async function Listings() {
   const recent = await getRecentActiveListings(LISTING_INDEX_JSONLD_COUNT);
   const itemListJsonLd = buildListingIndexItemListJsonLd(recent);
 
+  // BreadcrumbList JSON-LD so Google understands /listings is the catalogue
+  // root in the site hierarchy. Pairs with breadcrumb schema already emitted
+  // by /auta/[brand], /auta/[brand]/[model] and /listing/[id].
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "NNAuto",
+        item: `${SITE_ORIGIN}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Inzeráty",
+        item: `${SITE_ORIGIN}/listings`,
+      },
+    ],
+  };
+
   return (
     <>
       <JsonLd data={itemListJsonLd} />
+      <JsonLd data={breadcrumbJsonLd} />
       {/* SEO H1 — kept visually hidden so the catalog UI is untouched. */}
       <h1 className="sr-only">Inzeráty vozidel v České republice</h1>
       <ListingsClient />
