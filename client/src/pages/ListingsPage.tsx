@@ -3427,30 +3427,20 @@ export default function ListingsPage() {
 
   const openListingOverlay = useCallback((id: string) => {
     const w = safeWindow();
-    if (w && isMobileViewport()) {
-      saveScrollPosition(id);
-      const sourceUrl = `${w.location.pathname}${w.location.search}#listing-${encodeURIComponent(id)}`;
-      const listing = listingsById.get(id);
-      const targetUrl = new URL(
-        buildListingPath({
-          id,
-          brand: listing?.brand,
-          model: listing?.model,
-        }),
-        w.location.origin,
-      );
-      targetUrl.searchParams.set("from", sourceUrl);
-      w.location.assign(`${targetUrl.pathname}${targetUrl.search}`);
-      return;
-    }
-    void prefetchListing(id);
-    prefetchListingDocument(id);
-    warmListingFrame(id);
-    pushUrlParams((p) => {
-      p.set("openListing", id);
-    });
-    setIsOpenListingOverlayLoading(true);
-    setOpenListingId(id);
+    if (!w) return;
+    saveScrollPosition(id);
+    const sourceUrl = `${w.location.pathname}${w.location.search}#listing-${encodeURIComponent(id)}`;
+    const listing = listingsById.get(id);
+    const targetUrl = new URL(
+      buildListingPath({
+        id,
+        brand: listing?.brand,
+        model: listing?.model,
+      }),
+      w.location.origin,
+    );
+    targetUrl.searchParams.set("from", sourceUrl);
+    w.location.assign(`${targetUrl.pathname}${targetUrl.search}`);
   }, []);
 
   const closeListingOverlay = useCallback(() => {

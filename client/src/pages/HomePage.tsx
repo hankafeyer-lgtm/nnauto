@@ -2413,47 +2413,36 @@ export default function HomePage() {
     });
   };
   const openListingOverlay = useCallback((id: string) => {
-    if (isMobileViewport()) {
-      saveScrollPosition(id);
-      const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
-      const listing = listingsById.get(id);
-      const targetUrl = new URL(
-        buildListingPath({
-          id,
-          brand: listing?.brand,
-          model: listing?.model,
-        }),
-        window.location.origin,
-      );
-      targetUrl.searchParams.set("from", sourceUrl);
-      const targetPath = `${targetUrl.pathname}${targetUrl.search}`;
-      const from = `${window.location.pathname}${window.location.search}`;
-      const scrollY = Number.isFinite(window.scrollY) ? Math.max(0, window.scrollY) : 0;
-      restoreDebug("home", "navigate-to-detail-mobile", {
+    saveScrollPosition(id);
+    const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
+    const listing = listingsById.get(id);
+    const targetUrl = new URL(
+      buildListingPath({
         id,
-        sourceUrl,
-        targetUrl: targetPath,
-      });
-      navigate(targetPath);
-      const currentState =
-        window.history.state && typeof window.history.state === "object"
-          ? window.history.state
-          : {};
-      window.history.replaceState(
-        { ...currentState, from, scrollY, listingId: id },
-        "",
-        targetPath,
-      );
-      return;
-    }
-    void prefetchListing(id);
-    prefetchListingDocument(id);
-    warmListingFrame(id);
-    const url = new URL(window.location.href);
-    url.searchParams.set("openListing", id);
-    window.history.pushState(window.history.state, "", url.toString());
-    setIsOpenListingOverlayLoading(true);
-    setOpenListingId(id);
+        brand: listing?.brand,
+        model: listing?.model,
+      }),
+      window.location.origin,
+    );
+    targetUrl.searchParams.set("from", sourceUrl);
+    const targetPath = `${targetUrl.pathname}${targetUrl.search}`;
+    const from = `${window.location.pathname}${window.location.search}`;
+    const scrollY = Number.isFinite(window.scrollY) ? Math.max(0, window.scrollY) : 0;
+    restoreDebug("home", "navigate-to-detail", {
+      id,
+      sourceUrl,
+      targetUrl: targetPath,
+    });
+    navigate(targetPath);
+    const currentState =
+      window.history.state && typeof window.history.state === "object"
+        ? window.history.state
+        : {};
+    window.history.replaceState(
+      { ...currentState, from, scrollY, listingId: id },
+      "",
+      targetPath,
+    );
   }, [navigate]);
   const closeListingOverlay = useCallback(() => {
     const url = new URL(window.location.href);
