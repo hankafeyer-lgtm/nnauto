@@ -23,6 +23,7 @@
  * deployed.
  */
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@lib/db";
 import { listings } from "@shared/schema";
@@ -243,17 +244,17 @@ export default async function ShortModelLandingPage({ params }: Props) {
         className="text-sm text-muted-foreground mb-4 flex flex-wrap gap-1"
         aria-label="Breadcrumb"
       >
-        <a href="/" className="hover:underline">
+        <Link href="/" className="hover:underline">
           NNAuto
-        </a>
+        </Link>
         <span>/</span>
-        <a href="/listings" className="hover:underline">
+        <Link href="/listings" className="hover:underline">
           Inzeráty
-        </a>
+        </Link>
         <span>/</span>
-        <a href={`/auta/${brand}`} className="hover:underline">
+        <Link href={`/auta/${brand}`} className="hover:underline">
           {brandName}
-        </a>
+        </Link>
         <span>/</span>
         <span className="text-foreground font-medium">{modelName}</span>
       </nav>
@@ -275,24 +276,24 @@ export default async function ShortModelLandingPage({ params }: Props) {
       </p>
 
       <div className="mb-6 flex flex-wrap gap-2">
-        <a
+        <Link
           href={`/auta/${brand}/${model}`}
           className="rounded-md bg-[#B8860B] text-white px-4 py-2 text-sm font-medium"
         >
           Otevřít {brandName} {modelName}
-        </a>
-        <a
+        </Link>
+        <Link
           href={`/auta/${brand}`}
           className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
         >
           Vše {brandName}
-        </a>
-        <a
+        </Link>
+        <Link
           href="/listings"
           className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
         >
           Všechny inzeráty
-        </a>
+        </Link>
       </div>
 
       <h2 className="text-xl font-semibold mb-3">
@@ -316,7 +317,7 @@ export default async function ShortModelLandingPage({ params }: Props) {
               key={l.id}
               className="rounded-lg border bg-card overflow-hidden"
             >
-              <a
+              <Link
                 href={buildListingUrl({
                   id: l.id,
                   brand: l.brand,
@@ -350,7 +351,7 @@ export default async function ShortModelLandingPage({ params }: Props) {
                   </p>
                   <p className="font-semibold text-[#B8860B]">{priceLabel}</p>
                 </div>
-              </a>
+              </Link>
             </li>
           );
         })}
@@ -370,14 +371,14 @@ export default async function ShortModelLandingPage({ params }: Props) {
         </p>
         <p>
           Pokud chcete{" "}
-          <a href={`/auta/${brand}/${model}`} className="underline">
+          <Link href={`/auta/${brand}/${model}`} className="underline">
             prohlédnout všechny detaily {brandName} {modelName}
-          </a>
+          </Link>
           , otevřete kompletní stránku modelu s podrobnými statistikami a SEO
           popisem. Můžete také prohlížet{" "}
-          <a href="/listings" className="underline">
+          <Link href="/listings" className="underline">
             celý katalog inzerátů
-          </a>{" "}
+          </Link>{" "}
           a filtrovat podle značky, ceny, paliva a regionu.
         </p>
       </section>
