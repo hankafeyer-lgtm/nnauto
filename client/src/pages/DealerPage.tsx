@@ -12,6 +12,7 @@ import { displayViews } from "@/lib/displayStats";
 import { buildListingPath } from "@/lib/listingUrl";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import LoginModal from "@/components/LoginModal";
 import { SEO } from "@/components/SEO";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1429,13 +1430,7 @@ export default function DealerPage() {
     enabled: !!user?.isDealer,
   });
 
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      navigate("/");
-    }
-  }, [authLoading, isAuthenticated, navigate]);
-
-  if (authLoading || (!authLoading && !isAuthenticated)) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -1445,6 +1440,10 @@ export default function DealerPage() {
         <Footer />
       </div>
     );
+  }
+
+  if (!isAuthenticated) {
+    return <DealerAuthPromptPage />;
   }
 
   if (!user?.isDealer) {
@@ -1512,6 +1511,58 @@ export default function DealerPage() {
         )}
       </main>
       <Footer />
+    </div>
+  );
+}
+
+function DealerAuthPromptPage() {
+  const t = useTranslation();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState<"login" | "register">("login");
+
+  const openAuthModal = (tab: "login" | "register") => {
+    setAuthModalTab(tab);
+    setAuthModalOpen(true);
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <SEO title={t("dealer.registerTitle")} noindex />
+      <Header />
+      <main className="flex-1 container mx-auto px-4 py-8 max-w-xl">
+        <Card>
+          <CardHeader className="text-center">
+            <div className="mx-auto h-14 w-14 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+              <Building2 className="h-7 w-7 text-amber-700" />
+            </div>
+            <CardTitle className="text-xl">{t("dealer.registerTitle")}</CardTitle>
+            <CardDescription>{t("dealer.registerDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button
+              onClick={() => openAuthModal("login")}
+              className="w-full bg-amber-700 hover:bg-amber-800 text-base py-6"
+              data-testid="button-dealer-login"
+            >
+              {t("auth.login")}
+            </Button>
+            <Button
+              onClick={() => openAuthModal("register")}
+              variant="outline"
+              className="w-full border-amber-700 text-amber-700 hover:bg-amber-50 text-base py-6"
+              data-testid="button-dealer-register"
+            >
+              {t("auth.register")}
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+      <Footer />
+      <LoginModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        initialTab={authModalTab}
+      />
     </div>
   );
 }
