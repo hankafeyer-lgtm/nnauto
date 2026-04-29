@@ -349,6 +349,11 @@ function CarCard({
           navigateToListingWithState(href);
           return;
         }
+        // Capture the path at click time so the fallback below can detect
+        // whether onOpenListing already navigated the page elsewhere
+        // (current desktop flow uses direct navigation, no overlay/iframe).
+        const initialPath =
+          typeof window !== "undefined" ? window.location.pathname : "";
         onOpenListing(id);
         restoreDebug("card", "open-overlay-desktop", { id });
         window.setTimeout(() => {
@@ -356,6 +361,21 @@ function CarCard({
             `iframe[src*="${id}"]`,
           );
           if (overlayFrame) return;
+          // If onOpenListing already navigated us away from the source page
+          // (e.g. directly to /auta/{brand}/{model}/{id}), skip the fallback.
+          // Re-running buildListingHref() here would corrupt the ?from param
+          // by nesting the detail URL inside itself, breaking "Zpět na inzeráty".
+          if (
+            typeof window !== "undefined" &&
+            window.location.pathname !== initialPath
+          ) {
+            restoreDebug("card", "overlay-fallback-skipped-already-navigated", {
+              id,
+              initialPath,
+              currentPath: window.location.pathname,
+            });
+            return;
+          }
           const fallbackHref = buildListingHref();
           restoreDebug("card", "overlay-fallback-direct-nav", {
             id,
