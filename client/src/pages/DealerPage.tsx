@@ -1572,6 +1572,7 @@ function DealerRegistrationPage() {
   const t = useTranslation();
   const { toast } = useToast();
   const [, navigate] = useLocation();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const [form, setForm] = useState({
     companyName: "",
@@ -1612,6 +1613,15 @@ function DealerRegistrationPage() {
             </div>
             <CardTitle className="text-xl">{t("dealer.registerTitle")}</CardTitle>
             <CardDescription>{t("dealer.registerDescription")}</CardDescription>
+            <Button
+              type="button"
+              variant="link"
+              className="text-amber-700 hover:text-amber-800 mt-1 mx-auto h-auto p-0"
+              onClick={() => setAuthModalOpen(true)}
+              data-testid="button-dealer-switch-login"
+            >
+              {t("auth.login")}
+            </Button>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
@@ -1699,6 +1709,11 @@ function DealerRegistrationPage() {
         </Card>
       </main>
       <Footer />
+      <LoginModal
+        open={authModalOpen}
+        onOpenChange={setAuthModalOpen}
+        initialTab="login"
+      />
     </div>
   );
 }
