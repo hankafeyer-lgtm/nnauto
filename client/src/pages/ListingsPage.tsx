@@ -2947,6 +2947,7 @@ import {
   LISTINGS_RETURN_URL_KEY,
   LISTINGS_TARGET_ID_KEY,
   readListingsRestoreState,
+  saveScrollPosition,
   SCROLL_POSITION_KEY,
 } from "@/components/ScrollToTop";
 
@@ -4376,6 +4377,8 @@ export default function ListingsPage() {
 
       return {
         id: listing.id,
+        brand: listing.brand,
+        model: listing.model,
         image,
         photos,
         title: getListingMainTitle(listing),

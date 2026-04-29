@@ -2736,6 +2736,8 @@ export default function HomePage() {
         listing,
         props: {
           id: listing.id,
+          brand: listing.brand,
+          model: listing.model,
           image,
           photos,
           title: getListingMainTitle(listing),
