@@ -2,6 +2,7 @@
 
 import Providers from "../providers";
 import { ScrollToTop } from "@/components/ScrollToTop";
+import ClarityLoader from "@/components/ClarityLoader";
 
 export default function MainLayout({
   children,
@@ -11,6 +12,7 @@ export default function MainLayout({
   return (
     <Providers>
       <ScrollToTop />
+      <ClarityLoader />
       {children}
     </Providers>
   );
