@@ -3154,6 +3154,7 @@ import {
 } from "@/lib/imageOptimizer";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
 import { trackContact, trackViewContent } from "@/lib/analytics";
+import StickyContactBar from "@/components/StickyContactBar";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
@@ -4451,7 +4452,13 @@ export default function ListingDetailPage({
   }
 
   return (
-    <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden overscroll-x-none touch-pan-y">
+    <div
+      className={`min-h-screen w-full max-w-[100vw] overflow-x-hidden overscroll-x-none touch-pan-y ${
+        listing && !isEmbedded
+          ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))]"
+          : ""
+      }`}
+    >
       <SEO
         title={seoTitle}
         description={seoDescription}
@@ -5921,6 +5928,62 @@ export default function ListingDetailPage({
             listing={listing}
           />
         </Suspense>
+      ) : null}
+
+      {/* Fixed bottom contact bar (mobile + desktop). Hidden when the listing
+          is rendered inside an iframe overlay so it does not duplicate the
+          parent page UI. */}
+      {listing && !isEmbedded ? (
+        <StickyContactBar
+          variant="minimal"
+          phone={listing.phone}
+          email={seller?.email ?? null}
+          carTitle={getListingMainTitle(listing)}
+          onCall={() => {
+            void trackListingAnalyticsEvent("contact_click");
+            try {
+              trackContact("phone", {
+                listingId,
+                listingName: getListingMainTitle(listing),
+              });
+            } catch {
+              /* noop */
+            }
+          }}
+          onMessage={(channel) => {
+            if (channel === "whatsapp") {
+              void trackListingAnalyticsEvent("whatsapp_click");
+              try {
+                trackContact("whatsapp", {
+                  listingId,
+                  listingName: getListingMainTitle(listing),
+                });
+              } catch {
+                /* noop */
+              }
+            } else if (channel === "telegram") {
+              void trackListingAnalyticsEvent("telegram_click");
+              try {
+                trackContact("telegram", {
+                  listingId,
+                  listingName: getListingMainTitle(listing),
+                });
+              } catch {
+                /* noop */
+              }
+            } else if (channel === "email") {
+              void trackListingAnalyticsEvent("contact_click");
+              try {
+                trackContact("email", {
+                  listingId,
+                  listingName: getListingMainTitle(listing),
+                });
+              } catch {
+                /* noop */
+              }
+            }
+          }}
+        />
       ) : null}
     </div>
   );
