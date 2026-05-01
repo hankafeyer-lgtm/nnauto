@@ -3194,7 +3194,7 @@ export default function HomePage() {
   }, [homeCebiaCheckoutMutation, isHomeCebiaVinValid, t, toast]);
 
   return (
-    <div className="min-h-screen flex flex-col home-filters-page overflow-x-hidden">
+    <div className="min-h-screen flex flex-col home-filters-page overflow-x-clip">
       {" "}
       <SEO
         title={seoTitles[language as keyof typeof seoTitles] || seoTitles.cs}

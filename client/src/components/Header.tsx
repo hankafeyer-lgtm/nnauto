@@ -33,6 +33,7 @@ import {
   Building2,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "@/lib/translations";
 import { useAuth } from "@/hooks/useAuth";
@@ -146,45 +147,10 @@ function HeaderContent({
   const [isSearchVisible, setIsSearchVisible] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Hide-on-scroll-down / show-on-scroll-up behaviour for the sticky
-  // header. We keep `false` as the initial value so SSR markup matches
-  // the first client render (header always visible at the top of the
-  // page), and toggle the flag from a passive scroll listener that is
-  // throttled via requestAnimationFrame.
-  const [headerHidden, setHeaderHidden] = useState(false);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    let lastScrollY = Math.max(0, window.scrollY || 0);
-    let ticking = false;
-
-    const handleScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const currentY = Math.max(0, window.scrollY || 0);
-        const delta = currentY - lastScrollY;
-
-        if (currentY < 10) {
-          // Near the very top — always show the header so users never
-          // see it floating mid-page on landing.
-          setHeaderHidden(false);
-        } else if (delta > 4) {
-          // Meaningful downward scroll → hide.
-          setHeaderHidden(true);
-        } else if (delta < -4) {
-          // Even a small upward swipe → show.
-          setHeaderHidden(false);
-        }
-
-        lastScrollY = currentY;
-        ticking = false;
-      });
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+  // Hide-on-scroll-down / show-on-scroll-up behaviour. Implementation lives
+  // in a reusable hook so we can apply the same pattern to other floating
+  // bars without duplicating scroll listeners.
+  const headerHidden = useHideOnScroll();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchMobileInputRef = useRef<HTMLInputElement>(null);
   const lastScrollYRef = useRef(0);
