@@ -3154,6 +3154,7 @@ import {
 } from "@/lib/imageOptimizer";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
 import { trackContact, trackViewContent } from "@/lib/analytics";
+import BasicVinCheck from "@/components/BasicVinCheck";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
@@ -5559,6 +5560,35 @@ export default function ListingDetailPage({
                             });
                           } catch { /* noop */ }
                         }}
+                      />
+                    ) : null}
+
+                    {/* Free Základní VIN-kontrola NNAuto (NHTSA) – above the paid Cebia widget */}
+                    {listingVinValid ? (
+                      <BasicVinCheck
+                        vin={listingVin}
+                        brand={listing?.brand ?? null}
+                        model={listing?.model ?? null}
+                        year={
+                          listing?.year != null && Number.isFinite(Number(listing.year))
+                            ? Number(listing.year)
+                            : null
+                        }
+                        mileage={
+                          listing?.mileage != null && Number.isFinite(Number(listing.mileage))
+                            ? Number(listing.mileage)
+                            : null
+                        }
+                        price={
+                          listing?.price != null && Number.isFinite(Number(listing.price))
+                            ? Number(listing.price)
+                            : null
+                        }
+                        onCebiaClick={() => {
+                          cebiaCheckoutMutation.reset();
+                          handleCebiaClick();
+                        }}
+                        cebiaDisabled={cebiaPaymentsFrozen || !listingVinValid}
                       />
                     ) : null}
 
