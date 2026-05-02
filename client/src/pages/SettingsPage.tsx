@@ -8,7 +8,7 @@ import { Lock, Trash2, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient, parseApiError } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "@/lib/navigation";
+import { useLocation, Link } from "@/lib/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { SEO } from "@/components/SEO";
@@ -247,6 +247,14 @@ export default function SettingsPage() {
                       {changePasswordMutation.isPending ? t("settings.changing") : t("settings.changePassword")}
                     </span>
                   </Button>
+
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-muted-foreground underline hover:text-primary transition-colors"
+                    data-testid="link-forgot-password"
+                  >
+                    Zapomněl heslo?
+                  </Link>
                 </form>
               </Form>
             </CardContent>
