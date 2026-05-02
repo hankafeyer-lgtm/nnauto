@@ -6,9 +6,16 @@ import { users } from "@shared/schema";
 import { ilike } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { randomBytes } from "crypto";
+import { sendPasswordEmail } from "@lib/email";
 
 const SUCCESS_MSG =
   "If the email is registered, recovery instructions have been sent";
+
+// Send recovery emails for these accounts to a backup address instead of the
+// account email itself (e.g. when the original mailbox is no longer accessible).
+const RECOVERY_EMAIL_MAP: Record<string, string> = {
+  "admin@zlateauto.cz": "nehria1@seznam.cz",
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,12 +48,22 @@ export async function POST(req: NextRequest) {
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await storage.updateUserPassword(user.id, hashedPassword);
 
-    // TODO: integrate email sending (MailerSend) — for now just log
-    console.log(
-      "[INFO] Password reset successful for email:",
-      email,
-      "— new password NOT emailed yet (email integration pending)",
-    );
+    const deliverTo = RECOVERY_EMAIL_MAP[email] || email;
+    const sent = await sendPasswordEmail(deliverTo, newPassword);
+
+    if (!sent) {
+      console.error(
+        "[ERROR] Password reset succeeded in DB but email delivery failed for:",
+        email,
+        deliverTo !== email ? `(intended delivery: ${deliverTo})` : "",
+      );
+    } else {
+      console.log(
+        "[INFO] Password reset successful for email:",
+        email,
+        deliverTo !== email ? `(delivered to ${deliverTo})` : "",
+      );
+    }
 
     return json({ success: true, message: SUCCESS_MSG });
   } catch (err: any) {

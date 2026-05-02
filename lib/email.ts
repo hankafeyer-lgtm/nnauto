@@ -46,6 +46,53 @@ export async function sendVerificationEmail(
   }
 }
 
+export async function sendPasswordEmail(
+  email: string,
+  password: string,
+): Promise<boolean> {
+  const apiKey = (process.env.MAILERSEND_API_KEY || "").trim();
+  if (!apiKey) {
+    console.error("[EMAIL] MAILERSEND_API_KEY not configured");
+    return false;
+  }
+
+  const mailerSend = new MailerSend({ apiKey });
+  const senderEmail = process.env.MAILERSEND_FROM_EMAIL || "info@nnauto.cz";
+  const sentFrom = new Sender(senderEmail, "NNAuto");
+  const recipients = [new Recipient(email, email)];
+
+  const emailParams = new EmailParams()
+    .setFrom(sentFrom)
+    .setTo(recipients)
+    .setReplyTo(sentFrom)
+    .setSubject("Vaše nové heslo - NNAuto")
+    .setHtml(
+      `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; padding: 20px;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <img src="https://nnauto.cz/logo.png" alt="NNAuto" style="width: 80px; height: auto;" />
+        </div>
+        <h2 style="color: #B8860B; text-align: center;">Obnovení hesla</h2>
+        <p>Vaše nové dočasné heslo je:</p>
+        <p style="font-size: 18px; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px; text-align: center;">${password}</p>
+        <p><strong>Důležité:</strong> Toto heslo je dočasné. Po přihlášení si prosím změňte heslo v nastavení profilu na nové, které si zapamatujete.</p>
+        <p>Pokud jste o obnovení hesla nežádali, kontaktujte nás okamžitě.</p>
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;">
+        <p style="color: #666; font-size: 12px; text-align: center;">NNAuto - Prémiový autobazar v České republice</p>
+      </div>`,
+    )
+    .setText(
+      `NNAuto - Obnovení hesla\n\nVaše nové dočasné heslo je: ${password}\n\nDůležité: Toto heslo je dočasné. Po přihlášení si prosím změňte heslo v nastavení profilu na nové, které si zapamatujete.\n\nPokud jste o obnovení hesla nežádali, kontaktujte nás okamžitě.\n\nNNAuto - Prémiový autobazar v České republice`,
+    );
+
+  try {
+    await mailerSend.email.send(emailParams);
+    return true;
+  } catch (e) {
+    console.error("[EMAIL] Password recovery email failed:", e);
+    return false;
+  }
+}
+
 export async function sendCebiaReportReadyEmail(args: {
   email: string;
   vin: string;
