@@ -51,6 +51,10 @@ export default function LoginModal({
   const [registerPhone, setRegisterPhone] = useState("");
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [forgotPasswordTurnstileToken, setForgotPasswordTurnstileToken] =
+    useState<string>("");
+  const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
+  const forgotPasswordTurnstileRef = useRef<TurnstileInstance>(null);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [loginTurnstileToken, setLoginTurnstileToken] = useState<string>("");
@@ -324,17 +328,18 @@ export default function LoginModal({
   };
 
   const forgotPasswordMutation = useMutation({
-    mutationFn: async (data: { email: string }) => {
+    mutationFn: async (data: { email: string; turnstileToken: string }) => {
       const res = await apiRequest("POST", "/api/auth/forgot-password", data);
       return await res.json();
     },
     onSuccess: () => {
+      setForgotPasswordSent(true);
       toast({
         title: t("auth.passwordSentSuccess"),
         description: t("auth.passwordSentDescription"),
       });
-      setForgotPasswordOpen(false);
-      setForgotPasswordEmail("");
+      setForgotPasswordTurnstileToken("");
+      forgotPasswordTurnstileRef.current?.reset();
     },
     onError: (error: any) => {
       let errorMsg = t("auth.passwordSentError");
@@ -354,12 +359,29 @@ export default function LoginModal({
         title: t("auth.passwordSentError"),
         description: errorMsg,
       });
+      setForgotPasswordTurnstileToken("");
+      forgotPasswordTurnstileRef.current?.reset();
     },
   });
 
+  const handleForgotPasswordTurnstileSuccess = useCallback((token: string) => {
+    setForgotPasswordTurnstileToken(token);
+  }, []);
+
   const handleForgotPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    forgotPasswordMutation.mutate({ email: forgotPasswordEmail });
+    if (!TURNSTILE_UI_OFF && !forgotPasswordTurnstileToken) {
+      toast({
+        variant: "destructive",
+        title: t("auth.passwordSentError"),
+        description: "Dokončete prosím bezpečnostní ověření.",
+      });
+      return;
+    }
+    forgotPasswordMutation.mutate({
+      email: forgotPasswordEmail,
+      turnstileToken: forgotPasswordTurnstileToken || "",
+    });
   };
 
   return (
@@ -662,7 +684,18 @@ export default function LoginModal({
       </Dialog>
 
       {/* Forgot Password Dialog */}
-      <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
+      <Dialog
+        open={forgotPasswordOpen}
+        onOpenChange={(o) => {
+          setForgotPasswordOpen(o);
+          if (!o) {
+            setForgotPasswordEmail("");
+            setForgotPasswordTurnstileToken("");
+            setForgotPasswordSent(false);
+            forgotPasswordTurnstileRef.current?.reset();
+          }
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("auth.forgotPasswordTitle")}</DialogTitle>
@@ -671,44 +704,77 @@ export default function LoginModal({
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleForgotPassword} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="forgot-email">{t("auth.email")}</Label>
-              <Input
-                id="forgot-email"
-                type="email"
-                placeholder={t("auth.emailPlaceholder")}
-                value={forgotPasswordEmail}
-                onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                required
-                className="text-black dark:text-white"
-                data-testid="input-forgot-password-email"
-              />
+          {forgotPasswordSent ? (
+            <div className="space-y-4 text-sm">
+              <p>
+                Pokud je e-mail <strong>{forgotPasswordEmail}</strong>{" "}
+                registrován, byl vám odeslán odkaz pro obnovení hesla. Odkaz
+                je platný 15 minut.
+              </p>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  onClick={() => setForgotPasswordOpen(false)}
+                >
+                  {t("auth.cancel")}
+                </Button>
+              </DialogFooter>
             </div>
+          ) : (
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="forgot-email">{t("auth.email")}</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder={t("auth.emailPlaceholder")}
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  required
+                  className="text-black dark:text-white"
+                  data-testid="input-forgot-password-email"
+                />
+              </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setForgotPasswordOpen(false);
-                  setForgotPasswordEmail("");
-                }}
-                data-testid="button-forgot-password-cancel"
-              >
-                {t("auth.cancel")}
-              </Button>
-              <Button
-                type="submit"
-                disabled={forgotPasswordMutation.isPending}
-                data-testid="button-forgot-password-submit"
-              >
-                {forgotPasswordMutation.isPending
-                  ? t("auth.sending")
-                  : t("auth.sendPassword")}
-              </Button>
-            </DialogFooter>
-          </form>
+              {!TURNSTILE_UI_OFF && (
+                <div className="flex justify-center">
+                  <Turnstile
+                    ref={forgotPasswordTurnstileRef}
+                    siteKey={TURNSTILE_SITE_KEY}
+                    onSuccess={handleForgotPasswordTurnstileSuccess}
+                    onError={() => setForgotPasswordTurnstileToken("")}
+                    onExpire={() => setForgotPasswordTurnstileToken("")}
+                    options={{ theme: "auto" }}
+                  />
+                </div>
+              )}
+
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setForgotPasswordOpen(false);
+                    setForgotPasswordEmail("");
+                    setForgotPasswordTurnstileToken("");
+                    forgotPasswordTurnstileRef.current?.reset();
+                  }}
+                  data-testid="button-forgot-password-cancel"
+                >
+                  {t("auth.cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={forgotPasswordMutation.isPending}
+                  data-testid="button-forgot-password-submit"
+                >
+                  {forgotPasswordMutation.isPending
+                    ? t("auth.sending")
+                    : t("auth.sendPassword")}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </>

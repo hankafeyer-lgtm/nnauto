@@ -8,7 +8,13 @@ type SecurityEvent =
   | "upload_presign"
   | "upload_finalize"
   | "upload_file_legacy"
-  | "contact_interaction";
+  | "contact_interaction"
+  | "forgot_password_rate_limited"
+  | "forgot_password_turnstile_failed"
+  | "forgot_password_sent"
+  | "reset_password_turnstile_failed"
+  | "reset_password_invalid_token"
+  | "reset_password_success";
 
 /** Structured security logs (no secrets, passwords, tokens, full PII). */
 export function securityLog(

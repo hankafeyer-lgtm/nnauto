@@ -1,31 +1,110 @@
 import { NextRequest } from "next/server";
+import { createHash, randomBytes } from "crypto";
 import { json, error } from "@lib/api-helpers";
 import { storage } from "@lib/storage";
 import { db } from "@lib/db";
 import { users } from "@shared/schema";
 import { ilike } from "drizzle-orm";
-import bcrypt from "bcrypt";
-import { randomBytes } from "crypto";
-import { sendPasswordEmail } from "@lib/email";
+import { checkRateLimit, getClientIp } from "@lib/rateLimit";
+import { verifyTurnstileToken } from "@lib/turnstile";
+import { sendPasswordResetLinkEmail } from "@lib/email";
+import { securityLog } from "@lib/securityLog";
+import { ensurePasswordResetSchema } from "@lib/ensurePasswordResetSchema";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+// Same response shape regardless of whether the email is registered – do not
+// leak account existence.
 const SUCCESS_MSG =
-  "If the email is registered, recovery instructions have been sent";
+  "If an account exists for that email, a password reset link has been sent.";
 
-// Send recovery emails for these accounts to a backup address instead of the
-// account email itself (e.g. when the original mailbox is no longer accessible).
+// 5 attempts per IP per 15 min. Beyond that → 429.
+const RATE_LIMIT = {
+  name: "forgot-password",
+  limit: 5,
+  windowMs: 15 * 60_000,
+  retryAfterSeconds: 15 * 60,
+} as const;
+
+const TOKEN_TTL_MS = 15 * 60_000;
+const MIN_RESPONSE_MS = 450;
+const MAX_RESPONSE_MS = 600;
+
+// Recovery email overrides for accounts whose original mailbox is not reachable.
 const RECOVERY_EMAIL_MAP: Record<string, string> = {
   "admin@zlateauto.cz": "nehria1@seznam.cz",
 };
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const rawEmail = typeof body?.email === "string" ? body.email : "";
-    const email = rawEmail.trim().toLowerCase();
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input).digest("hex");
+}
 
-    if (!email) {
-      return error("Email is required");
-    }
+function getBaseUrl(req: NextRequest): string {
+  const envBase = (process.env.BASE_URL || process.env.PUBLIC_BASE_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+  if (envBase) return envBase;
+  const proto = req.headers.get("x-forwarded-proto") || "https";
+  const host = req.headers.get("host") || "nnauto.cz";
+  return `${proto}://${host}`;
+}
+
+async function constantTimeFinish<T>(
+  startedAt: number,
+  result: T,
+): Promise<T> {
+  const elapsed = Date.now() - startedAt;
+  const target =
+    MIN_RESPONSE_MS +
+    Math.floor(Math.random() * (MAX_RESPONSE_MS - MIN_RESPONSE_MS));
+  if (elapsed < target) {
+    await new Promise((r) => setTimeout(r, target - elapsed));
+  }
+  return result;
+}
+
+export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
+
+  const limited = checkRateLimit(req, RATE_LIMIT);
+  if (limited) {
+    securityLog("forgot_password_rate_limited", {
+      ipHash: sha256Hex(getClientIp(req)).slice(0, 12),
+    });
+    return limited;
+  }
+
+  let body: { email?: unknown; turnstileToken?: unknown } = {};
+  try {
+    body = await req.json();
+  } catch {
+    return error("Invalid request body", 400);
+  }
+
+  const turnstile = await verifyTurnstileToken(
+    typeof body.turnstileToken === "string" ? body.turnstileToken : undefined,
+  );
+  if (!turnstile.ok) {
+    securityLog("forgot_password_turnstile_failed", {
+      reason: turnstile.reason || "failed",
+      ipHash: sha256Hex(getClientIp(req)).slice(0, 12),
+    });
+    return error("Security verification failed. Please try again.", 400);
+  }
+
+  const rawEmail = typeof body.email === "string" ? body.email : "";
+  const email = rawEmail.trim().toLowerCase();
+  if (!email) {
+    // Pad timing even on validation errors to keep behaviour uniform.
+    return await constantTimeFinish(
+      startedAt,
+      error("Email is required", 400),
+    );
+  }
+
+  try {
+    await ensurePasswordResetSchema();
 
     const [user] = await db
       .select()
@@ -37,37 +116,71 @@ export async function POST(req: NextRequest) {
         "[INFO] Password reset requested for non-existent email:",
         email,
       );
-      return json({ success: true, message: SUCCESS_MSG });
+      return await constantTimeFinish(
+        startedAt,
+        json({ success: true, message: SUCCESS_MSG }),
+      );
     }
 
-    const newPassword = randomBytes(12)
-      .toString("base64")
-      .slice(0, 16)
-      .replace(/[+/=]/g, (c) => ({ "+": "A", "/": "B", "=": "C" })[c] || c);
+    // Generate raw token (URL-safe). Send raw to email, store sha256(raw) in DB.
+    const rawToken = randomBytes(32).toString("base64url");
+    const tokenHash = sha256Hex(rawToken);
+    const expiresAt = new Date(Date.now() + TOKEN_TTL_MS);
+    const ipHash = sha256Hex(getClientIp(req)).slice(0, 64);
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await storage.updateUserPassword(user.id, hashedPassword);
+    // Invalidate any previous outstanding tokens for this user, then create new.
+    await storage.invalidateUserPasswordResetTokens(user.id);
+    const tokenRow = await storage.createPasswordResetToken({
+      userId: user.id,
+      tokenHash,
+      expiresAt,
+      requestedIpHash: ipHash,
+    });
 
-    const deliverTo = RECOVERY_EMAIL_MAP[email] || email;
-    const sent = await sendPasswordEmail(deliverTo, newPassword);
+    const resetUrl = `${getBaseUrl(req)}/reset-password?token=${rawToken}`;
+    const deliverTo = RECOVERY_EMAIL_MAP[email] || user.email;
+
+    const sent = await sendPasswordResetLinkEmail({
+      to: deliverTo,
+      resetUrl,
+      expiresInMinutes: Math.round(TOKEN_TTL_MS / 60_000),
+    });
 
     if (!sent) {
+      // Roll back the token so we don't leave dangling links if delivery failed.
+      await storage.deletePasswordResetTokenById(tokenRow.id);
       console.error(
-        "[ERROR] Password reset succeeded in DB but email delivery failed for:",
+        "[ERROR] Password reset email delivery failed for:",
         email,
-        deliverTo !== email ? `(intended delivery: ${deliverTo})` : "",
+        deliverTo !== user.email ? `(intended delivery: ${deliverTo})` : "",
       );
-    } else {
-      console.log(
-        "[INFO] Password reset successful for email:",
-        email,
-        deliverTo !== email ? `(delivered to ${deliverTo})` : "",
+      // Same response shape – do not reveal mail-system status to the caller.
+      return await constantTimeFinish(
+        startedAt,
+        json({ success: true, message: SUCCESS_MSG }),
       );
     }
 
-    return json({ success: true, message: SUCCESS_MSG });
-  } catch (err: any) {
+    securityLog("forgot_password_sent", {
+      userId: user.id,
+      ipHash: ipHash.slice(0, 12),
+      via: deliverTo !== user.email ? "recovery_map" : "self",
+    });
+    console.log(
+      "[INFO] Password reset link sent for email:",
+      email,
+      deliverTo !== user.email ? `(delivered to ${deliverTo})` : "",
+    );
+
+    return await constantTimeFinish(
+      startedAt,
+      json({ success: true, message: SUCCESS_MSG }),
+    );
+  } catch (err: unknown) {
     console.error("[ERROR] Forgot password error:", err);
-    return error("An error occurred. Please try again later.", 500);
+    return await constantTimeFinish(
+      startedAt,
+      error("An error occurred. Please try again later.", 500),
+    );
   }
 }

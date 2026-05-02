@@ -1,11 +1,12 @@
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull, gt } from "drizzle-orm";
 import {
   users,
   listings,
   payments,
   cebiaReports,
   dealers,
+  passwordResetTokens,
   type User,
   type Listing,
   type InsertListing,
@@ -13,6 +14,7 @@ import {
   type InsertCebiaReport,
   type UpdateCebiaReport,
   type Dealer,
+  type PasswordResetToken,
 } from "@shared/schema";
 
 export const storage = {
@@ -130,6 +132,68 @@ export const storage = {
       .where(eq(users.id, id))
       .returning();
     return user || undefined;
+  },
+
+  // Password reset tokens ---------------------------------------------------
+
+  async invalidateUserPasswordResetTokens(userId: string): Promise<void> {
+    // Mark all unused tokens for this user as consumed so a new request
+    // supersedes any previous outstanding link.
+    await db
+      .update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(
+        and(
+          eq(passwordResetTokens.userId, userId),
+          isNull(passwordResetTokens.usedAt),
+        ),
+      );
+  },
+
+  async createPasswordResetToken(args: {
+    userId: string;
+    tokenHash: string;
+    expiresAt: Date;
+    requestedIpHash?: string | null;
+  }): Promise<PasswordResetToken> {
+    const [row] = await db
+      .insert(passwordResetTokens)
+      .values({
+        userId: args.userId,
+        tokenHash: args.tokenHash,
+        expiresAt: args.expiresAt,
+        requestedIpHash: args.requestedIpHash ?? null,
+      })
+      .returning();
+    return row;
+  },
+
+  async deletePasswordResetTokenById(id: string): Promise<void> {
+    await db.delete(passwordResetTokens).where(eq(passwordResetTokens.id, id));
+  },
+
+  async getActivePasswordResetTokenByHash(
+    tokenHash: string,
+  ): Promise<PasswordResetToken | undefined> {
+    const now = new Date();
+    const [row] = await db
+      .select()
+      .from(passwordResetTokens)
+      .where(
+        and(
+          eq(passwordResetTokens.tokenHash, tokenHash),
+          isNull(passwordResetTokens.usedAt),
+          gt(passwordResetTokens.expiresAt, now),
+        ),
+      );
+    return row || undefined;
+  },
+
+  async markPasswordResetTokenUsed(id: string): Promise<void> {
+    await db
+      .update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(eq(passwordResetTokens.id, id));
   },
 
   async setVerificationCode(

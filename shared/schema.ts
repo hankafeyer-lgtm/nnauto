@@ -96,13 +96,40 @@ export const changeEmailSchema = z.object({
   code: z.string().length(6, "Code must be 6 digits"),
 });
 
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull(),
+    // SHA-256 hex of the raw token. Raw token never persisted.
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    requestedIpHash: varchar("requested_ip_hash", { length: 64 }),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  },
+  (table) => [
+    uniqueIndex("password_reset_tokens_token_hash_idx").on(table.tokenHash),
+    index("password_reset_tokens_user_id_idx").on(table.userId),
+    index("password_reset_tokens_expires_at_idx").on(table.expiresAt),
+  ],
+);
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(20, "Invalid token"),
+  newPassword: z.string().min(6, "New password must be at least 6 characters"),
+  turnstileToken: z.string().optional(),
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type UpdateUser = z.infer<typeof updateUserSchema>;
 export type LoginCredentials = z.infer<typeof loginSchema>;
 export type ChangePasswordRequest = z.infer<typeof changePasswordSchema>;
 export type VerifyEmailRequest = z.infer<typeof verifyEmailSchema>;
 export type ChangeEmailRequest = z.infer<typeof changeEmailSchema>;
+export type ResetPasswordRequest = z.infer<typeof resetPasswordSchema>;
 export type User = typeof users.$inferSelect;
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 
 // ── Dealers ──────────────────────────────────────────────────────────────────
 
