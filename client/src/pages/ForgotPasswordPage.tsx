@@ -16,7 +16,7 @@ import { SEO } from "@/components/SEO";
 import { Mail } from "lucide-react";
 
 export default function ForgotPasswordPage() {
-  const { t } = useTranslation();
+  const t = useTranslation();
   const { toast } = useToast();
   const [email, setEmail] = useState("");
 
