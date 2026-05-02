@@ -683,7 +683,7 @@ import {
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "@/lib/navigation";
+import { useLocation, Link } from "@/lib/navigation";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { SEO } from "@/components/SEO";
@@ -1383,6 +1383,16 @@ export default function ProfilePage() {
                         ? t("profile.saving")
                         : t("settings.changePassword")}
                     </Button>
+                  </div>
+
+                  <div>
+                    <Link
+                      href="/forgot-password"
+                      className="text-sm text-muted-foreground underline hover:text-primary transition-colors"
+                      data-testid="link-forgot-password"
+                    >
+                      {t("auth.forgotPassword")}
+                    </Link>
                   </div>
                 </div>
 
