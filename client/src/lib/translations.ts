@@ -1177,6 +1177,34 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.listings.topRemoved": "TOP odstraněn",
     "dealer.listings.markSold": "Prodáno",
     "dealer.listings.markActive": "Aktivovat",
+    "dealer.listings.selectAll": "Vybrat vše",
+    "dealer.listings.bulkSelected": "Vybráno",
+    "dealer.listings.bulkActions": "Akce",
+    "dealer.listings.bulkMarkSold": "Označit jako prodané",
+    "dealer.listings.bulkDelete": "Smazat",
+    "dealer.listings.bulkChangePrice": "Změnit cenu",
+    "dealer.listings.bulkPromote": "Zvýraznit / TOP",
+    "dealer.listings.confirmMarkSoldTitle": "Označit jako prodané?",
+    "dealer.listings.confirmMarkSoldDescription":
+      "Opravdu chcete označit vybrané inzeráty jako prodané?",
+    "dealer.listings.confirmDeleteTitle": "Smazat inzeráty?",
+    "dealer.listings.confirmDeleteDescription":
+      "Opravdu chcete smazat vybrané inzeráty? Tuto akci nelze vrátit zpět.",
+    "dealer.listings.confirmPriceTitle": "Změnit cenu?",
+    "dealer.listings.confirmPriceDescription": "Změnit cenu u {{count}} inzerátů?",
+    "dealer.listings.priceModalTitle": "Hromadná změna ceny",
+    "dealer.listings.priceModeLabel": "Typ změny",
+    "dealer.listings.priceModeSet": "Nastavit novou cenu (Kč)",
+    "dealer.listings.priceModeIncrease": "Zvýšit o %",
+    "dealer.listings.priceModeDecrease": "Snížit o %",
+    "dealer.listings.priceValueLabel": "Hodnota",
+    "dealer.listings.priceContinue": "Pokračovat k potvrzení",
+    "dealer.listings.bulkSuccess": "Hotovo. Upraveno {{updated}} inzerátů.",
+    "dealer.listings.bulkPartial":
+      "Upraveno {{updated}} inzerátů, {{skipped}} přeskočeno.",
+    "dealer.listings.bulkError":
+      "Akci se nepodařilo dokončit. Zkuste to prosím znovu.",
+    "dealer.listings.promoteSoon": "Hromadné zvýraznění bude brzy dostupné.",
   },
 
   uk: {
@@ -2363,6 +2391,35 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.listings.topRemoved": "TOP знято",
     "dealer.listings.markSold": "Продано",
     "dealer.listings.markActive": "Активувати",
+    "dealer.listings.selectAll": "Обрати все",
+    "dealer.listings.bulkSelected": "Обрано",
+    "dealer.listings.bulkActions": "Дії",
+    "dealer.listings.bulkMarkSold": "Позначити як продані",
+    "dealer.listings.bulkDelete": "Видалити",
+    "dealer.listings.bulkChangePrice": "Змінити ціну",
+    "dealer.listings.bulkPromote": "Виділити / TOP",
+    "dealer.listings.confirmMarkSoldTitle": "Позначити як продані?",
+    "dealer.listings.confirmMarkSoldDescription":
+      "Справді позначити вибрані оголошення як продані?",
+    "dealer.listings.confirmDeleteTitle": "Видалити оголошення?",
+    "dealer.listings.confirmDeleteDescription":
+      "Справді видалити вибрані оголошення? Цю дію не скасувати.",
+    "dealer.listings.confirmPriceTitle": "Змінити ціну?",
+    "dealer.listings.confirmPriceDescription": "Змінити ціну для {{count}} оголошень?",
+    "dealer.listings.priceModalTitle": "Масова зміна ціни",
+    "dealer.listings.priceModeLabel": "Тип зміни",
+    "dealer.listings.priceModeSet": "Нова ціна (Kč)",
+    "dealer.listings.priceModeIncrease": "Підвищити на %",
+    "dealer.listings.priceModeDecrease": "Знизити на %",
+    "dealer.listings.priceValueLabel": "Значення",
+    "dealer.listings.priceContinue": "Далі до підтвердження",
+    "dealer.listings.bulkSuccess": "Готово. Оновлено {{updated}} оголошень.",
+    "dealer.listings.bulkPartial":
+      "Оновлено {{updated}} оголошень, {{skipped}} пропущено.",
+    "dealer.listings.bulkError":
+      "Не вдалося завершити дію. Спробуйте ще раз.",
+    "dealer.listings.promoteSoon":
+      "Масове виділення буде доступне незабаром.",
   },
 
   en: {
@@ -3550,6 +3607,34 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.listings.topRemoved": "TOP removed",
     "dealer.listings.markSold": "Sold",
     "dealer.listings.markActive": "Activate",
+    "dealer.listings.selectAll": "Select all",
+    "dealer.listings.bulkSelected": "Selected",
+    "dealer.listings.bulkActions": "Actions",
+    "dealer.listings.bulkMarkSold": "Mark as sold",
+    "dealer.listings.bulkDelete": "Delete",
+    "dealer.listings.bulkChangePrice": "Change price",
+    "dealer.listings.bulkPromote": "Highlight / TOP",
+    "dealer.listings.confirmMarkSoldTitle": "Mark as sold?",
+    "dealer.listings.confirmMarkSoldDescription":
+      "Mark the selected listings as sold?",
+    "dealer.listings.confirmDeleteTitle": "Delete listings?",
+    "dealer.listings.confirmDeleteDescription":
+      "Delete the selected listings? This cannot be undone.",
+    "dealer.listings.confirmPriceTitle": "Change price?",
+    "dealer.listings.confirmPriceDescription":
+      "Change price for {{count}} listings?",
+    "dealer.listings.priceModalTitle": "Bulk price change",
+    "dealer.listings.priceModeLabel": "Change type",
+    "dealer.listings.priceModeSet": "Set new price (CZK)",
+    "dealer.listings.priceModeIncrease": "Increase by %",
+    "dealer.listings.priceModeDecrease": "Decrease by %",
+    "dealer.listings.priceValueLabel": "Value",
+    "dealer.listings.priceContinue": "Continue to confirm",
+    "dealer.listings.bulkSuccess": "Done. Updated {{updated}} listings.",
+    "dealer.listings.bulkPartial":
+      "Updated {{updated}} listings, {{skipped}} skipped.",
+    "dealer.listings.bulkError": "Could not complete the action. Try again.",
+    "dealer.listings.promoteSoon": "Bulk highlighting will be available soon.",
   },
 };
 
@@ -4016,6 +4101,36 @@ const germanTranslations: Record<string, string> = {
   "dealer.listings.topRemoved": "TOP entfernt",
   "dealer.listings.markSold": "Verkauft",
   "dealer.listings.markActive": "Aktivieren",
+  "dealer.listings.selectAll": "Alle auswählen",
+  "dealer.listings.bulkSelected": "Ausgewählt",
+  "dealer.listings.bulkActions": "Aktionen",
+  "dealer.listings.bulkMarkSold": "Als verkauft markieren",
+  "dealer.listings.bulkDelete": "Löschen",
+  "dealer.listings.bulkChangePrice": "Preis ändern",
+  "dealer.listings.bulkPromote": "Hervorheben / TOP",
+  "dealer.listings.confirmMarkSoldTitle": "Als verkauft markieren?",
+  "dealer.listings.confirmMarkSoldDescription":
+    "Ausgewählte Inserate wirklich als verkauft markieren?",
+  "dealer.listings.confirmDeleteTitle": "Inserate löschen?",
+  "dealer.listings.confirmDeleteDescription":
+    "Ausgewählte Inserate wirklich löschen? Dies kann nicht rückgängig gemacht werden.",
+  "dealer.listings.confirmPriceTitle": "Preis ändern?",
+  "dealer.listings.confirmPriceDescription":
+    "Preis für {{count}} Inserate ändern?",
+  "dealer.listings.priceModalTitle": "Massen-Preisänderung",
+  "dealer.listings.priceModeLabel": "Änderungsart",
+  "dealer.listings.priceModeSet": "Neuen Preis setzen (CZK)",
+  "dealer.listings.priceModeIncrease": "Um % erhöhen",
+  "dealer.listings.priceModeDecrease": "Um % senken",
+  "dealer.listings.priceValueLabel": "Wert",
+  "dealer.listings.priceContinue": "Weiter zur Bestätigung",
+  "dealer.listings.bulkSuccess": "Fertig. {{updated}} Inserate aktualisiert.",
+  "dealer.listings.bulkPartial":
+    "{{updated}} Inserate aktualisiert, {{skipped}} übersprungen.",
+  "dealer.listings.bulkError":
+    "Aktion konnte nicht abgeschlossen werden. Bitte erneut versuchen.",
+  "dealer.listings.promoteSoon":
+    "Massen-Hervorhebung wird bald verfügbar sein.",
 };
 
 export const translations: Record<Language, Record<string, string>> = {

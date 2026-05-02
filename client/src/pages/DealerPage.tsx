@@ -1,4 +1,12 @@
-import { useState, useRef, useCallback, useEffect, lazy, Suspense } from "react";
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  lazy,
+  Suspense,
+} from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/lib/translations";
 import type { Listing } from "@shared/schema";
@@ -52,8 +60,32 @@ import {
   Timer,
   Pause,
   CircleDot,
+  Loader2,
+  MoreHorizontal,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -624,6 +656,24 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
   const [editingListing, setEditingListing] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const [bulkSoldDialogOpen, setBulkSoldDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [priceModalOpen, setPriceModalOpen] = useState(false);
+  const [priceConfirmOpen, setPriceConfirmOpen] = useState(false);
+  const [priceMode, setPriceMode] = useState<
+    "set" | "increase_percent" | "decrease_percent"
+  >("set");
+  const [priceValueStr, setPriceValueStr] = useState("");
+  const [pendingPricePayload, setPendingPricePayload] = useState<{
+    mode: "set" | "increase_percent" | "decrease_percent";
+    value: number;
+  } | null>(null);
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [statusFilter]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/dealer/listings"],
@@ -635,7 +685,7 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
 
   const toggleSoldMutation = useMutation({
     mutationFn: async ({ id, isSold }: { id: string; isSold: boolean }) => {
-      await apiRequest("PATCH", `/api/listings/${id}/sold`, { isSold });
+      await apiRequest("PUT", `/api/listings/${id}`, { isSold });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
@@ -670,6 +720,98 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
   const filteredListings = statusFilter === "all"
     ? allListings
     : allListings.filter((l) => getListingStatus(l) === statusFilter);
+
+  const visibleIds = useMemo(
+    () => filteredListings.map((l) => l.id),
+    [filteredListings],
+  );
+
+  const selectedOnPageCount = useMemo(
+    () => visibleIds.filter((id) => selectedIds.has(id)).length,
+    [visibleIds, selectedIds],
+  );
+
+  const allVisibleSelected =
+    visibleIds.length > 0 && selectedOnPageCount === visibleIds.length;
+  const someVisibleSelected =
+    selectedOnPageCount > 0 && !allVisibleSelected;
+
+  const toggleId = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAllVisible = useCallback(
+    (take: boolean) => {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (take) {
+          visibleIds.forEach((id) => next.add(id));
+        } else {
+          visibleIds.forEach((id) => next.delete(id));
+        }
+        return next;
+      });
+    },
+    [visibleIds],
+  );
+
+  const bulkMutation = useMutation({
+    mutationFn: async (vars: {
+      action: "mark_sold" | "delete" | "price_update";
+      payload?: {
+        mode: "set" | "increase_percent" | "decrease_percent";
+        value: number;
+      };
+    }) => {
+      const ids = filteredListings
+        .filter((l) => selectedIds.has(l.id))
+        .map((l) => l.id);
+      if (ids.length === 0) {
+        throw new Error("no listings selected");
+      }
+      const res = await apiRequest("POST", "/api/dealer/listings/bulk", {
+        ids,
+        action: vars.action,
+        payload: vars.payload,
+      });
+      return (await res.json()) as {
+        success: boolean;
+        updated: number;
+        skipped: number;
+      };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+      setSelectedIds(new Set());
+      setBulkSoldDialogOpen(false);
+      setBulkDeleteDialogOpen(false);
+      setPriceModalOpen(false);
+      setPriceConfirmOpen(false);
+      setPendingPricePayload(null);
+      const msg =
+        data.skipped > 0
+          ? t("dealer.listings.bulkPartial")
+              .replace("{{updated}}", String(data.updated))
+              .replace("{{skipped}}", String(data.skipped))
+          : t("dealer.listings.bulkSuccess").replace(
+              "{{updated}}",
+              String(data.updated),
+            );
+      toast({ title: msg });
+    },
+    onError: () => {
+      toast({
+        title: t("dealer.listings.bulkError"),
+        variant: "destructive",
+      });
+    },
+  });
 
   const statusCounts = {
     all: allListings.length,
@@ -706,6 +848,136 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
         ))}
       </div>
 
+      {filteredListings.length > 0 ? (
+        <div className="flex items-center gap-3 px-0.5 py-1">
+          <Checkbox
+            id="dealer-my-listings-select-all"
+            checked={
+              allVisibleSelected
+                ? true
+                : someVisibleSelected
+                  ? "indeterminate"
+                  : false
+            }
+            onCheckedChange={(v) => handleSelectAllVisible(v === true)}
+            className="h-5 w-5 sm:h-4 sm:w-4"
+          />
+          <label
+            htmlFor="dealer-my-listings-select-all"
+            className="text-sm cursor-pointer select-none text-muted-foreground"
+          >
+            {t("dealer.listings.selectAll")}
+          </label>
+        </div>
+      ) : null}
+
+      {selectedOnPageCount > 0 ? (
+        <div className="sticky top-0 z-20 flex flex-col gap-2 rounded-lg border border-amber-200/60 bg-background/95 px-3 py-2 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:flex-row sm:flex-wrap sm:items-center">
+          <span className="text-sm font-medium">
+            {t("dealer.listings.bulkSelected")}: {selectedOnPageCount}
+          </span>
+
+          <div className="hidden flex-wrap gap-2 sm:flex sm:items-center sm:justify-end sm:ml-auto">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 touch-manipulation"
+              disabled={bulkMutation.isPending}
+              onClick={() => setBulkSoldDialogOpen(true)}
+            >
+              {t("dealer.listings.bulkMarkSold")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 touch-manipulation"
+              disabled={bulkMutation.isPending}
+              onClick={() => {
+                toast({ title: t("dealer.listings.promoteSoon") });
+              }}
+            >
+              {t("dealer.listings.bulkPromote")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 touch-manipulation"
+              disabled={bulkMutation.isPending}
+              onClick={() => {
+                setPriceValueStr("");
+                setPriceMode("set");
+                setPriceModalOpen(true);
+              }}
+            >
+              {t("dealer.listings.bulkChangePrice")}
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="h-9 touch-manipulation"
+              disabled={bulkMutation.isPending}
+              onClick={() => setBulkDeleteDialogOpen(true)}
+            >
+              {t("dealer.listings.bulkDelete")}
+            </Button>
+            {bulkMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : null}
+          </div>
+
+          <div className="sm:hidden w-full">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 w-full touch-manipulation justify-between"
+                  disabled={bulkMutation.isPending}
+                >
+                  <span className="flex items-center gap-2">
+                    <MoreHorizontal className="h-4 w-4" />
+                    {t("dealer.listings.bulkActions")}
+                  </span>
+                  {bulkMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : null}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[min(100vw-2rem,280px)]">
+                <DropdownMenuItem
+                  onSelect={() => setBulkSoldDialogOpen(true)}
+                  className="cursor-pointer touch-manipulation py-3"
+                >
+                  {t("dealer.listings.bulkMarkSold")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => toast({ title: t("dealer.listings.promoteSoon") })}
+                  className="cursor-pointer touch-manipulation py-3"
+                >
+                  {t("dealer.listings.bulkPromote")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setPriceValueStr("");
+                    setPriceMode("set");
+                    setPriceModalOpen(true);
+                  }}
+                  className="cursor-pointer touch-manipulation py-3"
+                >
+                  {t("dealer.listings.bulkChangePrice")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => setBulkDeleteDialogOpen(true)}
+                  className="cursor-pointer touch-manipulation py-3 text-destructive focus:text-destructive"
+                >
+                  {t("dealer.listings.bulkDelete")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      ) : null}
+
       {/* Listings */}
       <div className="space-y-2">
         {filteredListings.length === 0 ? (
@@ -728,10 +1000,22 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
             return (
               <Card key={l.id} className={`transition-all ${status === "sold" ? "opacity-60" : ""}`}>
                 <CardContent className="p-3 sm:p-4">
-                  <div
-                    className="flex items-center gap-3 cursor-pointer"
-                    onClick={() => setExpandedId(isExpanded ? null : l.id)}
-                  >
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <div
+                      className="shrink-0 pt-0.5 sm:pt-1"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox
+                        checked={selectedIds.has(l.id)}
+                        onCheckedChange={() => toggleId(l.id)}
+                        className="h-5 w-5 sm:h-4 sm:w-4"
+                        aria-label={`select-${l.id}`}
+                      />
+                    </div>
+                    <div
+                      className="flex min-w-0 flex-1 cursor-pointer items-center gap-3"
+                      onClick={() => setExpandedId(isExpanded ? null : l.id)}
+                    >
                     {/* Фото */}
                     <div
                       className="h-14 w-20 sm:h-16 sm:w-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 relative"
@@ -805,6 +1089,7 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                       </Button>
                     </div>
                   </div>
+                  </div>
 
                   {/* Розгорнута статистика */}
                   {isExpanded && (
@@ -876,6 +1161,178 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
           })
         )}
       </div>
+
+      <AlertDialog open={bulkSoldDialogOpen} onOpenChange={setBulkSoldDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("dealer.listings.confirmMarkSoldTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("dealer.listings.confirmMarkSoldDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("dealer.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-700 hover:bg-amber-800"
+              disabled={bulkMutation.isPending}
+              onClick={() =>
+                bulkMutation.mutate({ action: "mark_sold" })
+              }
+            >
+              {bulkMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("common.yes")
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("dealer.listings.confirmDeleteTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("dealer.listings.confirmDeleteDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("dealer.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={bulkMutation.isPending}
+              onClick={() => bulkMutation.mutate({ action: "delete" })}
+            >
+              {bulkMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("dealer.delete")
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog
+        open={priceModalOpen}
+        onOpenChange={(open) => {
+          setPriceModalOpen(open);
+          if (!open) setPriceValueStr("");
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("dealer.listings.priceModalTitle")}</DialogTitle>
+            <DialogDescription className="sr-only">
+              {t("dealer.listings.bulkChangePrice")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>{t("dealer.listings.priceModeLabel")}</Label>
+              <Select
+                value={priceMode}
+                onValueChange={(v) =>
+                  setPriceMode(v as typeof priceMode)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="set">{t("dealer.listings.priceModeSet")}</SelectItem>
+                  <SelectItem value="increase_percent">
+                    {t("dealer.listings.priceModeIncrease")}
+                  </SelectItem>
+                  <SelectItem value="decrease_percent">
+                    {t("dealer.listings.priceModeDecrease")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="bulk-price-value">{t("dealer.listings.priceValueLabel")}</Label>
+              <Input
+                id="bulk-price-value"
+                inputMode="decimal"
+                value={priceValueStr}
+                onChange={(e) => setPriceValueStr(e.target.value)}
+                placeholder={priceMode === "set" ? "299000" : "10"}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPriceModalOpen(false)}
+            >
+              {t("dealer.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="bg-amber-700 hover:bg-amber-800"
+              onClick={() => {
+                const raw = priceValueStr.replace(/\s/g, "").replace(",", ".");
+                const v = parseFloat(raw);
+                if (!Number.isFinite(v) || v < 0) {
+                  toast({
+                    title: t("dealer.listings.bulkError"),
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                setPendingPricePayload({ mode: priceMode, value: v });
+                setPriceModalOpen(false);
+                setPriceConfirmOpen(true);
+              }}
+            >
+              {t("dealer.listings.priceContinue")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={priceConfirmOpen} onOpenChange={setPriceConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("dealer.listings.confirmPriceTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("dealer.listings.confirmPriceDescription").replace(
+                "{{count}}",
+                String(selectedOnPageCount),
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setPendingPricePayload(null);
+              }}
+            >
+              {t("dealer.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-amber-700 hover:bg-amber-800"
+              disabled={bulkMutation.isPending || !pendingPricePayload}
+              onClick={() => {
+                if (!pendingPricePayload) return;
+                bulkMutation.mutate({
+                  action: "price_update",
+                  payload: pendingPricePayload,
+                });
+              }}
+            >
+              {bulkMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("common.yes")
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {editingListing && (
         <Suspense fallback={null}>
