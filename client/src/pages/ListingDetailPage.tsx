@@ -5744,7 +5744,25 @@ export default function ListingDetailPage({
                         {t("detail.email")}
                       </p>
                       <a
-                        href={`mailto:${seller.email}`}
+                        href={(() => {
+                          const carTitle = getListingMainTitle(listing);
+                          const subject = encodeURIComponent(
+                            carTitle ? `Zájem o vůz ${carTitle}` : "Zájem o vůz",
+                          );
+                          // Same prefilled body shape as the WhatsApp /
+                          // Telegram / contact-form widgets so the source
+                          // tag is identical no matter which channel the
+                          // user picks. appendListingSourceTag() keeps it
+                          // idempotent.
+                          const body = encodeURIComponent(
+                            appendListingSourceTag(
+                              carTitle
+                                ? `Dobrý den, mám zájem o vůz ${carTitle}. Je ještě k dispozici?`
+                                : "Dobrý den, mám zájem o vůz. Je ještě k dispozici?",
+                            ),
+                          );
+                          return `mailto:${seller.email}?subject=${subject}&body=${body}`;
+                        })()}
                         className="text-base hover:underline"
                       >
                         {seller.email}
