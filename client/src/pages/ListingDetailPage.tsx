@@ -3103,6 +3103,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Send, MessageCircle } from "lucide-react";
+import ContactSellerForm from "@/components/ContactSellerForm";
 
 import {
   Carousel,
@@ -5787,6 +5788,29 @@ export default function ListingDetailPage({
                 {t("detail.noContactInfo")}
               </p>
             )}
+
+            <Separator />
+
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">
+                {t("detail.contactFormHeading")}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t("detail.contactFormSubheading")}
+              </p>
+              <ContactSellerForm
+                listingId={listing.id}
+                defaultName={
+                  user
+                    ? [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
+                      undefined
+                    : undefined
+                }
+                defaultEmail={user?.email || undefined}
+                defaultPhone={user?.phone || undefined}
+                defaultMessage={`${t("detail.contactSellerDefaultMessage")} ${getListingMainTitle(listing)}`.trim()}
+              />
+            </div>
           </div>
         </DialogContent>
       </Dialog>

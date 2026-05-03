@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { and, eq, isNull, gt } from "drizzle-orm";
+import { and, desc, eq, gt, ilike, isNull, or, sql } from "drizzle-orm";
 import {
   users,
   listings,
@@ -7,6 +7,9 @@ import {
   cebiaReports,
   dealers,
   passwordResetTokens,
+  conversations,
+  messages,
+  quickReplies,
   type User,
   type Listing,
   type InsertListing,
@@ -15,6 +18,13 @@ import {
   type UpdateCebiaReport,
   type Dealer,
   type PasswordResetToken,
+  type Conversation,
+  type ConversationSource,
+  type ConversationStatus,
+  type Message,
+  type MessageSender,
+  type MessageType,
+  type QuickReply,
 } from "@shared/schema";
 
 export const storage = {
@@ -305,5 +315,282 @@ export const storage = {
       .where(eq(dealers.id, id))
       .returning();
     return row;
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Messaging — conversations, messages, quick replies
+  // Used by /api/conversations/contact (public buyer form), /api/dealer/...
+  // and inbound webhook routes. Schema lives in shared/schema.ts and is
+  // ensured at runtime via lib/ensureMessagingSchema.ts.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  async findExistingConversation(args: {
+    dealerUserId: string;
+    listingId: string;
+    clientEmail?: string | null;
+    clientPhone?: string | null;
+  }): Promise<Conversation | undefined> {
+    const { dealerUserId, listingId, clientEmail, clientPhone } = args;
+    if (!clientEmail && !clientPhone) return undefined;
+
+    const conditions = [
+      eq(conversations.dealerUserId, dealerUserId),
+      eq(conversations.listingId, listingId),
+    ];
+    const identityClauses = [];
+    if (clientEmail) identityClauses.push(eq(conversations.clientEmail, clientEmail));
+    if (clientPhone) identityClauses.push(eq(conversations.clientPhone, clientPhone));
+    if (identityClauses.length === 0) return undefined;
+
+    const [row] = await db
+      .select()
+      .from(conversations)
+      .where(and(...conditions, or(...identityClauses)!))
+      .orderBy(desc(conversations.updatedAt))
+      .limit(1);
+    return row;
+  },
+
+  async createConversation(args: {
+    dealerUserId: string;
+    dealerId: string | null;
+    listingId: string;
+    clientName?: string | null;
+    clientEmail?: string | null;
+    clientPhone?: string | null;
+    source: ConversationSource;
+    threadKey?: string | null;
+  }): Promise<Conversation> {
+    const [row] = await db
+      .insert(conversations)
+      .values({
+        dealerUserId: args.dealerUserId,
+        dealerId: args.dealerId,
+        listingId: args.listingId,
+        clientName: args.clientName ?? null,
+        clientEmail: args.clientEmail ?? null,
+        clientPhone: args.clientPhone ?? null,
+        source: args.source,
+        status: "new",
+        threadKey: args.threadKey ?? null,
+      })
+      .returning();
+    return row;
+  },
+
+  async getConversation(id: string): Promise<Conversation | undefined> {
+    const [row] = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.id, id));
+    return row || undefined;
+  },
+
+  async getConversationByThreadKey(
+    threadKey: string,
+  ): Promise<Conversation | undefined> {
+    const [row] = await db
+      .select()
+      .from(conversations)
+      .where(eq(conversations.threadKey, threadKey));
+    return row || undefined;
+  },
+
+  async listConversationsForDealer(args: {
+    dealerUserId: string;
+    status?: ConversationStatus;
+    search?: string;
+  }): Promise<Conversation[]> {
+    const conds = [eq(conversations.dealerUserId, args.dealerUserId)];
+    if (args.status) conds.push(eq(conversations.status, args.status));
+    if (args.search && args.search.trim().length > 0) {
+      const like = `%${args.search.trim()}%`;
+      const searchClause = or(
+        ilike(conversations.clientName, like),
+        ilike(conversations.clientEmail, like),
+        ilike(conversations.clientPhone, like),
+        ilike(conversations.lastMessagePreview, like),
+      );
+      if (searchClause) conds.push(searchClause);
+    }
+    return await db
+      .select()
+      .from(conversations)
+      .where(and(...conds))
+      .orderBy(desc(conversations.lastMessageAt), desc(conversations.updatedAt))
+      .limit(200);
+  },
+
+  async listMessages(conversationId: string): Promise<Message[]> {
+    return await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(messages.createdAt);
+  },
+
+  async createMessage(args: {
+    conversationId: string;
+    sender: MessageSender;
+    type?: MessageType;
+    content: string;
+    channel?: ConversationSource;
+    externalId?: string | null;
+    read?: boolean;
+  }): Promise<Message> {
+    const [row] = await db
+      .insert(messages)
+      .values({
+        conversationId: args.conversationId,
+        sender: args.sender,
+        type: args.type ?? "text",
+        content: args.content,
+        channel: args.channel ?? "chat",
+        externalId: args.externalId ?? null,
+        read: args.read ?? false,
+      })
+      .returning();
+    return row;
+  },
+
+  /**
+   * Update conversation aggregates after a new message:
+   * - bump updatedAt
+   * - set lastMessageAt / lastMessagePreview
+   * - bump dealer-side unread counter when sender=client
+   * - move status from "new" → "in_progress" once dealer or client sends
+   *   the second-or-later message (matches the spec).
+   */
+  async touchConversationAfterMessage(args: {
+    conversationId: string;
+    sender: MessageSender;
+    contentPreview: string;
+    bumpStatusToInProgress: boolean;
+  }): Promise<void> {
+    const setData: Record<string, unknown> = {
+      updatedAt: new Date(),
+      lastMessageAt: new Date(),
+      lastMessagePreview: args.contentPreview.slice(0, 280),
+    };
+    if (args.bumpStatusToInProgress) {
+      setData.status = "in_progress";
+    }
+    await db
+      .update(conversations)
+      .set(setData)
+      .where(eq(conversations.id, args.conversationId));
+
+    if (args.sender === "client") {
+      await db
+        .update(conversations)
+        .set({ unreadDealerCount: sql`${conversations.unreadDealerCount} + 1` })
+        .where(eq(conversations.id, args.conversationId));
+    }
+  },
+
+  async markConversationReadByDealer(conversationId: string): Promise<void> {
+    await db
+      .update(conversations)
+      .set({ unreadDealerCount: 0, updatedAt: new Date() })
+      .where(eq(conversations.id, conversationId));
+    await db
+      .update(messages)
+      .set({ read: true })
+      .where(
+        and(
+          eq(messages.conversationId, conversationId),
+          eq(messages.sender, "client"),
+          eq(messages.read, false),
+        ),
+      );
+  },
+
+  async updateConversationStatus(
+    conversationId: string,
+    status: ConversationStatus,
+  ): Promise<Conversation | undefined> {
+    const [row] = await db
+      .update(conversations)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(conversations.id, conversationId))
+      .returning();
+    return row || undefined;
+  },
+
+  async getDealerUnreadCount(dealerUserId: string): Promise<number> {
+    const result = (await db.execute(sql`
+      SELECT COALESCE(SUM(unread_dealer_count), 0)::int AS total
+      FROM conversations
+      WHERE dealer_user_id = ${dealerUserId}
+    `)) as { rows?: Array<{ total: number }> };
+    return result?.rows?.[0]?.total ?? 0;
+  },
+
+  // Quick replies ----------------------------------------------------------
+
+  async listQuickReplies(dealerUserId: string): Promise<QuickReply[]> {
+    return await db
+      .select()
+      .from(quickReplies)
+      .where(eq(quickReplies.dealerUserId, dealerUserId))
+      .orderBy(quickReplies.sortOrder, quickReplies.createdAt);
+  },
+
+  async createQuickReply(args: {
+    dealerUserId: string;
+    title: string;
+    message: string;
+    sortOrder?: number;
+  }): Promise<QuickReply> {
+    const [row] = await db
+      .insert(quickReplies)
+      .values({
+        dealerUserId: args.dealerUserId,
+        title: args.title,
+        message: args.message,
+        sortOrder: args.sortOrder ?? 0,
+      })
+      .returning();
+    return row;
+  },
+
+  async updateQuickReply(args: {
+    id: string;
+    dealerUserId: string;
+    title?: string;
+    message?: string;
+    sortOrder?: number;
+  }): Promise<QuickReply | undefined> {
+    const setData: Record<string, unknown> = { updatedAt: new Date() };
+    if (args.title !== undefined) setData.title = args.title;
+    if (args.message !== undefined) setData.message = args.message;
+    if (args.sortOrder !== undefined) setData.sortOrder = args.sortOrder;
+    const [row] = await db
+      .update(quickReplies)
+      .set(setData)
+      .where(
+        and(
+          eq(quickReplies.id, args.id),
+          eq(quickReplies.dealerUserId, args.dealerUserId),
+        ),
+      )
+      .returning();
+    return row || undefined;
+  },
+
+  async deleteQuickReply(args: {
+    id: string;
+    dealerUserId: string;
+  }): Promise<boolean> {
+    const rows = await db
+      .delete(quickReplies)
+      .where(
+        and(
+          eq(quickReplies.id, args.id),
+          eq(quickReplies.dealerUserId, args.dealerUserId),
+        ),
+      )
+      .returning({ id: quickReplies.id });
+    return rows.length > 0;
   },
 };

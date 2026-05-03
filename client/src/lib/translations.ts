@@ -1205,6 +1205,65 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.listings.bulkError":
       "Akci se nepodařilo dokončit. Zkuste to prosím znovu.",
     "dealer.listings.promoteSoon": "Hromadné zvýraznění bude brzy dostupné.",
+
+    // Listing-detail contact form (writes to the dealer inbox)
+    "detail.contactFormHeading": "Napsat prodejci",
+    "detail.contactFormSubheading":
+      "Vaše zpráva přijde do schránky prodejce. Po odpovědi vás budeme informovat e-mailem.",
+    "detail.contactFormName": "Jméno",
+    "detail.contactFormMessage": "Zpráva",
+    "detail.contactFormSend": "Odeslat zprávu",
+    "detail.contactFormSending": "Odesílám…",
+    "detail.contactSellerDefaultMessage":
+      "Dobrý den, mám zájem o tento vůz. Je ještě k dispozici?",
+    "detail.contactSellerSentTitle": "Zpráva odeslána",
+    "detail.contactSellerSentDescription":
+      "Prodejce vás bude kontaktovat co nejdříve.",
+    "detail.contactSellerErrorTitle": "Zprávu se nepodařilo odeslat",
+    "detail.contactSellerNeedContact":
+      "Vyplňte prosím e-mail nebo telefon, ať vám prodejce může odpovědět.",
+
+    // Dealer messages module
+    "messages.heading": "Zprávy",
+    "messages.pageTitle": "Zprávy | NNAuto Dealer",
+    "messages.backToCabinet": "Zpět do kabinetu",
+    "messages.authRequired": "Pro přístup ke zprávám se prosím přihlaste.",
+    "messages.dealerOnly": "Schránka je dostupná pouze pro dealerské účty.",
+    "messages.goHome": "Domů",
+    "messages.openCabinet": "Otevřít kabinet",
+    "messages.searchPlaceholder": "Hledat klienta, e-mail, telefon…",
+    "messages.filter.all": "Vše",
+    "messages.filter.new": "Nové",
+    "messages.filter.inProgress": "Probíhá",
+    "messages.filter.closed": "Uzavřené",
+    "messages.loadError": "Nepodařilo se načíst konverzace.",
+    "messages.listEmpty": "Zatím žádné konverzace.",
+    "messages.empty.title": "Vyberte konverzaci",
+    "messages.empty.subtitle":
+      "Klikněte na konverzaci v levém panelu pro zobrazení historie zpráv a odpověď.",
+    "messages.threadEmpty": "Vlákno je zatím prázdné.",
+    "messages.replyPlaceholder": "Napište odpověď…",
+    "messages.send": "Odeslat",
+    "messages.sending": "Odesílám…",
+    "messages.sendError": "Zprávu se nepodařilo odeslat",
+    "messages.shortcutHint": "Tip: Cmd/Ctrl + Enter odešle zprávu.",
+    "messages.alsoSendEmail": "Odeslat také e-mailem",
+    "messages.willSendEmail": "Doručí se e-mailem",
+    "messages.templates": "Šablony",
+    "messages.noTemplates": "Žádné šablony.",
+    "messages.manageTemplates": "Spravovat šablony",
+    "messages.manageTemplatesHint":
+      "Šablony zrychlí časté odpovědi. Zde můžete přidat, upravit nebo odstranit.",
+    "messages.templateTitle": "Název",
+    "messages.templateMessage": "Text zprávy",
+    "messages.addTemplate": "Přidat šablonu",
+    "messages.close": "Zavřít",
+    "messages.templateError": "Šablonu se nepodařilo uložit",
+    "messages.anonymous": "Anonymní zájemce",
+    "messages.unknownListing": "Inzerát smazán",
+    "messages.noMessages": "Žádné zprávy",
+    "messages.read": "Přečteno",
+    "messages.channel.email": "E-mail",
   },
 
   uk: {
@@ -2420,6 +2479,66 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
       "Не вдалося завершити дію. Спробуйте ще раз.",
     "dealer.listings.promoteSoon":
       "Масове виділення буде доступне незабаром.",
+
+    // Listing-detail contact form (writes to the dealer inbox)
+    "detail.contactFormHeading": "Написати продавцю",
+    "detail.contactFormSubheading":
+      "Ваше повідомлення потрапить у скриньку продавця. Ми повідомимо вас e-mail-ом коли він відповість.",
+    "detail.contactFormName": "Ім'я",
+    "detail.contactFormMessage": "Повідомлення",
+    "detail.contactFormSend": "Надіслати",
+    "detail.contactFormSending": "Надсилаю…",
+    "detail.contactSellerDefaultMessage":
+      "Доброго дня, цікавить це авто. Воно ще доступне?",
+    "detail.contactSellerSentTitle": "Повідомлення надіслано",
+    "detail.contactSellerSentDescription":
+      "Продавець зв'яжеться з вами найближчим часом.",
+    "detail.contactSellerErrorTitle": "Не вдалося надіслати повідомлення",
+    "detail.contactSellerNeedContact":
+      "Вкажіть e-mail або телефон, щоб продавець міг відповісти.",
+
+    // Dealer messages module
+    "messages.heading": "Повідомлення",
+    "messages.pageTitle": "Повідомлення | NNAuto Dealer",
+    "messages.backToCabinet": "До кабінету",
+    "messages.authRequired": "Увійдіть, щоб переглядати повідомлення.",
+    "messages.dealerOnly":
+      "Скринька доступна лише для дилерських акаунтів.",
+    "messages.goHome": "На головну",
+    "messages.openCabinet": "Відкрити кабінет",
+    "messages.searchPlaceholder": "Пошук клієнта, e-mail, телефон…",
+    "messages.filter.all": "Усі",
+    "messages.filter.new": "Нові",
+    "messages.filter.inProgress": "В роботі",
+    "messages.filter.closed": "Закриті",
+    "messages.loadError": "Не вдалося завантажити діалоги.",
+    "messages.listEmpty": "Поки немає діалогів.",
+    "messages.empty.title": "Виберіть діалог",
+    "messages.empty.subtitle":
+      "Клікніть на діалог зліва, щоб побачити історію та відповісти.",
+    "messages.threadEmpty": "Поки немає повідомлень.",
+    "messages.replyPlaceholder": "Напишіть відповідь…",
+    "messages.send": "Надіслати",
+    "messages.sending": "Надсилаю…",
+    "messages.sendError": "Не вдалося надіслати повідомлення",
+    "messages.shortcutHint": "Підказка: Cmd/Ctrl + Enter — надіслати.",
+    "messages.alsoSendEmail": "Також надіслати e-mail",
+    "messages.willSendEmail": "Доставка через e-mail",
+    "messages.templates": "Шаблони",
+    "messages.noTemplates": "Шаблонів немає.",
+    "messages.manageTemplates": "Керування шаблонами",
+    "messages.manageTemplatesHint":
+      "Шаблони пришвидшують відповіді. Тут можна додати, відредагувати чи видалити.",
+    "messages.templateTitle": "Назва",
+    "messages.templateMessage": "Текст",
+    "messages.addTemplate": "Додати шаблон",
+    "messages.close": "Закрити",
+    "messages.templateError": "Не вдалося зберегти шаблон",
+    "messages.anonymous": "Анонімний клієнт",
+    "messages.unknownListing": "Авто видалено",
+    "messages.noMessages": "Без повідомлень",
+    "messages.read": "Прочитано",
+    "messages.channel.email": "E-mail",
   },
 
   en: {
@@ -3635,6 +3754,65 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
       "Updated {{updated}} listings, {{skipped}} skipped.",
     "dealer.listings.bulkError": "Could not complete the action. Try again.",
     "dealer.listings.promoteSoon": "Bulk highlighting will be available soon.",
+
+    // Listing-detail contact form (writes to the dealer inbox)
+    "detail.contactFormHeading": "Message the seller",
+    "detail.contactFormSubheading":
+      "Your message goes straight to the seller's inbox. We'll notify you by e-mail when they reply.",
+    "detail.contactFormName": "Name",
+    "detail.contactFormMessage": "Message",
+    "detail.contactFormSend": "Send message",
+    "detail.contactFormSending": "Sending…",
+    "detail.contactSellerDefaultMessage":
+      "Hello, I'm interested in this car. Is it still available?",
+    "detail.contactSellerSentTitle": "Message sent",
+    "detail.contactSellerSentDescription":
+      "The seller will get back to you shortly.",
+    "detail.contactSellerErrorTitle": "Could not send the message",
+    "detail.contactSellerNeedContact":
+      "Please leave an e-mail or phone so the seller can reach you.",
+
+    // Dealer messages module
+    "messages.heading": "Messages",
+    "messages.pageTitle": "Messages | NNAuto Dealer",
+    "messages.backToCabinet": "Back to cabinet",
+    "messages.authRequired": "Please sign in to view messages.",
+    "messages.dealerOnly": "The inbox is available for dealer accounts only.",
+    "messages.goHome": "Home",
+    "messages.openCabinet": "Open cabinet",
+    "messages.searchPlaceholder": "Search client, e-mail, phone…",
+    "messages.filter.all": "All",
+    "messages.filter.new": "New",
+    "messages.filter.inProgress": "In progress",
+    "messages.filter.closed": "Closed",
+    "messages.loadError": "Could not load conversations.",
+    "messages.listEmpty": "No conversations yet.",
+    "messages.empty.title": "Pick a conversation",
+    "messages.empty.subtitle":
+      "Click a conversation in the left pane to see history and reply.",
+    "messages.threadEmpty": "Thread is empty.",
+    "messages.replyPlaceholder": "Type a reply…",
+    "messages.send": "Send",
+    "messages.sending": "Sending…",
+    "messages.sendError": "Could not send message",
+    "messages.shortcutHint": "Tip: Cmd/Ctrl + Enter sends the message.",
+    "messages.alsoSendEmail": "Also send by e-mail",
+    "messages.willSendEmail": "Delivered by e-mail",
+    "messages.templates": "Templates",
+    "messages.noTemplates": "No templates yet.",
+    "messages.manageTemplates": "Manage templates",
+    "messages.manageTemplatesHint":
+      "Templates speed up common replies. Add, edit or remove them here.",
+    "messages.templateTitle": "Title",
+    "messages.templateMessage": "Message",
+    "messages.addTemplate": "Add template",
+    "messages.close": "Close",
+    "messages.templateError": "Could not save template",
+    "messages.anonymous": "Anonymous buyer",
+    "messages.unknownListing": "Listing deleted",
+    "messages.noMessages": "No messages",
+    "messages.read": "Read",
+    "messages.channel.email": "E-mail",
   },
 };
 

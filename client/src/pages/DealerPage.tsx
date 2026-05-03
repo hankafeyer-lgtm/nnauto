@@ -37,6 +37,7 @@ import {
   Eye,
   Phone,
   MessageCircle,
+  Inbox,
   TrendingUp,
   Car,
   FileSpreadsheet,
@@ -1915,9 +1916,10 @@ export default function DealerPage() {
       <SEO title={t("dealer.cabinet")} noindex />
       <Header />
       <main className="flex-1 container mx-auto px-4 py-8 max-w-5xl">
-        <div className="flex items-center gap-3 mb-6">
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
           <Building2 className="h-6 w-6 text-amber-700" />
           <h1 className="text-2xl font-bold">{t("dealer.cabinet")}</h1>
+          <DealerMessagesShortcut />
         </div>
 
         {statsLoading || !stats || !dealer ? (
@@ -1969,6 +1971,46 @@ export default function DealerPage() {
       </main>
       <Footer />
     </div>
+  );
+}
+
+/**
+ * Inline shortcut to /dealer/messages with a live unread badge.
+ * Polls the unread-count endpoint every 30s; cheap, single SUM query.
+ * Rendered next to the cabinet heading so the dealer always sees pending
+ * conversations without changing the existing tab layout.
+ */
+function DealerMessagesShortcut() {
+  const t = useTranslation();
+  const [, navigate] = useLocation();
+  const { data } = useQuery({
+    queryKey: ["/api/dealer/conversations/unread-count"],
+    queryFn: async () => {
+      const res = await apiRequest(
+        "GET",
+        "/api/dealer/conversations/unread-count",
+      );
+      return res.json() as Promise<{ unread: number }>;
+    },
+    refetchInterval: 30_000,
+  });
+  const unread = data?.unread ?? 0;
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="gap-1.5 ml-auto"
+      onClick={() => navigate("/dealer/messages")}
+      data-testid="button-open-messages"
+    >
+      <Inbox className="h-4 w-4" />
+      <span>{t("messages.heading")}</span>
+      {unread > 0 && (
+        <Badge className="ml-1 bg-amber-700 hover:bg-amber-800 text-[10px] px-1.5">
+          {unread}
+        </Badge>
+      )}
+    </Button>
   );
 }
 

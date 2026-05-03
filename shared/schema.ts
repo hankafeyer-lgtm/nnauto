@@ -498,3 +498,144 @@ export const updateCebiaReportSchema = insertCebiaReportSchema.partial().strict(
 export type InsertCebiaReport = z.infer<typeof insertCebiaReportSchema>;
 export type UpdateCebiaReport = z.infer<typeof updateCebiaReportSchema>;
 export type CebiaReport = typeof cebiaReports.$inferSelect;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dealer ↔ Buyer messaging (unified inbox)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// One Conversation per (dealer × listing × client identity), where client
+// identity is e-mail OR phone OR an anonymous chat session. Channels can mix:
+// the buyer can write via in-app chat, e-mail, WhatsApp or Telegram and the
+// dealer answers from a single thread.
+//
+// dealerUserId stores listings.userId (= the user that owns the listing,
+// which for dealer accounts is the dealer's owner user). It is the column
+// every dealer-protected query filters on, so it is indexed.
+
+export const conversationSourceValues = ["chat", "email", "whatsapp", "telegram"] as const;
+export const conversationStatusValues = ["new", "in_progress", "closed"] as const;
+export const messageSenderValues = ["dealer", "client", "system"] as const;
+export const messageTypeValues = ["text", "image", "email"] as const;
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    /** Listing owner user id — every dealer-side query filters on this. */
+    dealerUserId: varchar("dealer_user_id").notNull(),
+    /** Optional dealers.id, when the listing owner is a dealer account. */
+    dealerId: varchar("dealer_id"),
+    listingId: varchar("listing_id").notNull(),
+    clientName: text("client_name"),
+    clientEmail: varchar("client_email"),
+    clientPhone: varchar("client_phone"),
+    /** "chat" | "email" | "whatsapp" | "telegram" */
+    source: varchar("source", { length: 16 }).notNull().default("chat"),
+    /** "new" | "in_progress" | "closed" */
+    status: varchar("status", { length: 16 }).notNull().default("new"),
+    /** Cheap, denormalised counter for unread badge in dealer cabinet. */
+    unreadDealerCount: integer("unread_dealer_count").notNull().default(0),
+    /** Last client message preview (first ~200 chars) for the inbox list. */
+    lastMessagePreview: text("last_message_preview"),
+    lastMessageAt: timestamp("last_message_at"),
+    /** External identifiers used for inbound thread matching. */
+    threadKey: varchar("thread_key", { length: 64 }),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (table) => [
+    index("conversations_dealer_user_id_idx").on(table.dealerUserId),
+    index("conversations_listing_id_idx").on(table.listingId),
+    index("conversations_status_idx").on(table.status),
+    index("conversations_last_message_at_idx").on(table.lastMessageAt),
+    uniqueIndex("conversations_thread_key_idx").on(table.threadKey),
+  ],
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    conversationId: varchar("conversation_id").notNull(),
+    /** "dealer" | "client" | "system" */
+    sender: varchar("sender", { length: 16 }).notNull(),
+    /** "text" | "image" | "email" */
+    type: varchar("type", { length: 16 }).notNull().default("text"),
+    content: text("content").notNull(),
+    /** When sender=dealer this is true once the client opens the email/web chat;
+     *  when sender=client this is true once the dealer opens the conversation. */
+    read: boolean("read").notNull().default(false),
+    /** Original delivery channel for THIS message (lets us render an
+     *  "Email" badge even inside a chat-source conversation). */
+    channel: varchar("channel", { length: 16 }).notNull().default("chat"),
+    /** Provider-side message id (mailersend / whatsapp / telegram) for
+     *  webhook reconciliation. */
+    externalId: varchar("external_id", { length: 128 }),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  },
+  (table) => [
+    index("messages_conversation_id_created_at_idx").on(
+      table.conversationId,
+      table.createdAt,
+    ),
+    index("messages_external_id_idx").on(table.externalId),
+  ],
+);
+
+export const quickReplies = pgTable(
+  "quick_replies",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    /** Owner is the dealer account user id (so it survives if dealers row
+     *  is recreated and matches conversations.dealerUserId). */
+    dealerUserId: varchar("dealer_user_id").notNull(),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (table) => [index("quick_replies_dealer_user_id_idx").on(table.dealerUserId)],
+);
+
+// Public buyer → dealer contact form (creates a Conversation + first Message).
+export const contactDealerSchema = z.object({
+  listingId: z.string().min(1),
+  name: z.string().trim().max(120).optional(),
+  email: z.string().trim().email().max(254).optional(),
+  phone: z.string().trim().max(40).optional(),
+  message: z.string().trim().min(1, "Message is required").max(4000),
+});
+
+// Dealer → outbound message
+export const dealerOutboundMessageSchema = z.object({
+  content: z.string().trim().min(1).max(8000),
+  /** When true and the conversation has an email, also deliver via e-mail. */
+  viaEmail: z.boolean().optional(),
+});
+
+export const updateConversationStatusSchema = z.object({
+  status: z.enum(conversationStatusValues),
+});
+
+export const insertQuickReplySchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  message: z.string().trim().min(1).max(4000),
+  sortOrder: z.number().int().optional(),
+});
+
+export const updateQuickReplySchema = insertQuickReplySchema.partial();
+
+export type ConversationSource = (typeof conversationSourceValues)[number];
+export type ConversationStatus = (typeof conversationStatusValues)[number];
+export type MessageSender = (typeof messageSenderValues)[number];
+export type MessageType = (typeof messageTypeValues)[number];
+
+export type Conversation = typeof conversations.$inferSelect;
+export type Message = typeof messages.$inferSelect;
+export type QuickReply = typeof quickReplies.$inferSelect;
+export type ContactDealerRequest = z.infer<typeof contactDealerSchema>;
+export type DealerOutboundMessageRequest = z.infer<typeof dealerOutboundMessageSchema>;
+export type UpdateConversationStatusRequest = z.infer<typeof updateConversationStatusSchema>;
+export type InsertQuickReplyRequest = z.infer<typeof insertQuickReplySchema>;
+export type UpdateQuickReplyRequest = z.infer<typeof updateQuickReplySchema>;
