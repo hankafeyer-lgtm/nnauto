@@ -5447,7 +5447,7 @@ export default function ListingDetailPage({
 
             {/* Sidebar */}
             <div className="space-y-6 lg:self-start lg:sticky lg:top-[calc(var(--header-height,96px)+24px)] lg:z-10 lg:transform-gpu lg:will-change-transform lg:[backface-visibility:hidden] lg:[contain:layout_paint]">
-              <Card className="rounded-2xl shadow-xl">
+              <Card className="min-h-[26rem] rounded-2xl shadow-xl sm:min-h-[28rem]">
                 <CardContent className="p-6 md:p-8 space-y-6">
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">

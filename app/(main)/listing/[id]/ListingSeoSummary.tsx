@@ -59,10 +59,10 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
                 src={imgSrc}
                 alt={heading}
                 width={352}
-                height={264}
+                height={235}
                 fetchPriority="high"
                 decoding="async"
-                className="aspect-[4/3] w-full rounded-lg object-cover"
+                className="aspect-[3/2] w-full rounded-lg object-cover"
               />
             </div>
           ) : null}
