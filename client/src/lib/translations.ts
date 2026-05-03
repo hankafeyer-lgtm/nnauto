@@ -1264,6 +1264,31 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "messages.noMessages": "Žádné zprávy",
     "messages.read": "Přečteno",
     "messages.channel.email": "E-mail",
+
+    // AI reply (placeholder)
+    "messages.aiReply": "AI odpověď",
+    "messages.aiThinking": "Připravuji…",
+    "messages.aiReplyTooltip":
+      "Vygeneruje návrh odpovědi, který můžete upravit před odesláním.",
+    "messages.aiReplyReady": "Návrh odpovědi je připraven",
+    "messages.aiReplyHint":
+      "Text byl vložen do okna pro odpověď – upravte si ho a odešlete.",
+    "messages.aiReplyError": "AI odpověď se nepodařilo vygenerovat",
+
+    // New-message in-app + browser notifications
+    "messages.notification.newTitle": "Nová zpráva",
+    "messages.notification.newDescription":
+      "Máte {count} nepřečtených zpráv ve schránce.",
+    "messages.notification.openInbox": "Otevřít schránku",
+    "messages.notification.enableTitle":
+      "Zapnout upozornění v prohlížeči",
+    "messages.notification.enableDescription":
+      "Když přijde nová zpráva, ozve se tichá notifikace i mimo tento panel.",
+    "messages.notification.enable": "Zapnout",
+    "messages.notification.dismiss": "Skrýt",
+    "messages.notification.enabledTitle": "Upozornění zapnuta",
+    "messages.notification.enabledDescription":
+      "Budeme vás informovat o nových zprávách.",
   },
 
   uk: {
@@ -2539,6 +2564,31 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "messages.noMessages": "Без повідомлень",
     "messages.read": "Прочитано",
     "messages.channel.email": "E-mail",
+
+    // AI reply (placeholder)
+    "messages.aiReply": "AI відповідь",
+    "messages.aiThinking": "Готую…",
+    "messages.aiReplyTooltip":
+      "Згенерує чернетку відповіді, яку можна відредагувати перед надсиланням.",
+    "messages.aiReplyReady": "Чернетка готова",
+    "messages.aiReplyHint":
+      "Текст вставлено в поле відповіді — відредагуйте і надсилайте.",
+    "messages.aiReplyError": "Не вдалося згенерувати AI-відповідь",
+
+    // New-message in-app + browser notifications
+    "messages.notification.newTitle": "Нове повідомлення",
+    "messages.notification.newDescription":
+      "У скриньці {count} непрочитаних повідомлень.",
+    "messages.notification.openInbox": "Відкрити скриньку",
+    "messages.notification.enableTitle":
+      "Увімкнути сповіщення в браузері",
+    "messages.notification.enableDescription":
+      "Коли надійде нове повідомлення, отримаєте тиху нотифікацію навіть на іншій вкладці.",
+    "messages.notification.enable": "Увімкнути",
+    "messages.notification.dismiss": "Сховати",
+    "messages.notification.enabledTitle": "Сповіщення увімкнено",
+    "messages.notification.enabledDescription":
+      "Ми повідомимо про нові повідомлення.",
   },
 
   en: {
@@ -3813,6 +3863,30 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "messages.noMessages": "No messages",
     "messages.read": "Read",
     "messages.channel.email": "E-mail",
+
+    // AI reply (placeholder)
+    "messages.aiReply": "AI reply",
+    "messages.aiThinking": "Drafting…",
+    "messages.aiReplyTooltip":
+      "Generates a draft you can edit before sending.",
+    "messages.aiReplyReady": "Draft is ready",
+    "messages.aiReplyHint":
+      "We dropped the draft into the reply box — edit it and send when ready.",
+    "messages.aiReplyError": "Could not generate an AI draft",
+
+    // New-message in-app + browser notifications
+    "messages.notification.newTitle": "New message",
+    "messages.notification.newDescription":
+      "You have {count} unread message(s) in the inbox.",
+    "messages.notification.openInbox": "Open inbox",
+    "messages.notification.enableTitle": "Enable browser notifications",
+    "messages.notification.enableDescription":
+      "Get a quiet desktop ping when a new message arrives, even when this tab is not focused.",
+    "messages.notification.enable": "Enable",
+    "messages.notification.dismiss": "Hide",
+    "messages.notification.enabledTitle": "Notifications enabled",
+    "messages.notification.enabledDescription":
+      "We'll let you know about new messages.",
   },
 };
 

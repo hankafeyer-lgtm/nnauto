@@ -79,9 +79,9 @@ export function makeThreadKey(args: {
 // ─────────────────────────────────────────────────────────────────────────
 
 /**
- * Returns the configured auto-reply message, or null when auto-reply is
- * disabled. Behavior is fully env-driven so it can be enabled in prod
- * without redeploy of code:
+ * Returns the off-hours auto-reply text, or null.
+ *
+ * Behavior is fully env-driven so it can be toggled without redeploy:
  *
  *   DEALER_AUTO_REPLY_ENABLED       = "true" | "false"      (default: false)
  *   DEALER_AUTO_REPLY_MESSAGE       = custom text           (default: cs)
@@ -89,9 +89,9 @@ export function makeThreadKey(args: {
  *   DEALER_OFFICE_HOURS_END         = "18" (0..23)          (default: 18)
  *   DEALER_OFFICE_HOURS_TZ          = IANA tz               (default: Europe/Prague)
  *
- * If auto-reply is enabled we always return the message — the caller
- * decides whether to actually persist it (typical: only on the FIRST
- * client message of a conversation).
+ * Returns null when:
+ *   - auto-reply is disabled, or
+ *   - the dealer is currently INSIDE office hours.
  */
 export function getOffHoursAutoReply(now: Date = new Date()): string | null {
   const enabled =
@@ -121,6 +121,46 @@ export function getOffHoursAutoReply(now: Date = new Date()): string | null {
   const fallback =
     "Děkujeme za zprávu, ozveme se vám co nejdříve. / Thank you for your message, we will reply shortly.";
   return process.env.DEALER_AUTO_REPLY_MESSAGE || fallback;
+}
+
+/**
+ * Returns the welcome auto-reply text — fired on the FIRST client
+ * message of any new conversation, regardless of time of day.
+ *
+ *   DEALER_WELCOME_AUTO_REPLY_ENABLED  = "true"|"false"  (default: true)
+ *   DEALER_WELCOME_AUTO_REPLY_MESSAGE  = custom text     (default: cs)
+ *
+ * This is independent from office-hours auto-reply: a buyer who writes
+ * during office hours still gets the welcome ack ("Thanks, we'll be
+ * with you shortly"); off-hours simply replaces / extends it.
+ */
+export function getWelcomeAutoReply(): string | null {
+  const enabled =
+    (process.env.DEALER_WELCOME_AUTO_REPLY_ENABLED ?? "true").toLowerCase() ===
+    "true";
+  if (!enabled) return null;
+  const fallback =
+    "Děkujeme za zprávu, brzy se ozveme. / Thanks for your message, we will get back to you soon.";
+  return process.env.DEALER_WELCOME_AUTO_REPLY_MESSAGE || fallback;
+}
+
+/**
+ * Decide which auto-reply (if any) to insert as a system message on
+ * the very first client message of a conversation.
+ *
+ * Combines welcome + off-hours so the buyer sees a single coherent
+ * message instead of two separate system bubbles back-to-back.
+ */
+export function getFirstMessageAutoReply(now: Date = new Date()): string | null {
+  const welcome = getWelcomeAutoReply();
+  const offHours = getOffHoursAutoReply(now);
+
+  if (!welcome && !offHours) return null;
+  if (welcome && offHours) {
+    // Stitch them together once, separated by a blank line.
+    return `${welcome}\n\n${offHours}`;
+  }
+  return welcome ?? offHours;
 }
 
 function clampHour(raw: string | undefined, fallback: number): number {

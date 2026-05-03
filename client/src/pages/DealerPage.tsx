@@ -16,6 +16,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "@/lib/navigation";
+import { useDealerUnreadNotifier } from "@/hooks/useDealerUnreadNotifier";
 import { displayViews } from "@/lib/displayStats";
 import { buildListingPath } from "@/lib/listingUrl";
 import Header from "@/components/Header";
@@ -1976,24 +1977,19 @@ export default function DealerPage() {
 
 /**
  * Inline shortcut to /dealer/messages with a live unread badge.
- * Polls the unread-count endpoint every 30s; cheap, single SUM query.
- * Rendered next to the cabinet heading so the dealer always sees pending
- * conversations without changing the existing tab layout.
+ *
+ * Uses useDealerUnreadNotifier so a toast (and optional browser
+ * Notification, when permission was granted from the inbox page) fires
+ * whenever the unread total increases — even while the dealer is
+ * looking at any other tab of the cabinet.
+ *
+ * Same React Query cache key as /dealer/messages itself, so it's a
+ * single network poll regardless of how many components subscribe.
  */
 function DealerMessagesShortcut() {
   const t = useTranslation();
   const [, navigate] = useLocation();
-  const { data } = useQuery({
-    queryKey: ["/api/dealer/conversations/unread-count"],
-    queryFn: async () => {
-      const res = await apiRequest(
-        "GET",
-        "/api/dealer/conversations/unread-count",
-      );
-      return res.json() as Promise<{ unread: number }>;
-    },
-    refetchInterval: 30_000,
-  });
+  const { data } = useDealerUnreadNotifier();
   const unread = data?.unread ?? 0;
   return (
     <Button

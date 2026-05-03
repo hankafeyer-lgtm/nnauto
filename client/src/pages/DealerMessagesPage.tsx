@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
+  Bell,
+  BellOff,
+  Bot,
   Building2,
   CheckCheck,
   ChevronDown,
@@ -23,6 +26,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/translations";
 import { useLocation, Link } from "@/lib/navigation";
 import { apiRequest } from "@/lib/queryClient";
+import {
+  requestBrowserNotificationPermission,
+  useDealerUnreadNotifier,
+} from "@/hooks/useDealerUnreadNotifier";
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -184,6 +191,13 @@ function MessagesShell() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
+  // Keep the unread cache fresh and pre-warmed (so /dealer page picks up
+  // changes the moment the dealer leaves the inbox), but suppress
+  // toast/Notification while the dealer is *looking at* the inbox to
+  // avoid double-buzz (the new conversation will appear in the list
+  // anyway thanks to the 30s list refetch).
+  useDealerUnreadNotifier({ enabled: false });
+
   useEffect(() => {
     const id = setTimeout(() => setDebouncedSearch(search.trim()), 300);
     return () => clearTimeout(id);
@@ -224,7 +238,9 @@ function MessagesShell() {
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-0 lg:gap-4 border rounded-2xl overflow-hidden bg-card shadow-sm h-[calc(100vh-220px)] min-h-[520px]">
+    <>
+      <BrowserNotificationsPrompt />
+      <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-0 lg:gap-4 border rounded-2xl overflow-hidden bg-card shadow-sm h-[calc(100vh-220px)] min-h-[520px]">
       {/* List pane */}
       <aside
         className={`border-r flex flex-col ${
@@ -297,6 +313,86 @@ function MessagesShell() {
           <ChatEmptyState />
         )}
       </section>
+    </div>
+    </>
+  );
+}
+
+/**
+ * Subtle one-shot prompt: rendered only when the browser supports
+ * Notifications and permission is still in the "default" state.
+ * Dismissing or granting/denying both hide it for the rest of the
+ * session. We deliberately don't auto-call requestPermission() —
+ * Chrome flags those as abusive and revokes the permission entirely.
+ */
+function BrowserNotificationsPrompt() {
+  const t = useTranslation();
+  const { toast } = useToast();
+  const [state, setState] = useState<"loading" | "show" | "hide">("loading");
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setState("hide");
+      return;
+    }
+    if (Notification.permission !== "default") {
+      setState("hide");
+      return;
+    }
+    if (sessionStorage.getItem("nnauto.notifPromptDismissed") === "1") {
+      setState("hide");
+      return;
+    }
+    setState("show");
+  }, []);
+
+  if (state !== "show") return null;
+
+  return (
+    <div
+      className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-center gap-3"
+      data-testid="browser-notifications-prompt"
+    >
+      <Bell className="h-5 w-5 text-amber-700 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-amber-900">
+          {t("messages.notification.enableTitle")}
+        </p>
+        <p className="text-xs text-amber-800">
+          {t("messages.notification.enableDescription")}
+        </p>
+      </div>
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
+        onClick={async () => {
+          const result = await requestBrowserNotificationPermission();
+          setState("hide");
+          if (result === "granted") {
+            toast({
+              title: t("messages.notification.enabledTitle"),
+              description: t("messages.notification.enabledDescription"),
+            });
+          }
+        }}
+        data-testid="button-enable-notifications"
+      >
+        <Bell className="h-3.5 w-3.5" />
+        {t("messages.notification.enable")}
+      </Button>
+      <Button
+        size="icon"
+        variant="ghost"
+        onClick={() => {
+          sessionStorage.setItem("nnauto.notifPromptDismissed", "1");
+          setState("hide");
+        }}
+        data-testid="button-dismiss-notifications"
+        title={t("messages.notification.dismiss")}
+      >
+        <BellOff className="h-3.5 w-3.5" />
+      </Button>
     </div>
   );
 }
@@ -461,6 +557,31 @@ function ChatPane({
     },
   });
 
+  // AI reply (placeholder — server returns heuristic mock today, will swap
+  // to a real LLM later without changing this client code).
+  const aiReplyMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest(
+        "POST",
+        `/api/dealer/conversations/${conversationId}/ai-reply`,
+      );
+      return res.json() as Promise<{ draft: string; provider: string }>;
+    },
+    onSuccess: (data) => {
+      setDraft(data.draft);
+      toast({
+        title: t("messages.aiReplyReady"),
+        description: t("messages.aiReplyHint"),
+      });
+    },
+    onError: (e: unknown) =>
+      toast({
+        title: t("messages.aiReplyError"),
+        description: e instanceof Error ? e.message : "",
+        variant: "destructive",
+      }),
+  });
+
   // Auto-scroll to bottom on new messages.
   useEffect(() => {
     const el = scrollRef.current;
@@ -510,6 +631,20 @@ function ChatPane({
           <QuickRepliesMenu
             onPick={(text) => setDraft((d) => (d ? `${d}\n${text}` : text))}
           />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => aiReplyMutation.mutate()}
+            disabled={aiReplyMutation.isPending}
+            className="gap-1.5"
+            data-testid="button-ai-reply"
+            title={t("messages.aiReplyTooltip")}
+          >
+            <Bot className="h-3.5 w-3.5" />
+            {aiReplyMutation.isPending
+              ? t("messages.aiThinking")
+              : t("messages.aiReply")}
+          </Button>
           {canSendEmail && conversation.source !== "email" && (
             <label className="text-xs flex items-center gap-1.5 cursor-pointer select-none">
               <input

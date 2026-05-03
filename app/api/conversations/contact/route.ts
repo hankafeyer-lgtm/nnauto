@@ -7,7 +7,7 @@ import { storage } from "@lib/storage";
 import { ensureMessagingSchema } from "@lib/ensureMessagingSchema";
 import { checkRateLimit } from "@lib/rateLimit";
 import {
-  getOffHoursAutoReply,
+  getFirstMessageAutoReply,
   makeThreadKey,
 } from "@lib/messaging";
 
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
 
     let autoReplyMessage: { id: string } | null = null;
     if (isFirstClientMessageOfConversation) {
-      const autoText = getOffHoursAutoReply();
+      const autoText = getFirstMessageAutoReply();
       if (autoText) {
         const autoMsg = await storage.createMessage({
           conversationId: conversation.id,
