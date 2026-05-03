@@ -1222,6 +1222,8 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "detail.contactSellerErrorTitle": "Zprávu se nepodařilo odeslat",
     "detail.contactSellerNeedContact":
       "Vyplňte prosím e-mail nebo telefon, ať vám prodejce může odpovědět.",
+    "detail.privateSellerContactOnly":
+      "Tento vůz prodává soukromý prodejce. Kontaktujte ho prosím přímo telefonem nebo e-mailem.",
 
     // Dealer messages module
     "messages.heading": "Zprávy",
@@ -2521,6 +2523,8 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "detail.contactSellerErrorTitle": "Не вдалося надіслати повідомлення",
     "detail.contactSellerNeedContact":
       "Вкажіть e-mail або телефон, щоб продавець міг відповісти.",
+    "detail.privateSellerContactOnly":
+      "Цей автомобіль продає приватна особа. Зв'яжіться з нею напряму телефоном або e-mail.",
 
     // Dealer messages module
     "messages.heading": "Повідомлення",
@@ -3821,6 +3825,8 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "detail.contactSellerErrorTitle": "Could not send the message",
     "detail.contactSellerNeedContact":
       "Please leave an e-mail or phone so the seller can reach you.",
+    "detail.privateSellerContactOnly":
+      "This car is sold by a private individual. Please contact them directly by phone or e-mail.",
 
     // Dealer messages module
     "messages.heading": "Messages",

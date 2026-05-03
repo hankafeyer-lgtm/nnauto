@@ -57,6 +57,19 @@ export async function POST(req: NextRequest) {
       .where(eq(listings.id, listingId));
     if (!listing) return error("Listing not found", 404);
 
+    // Private sellers don't have an inbox / dashboard to read inbound
+    // messages from — the UI hides the form for them, this is the
+    // matching server-side guard so a hand-crafted POST can't slip a
+    // ghost conversation into a user account that never opens it.
+    // Listings without an explicit sellerType (legacy data) keep the
+    // dealer-style behaviour so we don't regress production.
+    if (listing.sellerType === "private") {
+      return error(
+        "Private sellers can be contacted only by phone or e-mail",
+        409,
+      );
+    }
+
     const [owner] = await db.select().from(users).where(eq(users.id, listing.userId));
     if (!owner) return error("Listing owner not found", 404);
 

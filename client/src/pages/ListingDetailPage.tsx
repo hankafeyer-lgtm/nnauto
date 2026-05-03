@@ -5808,28 +5808,49 @@ export default function ListingDetailPage({
               </p>
             )}
 
-            <Separator />
+            {/*
+              The contact form (which writes into the dealer inbox at
+              /dealer/messages) is shown only for dealer listings.
+              Private sellers don't have a dashboard to read it from,
+              so we deliberately hide the form for them and surface
+              just phone + email above. Listings without an explicit
+              sellerType (legacy data) keep the form by default so we
+              don't regress the dealer-heavy production dataset.
+            */}
+            {listing.sellerType !== "private" && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold">
+                    {t("detail.contactFormHeading")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("detail.contactFormSubheading")}
+                  </p>
+                  <ContactSellerForm
+                    listingId={listing.id}
+                    defaultName={
+                      user
+                        ? [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
+                          undefined
+                        : undefined
+                    }
+                    defaultEmail={user?.email || undefined}
+                    defaultPhone={user?.phone || undefined}
+                    defaultMessage={`${t("detail.contactSellerDefaultMessage")} ${getListingMainTitle(listing)}`.trim()}
+                  />
+                </div>
+              </>
+            )}
 
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">
-                {t("detail.contactFormHeading")}
+            {listing.sellerType === "private" && (seller?.email || listing.phone) && (
+              <p
+                className="text-xs text-muted-foreground italic"
+                data-testid="private-seller-note"
+              >
+                {t("detail.privateSellerContactOnly")}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {t("detail.contactFormSubheading")}
-              </p>
-              <ContactSellerForm
-                listingId={listing.id}
-                defaultName={
-                  user
-                    ? [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
-                      undefined
-                    : undefined
-                }
-                defaultEmail={user?.email || undefined}
-                defaultPhone={user?.phone || undefined}
-                defaultMessage={`${t("detail.contactSellerDefaultMessage")} ${getListingMainTitle(listing)}`.trim()}
-              />
-            </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
