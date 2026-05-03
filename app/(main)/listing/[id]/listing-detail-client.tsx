@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import ListingDetailPage from "@/pages/ListingDetailPage";
 import type { Listing } from "@shared/schema";
 import { NoSSR } from "../../no-ssr";
+import { ListingDetailDelegatedFallback } from "./listing-detail-no-ssr-fallback";
 
 type ListingDetailClientProps = {
   initialListing?: Listing | null;
@@ -22,7 +23,13 @@ export default function ListingDetailClient({
   primaryHeading = "page",
 }: ListingDetailClientProps) {
   return (
-    <NoSSR>
+    <NoSSR
+      fallback={
+        primaryHeading === "delegated" ? (
+          <ListingDetailDelegatedFallback />
+        ) : undefined
+      }
+    >
       <Suspense>
         <ListingDetailPage
           initialListing={initialListing}

@@ -3194,7 +3194,7 @@ type ListingDetailPageProps = {
   initialListing?: Listing | null;
   initialListingId?: string;
   embeddedMode?: boolean;
-  /** When `delegated`, SSR owns `<h1>` — this page renders the same title as `<h2>`. */
+  /** When `delegated`, SSR owns the visible `<h1>` — title here is `sr-only` for tests/a11y text. */
   primaryHeading?: "page" | "delegated";
 };
 
@@ -4870,12 +4870,12 @@ export default function ListingDetailPage({
                 <div>
                   <div className="flex flex-wrap items-center gap-3 mb-2">
                     {primaryHeading === "delegated" ? (
-                      <h2
-                        className="text-3xl md:text-4xl font-bold tracking-tight"
+                      <span
+                        className="sr-only"
                         data-testid="text-listing-title"
                       >
                         {getListingMainTitle(listing)}
-                      </h2>
+                      </span>
                     ) : (
                       <h1
                         className="text-3xl md:text-4xl font-bold tracking-tight"
