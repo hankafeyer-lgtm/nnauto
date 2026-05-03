@@ -225,6 +225,23 @@
     from hsl(var(--destructive)) h s
       calc(l + var(--opaque-button-border-intensity)) / alpha
   );
+
+  /* Site header height. Mirrors Tailwind classes h-16 / sm:h-20 / lg:h-24 used in <Header />.
+     Used by sticky right-sidebar (and any future sticky blocks) so they sit just below the
+     fixed/sticky header. Override per-breakpoint below. */
+  --header-height: 64px;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --header-height: 80px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --header-height: 96px;
+  }
 }
 
 @layer base {

@@ -4407,7 +4407,7 @@ export default function ListingDetailPage({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden overscroll-x-none touch-pan-y">
+      <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip overscroll-x-none touch-pan-y">
         <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
         <PageLoaderInline text={t("detail.loading")} />
       </div>
@@ -4433,7 +4433,7 @@ export default function ListingDetailPage({
   }
   if (error || !listing) {
     return (
-      <div className="min-h-screen w-full max-w-[100vw] overflow-x-hidden overscroll-x-none touch-pan-y">
+      <div className="min-h-screen w-full max-w-[100vw] overflow-x-clip overscroll-x-none touch-pan-y">
         <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center space-y-4">
@@ -4453,7 +4453,7 @@ export default function ListingDetailPage({
 
   return (
     <div
-      className={`min-h-screen w-full max-w-[100vw] overflow-x-hidden overscroll-x-none touch-pan-y ${
+      className={`min-h-screen w-full max-w-[100vw] overflow-x-clip overscroll-x-none touch-pan-y ${
         listing && !isEmbedded
           ? "pb-[calc(5rem+env(safe-area-inset-bottom,0px))]"
           : ""
@@ -4521,7 +4521,7 @@ export default function ListingDetailPage({
           </div>
         )}
         <div className="container mx-auto px-4 py-8 max-w-7xl">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:items-start">
             {/* Main content */}
             <div className="lg:col-span-2 space-y-6">
               <Button
@@ -5432,7 +5432,7 @@ export default function ListingDetailPage({
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6 lg:self-start lg:sticky lg:top-24">
+            <div className="space-y-6 lg:self-start lg:sticky lg:top-[calc(var(--header-height,96px)+24px)] lg:z-10">
               <Card className="rounded-2xl shadow-xl">
                 <CardContent className="p-6 md:p-8 space-y-6">
                   <div>
