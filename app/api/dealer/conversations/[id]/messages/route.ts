@@ -11,6 +11,7 @@ import {
   buildReplyToAlias,
   getPublicOrigin,
   renderDealerEmailHtml,
+  renderDealerEmailText,
 } from "@lib/messaging";
 
 /**
@@ -95,25 +96,47 @@ export async function POST(
         ? await db.select().from(dealers).where(eq(dealers.id, conv.dealerId))
         : [];
 
-      const subject = `Re: ${listing?.title || "Inzerát"}`;
+      const subject = `Re: ${listing?.title || "Inzerát"} | NNAuto.cz`;
       const replyTo = buildReplyToAlias(conv.id) || undefined;
       const listingUrl = listing
         ? `${getPublicOrigin()}/listing/${listing.id}`
         : undefined;
 
+      // Format the price once (CZK) so both HTML and plain-text variants
+      // show the same "999 999 Kč" string in the listing card.
+      const priceFormatted = (() => {
+        if (!listing?.price) return null;
+        const n = Number(listing.price);
+        if (!Number.isFinite(n) || n <= 0) return null;
+        try {
+          return new Intl.NumberFormat("cs-CZ", {
+            style: "currency",
+            currency: "CZK",
+            maximumFractionDigits: 0,
+          }).format(n);
+        } catch {
+          return `${n.toLocaleString("cs-CZ")} Kč`;
+        }
+      })();
+
+      const listingContext = {
+        listingTitle: listing?.title || null,
+        listingUrl: listingUrl ?? null,
+        listingBrand: listing?.brand || null,
+        listingModel: listing?.model || null,
+        listingYear: listing?.year ?? null,
+        listingPriceFormatted: priceFormatted,
+        dealerName: dealerRow?.companyName || null,
+      };
+
       const result = await sendEmail({
         to: conv.clientEmail,
         toName: conv.clientName || undefined,
         subject,
-        text: content,
-        html: renderDealerEmailHtml({
-          body: content,
-          listingTitle: listing?.title || null,
-          listingUrl: listingUrl ?? null,
-          dealerName: dealerRow?.companyName || null,
-        }),
+        text: renderDealerEmailText({ body: content, ...listingContext }),
+        html: renderDealerEmailHtml({ body: content, ...listingContext }),
         replyTo,
-        fromName: dealerRow?.companyName || "NNAuto",
+        fromName: dealerRow?.companyName || "NNAuto.cz",
       });
       if (result.ok) {
         channel = "email";

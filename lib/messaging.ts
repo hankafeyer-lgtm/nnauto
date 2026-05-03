@@ -184,32 +184,142 @@ export function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]!);
 }
 
-/** Wrap dealer outbound text in a minimal styled e-mail template. */
+/**
+ * Wrap dealer outbound text in a minimal styled e-mail template.
+ *
+ * The buyer is reminded — twice, once in the prominent listing card
+ * up top and once in the disclaimer footer — that this thread is
+ * about a vehicle advertised on NNAuto.cz. Goal: protect against
+ * confusion / phishing claims after the conversation moves to email.
+ */
 export function renderDealerEmailHtml(args: {
   body: string;
   listingTitle?: string | null;
   listingUrl?: string | null;
+  listingBrand?: string | null;
+  listingModel?: string | null;
+  listingYear?: number | null;
+  listingPriceFormatted?: string | null;
   dealerName?: string | null;
 }): string {
+  const origin = getPublicOrigin();
   const safeBody = escapeHtml(args.body).replace(/\n/g, "<br/>");
-  const listingLink = args.listingUrl
-    ? `<p style="margin:16px 0 0;font-size:13px;color:#666;">
-         <a href="${escapeHtml(args.listingUrl)}" style="color:#B8860B;">
-           ${escapeHtml(args.listingTitle || "Detail inzerátu")}
-         </a>
-       </p>`
-    : "";
+
+  // Build a "listing card" only when we have at least the URL or title.
+  const headline =
+    [args.listingBrand, args.listingModel].filter(Boolean).join(" ").trim() ||
+    args.listingTitle ||
+    "";
+  const subline = [
+    args.listingYear ? String(args.listingYear) : null,
+    args.listingPriceFormatted || null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+
+  const listingCard =
+    args.listingUrl || args.listingTitle
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0"
+              style="width:100%;margin:0 0 20px;border:1px solid #eee;border-radius:8px;
+                     background:#fafafa;">
+           <tr>
+             <td style="padding:14px 16px;">
+               <p style="margin:0 0 4px;font-size:11px;letter-spacing:.04em;
+                         text-transform:uppercase;color:#B8860B;font-weight:600;">
+                 Vůz inzerovaný na NNAuto.cz
+               </p>
+               ${
+                 headline
+                   ? `<p style="margin:0;font-size:15px;font-weight:600;color:#222;">
+                        ${escapeHtml(headline)}
+                      </p>`
+                   : ""
+               }
+               ${
+                 subline
+                   ? `<p style="margin:2px 0 0;font-size:13px;color:#555;">
+                        ${escapeHtml(subline)}
+                      </p>`
+                   : ""
+               }
+               ${
+                 args.listingUrl
+                   ? `<p style="margin:10px 0 0;">
+                        <a href="${escapeHtml(args.listingUrl)}"
+                           style="display:inline-block;font-size:13px;color:#B8860B;
+                                  font-weight:600;text-decoration:none;">
+                          Zobrazit inzerát na NNAuto.cz →
+                        </a>
+                      </p>`
+                   : ""
+               }
+             </td>
+           </tr>
+         </table>`
+      : "";
+
   const signature = args.dealerName
     ? `<p style="margin:24px 0 0;font-size:13px;color:#444;">${escapeHtml(args.dealerName)}</p>`
     : "";
+
   return `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff;padding:20px;color:#222;">
     <div style="text-align:center;margin-bottom:16px;">
-      <img src="${getPublicOrigin()}/logo.png" alt="NNAuto" style="width:80px;height:auto;" />
+      <a href="${origin}" style="display:inline-block;text-decoration:none;">
+        <img src="${origin}/logo.png" alt="NNAuto.cz" style="width:96px;height:auto;" />
+      </a>
     </div>
+    ${listingCard}
     <div style="font-size:15px;line-height:1.55;">${safeBody}</div>
-    ${listingLink}
     ${signature}
     <hr style="margin:24px 0 8px;border:none;border-top:1px solid #eee;" />
-    <p style="font-size:11px;color:#888;text-align:center;">NNAuto — Prémiový autobazar v České republice</p>
+    <p style="font-size:11px;color:#888;text-align:center;line-height:1.5;">
+      Tato zpráva navazuje na vaši poptávku k inzerátu na
+      <a href="${origin}" style="color:#888;">NNAuto.cz</a>.<br/>
+      Pokud zprávu vidíte omylem, můžete ji ignorovat.
+    </p>
   </div>`;
+}
+
+/**
+ * Plain-text counterpart to renderDealerEmailHtml — stitched in front
+ * of the dealer's body so even mail clients that strip HTML still
+ * make the listing context obvious.
+ */
+export function renderDealerEmailText(args: {
+  body: string;
+  listingTitle?: string | null;
+  listingUrl?: string | null;
+  listingBrand?: string | null;
+  listingModel?: string | null;
+  listingYear?: number | null;
+  listingPriceFormatted?: string | null;
+  dealerName?: string | null;
+}): string {
+  const headline =
+    [args.listingBrand, args.listingModel].filter(Boolean).join(" ").trim() ||
+    args.listingTitle ||
+    "";
+  const subline = [
+    args.listingYear ? String(args.listingYear) : null,
+    args.listingPriceFormatted || null,
+  ]
+    .filter(Boolean)
+    .join(" • ");
+
+  const listingBlock =
+    headline || args.listingUrl
+      ? [
+          "— Vůz inzerovaný na NNAuto.cz —",
+          headline,
+          subline,
+          args.listingUrl,
+          "",
+        ]
+          .filter(Boolean)
+          .join("\n") + "\n"
+      : "";
+
+  const signature = args.dealerName ? `\n\n${args.dealerName}` : "";
+
+  return `${listingBlock}${args.body}${signature}\n\n--\nNNAuto.cz`;
 }
