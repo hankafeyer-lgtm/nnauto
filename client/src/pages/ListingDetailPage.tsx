@@ -3147,6 +3147,7 @@ import {
 } from "@/components/SEO";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Listing } from "@shared/schema";
+import { appendListingSourceTag } from "@shared/messageSource";
 import {
   getOptimizedImageUrl,
   getCardImageUrl,
@@ -6073,10 +6074,14 @@ function ContactChatButtons({
 
   const safeCar = (carTitle || "").trim() || "váš vůz";
 
-  const message =
+  // Body of the chat message buyers prefill on WhatsApp / Telegram.
+  // The "Inzerát z NNAuto.cz" attribution is appended once via the
+  // shared helper — never inlined into the body, never duplicated.
+  const message = appendListingSourceTag(
     `Dobrý den,\n` +
-    `zaujala mě vaše nabídka na vůz ${safeCar} z NNAuto.cz. ` +
-    `Je prosím stále k dispozici? Děkuji za odpověď.`;
+      `zaujala mě vaše nabídka na vůz ${safeCar}. ` +
+      `Je prosím stále k dispozici? Děkuji za odpověď.`,
+  );
 
   const encoded = encodeURIComponent(message);
 

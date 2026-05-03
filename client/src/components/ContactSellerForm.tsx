@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { appendListingSourceTag } from "@shared/messageSource";
 
 /**
  * Public buyer → seller contact form. Mounted inside the existing
@@ -44,12 +45,16 @@ export function ContactSellerForm({
 
   const mutation = useMutation({
     mutationFn: async () => {
+      // Tag the message with the listing source. Idempotent — if the
+      // buyer already mentioned NNAuto.cz themselves we don't pile on.
+      // The server applies the same helper as a defensive net.
+      const tagged = appendListingSourceTag(message.trim());
       const res = await apiRequest("POST", "/api/conversations/contact", {
         listingId,
         name: name.trim() || undefined,
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
-        message: message.trim(),
+        message: tagged,
       });
       return res.json();
     },

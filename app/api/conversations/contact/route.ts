@@ -10,6 +10,7 @@ import {
   getFirstMessageAutoReply,
   makeThreadKey,
 } from "@lib/messaging";
+import { appendListingSourceTag } from "@shared/messageSource";
 
 /**
  * Public buyer → dealer contact form.
@@ -38,7 +39,13 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     const parsed = contactDealerSchema.safeParse(body);
     if (!parsed.success) return error("Invalid payload", 400);
-    const { listingId, name, email, phone, message } = parsed.data;
+    const { listingId, name, email, phone, message: rawMessage } = parsed.data;
+
+    // Defensive: even though the client widgets prepend the
+    // "Inzerát z NNAuto.cz" attribution, third-party clients hitting
+    // this public endpoint might not. The helper is idempotent — if
+    // the buyer already added the tag we don't duplicate it.
+    const message = appendListingSourceTag(rawMessage);
 
     if (!email && !phone) {
       return error("E-mail nebo telefon je povinný", 400);

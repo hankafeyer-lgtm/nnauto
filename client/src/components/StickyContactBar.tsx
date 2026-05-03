@@ -29,6 +29,7 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import { appendListingSourceTag } from "@shared/messageSource";
 
 // Reusable fixed bottom contact bar for listing detail pages.
 // 3 design variants share the same data props but use different open
@@ -55,9 +56,10 @@ export type StickyContactBarProps = {
 const SAFE_BOTTOM = "pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]";
 
 function buildPrefilledText(carTitle?: string): string {
-  return carTitle
+  const base = carTitle
     ? `Dobrý den, mám zájem o vůz ${carTitle}. Je ještě k dispozici?`
     : "Dobrý den, mám zájem o vůz. Je ještě k dispozici?";
+  return appendListingSourceTag(base);
 }
 
 function digitsOnly(phone: string): string {
