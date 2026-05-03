@@ -28,6 +28,7 @@ import {
   buildListingAbsoluteUrl,
 } from "@lib/seo/listing-url";
 import ListingDetailClient from "./listing-detail-client";
+import ListingSeoSummary from "./ListingSeoSummary";
 import type { SimilarListing } from "./get-listing";
 import type { listings } from "@shared/schema";
 
@@ -156,18 +157,6 @@ export function renderListingDetailPage({
     listing.year,
   );
   const listingName = summaryTitle;
-  const summaryMileage = listing.mileage
-    ? `${listing.mileage.toLocaleString("cs-CZ")} km`
-    : "";
-  const summaryFuel = Array.isArray(listing.fuelType)
-    ? listing.fuelType.join(", ")
-    : ((listing.fuelType as unknown as string) || "");
-  const summaryTransmission = Array.isArray(listing.transmission)
-    ? listing.transmission.join(", ")
-    : ((listing.transmission as unknown as string) || "");
-  const summaryImage = listing.photos?.[0]
-    ? `${SITE_ORIGIN}/img/${listing.photos[0].replace(/^\/+/, "")}?w=1200&q=80&f=webp`
-    : null;
   const brandFilterUrl = `${SITE_ORIGIN}/?brand=${encodeURIComponent(listing.brand ?? "")}`;
   const modelFilterUrl = `${brandFilterUrl}&model=${encodeURIComponent(listing.model ?? "")}`;
   const fuelText = Array.isArray(listing.fuelType)
@@ -186,7 +175,7 @@ export function renderListingDetailPage({
             `${SITE_ORIGIN}/img/${p.replace(/^\/+/, "")}?w=1200&q=80&f=webp`,
         )
     : [];
-  const primaryImage = productImageUrls[0] || summaryImage;
+  const primaryImage = productImageUrls[0] ?? null;
 
   const conditionRaw = (listing.condition || "").toLowerCase();
   const itemConditionUrl = conditionRaw.includes("nov")
@@ -351,27 +340,13 @@ export function renderListingDetailPage({
             <span aria-current="page" className="shrink-0">{yearLabel}</span>
           </nav>
         </div>
+        <ListingSeoSummary listing={listing} />
         <ListingDetailClient
           initialListing={initialListing}
           initialListingId={id}
           embeddedMode={false}
+          primaryHeading="delegated"
         />
-        <article className="sr-only">
-          <h1>{summaryTitle}</h1>
-          <p>{price ? `${price} Kč` : ""}</p>
-          {listing.description ? <p>{listing.description}</p> : null}
-          {summaryImage ? <img src={summaryImage} alt={summaryTitle} /> : null}
-          <ul>
-            <li>{`Rok: ${yearLabel}`}</li>
-            {summaryMileage ? <li>{`Najeto: ${summaryMileage}`}</li> : null}
-            {summaryFuel ? <li>{`Palivo: ${summaryFuel}`}</li> : null}
-            {summaryTransmission ? (
-              <li>{`Převodovka: ${summaryTransmission}`}</li>
-            ) : null}
-            {listing.region ? <li>{`Lokalita: ${listing.region}`}</li> : null}
-            {listing.vin ? <li>{`VIN: ${listing.vin}`}</li> : null}
-          </ul>
-        </article>
         {similarListings.length ? (
           <section className="container mx-auto mt-6 border-t px-3 py-6 sm:mt-8 sm:px-4 sm:py-8 max-w-7xl">
             <h2 className="text-xl font-semibold mb-4">Souvisejici auta</h2>

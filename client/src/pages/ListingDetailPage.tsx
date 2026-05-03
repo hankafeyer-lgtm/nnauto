@@ -3194,12 +3194,15 @@ type ListingDetailPageProps = {
   initialListing?: Listing | null;
   initialListingId?: string;
   embeddedMode?: boolean;
+  /** When `delegated`, SSR owns `<h1>` — this page renders the same title as `<h2>`. */
+  primaryHeading?: "page" | "delegated";
 };
 
 export default function ListingDetailPage({
   initialListing = null,
   initialListingId,
   embeddedMode,
+  primaryHeading = "page",
 }: ListingDetailPageProps = {}) {
   const t = useTranslation();
   const { language } = useLanguage();
@@ -4866,12 +4869,21 @@ export default function ListingDetailPage({
               <div className="space-y-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <h1
-                      className="text-3xl md:text-4xl font-bold tracking-tight"
-                      data-testid="text-listing-title"
-                    >
-                      {getListingMainTitle(listing)}
-                    </h1>
+                    {primaryHeading === "delegated" ? (
+                      <h2
+                        className="text-3xl md:text-4xl font-bold tracking-tight"
+                        data-testid="text-listing-title"
+                      >
+                        {getListingMainTitle(listing)}
+                      </h2>
+                    ) : (
+                      <h1
+                        className="text-3xl md:text-4xl font-bold tracking-tight"
+                        data-testid="text-listing-title"
+                      >
+                        {getListingMainTitle(listing)}
+                      </h1>
+                    )}
                     {listing.isSold ? (
                       <Badge
                         variant="secondary"
