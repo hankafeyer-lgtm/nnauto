@@ -47,58 +47,35 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
 
   return (
     <section
-      className="container mx-auto max-w-7xl px-3 pb-4 pt-2 sm:px-4 sm:pb-5 sm:pt-3"
+      className="absolute w-px h-px overflow-hidden whitespace-nowrap"
+      style={{ clip: "rect(0 0 0 0)", clipPath: "inset(50%)", margin: "-1px", padding: 0, border: 0 }}
       aria-labelledby="listing-primary-heading"
       data-testid="listing-seo-summary"
     >
-      <div className="rounded-xl border border-border bg-card/80 p-4 sm:p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
-          {imgSrc ? (
-            <div className="mx-auto w-full max-w-sm shrink-0 sm:mx-0 sm:w-44">
-              <img
-                src={imgSrc}
-                alt={heading}
-                width={352}
-                height={235}
-                fetchPriority="high"
-                decoding="async"
-                className="aspect-[3/2] w-full rounded-lg object-cover"
-              />
+      {imgSrc ? (
+        <img
+          src={imgSrc}
+          alt={heading}
+          width={352}
+          height={235}
+          fetchPriority="high"
+          decoding="async"
+        />
+      ) : null}
+      <h1 id="listing-primary-heading">{heading}</h1>
+      {listing.isSold ? <p>Prodáno</p> : null}
+      <p>{price} Kč</p>
+      {dlRows.length > 0 ? (
+        <dl>
+          {dlRows.map((row) => (
+            <div key={row.label}>
+              <dt>{row.label}</dt>
+              <dd>{row.value}</dd>
             </div>
-          ) : null}
-          <div className="min-w-0 flex-1 space-y-3">
-            <h1
-              id="listing-primary-heading"
-              className="text-2xl font-bold tracking-tight sm:text-3xl md:text-4xl"
-            >
-              {heading}
-            </h1>
-            {listing.isSold ? (
-              <p className="text-sm font-medium text-muted-foreground">
-                Tento inzerát je označen jako prodaný.
-              </p>
-            ) : null}
-            <p className="text-2xl font-semibold text-primary sm:text-3xl">
-              {price} Kč
-            </p>
-            {dlRows.length > 0 ? (
-              <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-                {dlRows.map((row) => (
-                  <div key={row.label} className="flex gap-2">
-                    <dt className="shrink-0 text-muted-foreground">{row.label}:</dt>
-                    <dd className="min-w-0 break-words font-medium">{row.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            ) : null}
-            {excerpt ? (
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {excerpt}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </div>
+          ))}
+        </dl>
+      ) : null}
+      {excerpt ? <p>{excerpt}</p> : null}
     </section>
   );
 }

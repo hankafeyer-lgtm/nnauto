@@ -4869,21 +4869,12 @@ export default function ListingDetailPage({
               <div className="space-y-4">
                 <div>
                   <div className="flex flex-wrap items-center gap-3 mb-2">
-                    {primaryHeading === "delegated" ? (
-                      <span
-                        className="sr-only"
-                        data-testid="text-listing-title"
-                      >
-                        {getListingMainTitle(listing)}
-                      </span>
-                    ) : (
-                      <h1
-                        className="text-3xl md:text-4xl font-bold tracking-tight"
-                        data-testid="text-listing-title"
-                      >
-                        {getListingMainTitle(listing)}
-                      </h1>
-                    )}
+                    <h1
+                      className="text-3xl md:text-4xl font-bold tracking-tight"
+                      data-testid="text-listing-title"
+                    >
+                      {getListingMainTitle(listing)}
+                    </h1>
                     {listing.isSold ? (
                       <Badge
                         variant="secondary"
