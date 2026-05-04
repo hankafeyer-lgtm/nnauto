@@ -46,6 +46,17 @@ const nextConfig = {
     ],
     disableStaticImages: true,
   },
+  rewrites: async () => ({
+    beforeFiles: [
+      // /skoda-octavia-prodej → /prodej/skoda-octavia (SEO alias)
+      {
+        source: "/:slug([a-z0-9-]+-prodej)",
+        destination: "/prodej/:slug",
+      },
+    ],
+    afterFiles: [],
+    fallback: [],
+  }),
   headers: async () => {
     const securityHeaders = [
       { key: "X-Frame-Options", value: "SAMEORIGIN" },

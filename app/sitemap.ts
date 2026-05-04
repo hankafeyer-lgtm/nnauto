@@ -136,5 +136,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return path.split("/").every((seg, i) => i === 0 || seg.length > 0);
     });
 
-  return [...staticPages, ...brandPages, ...modelPages, ...listingPages];
+  // /prodej/<brand>-<model> SEO landing pages — same brand+model pairs that
+  // qualify for /auta/<brand>/<model> (≥3 active listings).
+  const prodejPages: MetadataRoute.Sitemap = modelRows
+    .filter((row) => !!row.brand && !!row.model)
+    .map((row) => {
+      const brandSlug = normalizeSlug(String(row.brand));
+      const modelSlug = normalizeSlug(String(row.model));
+      return {
+        url: `${SITE_ORIGIN}/prodej/${brandSlug}-${modelSlug}`,
+        lastModified: row.lastUpdate ? new Date(row.lastUpdate) : new Date(),
+        changeFrequency: "daily" as const,
+        priority: 0.65,
+      };
+    })
+    .filter((entry) => {
+      const segments = entry.url.replace(SITE_ORIGIN, "").split("/").slice(1);
+      return segments.every((s) => s.length > 0);
+    });
+
+  return [...staticPages, ...brandPages, ...modelPages, ...prodejPages, ...listingPages];
 }
