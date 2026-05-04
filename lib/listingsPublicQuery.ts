@@ -3,6 +3,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "./db";
 import * as H from "./listingsQueryHelpers";
 import { listings, type Listing } from "@shared/schema";
+import { ensureSearchExtensions } from "./ensureSearchExtensions";
 
 /** Safe ORDER BY fragments (sort key is server-validated only). */
 const ORDER_SQL: Record<H.SortKey, string> = {
@@ -88,12 +89,17 @@ function buildWhereParts(
   if (search) {
     const s = H.normalizeText(search);
     const pat = `%${H.escapeIlikePattern(s)}%`;
+    // Strip diacritics from DB columns before comparing so queries
+    // like "skoda" find "Škoda" and "citren" finds "Citroën".
+    // translate(col, CZ_FROM, CZ_TO) mirrors what normalizeText()
+    // does on the input side — same approach the brand/model filters
+    // already use.
     parts.push(
       or(
-        sql`${listings.brand} ILIKE ${pat} ESCAPE '\\'`,
-        sql`${listings.model} ILIKE ${pat} ESCAPE '\\'`,
-        sql`${listings.title} ILIKE ${pat} ESCAPE '\\'`,
-        sql`COALESCE(${listings.description}, '') ILIKE ${pat} ESCAPE '\\'`,
+        sql`lower(translate(${listings.brand}, ${CZ_FROM}, ${CZ_TO})) LIKE ${pat} ESCAPE '\\'`,
+        sql`lower(translate(${listings.model}, ${CZ_FROM}, ${CZ_TO})) LIKE ${pat} ESCAPE '\\'`,
+        sql`lower(translate(COALESCE(${listings.title}, ''), ${CZ_FROM}, ${CZ_TO})) LIKE ${pat} ESCAPE '\\'`,
+        sql`lower(translate(COALESCE(${listings.description}, ''), ${CZ_FROM}, ${CZ_TO})) LIKE ${pat} ESCAPE '\\'`,
       )!,
     );
   }
@@ -304,6 +310,14 @@ function buildWhereParts(
   return parts;
 }
 
+/**
+ * Normalized brand+model expression used both for the trigram GIN index and
+ * for the fuzzy-fallback WHERE clause.  Must be identical to the expression
+ * inside ensureSearchExtensions.ts so Postgres picks up the index.
+ */
+const NORM_BRAND_MODEL = sql`lower(translate(brand || ' ' || model,
+  ${CZ_FROM}, ${CZ_TO}))`;
+
 export async function queryListingsFromDb(
   params: URLSearchParams,
   ctx: { includeSoldListings: boolean },
@@ -323,44 +337,79 @@ export async function queryListingsFromDb(
   const pageNum = Math.max(1, H.toInt(params.get("page")) ?? 1);
   const offset = (pageNum - 1) * limitNum;
 
-  // Fast path for the most frequent initial request: first page of listings.
-  // Run count and rows in parallel to reduce TTFB without changing response shape.
-  if (!opts?.countOnly && pageNum === 1) {
+  const runQuery = async (w: SQL) => {
     const orderSql = ORDER_SQL[sort];
-    const [countRows, rows] = await Promise.all([
-      db.select({ c: count() }).from(listings).where(where),
-      db
+    if (!opts?.countOnly && pageNum === 1) {
+      const [countRows, rows] = await Promise.all([
+        db.select({ c: count() }).from(listings).where(w),
+        db.select().from(listings).where(w).orderBy(sql.raw(orderSql)).limit(limitNum).offset(offset),
+      ]);
+      const total = Number(countRows[0]?.c ?? 0);
+      return { rows, total, page: 1, limit: limitNum, totalPages: Math.max(1, Math.ceil(total / limitNum)) };
+    }
+    const [countRow] = await db.select({ c: count() }).from(listings).where(w);
+    const total = Number(countRow?.c ?? 0);
+    const totalPages = Math.max(1, Math.ceil(total / limitNum));
+    const safePage = Math.min(pageNum, totalPages);
+    const safeOffset = (safePage - 1) * limitNum;
+    if (opts?.countOnly) return { rows: [] as Listing[], total, page: safePage, limit: limitNum, totalPages };
+    const rows = await db.select().from(listings).where(w).orderBy(sql.raw(orderSql)).limit(limitNum).offset(safeOffset);
+    return { rows, total, page: safePage, limit: limitNum, totalPages };
+  };
+
+  const primary = await runQuery(where);
+
+  // Fuzzy fallback: when the exact (diacritics-stripped) search returns
+  // 0 results AND the query looks like a short brand/model term (not a
+  // big description phrase), retry with pg_trgm similarity on
+  // brand||model. This catches typos like "oktavia" → Octavia,
+  // "peugot" → Peugeot. The threshold (0.25) is intentionally loose —
+  // users rarely type more than 1-2 wrong chars in a 5-8 letter word.
+  const search = H.qStr(params, "search");
+  if (primary.total === 0 && search && search.length >= 3 && search.length <= 40) {
+    const s = H.normalizeText(search);
+    try {
+      await ensureSearchExtensions();
+      // Build a WHERE that keeps all non-search filters but replaces
+      // the exact search clause with a trigram similarity threshold.
+      const fuzzyParts = buildWhereParts(params, ctx).filter((_p, i) => {
+        // The search clause is the one we appended in buildWhereParts
+        // at position after the isSold / userId filters. Since we
+        // can't tag individual clauses, we rebuild without the search
+        // param and add the fuzzy one instead.
+        return true;
+      });
+      // Remove the exact search part by rebuilding without it.
+      const paramsNoSearch = new URLSearchParams(params);
+      paramsNoSearch.delete("search");
+      const baseParts = buildWhereParts(paramsNoSearch, ctx);
+      baseParts.push(
+        sql`similarity(${NORM_BRAND_MODEL}, ${s}) > 0.25`,
+      );
+      const fuzzyWhere = baseParts.length ? and(...baseParts) : sql`true`;
+
+      // Order by similarity desc (best match first), ignore user sort
+      // for the fuzzy fallback — relevance matters more here.
+      const fuzzyRows = await db
         .select()
         .from(listings)
-        .where(where)
-        .orderBy(sql.raw(orderSql))
-        .limit(limitNum)
-        .offset(offset),
-    ]);
-    const total = Number(countRows[0]?.c ?? 0);
-    const totalPages = Math.max(1, Math.ceil(total / limitNum));
-    return { rows, total, page: 1, limit: limitNum, totalPages };
+        .where(fuzzyWhere)
+        .orderBy(sql`similarity(${NORM_BRAND_MODEL}, ${s}) DESC`)
+        .limit(limitNum);
+      if (fuzzyRows.length > 0) {
+        return {
+          rows: fuzzyRows,
+          total: fuzzyRows.length,
+          page: 1,
+          limit: limitNum,
+          totalPages: 1,
+        };
+      }
+    } catch {
+      // pg_trgm not available or query failed — silently fall through
+      // to empty result set. Non-fatal: the exact search already ran.
+    }
   }
 
-  const [countRow] = await db.select({ c: count() }).from(listings).where(where);
-  const total = Number(countRow?.c ?? 0);
-  const totalPages = Math.max(1, Math.ceil(total / limitNum));
-  const safePage = Math.min(pageNum, totalPages);
-  const safeOffset = (safePage - 1) * limitNum;
-
-  if (opts?.countOnly) {
-    return { rows: [], total, page: safePage, limit: limitNum, totalPages };
-  }
-
-  const orderSql = ORDER_SQL[sort];
-
-  const rows = await db
-    .select()
-    .from(listings)
-    .where(where)
-    .orderBy(sql.raw(orderSql))
-    .limit(limitNum)
-    .offset(safeOffset);
-
-  return { rows, total, page: safePage, limit: limitNum, totalPages };
+  return primary;
 }
