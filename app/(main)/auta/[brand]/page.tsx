@@ -54,13 +54,9 @@ async function queryBrandListings(brandSlug: string, limit = 30) {
  * modely" cross-link block so Google can discover model pages by crawling
  * the already-indexed brand page.
  */
-async function queryPopularModels(brandSlug: string, limit = 12) {
+async function queryPopularModels(brandSlug: string, limit = 50) {
   const norm = brandSlug.trim().toLowerCase();
   if (!norm) return [];
-  // Group by lower(model) so DB rows stored as "Octavia" and "octavia"
-  // collapse into one row with combined count. min(model) picks a
-  // deterministic representative spelling — formatModelDisplay /
-  // normalizeSlug downstream normalize both display and URL anyway.
   const rows = await db
     .select({
       model: sql<string>`min(${listings.model})`,
@@ -74,7 +70,7 @@ async function queryPopularModels(brandSlug: string, limit = 12) {
       ),
     )
     .groupBy(sql`lower(${listings.model})`)
-    .having(sql`count(*) >= 3`)
+    .having(sql`count(*) >= 1`)
     .orderBy(desc(sql`count(*)`))
     .limit(limit);
   return rows.filter((r) => Boolean(r.model));
@@ -394,7 +390,7 @@ export default async function BrandLandingPage({ params }: Props) {
               {dedupedModels.map((m) => (
                 <li key={m.slug}>
                   <a
-                    href={`/auta/${brandSlug}/${m.slug}`}
+                    href={`/${brandSlug}-${m.slug}-prodej`}
                     className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
                   >
                     <span className="truncate font-medium">

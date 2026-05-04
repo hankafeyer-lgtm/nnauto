@@ -47,6 +47,25 @@ function Footer() {
                   Hledat auto
                 </Link>
               </li>
+              {[
+                { label: "Škoda", href: "/auta/skoda" },
+                { label: "BMW", href: "/auta/bmw" },
+                { label: "Audi", href: "/auta/audi" },
+                { label: "Mercedes-Benz", href: "/auta/mercedes-benz" },
+                { label: "Volkswagen", href: "/auta/volkswagen" },
+                { label: "Ford", href: "/auta/ford" },
+                { label: "Opel", href: "/auta/opel" },
+                { label: "Peugeot", href: "/auta/peugeot" },
+              ].map((b) => (
+                <li key={b.href}>
+                  <a
+                    href={b.href}
+                    className="text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                  >
+                    {b.label}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
 

@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import JsonLd from "@lib/seo/JsonLd";
 import { buildHomePageJsonLdGraph } from "@lib/seo/structured-data";
-import { formatBrandDisplay } from "@lib/seo/brand-format";
+import { formatBrandDisplay, formatModelDisplay } from "@lib/seo/brand-format";
+import { normalizeSlug } from "@lib/seo/slug";
+import { db } from "@lib/db";
+import { listings } from "@shared/schema";
+import { eq, sql, desc } from "drizzle-orm";
 import HomeClient from "./home-client";
 
 const HOME_TITLE =
@@ -43,7 +47,25 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://nnauto.cz" },
 };
 
-export default function Home() {
+export const revalidate = 900;
+
+async function getTopModels(limit = 30) {
+  return db
+    .select({
+      brand: listings.brand,
+      model: listings.model,
+      total: sql<number>`count(*)::int`,
+    })
+    .from(listings)
+    .where(eq(listings.isSold, false))
+    .groupBy(listings.brand, listings.model)
+    .having(sql`count(*) >= 1`)
+    .orderBy(desc(sql`count(*)`))
+    .limit(limit);
+}
+
+export default async function Home() {
+  const topModels = await getTopModels(30);
   return (
     <>
       <JsonLd data={buildHomePageJsonLdGraph()} />
@@ -90,6 +112,44 @@ export default function Home() {
           .
         </p>
       </section>
+
+      {/* Top brand+model combos linking to /prodej SEO landings */}
+      {topModels.length > 0 && (
+        <section
+          aria-labelledby="home-seo-models"
+          className="container mx-auto max-w-6xl px-4 py-6"
+        >
+          <h2
+            id="home-seo-models"
+            className="text-xl md:text-2xl font-semibold mb-4"
+          >
+            Populární modely na prodej
+          </h2>
+          <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {topModels.map((m) => {
+              const brandSlug = normalizeSlug(String(m.brand));
+              const modelSlug = normalizeSlug(String(m.model));
+              const brandName = formatBrandDisplay(m.brand);
+              const modelName = formatModelDisplay(m.model);
+              return (
+                <li key={`${brandSlug}-${modelSlug}`}>
+                  <a
+                    href={`/${brandSlug}-${modelSlug}-prodej`}
+                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+                  >
+                    <span className="truncate font-medium">
+                      {brandName} {modelName}
+                    </span>
+                    <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                      {m.total}
+                    </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section
         aria-labelledby="home-seo-text"
