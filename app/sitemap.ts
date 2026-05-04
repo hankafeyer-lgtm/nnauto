@@ -136,9 +136,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return path.split("/").every((seg, i) => i === 0 || seg.length > 0);
     });
 
-  // /prodej/<brand>-<model> SEO landing pages — same brand+model pairs that
-  // qualify for /auta/<brand>/<model> (≥3 active listings).
-  const prodejPages: MetadataRoute.Sitemap = modelRows
+  // /prodej/<brand>-<model> SEO landing pages for ALL brand+model pairs
+  // with at least 1 active listing. No minimum threshold — every real
+  // combination in the inventory gets its own indexed landing page.
+  const allModelRows = await db
+    .select({
+      brand: listings.brand,
+      model: listings.model,
+      lastUpdate: sql<Date>`max(${listings.updatedAt})`,
+    })
+    .from(listings)
+    .where(eq(listings.isSold, false))
+    .groupBy(listings.brand, listings.model);
+
+  const prodejPages: MetadataRoute.Sitemap = allModelRows
     .filter((row) => !!row.brand && !!row.model)
     .map((row) => {
       const brandSlug = normalizeSlug(String(row.brand));
