@@ -6,6 +6,7 @@ import { normalizeSlug } from "@lib/seo/slug";
 import { db } from "@lib/db";
 import { listings } from "@shared/schema";
 import { eq, sql, desc } from "drizzle-orm";
+import { sortByTopPriority, getTopModelLinks } from "@lib/seo/top-models";
 import HomeClient from "./home-client";
 
 const HOME_TITLE =
@@ -65,7 +66,9 @@ async function getTopModels(limit = 30) {
 }
 
 export default async function Home() {
-  const topModels = await getTopModels(30);
+  const rawModels = await getTopModels(40);
+  const topModels = sortByTopPriority(rawModels).slice(0, 30);
+  const topLinks = getTopModelLinks();
   return (
     <>
       <JsonLd data={buildHomePageJsonLdGraph()} />
@@ -150,6 +153,22 @@ export default async function Home() {
           </ul>
         </section>
       )}
+
+      {/* Duplicate high-value internal links for crawlers */}
+      <section className="container mx-auto max-w-6xl px-4 py-4">
+        <h3 className="text-base font-semibold mb-2 text-muted-foreground">
+          Nejčastěji hledané vozy
+        </h3>
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {topLinks.slice(0, 15).map((l) => (
+            <li key={l.slug}>
+              <a href={l.href} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">
+                {l.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section
         aria-labelledby="home-seo-text"

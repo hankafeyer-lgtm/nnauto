@@ -13,6 +13,7 @@ import {
 } from "@lib/seo/brand-format";
 import { normalizeSlug } from "@lib/seo/slug";
 import { buildListingUrl } from "@lib/seo/listing-url";
+import { getTopModelLinksForBrand, isTopModel } from "@lib/seo/top-models";
 
 /**
  * SEO landing page per brand (e.g. /auta/bmw, /auta/audi).
@@ -368,6 +369,11 @@ export default async function BrandLandingPage({ params }: Props) {
             if (!m.slug || seen.has(m.slug)) return false;
             seen.add(m.slug);
             return true;
+          })
+          .sort((a, b) => {
+            const at = isTopModel(brandSlug, a.slug) ? 0 : 1;
+            const bt = isTopModel(brandSlug, b.slug) ? 0 : 1;
+            return at - bt;
           });
         if (dedupedModels.length === 0) return null;
         return (
@@ -399,6 +405,27 @@ export default async function BrandLandingPage({ params }: Props) {
                     <span className="ml-2 shrink-0 text-xs text-muted-foreground">
                       {m.total}
                     </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })()}
+
+      {(() => {
+        const brandTopLinks = getTopModelLinksForBrand(brandSlug);
+        if (brandTopLinks.length === 0) return null;
+        return (
+          <section className="mt-6">
+            <h3 className="text-base font-semibold mb-2 text-muted-foreground">
+              Nejčastěji hledané {brandName}
+            </h3>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {brandTopLinks.map((l) => (
+                <li key={l.slug}>
+                  <a href={l.href} className="text-muted-foreground hover:text-foreground hover:underline transition-colors">
+                    {l.label}
                   </a>
                 </li>
               ))}

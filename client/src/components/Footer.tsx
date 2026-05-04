@@ -66,6 +66,22 @@ function Footer() {
                   </a>
                 </li>
               ))}
+              {[
+                { label: "Škoda Octavia", href: "/skoda-octavia-prodej" },
+                { label: "BMW X5", href: "/bmw-x5-prodej" },
+                { label: "Audi A4", href: "/audi-a4-prodej" },
+                { label: "VW Passat", href: "/volkswagen-passat-prodej" },
+                { label: "Mercedes C", href: "/mercedes-benz-c-class-prodej" },
+              ].map((m) => (
+                <li key={m.href}>
+                  <a
+                    href={m.href}
+                    className="text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                  >
+                    {m.label}
+                  </a>
+                </li>
+              ))}
             </ul>
           </div>
 
