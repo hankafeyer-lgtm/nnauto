@@ -3,7 +3,7 @@ import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { uploadBuffer } from "@lib/r2Storage";
 
-const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024; // 100MB
+const MAX_VIDEO_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB (matches UI limit)
 
 export async function POST(req: NextRequest) {
   try {

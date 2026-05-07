@@ -23,6 +23,9 @@ const csp = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    proxyClientMaxBodySize: "200mb",
+  },
   typescript: {
     ignoreBuildErrors: true,
   },
