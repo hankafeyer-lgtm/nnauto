@@ -4761,7 +4761,7 @@ export default function ListingDetailPage({
                               })}
                               desktopMinWidth={1024}
                               upgrade={index === currentCarouselIndex}
-                              alt={`Thumbnail ${index + 1}`}
+                              alt={`${getListingMainTitle(listing)} – foto ${index + 1}`}
                               loading={index === 0 ? "eager" : "lazy"}
                               decoding="async"
                               sizes="64px"

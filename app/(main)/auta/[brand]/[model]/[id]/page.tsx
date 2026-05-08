@@ -19,7 +19,6 @@
  * always points here regardless of which URL the user landed on.
  */
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { permanentRedirect } from "next/navigation";
 import { normalizeSlug } from "@lib/seo/slug";
 import { buildListingUrl } from "@lib/seo/listing-url";
@@ -62,6 +61,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return buildListingMetadata(listing, id);
 }
 
+export const revalidate = 900;
+
 export default async function ListingDetailSeo({
   params,
   searchParams,
@@ -69,9 +70,7 @@ export default async function ListingDetailSeo({
   const { brand: urlBrand, model: urlModel, id: rawId } = await params;
   const id = decodeURIComponent(rawId);
   const resolvedSearchParams = await searchParams;
-  const requestHeaders = await headers();
-  const isIframeRequest = requestHeaders.get("sec-fetch-dest") === "iframe";
-  const isEmbedded = resolvedSearchParams?.embedded === "1" && isIframeRequest;
+  const isEmbedded = resolvedSearchParams?.embedded === "1";
   const listing = await getListingById(id);
 
   if (!listing) return renderListingNotFound();
@@ -81,7 +80,7 @@ export default async function ListingDetailSeo({
   // Superb" after the URL was minted), redirect to the canonical URL.
   // We don't redirect inside iframes — that can break parent page integrations,
   // including unknown third-party iframe consumers.
-  if (!isIframeRequest) {
+  if (!isEmbedded) {
     const expectedBrand = normalizeSlug(listing.brand);
     const expectedModel = normalizeSlug(listing.model);
     const incomingBrand = decodeURIComponent(urlBrand).toLowerCase();

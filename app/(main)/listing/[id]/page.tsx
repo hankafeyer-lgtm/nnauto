@@ -14,7 +14,6 @@
  * be made there, not here.
  */
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import { permanentRedirect } from "next/navigation";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { getListingById, getSimilarListings } from "./get-listing";
@@ -56,13 +55,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return buildListingMetadata(listing, id);
 }
 
+export const revalidate = 900;
+
 export default async function ListingDetail({ params, searchParams }: Props) {
   const { id } = await params;
   const resolvedSearchParams = await searchParams;
-  const requestHeaders = await headers();
-  const isIframeRequest = requestHeaders.get("sec-fetch-dest") === "iframe";
-  const isEmbedded =
-    resolvedSearchParams?.embedded === "1" && isIframeRequest;
+  const isEmbedded = resolvedSearchParams?.embedded === "1";
   const listing = await getListingById(id);
 
   if (!listing) return renderListingNotFound();
@@ -73,7 +71,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
   // Keep ALL iframe embeds on legacy URL to avoid breaking parent integrations,
   // including unknown third-party iframe consumers that may not add
   // `embedded=1`.
-  if (ENABLE_LEGACY_LISTING_REDIRECT && !isIframeRequest) {
+  if (ENABLE_LEGACY_LISTING_REDIRECT && !isEmbedded) {
     const nextPath = buildListingUrl({
       id: listing.id,
       brand: listing.brand,

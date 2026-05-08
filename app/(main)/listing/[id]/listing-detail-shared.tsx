@@ -27,6 +27,7 @@ import {
   buildListingUrl,
   buildListingAbsoluteUrl,
 } from "@lib/seo/listing-url";
+import { normalizeSlug } from "@lib/seo/slug";
 import ListingDetailClient from "./listing-detail-client";
 import ListingSeoSummary from "./ListingSeoSummary";
 import type { SimilarListing } from "./get-listing";
@@ -115,6 +116,9 @@ export function buildListingMetadata(
     title,
     description: desc,
     keywords,
+    robots: listing.isSold
+      ? { index: false, follow: true }
+      : { index: true, follow: true },
     openGraph: {
       title,
       description: desc,
@@ -157,8 +161,10 @@ export function renderListingDetailPage({
     listing.year,
   );
   const listingName = summaryTitle;
-  const brandFilterUrl = `${SITE_ORIGIN}/?brand=${encodeURIComponent(listing.brand ?? "")}`;
-  const modelFilterUrl = `${brandFilterUrl}&model=${encodeURIComponent(listing.model ?? "")}`;
+  const brandSlug = normalizeSlug(listing.brand);
+  const modelSlug = normalizeSlug(listing.model);
+  const brandFilterUrl = `${SITE_ORIGIN}/auta/${brandSlug}`;
+  const modelFilterUrl = `${SITE_ORIGIN}/auta/${brandSlug}/${modelSlug}`;
   const fuelText = Array.isArray(listing.fuelType)
     ? listing.fuelType.join(", ")
     : ((listing.fuelType as unknown as string) || "");
@@ -312,7 +318,7 @@ export function renderListingDetailPage({
       <main className="min-h-screen bg-background">
         <div className="container mx-auto px-3 pt-3 sm:px-4 sm:pt-4 max-w-7xl">
           <a
-            href={`/?brand=${encodeURIComponent(listing.brand)}`}
+            href={`/auta/${brandSlug}`}
             className="block truncate text-sm text-muted-foreground hover:underline sm:hidden"
           >
             {`\u2190 Zpět na ${brand}`}
@@ -324,14 +330,14 @@ export function renderListingDetailPage({
             <a href="/" className="shrink-0 hover:underline">NNAuto</a>
             <span className="text-muted-foreground/70">{">"}</span>
             <a
-              href={`/?brand=${encodeURIComponent(listing.brand)}`}
+              href={`/auta/${brandSlug}`}
               className="max-w-[40vw] truncate hover:underline sm:max-w-none"
             >
               {brand}
             </a>
             <span className="text-muted-foreground/70">{">"}</span>
             <a
-              href={`/?brand=${encodeURIComponent(listing.brand)}&model=${encodeURIComponent(listing.model)}`}
+              href={`/auta/${brandSlug}/${modelSlug}`}
               className="max-w-[40vw] truncate hover:underline sm:max-w-none"
             >
               {modelLabel}
