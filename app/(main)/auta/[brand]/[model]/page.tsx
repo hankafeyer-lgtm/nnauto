@@ -476,40 +476,24 @@ export default async function BrandModelLandingPage({ params }: Props) {
       </section>
 
       <section className="mt-10">
-        <h2 className="text-xl font-semibold mb-3">Související odkazy</h2>
+        <h2 className="text-xl font-semibold mb-3">
+          {brandName} {modelName} – hledat podle
+        </h2>
         <ul className="flex flex-wrap gap-2">
-          <li>
-            <a
-              href={`/auta/${brandSlug}`}
-              className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
-            >
-              Vše {brandName}
-            </a>
-          </li>
-          <li>
-            <a
-              href="/listings"
-              className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
-            >
-              Všechny inzeráty
-            </a>
-          </li>
-          <li>
-            <a
-              href="/tips"
-              className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
-            >
-              Tipy a rady
-            </a>
-          </li>
-          <li>
-            <a
-              href="/pricing"
-              className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
-            >
-              Ceník služeb
-            </a>
-          </li>
+          <li><a href={`/prodej/${brandSlug}-${modelSlug}-diesel`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} diesel</a></li>
+          <li><a href={`/prodej/${brandSlug}-${modelSlug}-benzin`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} benzín</a></li>
+          <li><a href={`/prodej/${brandSlug}-${modelSlug}-automat`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} automat</a></li>
+          <li><a href={`/prodej/${brandSlug}-${modelSlug}-kombi`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} kombi</a></li>
+          <li><a href={`/prodej/${brandSlug}-${modelSlug}`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} na prodej</a></li>
+        </ul>
+      </section>
+
+      <section className="mt-6">
+        <h3 className="text-base font-semibold mb-2 text-muted-foreground">Související</h3>
+        <ul className="flex flex-wrap gap-2">
+          <li><a href={`/auta/${brandSlug}`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">Vše {brandName}</a></li>
+          <li><a href="/listings" className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">Všechny inzeráty</a></li>
+          <li><a href="/tips" className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">Tipy a rady</a></li>
         </ul>
       </section>
 

@@ -95,6 +95,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title,
     description,
     alternates: { canonical },
+    robots: hasAny ? { index: true, follow: true } : { index: false, follow: true },
     openGraph: {
       title,
       description,
@@ -388,10 +389,45 @@ export default async function BrandLandingPage({ params }: Props) {
         </p>
       </section>
 
+      {/* Data-driven stats block — unique SEO content per brand from real inventory */}
       {(() => {
-        // Belt-and-suspenders dedup by normalized slug. SQL already groups by
-        // lower(model), but legacy DB rows with extra whitespace / accents
-        // could still collapse to the same slug — render only the first one.
+        const prices = rows.map((l) => Number(l.price)).filter((p) => p > 0).sort((a, b) => a - b);
+        const years = rows.map((l) => l.year).filter(Boolean).sort();
+        const fuels = new Map<string, number>();
+        for (const l of rows) {
+          const f = Array.isArray(l.fuelType) ? l.fuelType[0] : null;
+          if (f) fuels.set(f, (fuels.get(f) ?? 0) + 1);
+        }
+        if (prices.length < 3) return null;
+        const minPrice = prices[0].toLocaleString("cs-CZ");
+        const maxPrice = prices[prices.length - 1].toLocaleString("cs-CZ");
+        const minYear = years[0];
+        const maxYear = years[years.length - 1];
+        const topFuels = [...fuels.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+        return (
+          <section className="mt-8 prose max-w-none text-muted-foreground">
+            <h2 className="text-xl font-semibold text-foreground">
+              {brandName} na NNAuto v číslech
+            </h2>
+            <p>
+              Aktuálně nabízíme <strong>{rows.length}+ vozů {brandName}</strong> v
+              cenovém rozpětí od <strong>{minPrice} Kč</strong> do <strong>{maxPrice} Kč</strong>.
+              Ročníky v nabídce sahají od <strong>{minYear}</strong> do <strong>{maxYear}</strong>.
+              {topFuels.length > 0 ? (
+                <> Nejčastější palivo: {topFuels.map(([f, c]) => `${f} (${c}×)`).join(", ")}.</>
+              ) : null}
+            </p>
+            <p>
+              Nejoblíbenější modely {brandName} s aktivní nabídkou:
+              {" "}{popularModels.slice(0, 5).map((m) => formatModelDisplay(m.model)).join(", ")}.
+              Každý model má vlastní stránku s filtry a detailním výpisem, kde porovnáte
+              ceny, najeté km, stav a výbavu — vše na jednom místě bez potřeby jiného bazaru.
+            </p>
+          </section>
+        );
+      })()}
+
+      {(() => {
         const seen = new Set<string>();
         const dedupedModels = popularModels
           .map((m) => ({ ...m, slug: normalizeSlug(m.model) }))
