@@ -214,6 +214,36 @@ export default async function BrandLandingPage({ params }: Props) {
     <main className="container mx-auto max-w-6xl px-4 py-8">
       <JsonLd data={itemListJsonLd} />
       <JsonLd data={breadcrumbJsonLd} />
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: [
+          {
+            "@type": "Question",
+            name: `Kolik stojí ojetý ${brandName}?`,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: `Ceny ojetých vozů ${brandName} na NNAuto se pohybují od desítek tisíc korun za starší ročníky po stovky tisíc za novější modely v top stavu. Aktuální nabídku najdete přímo na této stránce.`,
+            },
+          },
+          {
+            "@type": "Question",
+            name: `Kde koupit ${brandName} v České republice?`,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: `Na NNAuto.cz najdete ověřené inzeráty ${brandName} od soukromých prodejců i autobazarů z celé ČR. Kontaktujete prodejce přímo, bez mezičlánků.`,
+            },
+          },
+          {
+            "@type": "Question",
+            name: `Jak ověřit historii ${brandName} před koupí?`,
+            acceptedAnswer: {
+              "@type": "Answer",
+              text: `Doporučujeme prověřit vůz přes Cebia report, který z VIN kódu odhalí historii, počet majitelů, najeté km a případné havárie. NNAuto u inzerátů s prověřením zobrazuje speciální štítek.`,
+            },
+          },
+        ],
+      }} />
 
       <nav
         className="text-sm text-muted-foreground mb-4 flex gap-1 flex-wrap"
