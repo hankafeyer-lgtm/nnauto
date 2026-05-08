@@ -168,5 +168,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return segments.every((s) => s.length > 0);
     });
 
-  return [...staticPages, ...brandPages, ...modelPages, ...prodejPages, ...listingPages];
+  // Programmatic variant pages (fuel/transmission/body) for models with
+  // enough inventory. Only include combos with ≥2 listings to avoid thin.
+  const variantRows = await db
+    .select({
+      brand: listings.brand,
+      model: listings.model,
+      fuel: sql<string>`unnest(coalesce(${listings.fuelType}, ARRAY[]::text[]))`,
+    })
+    .from(listings)
+    .where(eq(listings.isSold, false));
+
+  const variantCounts = new Map<string, number>();
+  for (const r of variantRows) {
+    if (!r.brand || !r.model || !r.fuel) continue;
+    const key = `${normalizeSlug(r.brand)}-${normalizeSlug(r.model)}-${r.fuel.toLowerCase()}`;
+    variantCounts.set(key, (variantCounts.get(key) ?? 0) + 1);
+  }
+
+  const variantPages: MetadataRoute.Sitemap = [];
+  for (const [slug, count] of variantCounts) {
+    if (count < 2) continue;
+    variantPages.push({
+      url: `${SITE_ORIGIN}/prodej/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "daily" as const,
+      priority: 0.55,
+    });
+  }
+
+  return [...staticPages, ...brandPages, ...modelPages, ...prodejPages, ...variantPages, ...listingPages];
 }

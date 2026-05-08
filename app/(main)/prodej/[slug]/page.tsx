@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@lib/db";
 import { listings } from "@shared/schema";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { getListingMainTitleFromRow } from "@lib/seo/listing-title";
@@ -10,38 +10,49 @@ import JsonLd from "@lib/seo/JsonLd";
 import {
   parseProdejSlug,
   generateSeoText,
+  type ProdejSlugParsed,
 } from "@lib/seo/prodej-landing";
 
 export const revalidate = 900;
 
 type Props = { params: Promise<{ slug: string }> };
 
-async function queryListings(brandSlug: string, modelSlug: string, limit = 30) {
-  return db
-    .select()
-    .from(listings)
-    .where(
-      and(
-        eq(listings.isSold, false),
-        sql`lower(${listings.brand}) = ${brandSlug}`,
-        sql`lower(regexp_replace(${listings.model}, E'\\s+', '-', 'g')) = ${modelSlug}`,
-      ),
-    )
-    .orderBy(desc(listings.updatedAt))
-    .limit(limit);
+function buildFilterCondition(filter: ProdejSlugParsed["filter"]): SQL | null {
+  if (!filter) return null;
+  switch (filter.type) {
+    case "fuel":
+      return sql`EXISTS (SELECT 1 FROM unnest(coalesce(${listings.fuelType}, ARRAY[]::text[])) AS f WHERE lower(f) = ${filter.value})`;
+    case "transmission":
+      return sql`EXISTS (SELECT 1 FROM unnest(coalesce(${listings.transmission}, ARRAY[]::text[])) AS t WHERE lower(t) = ${filter.value})`;
+    case "body":
+      return sql`lower(${listings.bodyType}) = ${filter.value}`;
+    case "year":
+      return eq(listings.year, Number(filter.value));
+    default:
+      return null;
+  }
 }
 
-async function countListings(brandSlug: string, modelSlug: string) {
-  const [row] = await db
-    .select({ c: sql<number>`count(*)::int` })
-    .from(listings)
-    .where(
-      and(
-        eq(listings.isSold, false),
-        sql`lower(${listings.brand}) = ${brandSlug}`,
-        sql`lower(regexp_replace(${listings.model}, E'\\s+', '-', 'g')) = ${modelSlug}`,
-      ),
-    );
+async function queryListings(brandSlug: string, modelSlug: string, filter: ProdejSlugParsed["filter"], limit = 30) {
+  const conditions: SQL[] = [
+    eq(listings.isSold, false),
+    sql`lower(${listings.brand}) = ${brandSlug}`,
+    sql`lower(regexp_replace(${listings.model}, E'\\s+', '-', 'g')) = ${modelSlug}`,
+  ];
+  const fc = buildFilterCondition(filter);
+  if (fc) conditions.push(fc);
+  return db.select().from(listings).where(and(...conditions)).orderBy(desc(listings.updatedAt)).limit(limit);
+}
+
+async function countListings(brandSlug: string, modelSlug: string, filter: ProdejSlugParsed["filter"]) {
+  const conditions: SQL[] = [
+    eq(listings.isSold, false),
+    sql`lower(${listings.brand}) = ${brandSlug}`,
+    sql`lower(regexp_replace(${listings.model}, E'\\s+', '-', 'g')) = ${modelSlug}`,
+  ];
+  const fc = buildFilterCondition(filter);
+  if (fc) conditions.push(fc);
+  const [row] = await db.select({ c: sql<number>`count(*)::int` }).from(listings).where(and(...conditions));
   return row?.c ?? 0;
 }
 
@@ -50,16 +61,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const parsed = parseProdejSlug(slug);
   if (!parsed) return { title: "Stránka nenalezena | NNAuto" };
 
-  const { brandDisplay, modelDisplay, canonical } = parsed;
+  const { brandDisplay, modelDisplay, canonical, filter } = parsed;
   const bm = `${brandDisplay} ${modelDisplay}`;
-  const title = `${bm} na prodej | Bazar aut ČR | NNAuto`;
-  const description = `Prohlédněte si nabídku vozů ${bm} na prodej. Ověřená auta, aktuální nabídky a jednoduchý výběr na NNAuto.cz. Filtrujte podle roku, ceny a najetých km.`;
+  const filterLabel = filter ? ` ${filter.display}` : "";
+  const fullLabel = `${bm}${filterLabel}`;
+  const title = `${fullLabel} na prodej | Bazar aut ČR | NNAuto`;
+  const description = filter
+    ? `Prohlédněte si nabídku vozů ${bm} ${filter.display} na prodej. Aktuální inzeráty ${filter.type === "fuel" ? `s palivem ${filter.display}` : filter.type === "transmission" ? `s převodovkou ${filter.display}` : filter.type === "body" ? `v karosérii ${filter.display}` : `rok ${filter.display}`} na NNAuto.cz.`
+    : `Prohlédněte si nabídku vozů ${bm} na prodej. Ověřená auta, aktuální nabídky a jednoduchý výběr na NNAuto.cz. Filtrujte podle roku, ceny a najetých km.`;
+
+  const total = await countListings(parsed.brandSlug, parsed.modelSlug, filter);
+  const shouldIndex = total >= 2;
 
   return {
     title,
     description,
     alternates: { canonical },
-    robots: { index: true, follow: true },
+    robots: shouldIndex ? { index: true, follow: true } : { index: false, follow: true },
     openGraph: {
       title,
       description,
@@ -71,14 +89,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: { card: "summary_large_image", title, description },
     keywords: [
-      bm,
-      `${bm} prodej`,
-      `${bm} bazar`,
-      `ojeté ${bm}`,
-      `${bm} cena`,
-      `${brandDisplay} ${modelDisplay} ojetý`,
-      `koupit ${bm}`,
-      `${bm} levně`,
+      fullLabel,
+      `${fullLabel} prodej`,
+      `${fullLabel} bazar`,
+      `ojeté ${bm}${filterLabel}`,
+      `koupit ${fullLabel}`,
       "autobazar ČR",
       "NNAuto",
     ].join(", "),
@@ -90,12 +105,14 @@ export default async function ProdejLandingPage({ params }: Props) {
   const parsed = parseProdejSlug(slug);
   if (!parsed) notFound();
 
-  const { brandSlug, modelSlug, brandDisplay, modelDisplay, canonical } = parsed;
+  const { brandSlug, modelSlug, brandDisplay, modelDisplay, canonical, filter } = parsed;
   const bm = `${brandDisplay} ${modelDisplay}`;
+  const filterLabel = filter ? ` ${filter.display}` : "";
+  const fullLabel = `${bm}${filterLabel}`;
 
   const [rows, total] = await Promise.all([
-    queryListings(brandSlug, modelSlug, 30),
-    countListings(brandSlug, modelSlug),
+    queryListings(brandSlug, modelSlug, filter, 30),
+    countListings(brandSlug, modelSlug, filter),
   ]);
 
   const seoText = generateSeoText(brandDisplay, modelDisplay, total);
@@ -119,7 +136,7 @@ export default async function ProdejLandingPage({ params }: Props) {
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "NNAuto", item: `${SITE_ORIGIN}/` },
       { "@type": "ListItem", position: 2, name: "Prodej aut", item: `${SITE_ORIGIN}/listings` },
-      { "@type": "ListItem", position: 3, name: `${bm} na prodej` },
+      { "@type": "ListItem", position: 3, name: `${fullLabel} na prodej` },
     ],
   };
 
@@ -127,6 +144,22 @@ export default async function ProdejLandingPage({ params }: Props) {
     <>
       <JsonLd data={itemListJsonLd} />
       <JsonLd data={breadcrumbJsonLd} />
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        mainEntity: [
+          {
+            "@type": "Question",
+            name: `Kolik stojí ${fullLabel}?`,
+            acceptedAnswer: { "@type": "Answer", text: `Ceny ${fullLabel} na NNAuto se pohybují v závislosti na roku výroby, nájezdu a stavu. Aktuálně evidujeme ${total} nabídek. Prohlédněte si inzeráty na této stránce.` },
+          },
+          {
+            "@type": "Question",
+            name: `Kde koupit ${fullLabel} v ČR?`,
+            acceptedAnswer: { "@type": "Answer", text: `Na NNAuto.cz najdete ověřené inzeráty ${fullLabel} od soukromých prodejců i autobazarů z celé České republiky. Kontaktujete prodejce přímo.` },
+          },
+        ],
+      }} />
       <main className="min-h-screen bg-background">
         <div className="container mx-auto max-w-5xl px-4 py-8 sm:py-10">
           {/* Breadcrumb */}
@@ -145,11 +178,11 @@ export default async function ProdejLandingPage({ params }: Props) {
 
           {/* H1 */}
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
-            {bm} na prodej
+            {fullLabel} na prodej
           </h1>
 
           <p className="text-lg text-muted-foreground mb-8 max-w-3xl">
-            Aktuální nabídka {total > 0 ? total : ""} vozů {bm} na NNAuto.cz.
+            Aktuální nabídka {total > 0 ? total : ""} vozů {fullLabel} na NNAuto.cz.
             Ověřené inzeráty od soukromých prodejců i autobazarů v ČR.
           </p>
 
@@ -241,13 +274,35 @@ export default async function ProdejLandingPage({ params }: Props) {
             }}
           />
 
+          {/* Related variant links — internal linking for SEO */}
+          <nav className="mt-8" aria-label="Související nabídky">
+            <h3 className="text-base font-semibold mb-2 text-muted-foreground">
+              Další nabídky {bm}
+            </h3>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {!filter && (
+                <>
+                  <li><a href={`/prodej/${brandSlug}-${modelSlug}-diesel`} className="text-muted-foreground hover:text-foreground hover:underline">{bm} diesel</a></li>
+                  <li><a href={`/prodej/${brandSlug}-${modelSlug}-benzin`} className="text-muted-foreground hover:text-foreground hover:underline">{bm} benzín</a></li>
+                  <li><a href={`/prodej/${brandSlug}-${modelSlug}-automat`} className="text-muted-foreground hover:text-foreground hover:underline">{bm} automat</a></li>
+                  <li><a href={`/prodej/${brandSlug}-${modelSlug}-kombi`} className="text-muted-foreground hover:text-foreground hover:underline">{bm} kombi</a></li>
+                </>
+              )}
+              {filter && (
+                <li><a href={`/prodej/${brandSlug}-${modelSlug}`} className="text-muted-foreground hover:text-foreground hover:underline">Všechny {bm}</a></li>
+              )}
+              <li><a href={`/auta/${brandSlug}`} className="text-muted-foreground hover:text-foreground hover:underline">{brandDisplay} – všechny modely</a></li>
+              <li><a href={`/auta/${brandSlug}/${modelSlug}`} className="text-muted-foreground hover:text-foreground hover:underline">{bm} – katalog</a></li>
+            </ul>
+          </nav>
+
           {/* CTA */}
           <div className="mt-10 flex flex-wrap gap-3">
             <a
               href={`/listings?brand=${encodeURIComponent(brandSlug)}&model=${encodeURIComponent(modelSlug)}`}
               className="rounded-md bg-[#B8860B] text-white px-5 py-2.5 font-medium hover:bg-[#9c7308] transition-colors"
             >
-              Všechny {bm} na NNAuto
+              Všechny {fullLabel} na NNAuto
             </a>
             <a
               href="/add-listing"

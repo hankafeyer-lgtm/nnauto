@@ -19,6 +19,46 @@ export interface ProdejSlugParsed {
   brandDisplay: string;
   modelDisplay: string;
   canonical: string;
+  /** Optional filter variant appended after brand-model */
+  filter?: {
+    type: "fuel" | "transmission" | "body" | "year";
+    value: string;
+    display: string;
+  };
+}
+
+const FUEL_ALIASES: Record<string, string> = {
+  benzin: "benzin", petrol: "benzin", gasoline: "benzin",
+  diesel: "diesel", nafta: "diesel",
+  hybrid: "hybrid",
+  elektro: "elektro", electric: "elektro", ev: "elektro",
+  lpg: "lpg", cng: "cng",
+};
+
+const TRANSMISSION_ALIASES: Record<string, string> = {
+  automat: "automat", automatic: "automat", auto: "automat",
+  manual: "manual", manualni: "manual",
+  dsg: "dsg", cvt: "cvt",
+};
+
+const BODY_ALIASES: Record<string, string> = {
+  sedan: "sedan",
+  kombi: "kombi", combi: "kombi", stationwagon: "kombi",
+  hatchback: "hatchback", hatch: "hatchback",
+  suv: "suv", crossover: "suv",
+  coupe: "coupe", kupé: "coupe",
+  cabrio: "cabrio", kabriolet: "cabrio",
+  liftback: "liftback",
+  pickup: "pickup",
+  minivan: "minivan", van: "van",
+};
+
+function detectFilter(token: string): ProdejSlugParsed["filter"] | null {
+  if (FUEL_ALIASES[token]) return { type: "fuel", value: FUEL_ALIASES[token], display: FUEL_ALIASES[token] };
+  if (TRANSMISSION_ALIASES[token]) return { type: "transmission", value: TRANSMISSION_ALIASES[token], display: TRANSMISSION_ALIASES[token] };
+  if (BODY_ALIASES[token]) return { type: "body", value: BODY_ALIASES[token], display: BODY_ALIASES[token] };
+  if (/^\d{4}$/.test(token) && Number(token) >= 1990 && Number(token) <= 2030) return { type: "year", value: token, display: token };
+  return null;
 }
 
 /**
@@ -66,12 +106,33 @@ export function parseProdejSlug(slug: string): ProdejSlugParsed | null {
 
   if (!brandSlug || !modelSlug) return null;
 
+  // Check if the last segment of modelSlug is actually a filter keyword.
+  // e.g. "octavia-diesel" → model="octavia", filter=fuel:diesel
+  const modelParts = modelSlug.split("-");
+  let filter: ProdejSlugParsed["filter"] | undefined;
+  if (modelParts.length >= 2) {
+    const lastToken = modelParts[modelParts.length - 1];
+    const detected = detectFilter(lastToken);
+    if (detected) {
+      filter = detected;
+      modelSlug = modelParts.slice(0, -1).join("-");
+    }
+  }
+
+  if (!modelSlug) return null;
+
+  const normBrand = normalizeSlug(brandSlug);
+  const normModel = normalizeSlug(modelSlug);
+  const canonicalParts = [normBrand, normModel];
+  if (filter) canonicalParts.push(filter.value);
+
   return {
-    brandSlug: normalizeSlug(brandSlug),
-    modelSlug: normalizeSlug(modelSlug),
+    brandSlug: normBrand,
+    modelSlug: normModel,
     brandDisplay: formatBrandDisplay(brandSlug),
     modelDisplay: formatModelDisplay(modelSlug),
-    canonical: `${SITE_ORIGIN}/prodej/${brandSlug}-${modelSlug}`,
+    canonical: `${SITE_ORIGIN}/prodej/${canonicalParts.join("-")}`,
+    filter,
   };
 }
 
