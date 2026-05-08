@@ -3213,11 +3213,25 @@ export default function ListingDetailPage({
   const [, navigate] = useLocation();
 
   const routeParams = useParams();
-  const listingId = (routeParams?.id as string) ||
+  // Prefer the server-provided UUID (initialListingId) over URL-parsed
+  // values which may now be SEO slugs instead of raw UUIDs.
+  const rawRouteId = (routeParams?.id as string) || "";
+  const isUuid = /^[a-f0-9]{8}-[a-f0-9]{4}-/.test(rawRouteId);
+  const listingId =
     initialListingId ||
+    (isUuid ? rawRouteId : null) ||
+    initialListing?.id ||
     (typeof window !== "undefined"
-      ? window.location.pathname.split("/listing/")[1]?.split("?")[0]
-      : undefined);
+      ? (() => {
+          const path = window.location.pathname;
+          // /listing/{uuid}
+          const legacyMatch = path.match(/\/listing\/([a-f0-9-]{36})/);
+          if (legacyMatch) return legacyMatch[1];
+          // /auta/{brand}/{model}/{slug}-{8hex} — extract UUID-like or use initialListingId
+          return null;
+        })()
+      : null) ||
+    undefined;
   const isEmbedded = embeddedMode ?? (
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("embedded") === "1"
@@ -3397,10 +3411,7 @@ export default function ListingDetailPage({
   } = useQuery<Listing>({
     queryKey: [`/api/listings/${listingId}`],
     enabled: !!listingId,
-    initialData:
-      initialListing && listingId && initialListing.id === listingId
-        ? initialListing
-        : undefined,
+    initialData: initialListing ?? undefined,
   });
 
   const { data: seller } = useQuery<PublicContact>({
