@@ -77,17 +77,30 @@ async function queryPopularModels(brandSlug: string, limit = 50) {
   return rows.filter((r) => Boolean(r.model));
 }
 
+async function queryBrandStats(brandSlug: string) {
+  const norm = brandSlug.trim().toLowerCase();
+  const [row] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      minPrice: sql<number>`min(price::numeric)::int`,
+      maxPrice: sql<number>`max(price::numeric)::int`,
+    })
+    .from(listings)
+    .where(and(eq(listings.isSold, false), sql`lower(${listings.brand}) = ${norm}`));
+  return { total: row?.total ?? 0, minPrice: row?.minPrice ?? 0, maxPrice: row?.maxPrice ?? 0 };
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { brand } = await params;
   const brandSlug = decodeURIComponent(brand).toLowerCase();
   const brandName = formatBrandDisplay(brandSlug);
-  const rows = await queryBrandListings(brand, 1);
-  const hasAny = rows.length > 0;
+  const stats = await queryBrandStats(brandSlug);
+  const hasAny = stats.total > 0;
   const title = hasAny
-    ? `Prodej ${brandName} v ČR – ojetá i nová auta | NNAuto`
+    ? `${brandName} na prodej (${stats.total}) – od ${stats.minPrice.toLocaleString("cs-CZ")} Kč | NNAuto`
     : `${brandName} na NNAuto`;
   const description = hasAny
-    ? `Ověřené inzeráty značky ${brandName} na NNAuto. Prohlédněte si ${brandName} od soukromých prodejců i autobazarů, filtrujte podle roku, ceny, najetých km a regionu. Kontakt přímo s majitelem.`
+    ? `${stats.total} ověřených inzerátů ${brandName} na NNAuto. Ceny od ${stats.minPrice.toLocaleString("cs-CZ")} Kč do ${stats.maxPrice.toLocaleString("cs-CZ")} Kč. Ojeté i nové vozy, přímý kontakt s prodejcem.`
     : `Aktuální nabídka ${brandName} na NNAuto – prémiovém marketplace automobilů v ČR.`;
   const canonical = `${SITE_ORIGIN}/auta/${encodeURIComponent(brand.toLowerCase())}`;
 
@@ -132,9 +145,10 @@ export default async function BrandLandingPage({ params }: Props) {
   const { brand } = await params;
   const brandSlug = decodeURIComponent(brand).toLowerCase();
   const brandName = formatBrandDisplay(brandSlug);
-  const [rows, popularModels] = await Promise.all([
+  const [rows, popularModels, brandStats] = await Promise.all([
     queryBrandListings(brandSlug, 30),
     queryPopularModels(brandSlug, 12),
+    queryBrandStats(brandSlug),
   ]);
 
   if (!rows.length) {
@@ -245,6 +259,23 @@ export default async function BrandLandingPage({ params }: Props) {
           },
         ],
       }} />
+      {brandStats.total >= 3 && brandStats.minPrice > 0 ? (
+        <JsonLd data={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: `${brandName} – ojetá auta`,
+          description: `Nabídka ${brandStats.total} ojetých vozů ${brandName} na NNAuto.cz`,
+          brand: { "@type": "Brand", name: brandName },
+          offers: {
+            "@type": "AggregateOffer",
+            lowPrice: String(brandStats.minPrice),
+            highPrice: String(brandStats.maxPrice),
+            priceCurrency: "CZK",
+            offerCount: brandStats.total,
+            availability: "https://schema.org/InStock",
+          },
+        }} />
+      ) : null}
 
       <nav
         className="text-sm text-muted-foreground mb-4 flex gap-1 flex-wrap"

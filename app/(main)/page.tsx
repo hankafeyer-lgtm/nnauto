@@ -7,6 +7,8 @@ import { db } from "@lib/db";
 import { listings } from "@shared/schema";
 import { eq, sql, desc } from "drizzle-orm";
 import { sortByTopPriority, getTopModelLinks } from "@lib/seo/top-models";
+import { buildListingUrl } from "@lib/seo/listing-url";
+import { getListingMainTitleFromRow } from "@lib/seo/listing-title";
 import HomeClient from "./home-client";
 
 const HOME_TITLE =
@@ -65,8 +67,27 @@ async function getTopModels(limit = 30) {
     .limit(limit);
 }
 
+async function getRecentListings(limit = 6) {
+  return db
+    .select({
+      id: listings.id,
+      brand: listings.brand,
+      model: listings.model,
+      year: listings.year,
+      price: listings.price,
+      createdAt: listings.createdAt,
+    })
+    .from(listings)
+    .where(eq(listings.isSold, false))
+    .orderBy(desc(listings.createdAt))
+    .limit(limit);
+}
+
 export default async function Home() {
-  const rawModels = await getTopModels(40);
+  const [rawModels, recentListings] = await Promise.all([
+    getTopModels(40),
+    getRecentListings(6),
+  ]);
   const topModels = sortByTopPriority(rawModels).slice(0, 30);
   const topLinks = getTopModelLinks();
   return (
@@ -146,6 +167,31 @@ export default async function Home() {
                     <span className="ml-2 shrink-0 text-xs text-muted-foreground">
                       {m.total}
                     </span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
+      {/* Freshness signal: recently added listings with dates */}
+      {recentListings.length > 0 && (
+        <section className="container mx-auto max-w-6xl px-4 py-4">
+          <h3 className="text-base font-semibold mb-2 text-muted-foreground">
+            Nově přidané vozy
+          </h3>
+          <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-sm">
+            {recentListings.map((l) => {
+              const title = getListingMainTitleFromRow(l);
+              const href = buildListingUrl({ id: l.id, brand: l.brand, model: l.model, year: l.year });
+              const price = Number(l.price).toLocaleString("cs-CZ");
+              const date = l.createdAt ? new Date(l.createdAt).toLocaleDateString("cs-CZ") : "";
+              return (
+                <li key={l.id}>
+                  <a href={href} className="flex justify-between items-baseline gap-2 rounded-md border px-3 py-2 hover:bg-accent transition-colors">
+                    <span className="truncate font-medium">{title}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{price} Kč · {date}</span>
                   </a>
                 </li>
               );
