@@ -110,6 +110,7 @@ export function buildListingMetadata(
     id: listing.id,
     brand: listing.brand,
     model: listing.model,
+    year: listing.year,
   });
 
   return {
@@ -200,6 +201,7 @@ export function renderListingDetailPage({
     id: listing.id,
     brand: listing.brand,
     model: listing.model,
+    year: listing.year,
   });
 
   const productJsonLd = {

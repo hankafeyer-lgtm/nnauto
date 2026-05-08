@@ -2,22 +2,27 @@
  * Listing URL builder for SEO-friendly paths.
  *
  * Canonical format:
- *   /auta/[brand]/[model]/[id]
+ *   /auta/[brand]/[model]/[slug]-[shortId]
  *
  * Where:
- *   - brand and model are normalized via `normalizeSlug` (ASCII, lowercase,
- *     hyphenated; `Škoda` → `skoda`, `Mercedes-Benz` → `mercedes-benz`).
- *   - id is the FULL UUID (kept identical to the legacy `/listing/[id]`
- *     identifier — zero collision risk, no migration of existing identifiers,
- *     existing share/email/Stripe/etc URLs that embed the UUID can be
- *     rewritten one-to-one).
+ *   - brand and model are normalized via `normalizeSlug`.
+ *   - The final segment is a human-readable slug built from brand+model+year
+ *     followed by the first 8 chars of the UUID (enough for unique lookup).
  *
- * The legacy `/listing/[id]` path remains live and serves the same content;
- * its `<link rel="canonical">` always points to the new URL built here.
+ * Examples:
+ *   { id: "507296e4-...", brand: "Škoda", model: "Octavia", year: 2018 }
+ *     → "/auta/skoda/octavia/skoda-octavia-2018-507296e4"
  *
- * IMPORTANT: this builder must NEVER throw. If a listing is missing brand or
- * model (theoretically impossible given DB invariants, but defensively), we
- * fall back to the legacy `/listing/[id]` path so the link still resolves.
+ *   { id: "919ad0cc-...", brand: "Mercedes-Benz", model: "C-Class", year: 2020 }
+ *     → "/auta/mercedes-benz/c-class/mercedes-benz-c-class-2020-919ad0cc"
+ *
+ * The route handler extracts the trailing 8-char hex as the lookup key,
+ * then verifies the slug matches the listing (self-healing redirect if not).
+ *
+ * The legacy `/listing/[id]` and old full-UUID paths remain live via
+ * redirect to the canonical slug URL.
+ *
+ * IMPORTANT: this builder must NEVER throw.
  */
 import { normalizeSlug } from "./slug";
 
@@ -25,19 +30,29 @@ export interface ListingUrlInput {
   id: string;
   brand?: string | null;
   model?: string | null;
+  year?: number | null;
+}
+
+function buildSlugSegment(input: ListingUrlInput): string {
+  const brand = normalizeSlug(input.brand);
+  const model = normalizeSlug(input.model);
+  const year = input.year ? String(input.year) : "";
+  const shortId = (input.id ?? "").replace(/-/g, "").slice(0, 8);
+  const parts = [brand, model, year, shortId].filter(Boolean);
+  return parts.join("-");
+}
+
+/**
+ * Extract the 8-char short ID from the end of a listing slug segment.
+ * Returns null if the format doesn't match.
+ */
+export function extractShortIdFromSlug(slug: string): string | null {
+  const match = slug.match(/([a-f0-9]{8})$/);
+  return match?.[1] ?? null;
 }
 
 /**
  * Build the canonical SEO listing URL.
- *
- * Examples:
- *   { id: "507296e4-9441-4af8-80d7-788a036bf8fd", brand: "Škoda",         model: "Octavia" }
- *     → "/auta/skoda/octavia/507296e4-9441-4af8-80d7-788a036bf8fd"
- *
- *   { id: "919ad0cc-...",                          brand: "Mercedes-Benz", model: "C-Class" }
- *     → "/auta/mercedes-benz/c-class/919ad0cc-..."
- *
- * Falls back to legacy `/listing/[id]` if brand or model is missing.
  */
 export function buildListingUrl(input: ListingUrlInput): string {
   const brandSlug = normalizeSlug(input.brand);
@@ -45,7 +60,8 @@ export function buildListingUrl(input: ListingUrlInput): string {
   if (!brandSlug || !modelSlug || !input.id) {
     return `/listing/${input.id}`;
   }
-  return `/auta/${brandSlug}/${modelSlug}/${input.id}`;
+  const segment = buildSlugSegment(input);
+  return `/auta/${brandSlug}/${modelSlug}/${segment}`;
 }
 
 /**

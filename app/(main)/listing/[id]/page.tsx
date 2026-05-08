@@ -76,6 +76,7 @@ export default async function ListingDetail({ params, searchParams }: Props) {
       id: listing.id,
       brand: listing.brand,
       model: listing.model,
+      year: listing.year,
     });
     permanentRedirect(appendSearchParams(nextPath, resolvedSearchParams));
   }

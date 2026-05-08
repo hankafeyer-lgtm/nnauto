@@ -23,7 +23,7 @@ import { permanentRedirect } from "next/navigation";
 import { normalizeSlug } from "@lib/seo/slug";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import {
-  getListingById,
+  getListingBySlugId,
   getSimilarListings,
 } from "../../../../listing/[id]/get-listing";
 import {
@@ -57,7 +57,7 @@ function appendSearchParams(
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const listing = await getListingById(decodeURIComponent(id));
+  const listing = await getListingBySlugId(decodeURIComponent(id));
   return buildListingMetadata(listing, id);
 }
 
@@ -68,38 +68,26 @@ export default async function ListingDetailSeo({
   searchParams,
 }: Props) {
   const { brand: urlBrand, model: urlModel, id: rawId } = await params;
-  const id = decodeURIComponent(rawId);
+  const slugOrId = decodeURIComponent(rawId);
   const resolvedSearchParams = await searchParams;
   const isEmbedded = resolvedSearchParams?.embedded === "1";
-  const listing = await getListingById(id);
+  const listing = await getListingBySlugId(slugOrId);
 
   if (!listing) return renderListingNotFound();
 
-  // Self-healing redirect: if the URL slug doesn't match the listing's actual
-  // brand/model (e.g. listing was edited from "Škoda Octavia" to "Škoda
-  // Superb" after the URL was minted), redirect to the canonical URL.
-  // We don't redirect inside iframes — that can break parent page integrations,
-  // including unknown third-party iframe consumers.
+  // Self-healing redirect: if the incoming URL doesn't match the
+  // listing's canonical slug (brand/model changed, or old UUID format),
+  // issue a 301 to the current canonical. Keeps link equity consolidated.
   if (!isEmbedded) {
-    const expectedBrand = normalizeSlug(listing.brand);
-    const expectedModel = normalizeSlug(listing.model);
-    const incomingBrand = decodeURIComponent(urlBrand).toLowerCase();
-    const incomingModel = decodeURIComponent(urlModel).toLowerCase();
-    if (
-      expectedBrand &&
-      expectedModel &&
-      (incomingBrand !== expectedBrand || incomingModel !== expectedModel)
-    ) {
-      permanentRedirect(
-        appendSearchParams(
-          buildListingUrl({
-          id: listing.id,
-          brand: listing.brand,
-          model: listing.model,
-          }),
-          resolvedSearchParams,
-        ),
-      );
+    const canonical = buildListingUrl({
+      id: listing.id,
+      brand: listing.brand,
+      model: listing.model,
+      year: listing.year,
+    });
+    const incomingPath = `/auta/${decodeURIComponent(urlBrand)}/${decodeURIComponent(urlModel)}/${slugOrId}`;
+    if (incomingPath !== canonical) {
+      permanentRedirect(appendSearchParams(canonical, resolvedSearchParams));
     }
   }
 

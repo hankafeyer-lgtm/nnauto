@@ -18,6 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       id: listings.id,
       brand: listings.brand,
       model: listings.model,
+      year: listings.year,
       updatedAt: listings.updatedAt,
       createdAt: listings.createdAt,
     })
@@ -102,6 +103,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       id: l.id,
       brand: l.brand,
       model: l.model,
+      year: l.year,
     })}`,
     lastModified: l.updatedAt || l.createdAt || new Date(),
     changeFrequency: "daily" as const,
