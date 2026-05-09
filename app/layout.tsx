@@ -394,26 +394,26 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* Meta Pixel (Facebook + Instagram) — env-gated. To enable, set
-            NEXT_PUBLIC_META_PIXEL_ID on the Hetzner server and rebuild. */}
-        {process.env.NEXT_PUBLIC_META_PIXEL_ID ? (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                !function(f,b,e,v,n,t,s){
-                  if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-                  n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-                  if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-                  n.queue=[];t=b.createElement(e);t.async=!0;
-                  t.src=v;s=b.getElementsByTagName(e)[0];
-                  s.parentNode.insertBefore(t,s)
-                }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
-                fbq('init', '${process.env.NEXT_PUBLIC_META_PIXEL_ID}');
-                fbq('track', 'PageView');
-              `,
-            }}
-          />
-        ) : null}
+        {/* Meta Pixel (Facebook + Instagram) — loaded unconditionally.
+            If NEXT_PUBLIC_META_PIXEL_ID is not set, fbq('init') gets an empty
+            string which is harmless (SDK ignores it, no errors). Once the env
+            var is set on the server and rebuilt, it starts tracking. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              !function(f,b,e,v,n,t,s){
+                if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+                n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+                if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+                n.queue=[];t=b.createElement(e);t.async=!0;
+                t.src=v;s=b.getElementsByTagName(e)[0];
+                s.parentNode.insertBefore(t,s)
+              }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', '${process.env.NEXT_PUBLIC_META_PIXEL_ID || ""}');
+              fbq('track', 'PageView');
+            `,
+          }}
+        />
         {/* TikTok Pixel — loaded immediately. Without this, ads optimisation
             inside TikTok Ads Manager can't attribute conversions on fast bounces. */}
         <script
