@@ -3444,6 +3444,16 @@ export default function ListingDetailPage({
     });
   }, [listingId, initialListingId]);
 
+  const {
+    data: listing,
+    isLoading,
+    error,
+  } = useQuery<Listing>({
+    queryKey: [`/api/listings/${listingId}`],
+    enabled: !!listingId,
+    initialData: initialListing ?? undefined,
+  });
+
   useEffect(() => {
     const storageKeyId =
       listing?.id ?? (isFullUuid ? listingId : undefined);
@@ -3463,16 +3473,6 @@ export default function ListingDetailPage({
       // ignore
     }
   }, [listing?.id, listingId, isFullUuid]);
-
-  const {
-    data: listing,
-    isLoading,
-    error,
-  } = useQuery<Listing>({
-    queryKey: [`/api/listings/${listingId}`],
-    enabled: !!listingId,
-    initialData: initialListing ?? undefined,
-  });
 
   const resolvedListingUuid =
     listing?.id ??
