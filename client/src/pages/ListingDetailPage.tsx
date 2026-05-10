@@ -3130,6 +3130,7 @@ import { getListingMainTitle } from "@/lib/listingTitle";
 import { buildListingAbsoluteUrl } from "@/lib/listingUrl";
 import { format } from "date-fns";
 import Header from "@/components/Header";
+import LoginModal from "@/components/LoginModal";
 import MobileFilters from "@/components/MobileFilters";
 import { MediaLightbox } from "@/components/MediaLightbox";
 import {
@@ -3238,6 +3239,7 @@ export default function ListingDetailPage({
   );
 
   const [showContactDialog, setShowContactDialog] = useState(false);
+  const [showChatLoginModal, setShowChatLoginModal] = useState(false);
   const [embeddedSearchQuery, setEmbeddedSearchQuery] = useState("");
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
@@ -4104,6 +4106,28 @@ export default function ListingDetailPage({
     ],
     [t],
   );
+
+  const handleOpenChat = useCallback(async () => {
+    if (!listing) return;
+    if (!isAuthenticated || !user) {
+      setShowChatLoginModal(true);
+      return;
+    }
+    if (user.id === listing.userId) {
+      toast({ title: "Nelze psát sám sobě", variant: "destructive" });
+      return;
+    }
+    try {
+      await apiRequest("POST", "/api/conversations/contact", {
+        listingId: listing.id,
+        name: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || undefined,
+        email: user.email || undefined,
+        phone: (user as any).phone || undefined,
+        message: `Dobrý den, mám zájem o ${getListingMainTitle(listing)}. Je ještě k dispozici?`,
+      });
+    } catch { /* conversation may already exist */ }
+    navigate("/zpravy");
+  }, [listing, isAuthenticated, user, toast, navigate]);
 
   const handleToggleFavorite = useCallback(() => {
     if (!listing) return;
@@ -5536,17 +5560,22 @@ export default function ListingDetailPage({
                         {t("detail.share")}
                       </Button>
 
-                      {/* {cebiaCoupon?.couponNumber && (
-                        <a
-                          className="text-sm underline"
-                          href={`/api/cebia/pdf?coupon=${encodeURIComponent(cebiaCoupon.couponNumber)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Open PDF
-                        </a>
-                      )} */}
                     </div>
+
+                    {/* Internal chat button — same row style as WhatsApp/Telegram */}
+                    {listing.userId !== user?.id && (
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full gap-2"
+                        onClick={handleOpenChat}
+                        data-testid="button-open-chat"
+                      >
+                        <MessageCircle className="h-5 w-5 text-[#B8860B]" />
+                        Napsat do chatu
+                      </Button>
+                    )}
+
                     {listing.phone ? (
                       // <ContactChatButtons
                       //   phone={listing.phone}
@@ -5831,6 +5860,26 @@ export default function ListingDetailPage({
               sellerType (legacy data) keep the form by default so we
               don't regress the dealer-heavy production dataset.
             */}
+            {/* Internal chat option in contact dialog */}
+            {listing.userId !== user?.id && (
+              <>
+                <Separator />
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full gap-2"
+                  onClick={() => {
+                    setShowContactDialog(false);
+                    handleOpenChat();
+                  }}
+                  data-testid="button-chat-in-dialog"
+                >
+                  <MessageCircle className="h-5 w-5 text-[#B8860B]" />
+                  Napsat do chatu NNAuto
+                </Button>
+              </>
+            )}
+
             {listing.sellerType !== "private" && (
               <>
                 <Separator />
@@ -6063,6 +6112,12 @@ export default function ListingDetailPage({
           }}
         />
       ) : null}
+
+      {/* Login modal for chat — shown when unauthenticated user clicks "Napsat do chatu" */}
+      <LoginModal
+        open={showChatLoginModal}
+        onOpenChange={setShowChatLoginModal}
+      />
     </div>
   );
 }
