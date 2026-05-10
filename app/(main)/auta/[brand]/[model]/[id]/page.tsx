@@ -31,6 +31,7 @@ import {
   renderListingDetailPage,
   renderListingNotFound,
 } from "../../../../listing/[id]/listing-detail-shared";
+import { safeDecodeURIComponent } from "@lib/safe-decode";
 
 type Props = {
   params: Promise<{ brand: string; model: string; id: string }>;
@@ -57,7 +58,7 @@ function appendSearchParams(
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const listing = await getListingBySlugId(decodeURIComponent(id));
+  const listing = await getListingBySlugId(safeDecodeURIComponent(id));
   return buildListingMetadata(listing, id);
 }
 
@@ -68,7 +69,7 @@ export default async function ListingDetailSeo({
   searchParams,
 }: Props) {
   const { brand: urlBrand, model: urlModel, id: rawId } = await params;
-  const slugOrId = decodeURIComponent(rawId);
+  const slugOrId = safeDecodeURIComponent(rawId);
   const resolvedSearchParams = await searchParams;
   const isEmbedded = resolvedSearchParams?.embedded === "1";
   const listing = await getListingBySlugId(slugOrId);
@@ -85,7 +86,7 @@ export default async function ListingDetailSeo({
       model: listing.model,
       year: listing.year,
     });
-    const incomingPath = `/auta/${decodeURIComponent(urlBrand)}/${decodeURIComponent(urlModel)}/${slugOrId}`;
+    const incomingPath = `/auta/${safeDecodeURIComponent(urlBrand)}/${safeDecodeURIComponent(urlModel)}/${slugOrId}`;
     if (incomingPath !== canonical) {
       permanentRedirect(appendSearchParams(canonical, resolvedSearchParams));
     }

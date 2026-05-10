@@ -145,13 +145,25 @@ export interface RenderListingDetailProps {
   isEmbedded: boolean;
 }
 
+function cloneListingRecordForClient(listing: ListingRecord): ListingRecord {
+  try {
+    return JSON.parse(
+      JSON.stringify(listing, (_k, v) =>
+        typeof v === "bigint" ? v.toString() : v,
+      ),
+    ) as ListingRecord;
+  } catch {
+    return JSON.parse(JSON.stringify(listing)) as ListingRecord;
+  }
+}
+
 export function renderListingDetailPage({
   listing,
   similarListings,
   isEmbedded,
 }: RenderListingDetailProps) {
   const id = listing.id;
-  const initialListing = JSON.parse(JSON.stringify(listing)) as ListingRecord;
+  const initialListing = cloneListingRecordForClient(listing);
   const brand = formatBrandDisplay(listing.brand);
   const price = Number(listing.price).toLocaleString("cs-CZ");
   const modelLabel = formatModelDisplay(listing.model);

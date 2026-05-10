@@ -3192,6 +3192,18 @@ function safeDecodePathSegment(segment: string): string {
   }
 }
 
+/** date-fns `format` throws on Invalid Date — that took down the whole listing page. */
+function formatListingDateCs(value: unknown): string {
+  try {
+    const d =
+      value instanceof Date ? value : new Date(value as string | number);
+    if (Number.isNaN(d.getTime())) return "—";
+    return format(d, "dd.MM.yyyy");
+  } catch {
+    return "—";
+  }
+}
+
 function listingSegmentsReferToSameListing(a: string, b: string): boolean {
   if (a === b) return true;
   const norm = (s: string) => s.replace(/-/g, "").toLowerCase();
@@ -5804,7 +5816,7 @@ export default function ListingDetailPage({
                         {t("detail.postedOn")}
                       </span>
                       <span className="font-medium">
-                        {format(new Date(listing.createdAt), "dd.MM.yyyy")}
+                        {formatListingDateCs(listing.createdAt)}
                       </span>
                     </div>
 
