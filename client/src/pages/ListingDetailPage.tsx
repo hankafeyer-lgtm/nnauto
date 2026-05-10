@@ -3057,7 +3057,7 @@ import {
   lazy,
   Suspense,
 } from "react";
-import { useLocation, Link, useParams } from "@/lib/navigation";
+import { useLocation, Link, useParams, usePathname } from "@/lib/navigation";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 import {
@@ -3129,8 +3129,8 @@ import { canPrefetchHeavyResources } from "@/lib/queryClient";
 import { getListingMainTitle } from "@/lib/listingTitle";
 import { buildListingAbsoluteUrl } from "@/lib/listingUrl";
 import { format } from "date-fns";
+import { extractShortIdFromSlug } from "@lib/seo/listing-url";
 import Header from "@/components/Header";
-import LoginModal from "@/components/LoginModal";
 import MobileFilters from "@/components/MobileFilters";
 import { MediaLightbox } from "@/components/MediaLightbox";
 import {
@@ -3160,6 +3160,7 @@ import { trackContact, trackViewContent } from "@/lib/analytics";
 import StickyContactBar from "@/components/StickyContactBar";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
+const ChatLoginModal = lazy(() => import("@/components/LoginModal"));
 
 // Type for public contact information returned by /api/users/:id
 type PublicContact = {
@@ -3179,6 +3180,36 @@ type ListingAnalytics = {
 };
 
 const safeWindow = () => (typeof window !== "undefined" ? window : null);
+
+/** Same listing may appear as full UUID in session or as SEO slug in the path. */
+/** Avoid hard crash if the URL segment contains malformed %-encoding. */
+function safeDecodePathSegment(segment: string): string {
+  if (!segment) return "";
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
+function listingSegmentsReferToSameListing(a: string, b: string): boolean {
+  if (a === b) return true;
+  const norm = (s: string) => s.replace(/-/g, "").toLowerCase();
+  const na = norm(a);
+  const nb = norm(b);
+  if (na.length >= 8 && nb.length >= 8) {
+    if (na.startsWith(nb.slice(0, 8)) || nb.startsWith(na.slice(0, 8)))
+      return true;
+  }
+  const tail = (s: string) =>
+    s.match(/([a-f0-9]{8})$/i)?.[1]?.toLowerCase() ?? "";
+  const ta = tail(a);
+  const tb = tail(b);
+  if (ta && tb && ta === tb) return true;
+  if (ta && nb.startsWith(ta)) return true;
+  if (tb && na.startsWith(tb)) return true;
+  return false;
+}
 
 function PageLoaderInline({ text }: { text: string }) {
   return (
@@ -3212,23 +3243,35 @@ export default function ListingDetailPage({
   const { toast } = useToast();
   const { user } = useAuth();
   const [, navigate] = useLocation();
+  const pathname = usePathname();
 
   const routeParams = useParams();
   // Prefer the server-provided UUID (initialListingId) over URL-parsed
-  // values which may now be SEO slugs instead of raw UUIDs.
-  const rawRouteId = (routeParams?.id as string) || "";
-  const isUuid = /^[a-f0-9]{8}-[a-f0-9]{4}-/.test(rawRouteId);
+  // values which may be SEO slug segments (…-507296e4) instead of raw UUIDs.
+  const idFromPathname =
+    pathname.match(/\/auta\/[^/]+\/[^/]+\/([^/?#]+)/)?.[1] ||
+    pathname.match(/\/listing\/([^/?#]+)/)?.[1] ||
+    "";
+  const rawRouteId = safeDecodePathSegment(
+    (routeParams?.id as string) || idFromPathname || "",
+  );
+  const isFullUuid =
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+      rawRouteId,
+    );
+  const seoSlugShortId = extractShortIdFromSlug(rawRouteId);
   const listingId =
     initialListingId ||
-    (isUuid ? rawRouteId : null) ||
+    (isFullUuid ? rawRouteId : null) ||
+    (seoSlugShortId ? rawRouteId : null) ||
     initialListing?.id ||
     (typeof window !== "undefined"
       ? (() => {
           const path = window.location.pathname;
-          // /listing/{uuid}
-          const legacyMatch = path.match(/\/listing\/([a-f0-9-]{36})/);
+          const legacyMatch = path.match(
+            /\/listing\/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i,
+          );
           if (legacyMatch) return legacyMatch[1];
-          // /auta/{brand}/{model}/{slug}-{8hex} — extract UUID-like or use initialListingId
           return null;
         })()
       : null) ||
@@ -3289,7 +3332,7 @@ export default function ListingDetailPage({
         if (
           parsed.listingId &&
           listingId &&
-          String(parsed.listingId) !== String(listingId)
+          !listingSegmentsReferToSameListing(parsed.listingId, listingId)
         ) {
           return null;
         }
@@ -3347,7 +3390,8 @@ export default function ListingDetailPage({
       if (ref.origin !== window.location.origin) return null;
       if (ref.pathname !== "/" && ref.pathname !== "/listings") return null;
       const refPath = `${ref.pathname}${ref.search}`;
-      const fallbackUrl = `${refPath}#listing-${encodeURIComponent(listingId)}`;
+      const hashTargetId = initialListingId ?? listingId;
+      const fallbackUrl = `${refPath}#listing-${encodeURIComponent(hashTargetId)}`;
       restoreDebug("detail", "get-return-url:referrer-fallback", {
         listingId,
         returnUrl: fallbackUrl,
@@ -3357,7 +3401,7 @@ export default function ListingDetailPage({
       restoreDebug("detail", "get-return-url:none", { listingId });
       return null;
     }
-  }, [listingId]);
+  }, [listingId, initialListingId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -3369,7 +3413,7 @@ export default function ListingDetailPage({
     sessionStorage.setItem(
       LISTING_STATE_KEY,
       JSON.stringify({
-        listingId: listingId ?? null,
+        listingId: (initialListingId ?? listingId) ?? null,
         returnUrl: fromParam,
         scrollY: null,
         savedAt: Date.now(),
@@ -3386,12 +3430,14 @@ export default function ListingDetailPage({
       fromParam,
       targetId: decodeURIComponent(targetId),
     });
-  }, [listingId]);
+  }, [listingId, initialListingId]);
 
   useEffect(() => {
-    if (!listingId) return;
+    const storageKeyId =
+      listing?.id ?? (isFullUuid ? listingId : undefined);
+    if (!storageKeyId) return;
     try {
-      const raw = localStorage.getItem(`cebia:guest:${listingId}`);
+      const raw = localStorage.getItem(`cebia:guest:${storageKeyId}`);
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (
@@ -3404,7 +3450,7 @@ export default function ListingDetailPage({
     } catch {
       // ignore
     }
-  }, [listingId]);
+  }, [listing?.id, listingId, isFullUuid]);
 
   const {
     data: listing,
@@ -3415,6 +3461,11 @@ export default function ListingDetailPage({
     enabled: !!listingId,
     initialData: initialListing ?? undefined,
   });
+
+  const resolvedListingUuid =
+    listing?.id ??
+    initialListingId ??
+    (isFullUuid ? rawRouteId : undefined);
 
   const { data: seller } = useQuery<PublicContact>({
     queryKey: [`/api/users/${listing?.userId}`],
@@ -3446,12 +3497,12 @@ export default function ListingDetailPage({
   // /listings?userId=me and on the home catalogue for admins. The hook
   // internally hits /api/listings/analytics/batch with a single id.
   const { stats: sharedStats } = useListingStats(
-    listingId,
-    { enabled: canSeeListingAnalytics },
+    resolvedListingUuid,
+    { enabled: canSeeListingAnalytics && !!resolvedListingUuid },
   );
 
   const listingAnalyticsSafe: ListingAnalytics = {
-    listingId: listingId,
+    listingId: resolvedListingUuid ?? listing?.id ?? listingId ?? "",
     views: sharedStats?.views ?? 0,
     contactClicks: sharedStats?.contactClicks ?? 0,
     whatsappClicks: sharedStats?.whatsappClicks ?? 0,
@@ -3719,14 +3770,23 @@ export default function ListingDetailPage({
 
   const toggleSoldMutation = useMutation({
     mutationFn: async ({ isSold }: { isSold: boolean }) => {
-      if (!listingId) throw new Error("Missing listing");
-      const res = await apiRequest("PUT", `/api/listings/${listingId}`, {
+      const row = listingId
+        ? queryClient.getQueryData<Listing>([`/api/listings/${listingId}`])
+        : undefined;
+      const id = row?.id;
+      if (!id) throw new Error("Missing listing");
+      const res = await apiRequest("PUT", `/api/listings/${id}`, {
         isSold,
       });
       return (await res.json()) as Listing;
     },
     onSuccess: (updated) => {
-      queryClient.setQueryData([`/api/listings/${listingId}`], updated);
+      if (listingId) {
+        queryClient.setQueryData([`/api/listings/${listingId}`], updated);
+      }
+      if (updated?.id && updated.id !== listingId) {
+        queryClient.setQueryData([`/api/listings/${updated.id}`], updated);
+      }
       queryClient.invalidateQueries({
         predicate: (q) => q.queryKey[0] === "/api/listings",
         refetchType: "all",
@@ -3762,16 +3822,16 @@ export default function ListingDetailPage({
       const endpoint = user ? "/api/cebia/checkout" : "/api/cebia/guest/checkout";
       const res = await apiRequest("POST", endpoint, {
         vin,
-        listingId,
+        listingId: listing!.id,
       });
       return (await res.json()) as { url?: string; reportId?: string; guestToken?: string };
     },
     onSuccess: (data) => {
       if (data?.url) {
-        if (!user && data?.reportId && data?.guestToken && listingId) {
+        if (!user && data?.reportId && data?.guestToken && listing?.id) {
           try {
             localStorage.setItem(
-              `cebia:guest:${listingId}`,
+              `cebia:guest:${listing.id}`,
               JSON.stringify({ reportId: data.reportId, token: data.guestToken }),
             );
             setCebiaGuest({ reportId: data.reportId, token: data.guestToken });
@@ -3779,7 +3839,7 @@ export default function ListingDetailPage({
             localStorage.setItem(
               "cebia:last",
               JSON.stringify({
-                listingId,
+                listingId: listing.id,
                 reportId: data.reportId,
                 token: data.guestToken,
                 ts: Date.now(),
@@ -4109,7 +4169,7 @@ export default function ListingDetailPage({
 
   const handleOpenChat = useCallback(async () => {
     if (!listing) return;
-    if (!isAuthenticated || !user) {
+    if (!user) {
       setShowChatLoginModal(true);
       return;
     }
@@ -4127,7 +4187,7 @@ export default function ListingDetailPage({
       });
     } catch { /* conversation may already exist */ }
     navigate("/zpravy");
-  }, [listing, isAuthenticated, user, toast, navigate]);
+  }, [listing, user, toast, navigate]);
 
   const handleToggleFavorite = useCallback(() => {
     if (!listing) return;
@@ -4199,11 +4259,11 @@ export default function ListingDetailPage({
         | "whatsapp_click"
         | "telegram_click",
     ) => {
-      if (!listingId) return;
+      if (!resolvedListingUuid) return;
       try {
         await apiRequest(
           "POST",
-          `/api/listings/${encodeURIComponent(listingId)}/analytics/${eventType}`,
+          `/api/listings/${encodeURIComponent(resolvedListingUuid)}/analytics/${eventType}`,
           {},
         );
         if (canSeeListingAnalytics) {
@@ -4223,26 +4283,26 @@ export default function ListingDetailPage({
         // Analytics should never block user actions.
       }
     },
-    [listingId, canSeeListingAnalytics],
+    [resolvedListingUuid, canSeeListingAnalytics],
   );
 
   useEffect(() => {
-    if (!listingId || !listing) return;
-    const sessionKey = `listing-analytics:view:${listingId}`;
+    if (!resolvedListingUuid || !listing) return;
+    const sessionKey = `listing-analytics:view:${resolvedListingUuid}`;
     if (sessionStorage.getItem(sessionKey)) return;
     sessionStorage.setItem(sessionKey, "1");
     void trackListingAnalyticsEvent("view");
     try {
       const priceNum = Number.parseFloat(String(listing.price ?? ""));
       trackViewContent({
-        contentId: listingId,
+        contentId: resolvedListingUuid,
         contentName: getListingMainTitle(listing),
         contentCategory: listing.bodyType || listing.category || undefined,
         value: Number.isFinite(priceNum) ? priceNum : undefined,
         currency: "CZK",
       });
     } catch { /* analytics must never break the app */ }
-  }, [listingId, listing, trackListingAnalyticsEvent]);
+  }, [resolvedListingUuid, listing, trackListingAnalyticsEvent]);
 
   // ⚠️ CRITICAL UX LOGIC
   // Swipe/back + "zpět na inzeráty" must behave identically
@@ -5522,7 +5582,7 @@ export default function ListingDetailPage({
                         void trackListingAnalyticsEvent("contact_click");
                         try {
                           trackContact("phone", {
-                            listingId,
+                            listingId: listing.id,
                             listingName: getListingMainTitle(listing),
                           });
                         } catch { /* noop */ }
@@ -5597,7 +5657,7 @@ export default function ListingDetailPage({
                           void trackListingAnalyticsEvent("whatsapp_click");
                           try {
                             trackContact("whatsapp", {
-                              listingId,
+                              listingId: listing.id,
                               listingName: getListingMainTitle(listing),
                             });
                           } catch { /* noop */ }
@@ -5606,7 +5666,7 @@ export default function ListingDetailPage({
                           void trackListingAnalyticsEvent("telegram_click");
                           try {
                             trackContact("telegram", {
-                              listingId,
+                              listingId: listing.id,
                               listingName: getListingMainTitle(listing),
                             });
                           } catch { /* noop */ }
@@ -5830,7 +5890,7 @@ export default function ListingDetailPage({
                         onClick={() => {
                           try {
                             trackContact("phone", {
-                              listingId,
+                              listingId: listing.id,
                               listingName: getListingMainTitle(listing),
                             });
                           } catch { /* noop */ }
@@ -6070,7 +6130,7 @@ export default function ListingDetailPage({
             void trackListingAnalyticsEvent("contact_click");
             try {
               trackContact("phone", {
-                listingId,
+                listingId: listing.id,
                 listingName: getListingMainTitle(listing),
               });
             } catch {
@@ -6082,7 +6142,7 @@ export default function ListingDetailPage({
               void trackListingAnalyticsEvent("whatsapp_click");
               try {
                 trackContact("whatsapp", {
-                  listingId,
+                  listingId: listing.id,
                   listingName: getListingMainTitle(listing),
                 });
               } catch {
@@ -6092,7 +6152,7 @@ export default function ListingDetailPage({
               void trackListingAnalyticsEvent("telegram_click");
               try {
                 trackContact("telegram", {
-                  listingId,
+                  listingId: listing.id,
                   listingName: getListingMainTitle(listing),
                 });
               } catch {
@@ -6102,7 +6162,7 @@ export default function ListingDetailPage({
               void trackListingAnalyticsEvent("contact_click");
               try {
                 trackContact("email", {
-                  listingId,
+                  listingId: listing.id,
                   listingName: getListingMainTitle(listing),
                 });
               } catch {
@@ -6113,11 +6173,15 @@ export default function ListingDetailPage({
         />
       ) : null}
 
-      {/* Login modal for chat — shown when unauthenticated user clicks "Napsat do chatu" */}
-      <LoginModal
-        open={showChatLoginModal}
-        onOpenChange={setShowChatLoginModal}
-      />
+      {/* Chat login: load modal chunk only when needed so Turnstile/deps never block listing detail. */}
+      {showChatLoginModal ? (
+        <Suspense fallback={null}>
+          <ChatLoginModal
+            open={showChatLoginModal}
+            onOpenChange={setShowChatLoginModal}
+          />
+        </Suspense>
+      ) : null}
     </div>
   );
 }

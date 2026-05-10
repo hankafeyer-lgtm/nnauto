@@ -4,7 +4,7 @@
 // Allows existing components to work with Next.js without mass rewrites
 
 export { default as Link } from "next/link";
-export { useParams } from "next/navigation";
+export { useParams, usePathname } from "next/navigation";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 

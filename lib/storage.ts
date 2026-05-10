@@ -86,10 +86,31 @@ export const storage = {
   },
 
   async getListing(id: string): Promise<Listing | undefined> {
+    const trimmed = id.trim();
+    if (!trimmed) return undefined;
+
+    // Full UUID — same as legacy /listing/[id]
+    if (
+      /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(
+        trimmed,
+      )
+    ) {
+      const [listing] = await db
+        .select()
+        .from(listings)
+        .where(eq(listings.id, trimmed));
+      return listing || undefined;
+    }
+
+    // SEO slug segment: trailing 8 hex chars of UUID (see getListingBySlugId)
+    const shortMatch = trimmed.match(/([a-f0-9]{8})$/i);
+    if (!shortMatch) return undefined;
+    const shortId = shortMatch[1];
     const [listing] = await db
       .select()
       .from(listings)
-      .where(eq(listings.id, id));
+      .where(sql`replace(${listings.id}::text, '-', '') LIKE ${shortId + "%"}`)
+      .limit(1);
     return listing || undefined;
   },
 
