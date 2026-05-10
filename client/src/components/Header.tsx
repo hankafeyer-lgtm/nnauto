@@ -786,7 +786,10 @@ function HeaderContent({
                       data-testid="menu-item-messages"
                     >
                       <MessageCircle className="mr-3 h-5 w-5" />
-                      <span>Zprávy</span>
+                      <span className="flex items-center gap-2">
+                        Správy
+                        <UnreadBadge />
+                      </span>
                     </DropdownMenuItem>
                     {user?.isAdmin && (
                       <>
@@ -878,5 +881,25 @@ function HeaderContent({
         </Suspense>
       )}
     </header>
+  );
+}
+
+function UnreadBadge() {
+  const { data } = useQuery({
+    queryKey: ["/api/messages/unread-count"],
+    queryFn: async () => {
+      const res = await fetch("/api/messages/unread-count", { credentials: "include" });
+      if (!res.ok) return { unread: 0 };
+      return res.json() as Promise<{ unread: number }>;
+    },
+    refetchInterval: 30_000,
+    staleTime: 10_000,
+  });
+  const count = data?.unread ?? 0;
+  if (count <= 0) return null;
+  return (
+    <span className="inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-[#B8860B] text-white text-xs font-medium px-1.5">
+      {count > 99 ? "99+" : count}
+    </span>
   );
 }

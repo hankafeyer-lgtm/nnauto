@@ -6,9 +6,15 @@ import { db } from "@lib/db";
 import { sql } from "drizzle-orm";
 import { ensureMessagingSchema } from "@lib/ensureMessagingSchema";
 
+function getUserRole(conv: any, userId: string): "buyer" | "seller" | null {
+  if (conv.dealerUserId === userId) return "seller";
+  if (conv.clientUserId === userId) return "buyer";
+  return null;
+}
+
 /**
- * GET /api/messages/conversations/:id/messages — buyer reads messages.
- * POST — buyer sends a reply.
+ * GET — read messages (works for buyer and seller).
+ * POST — send reply (works for buyer and seller).
  */
 export async function GET(
   _req: NextRequest,
@@ -21,16 +27,19 @@ export async function GET(
 
     const conv = await storage.getConversation(id);
     if (!conv) return error("Conversation not found", 404);
-    if ((conv as any).clientUserId !== user.id) return error("Forbidden", 403);
+    const role = getUserRole(conv, user.id);
+    if (!role) return error("Forbidden", 403);
 
     const messages = await storage.listMessages(id);
 
-    // Mark dealer messages as read from buyer side
-    if ((conv as any).unreadClientCount > 0) {
+    // Mark messages as read from the user's perspective
+    if (role === "seller" && conv.unreadDealerCount > 0) {
+      await storage.markConversationReadByDealer(id);
+    } else if (role === "buyer") {
       await db.execute(sql`UPDATE conversations SET unread_client_count = 0 WHERE id = ${id}`);
     }
 
-    return json({ conversation: conv, messages });
+    return json({ conversation: conv, messages, role });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     if (msg === "Unauthorized") return error("Unauthorized", 401);
@@ -49,15 +58,18 @@ export async function POST(
 
     const conv = await storage.getConversation(id);
     if (!conv) return error("Conversation not found", 404);
-    if ((conv as any).clientUserId !== user.id) return error("Forbidden", 403);
+    const role = getUserRole(conv, user.id);
+    if (!role) return error("Forbidden", 403);
 
     const body = await req.json().catch(() => null);
     const content = body?.content?.trim();
     if (!content) return error("Message content required", 400);
 
+    const sender = role === "seller" ? "dealer" : "client";
+
     const inserted = await storage.createMessage({
       conversationId: id,
-      sender: "client",
+      sender,
       type: "text",
       content,
       channel: "chat",
@@ -65,10 +77,15 @@ export async function POST(
 
     await storage.touchConversationAfterMessage({
       conversationId: id,
-      sender: "client",
+      sender,
       contentPreview: content,
-      bumpStatusToInProgress: false,
+      bumpStatusToInProgress: role === "seller" && conv.status === "new",
     });
+
+    // Bump the OTHER side's unread counter
+    if (role === "seller") {
+      await db.execute(sql`UPDATE conversations SET unread_client_count = coalesce(unread_client_count, 0) + 1 WHERE id = ${id}`);
+    }
 
     return json({ ok: true, message: inserted });
   } catch (e: unknown) {

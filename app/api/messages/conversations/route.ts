@@ -3,12 +3,19 @@ import { error, json } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { db } from "@lib/db";
 import { conversations, listings } from "@shared/schema";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, or, eq, sql } from "drizzle-orm";
 import { ensureMessagingSchema } from "@lib/ensureMessagingSchema";
 
 /**
- * GET /api/messages/conversations — buyer's inbox.
- * Returns all conversations where the logged-in user is the client.
+ * GET /api/messages/conversations — unified inbox for ANY user.
+ *
+ * Returns conversations where the user is either:
+ *   - the client (buyer) — clientUserId matches
+ *   - the listing owner (seller/dealer) — dealerUserId matches
+ *
+ * Each row includes a `role` field ("buyer" | "seller") so the UI knows
+ * which perspective to render. Works for private sellers, dealers, and
+ * all account types.
  */
 export async function GET(_req: NextRequest) {
   try {
@@ -20,19 +27,27 @@ export async function GET(_req: NextRequest) {
         id: conversations.id,
         listingId: conversations.listingId,
         dealerUserId: conversations.dealerUserId,
+        clientUserId: conversations.clientUserId,
         clientName: conversations.clientName,
+        clientEmail: conversations.clientEmail,
+        clientPhone: conversations.clientPhone,
         status: conversations.status,
         source: conversations.source,
+        unreadDealerCount: conversations.unreadDealerCount,
         unreadClientCount: sql<number>`coalesce(${conversations.unreadClientCount}, 0)`,
         lastMessagePreview: conversations.lastMessagePreview,
         lastMessageAt: conversations.lastMessageAt,
         createdAt: conversations.createdAt,
       })
       .from(conversations)
-      .where(eq(conversations.clientUserId, user.id))
+      .where(
+        or(
+          eq(conversations.clientUserId, user.id),
+          eq(conversations.dealerUserId, user.id),
+        ),
+      )
       .orderBy(desc(conversations.lastMessageAt));
 
-    // Enrich with listing info
     const listingIds = [...new Set(rows.map((r) => r.listingId))];
     const listingMap = new Map<string, { title?: string; brand?: string; model?: string; photos?: string[] | null }>();
     if (listingIds.length) {
@@ -43,10 +58,15 @@ export async function GET(_req: NextRequest) {
       for (const l of listingRows) listingMap.set(l.id, l);
     }
 
-    const enriched = rows.map((r) => ({
-      ...r,
-      listing: listingMap.get(r.listingId) ?? null,
-    }));
+    const enriched = rows.map((r) => {
+      const isSeller = r.dealerUserId === user.id;
+      return {
+        ...r,
+        role: isSeller ? "seller" as const : "buyer" as const,
+        unreadCount: isSeller ? r.unreadDealerCount : r.unreadClientCount,
+        listing: listingMap.get(r.listingId) ?? null,
+      };
+    });
 
     return json({ conversations: enriched });
   } catch (e: unknown) {

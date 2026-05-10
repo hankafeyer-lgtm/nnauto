@@ -16,9 +16,12 @@ type Conversation = {
   id: string;
   listingId: string;
   status: string;
+  role: "buyer" | "seller";
   lastMessagePreview: string | null;
   lastMessageAt: string | null;
-  unreadClientCount: number;
+  unreadCount: number;
+  clientName: string | null;
+  clientEmail: string | null;
   listing: { title?: string; brand?: string; model?: string; photos?: string[] | null } | null;
 };
 
@@ -60,7 +63,7 @@ export default function BuyerMessagesPage() {
       <Header />
       <main className="min-h-screen bg-background">
         <div className="container mx-auto max-w-4xl px-4 py-6">
-          <h1 className="text-2xl font-bold mb-6">Moje zprávy</h1>
+          <h1 className="text-2xl font-bold mb-6">Správy</h1>
           {selectedId ? (
             <ChatView
               conversationId={selectedId}
@@ -119,9 +122,13 @@ function ConversationList({ onSelect }: { onSelect: (id: string) => void }) {
   return (
     <div className="space-y-2">
       {conversations.map((c) => {
-        const title = c.listing
+        const carTitle = c.listing
           ? `${c.listing.brand ?? ""} ${c.listing.model ?? ""}`.trim() || c.listing.title || "Inzerát"
           : "Inzerát";
+        const roleLabel = c.role === "seller"
+          ? (c.clientName || c.clientEmail || "Zájemce")
+          : carTitle;
+        const subtitle = c.role === "seller" ? carTitle : null;
         return (
           <button
             key={c.id}
@@ -136,27 +143,35 @@ function ConversationList({ onSelect }: { onSelect: (id: string) => void }) {
                 className="w-12 h-12 rounded-lg object-cover shrink-0"
               />
             ) : (
-              <div className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center">
-                <MessageCircle className="h-5 w-5 text-muted-foreground" />
+              <div className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center text-sm font-bold text-muted-foreground">
+                {(c.clientName || "?")[0].toUpperCase()}
               </div>
             )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-medium truncate">{title}</p>
-                {c.unreadClientCount > 0 && (
+                <p className="font-medium truncate">{roleLabel}</p>
+                {c.unreadCount > 0 && (
                   <span className="shrink-0 h-5 min-w-5 rounded-full bg-[#B8860B] text-white text-xs flex items-center justify-center px-1.5 font-medium">
-                    {c.unreadClientCount}
+                    {c.unreadCount}
                   </span>
                 )}
               </div>
+              {subtitle && (
+                <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+              )}
               <p className="text-sm text-muted-foreground truncate mt-0.5">
                 {c.lastMessagePreview || "Žádné zprávy"}
               </p>
-              {c.lastMessageAt && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {new Date(c.lastMessageAt).toLocaleDateString("cs-CZ")}
-                </p>
-              )}
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${c.role === "seller" ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"}`}>
+                  {c.role === "seller" ? "Prodávám" : "Kupuji"}
+                </span>
+                {c.lastMessageAt && (
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(c.lastMessageAt).toLocaleDateString("cs-CZ")}
+                  </span>
+                )}
+              </div>
             </div>
           </button>
         );
