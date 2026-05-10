@@ -18,20 +18,26 @@ const DDL = `
     dealer_user_id varchar NOT NULL,
     dealer_id varchar,
     listing_id varchar NOT NULL,
+    client_user_id varchar,
     client_name text,
     client_email varchar,
     client_phone varchar,
     source varchar(16) NOT NULL DEFAULT 'chat',
     status varchar(16) NOT NULL DEFAULT 'new',
     unread_dealer_count integer NOT NULL DEFAULT 0,
+    unread_client_count integer NOT NULL DEFAULT 0,
     last_message_preview text,
     last_message_at timestamp,
     thread_key varchar(64),
     created_at timestamp NOT NULL DEFAULT now(),
     updated_at timestamp NOT NULL DEFAULT now()
   );
+  ALTER TABLE conversations ADD COLUMN IF NOT EXISTS client_user_id varchar;
+  ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unread_client_count integer NOT NULL DEFAULT 0;
   CREATE INDEX IF NOT EXISTS conversations_dealer_user_id_idx
     ON conversations (dealer_user_id);
+  CREATE INDEX IF NOT EXISTS conversations_client_user_id_idx
+    ON conversations (client_user_id);
   CREATE INDEX IF NOT EXISTS conversations_listing_id_idx
     ON conversations (listing_id);
   CREATE INDEX IF NOT EXISTS conversations_status_idx

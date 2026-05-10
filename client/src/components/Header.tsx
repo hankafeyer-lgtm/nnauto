@@ -31,6 +31,7 @@ import {
   Star,
   Shield,
   Building2,
+  MessageCircle,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import { useHideOnScroll } from "@/hooks/useHideOnScroll";
@@ -778,6 +779,14 @@ function HeaderContent({
                     >
                       <Car className="mr-3 h-5 w-5" />
                       <span>{t("header.menu.myListings")}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => navigate("/zpravy")}
+                      className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
+                      data-testid="menu-item-messages"
+                    >
+                      <MessageCircle className="mr-3 h-5 w-5" />
+                      <span>Zprávy</span>
                     </DropdownMenuItem>
                     {user?.isAdmin && (
                       <>

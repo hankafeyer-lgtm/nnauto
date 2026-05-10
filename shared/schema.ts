@@ -526,6 +526,8 @@ export const conversations = pgTable(
     /** Optional dealers.id, when the listing owner is a dealer account. */
     dealerId: varchar("dealer_id"),
     listingId: varchar("listing_id").notNull(),
+    /** Logged-in buyer user id — null for anonymous contact form submissions. */
+    clientUserId: varchar("client_user_id"),
     clientName: text("client_name"),
     clientEmail: varchar("client_email"),
     clientPhone: varchar("client_phone"),
@@ -535,6 +537,8 @@ export const conversations = pgTable(
     status: varchar("status", { length: 16 }).notNull().default("new"),
     /** Cheap, denormalised counter for unread badge in dealer cabinet. */
     unreadDealerCount: integer("unread_dealer_count").notNull().default(0),
+    /** Cheap, denormalised counter for unread badge in buyer inbox. */
+    unreadClientCount: integer("unread_client_count").notNull().default(0),
     /** Last client message preview (first ~200 chars) for the inbox list. */
     lastMessagePreview: text("last_message_preview"),
     lastMessageAt: timestamp("last_message_at"),
@@ -545,6 +549,7 @@ export const conversations = pgTable(
   },
   (table) => [
     index("conversations_dealer_user_id_idx").on(table.dealerUserId),
+    index("conversations_client_user_id_idx").on(table.clientUserId),
     index("conversations_listing_id_idx").on(table.listingId),
     index("conversations_status_idx").on(table.status),
     index("conversations_last_message_at_idx").on(table.lastMessageAt),

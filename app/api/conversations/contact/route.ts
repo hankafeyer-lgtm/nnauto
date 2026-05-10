@@ -2,13 +2,16 @@ import { NextRequest } from "next/server";
 import { error, json } from "@lib/api-helpers";
 import { db } from "@lib/db";
 import { listings, users, contactDealerSchema } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { storage } from "@lib/storage";
 import { ensureMessagingSchema } from "@lib/ensureMessagingSchema";
 import { checkRateLimit } from "@lib/rateLimit";
+import { getCurrentUser } from "@lib/auth";
+import { sendEmail } from "@lib/email";
 import {
   getFirstMessageAutoReply,
   makeThreadKey,
+  getPublicOrigin,
 } from "@lib/messaging";
 import { appendListingSourceTag } from "@shared/messageSource";
 
@@ -76,6 +79,15 @@ export async function POST(req: NextRequest) {
     const dealerUserId = owner.id;
     const dealerId = owner.dealerId ?? null;
 
+    // Optional: capture logged-in buyer's userId for their inbox
+    let clientUserId: string | null = null;
+    try {
+      const currentUser = await getCurrentUser();
+      if (currentUser && currentUser.id !== dealerUserId) {
+        clientUserId = currentUser.id;
+      }
+    } catch { /* not logged in — fine, contact form works anonymously */ }
+
     let conversation = await storage.findExistingConversation({
       dealerUserId,
       listingId,
@@ -88,12 +100,10 @@ export async function POST(req: NextRequest) {
         dealerUserId,
         dealerId,
         listingId,
+        clientUserId,
         clientName: name ?? null,
         clientEmail: email ?? null,
         clientPhone: phone ?? null,
-        // The form is in-app; if a buyer leaves an email we still keep
-        // source="chat" so the dealer reply UI defaults to in-app chat
-        // (dealer can opt-in to email per-message).
         source: "chat",
         threadKey: makeThreadKey({
           dealerUserId,
@@ -102,6 +112,10 @@ export async function POST(req: NextRequest) {
           clientPhone: phone ?? null,
         }),
       });
+    } else if (clientUserId && !(conversation as any).clientUserId) {
+      try {
+        await db.execute(sql`UPDATE conversations SET client_user_id = ${clientUserId} WHERE id = ${conversation.id} AND client_user_id IS NULL`);
+      } catch { /* non-critical backfill */ }
     }
 
     const isFirstClientMessageOfConversation =
@@ -135,6 +149,25 @@ export async function POST(req: NextRequest) {
         });
         autoReplyMessage = { id: autoMsg.id };
       }
+    }
+
+    // Email notification to dealer (best-effort, never blocks response)
+    if (owner.email) {
+      const listingTitle = listing.title || `${listing.brand} ${listing.model}`;
+      const origin = getPublicOrigin();
+      sendEmail({
+        to: owner.email,
+        subject: `Nová zpráva k inzerátu: ${listingTitle} | NNAuto`,
+        text: `Na NNAuto.cz vám přišla nová zpráva k vašemu inzerátu "${listingTitle}".\n\nOd: ${name || "Zájemce"} (${email || phone || "neuvedeno"})\n\nZpráva:\n${message}\n\nOdpovědět: ${origin}/dealer/messages`,
+        html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <p style="font-size:15px;"><strong>Na NNAuto.cz vám přišla nová zpráva</strong> k inzerátu „${listingTitle}".</p>
+          <p style="font-size:14px;color:#555;">Od: ${name || "Zájemce"} (${email || phone || "neuvedeno"})</p>
+          <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:12px 0;font-size:14px;">${message.replace(/\n/g, "<br/>")}</div>
+          <p><a href="${origin}/dealer/messages" style="display:inline-block;background:#B8860B;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Odpovědět</a></p>
+          <hr style="border:none;border-top:1px solid #eee;margin:20px 0;"/>
+          <p style="font-size:11px;color:#888;text-align:center;">NNAuto.cz – Prémiový autobazar</p>
+        </div>`,
+      }).catch(() => { /* email failures never block the response */ });
     }
 
     return json({
