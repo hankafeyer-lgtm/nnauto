@@ -799,6 +799,7 @@ function HeaderContent({
                         >
                           <Building2 className="mr-3 h-5 w-5" />
                           <span>{t("dealer.cabinet")}</span>
+                          <DealerUnreadBadge className="ml-auto" />
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => navigate("/admin")}
@@ -903,6 +904,46 @@ function UnreadBadge({ className = "" }: { className?: string }) {
       className={`relative inline-flex items-center justify-center h-5 min-w-[1.25rem] rounded-full bg-[#B8860B] text-white text-xs font-semibold px-1.5 shadow-sm ${className}`}
       aria-label={`Nepřečtené zprávy: ${count}`}
       data-testid="badge-unread-messages"
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 rounded-full bg-[#B8860B] opacity-60 animate-ping"
+      />
+      <span className="relative">{count > 99 ? "99+" : count}</span>
+    </span>
+  );
+}
+
+/**
+ * Mirror of UnreadBadge but for the dealer-side inbox at /dealer/messages.
+ * Polled separately so the number reflects only conversations where the
+ * current user is the seller. Disabled (query never fires) for users that
+ * don't have `isDealer === true`, so non-dealer admins viewing the menu
+ * never hit the 403-gated endpoint.
+ */
+function DealerUnreadBadge({ className = "" }: { className?: string }) {
+  const { user, isAuthenticated } = useAuth();
+  const enabled = isAuthenticated && !!user?.isDealer;
+  const { data } = useQuery({
+    queryKey: ["/api/dealer/conversations/unread-count"],
+    queryFn: async () => {
+      const res = await fetch("/api/dealer/conversations/unread-count", {
+        credentials: "include",
+      });
+      if (!res.ok) return { unread: 0 };
+      return res.json() as Promise<{ unread: number }>;
+    },
+    enabled,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+  const count = data?.unread ?? 0;
+  if (!enabled || count <= 0) return null;
+  return (
+    <span
+      className={`relative inline-flex items-center justify-center h-5 min-w-[1.25rem] rounded-full bg-[#B8860B] text-white text-xs font-semibold px-1.5 shadow-sm ${className}`}
+      aria-label={`Nepřečtené zprávy pro dealera: ${count}`}
+      data-testid="badge-dealer-unread"
     >
       <span
         aria-hidden="true"
