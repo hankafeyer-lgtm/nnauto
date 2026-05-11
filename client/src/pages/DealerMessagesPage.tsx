@@ -57,6 +57,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -483,6 +493,10 @@ function ChatPane({
   const [draft, setDraft] = useState("");
   const [viaEmailToggle, setViaEmailToggle] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [confirmDeleteChat, setConfirmDeleteChat] = useState(false);
+  const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<
+    string | null
+  >(null);
 
   const conversationQuery = useQuery({
     queryKey: ["/api/dealer/conversations", conversationId, "messages"],
@@ -582,6 +596,53 @@ function ChatPane({
       }),
   });
 
+  const deleteMessageMutation = useMutation({
+    mutationFn: async (messageId: string) => {
+      await apiRequest(
+        "DELETE",
+        `/api/dealer/conversations/${conversationId}/messages/${messageId}`,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dealer/conversations", conversationId, "messages"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dealer/conversations"],
+      });
+    },
+    onError: (e: unknown) =>
+      toast({
+        title: "Smazání zprávy selhalo",
+        description: e instanceof Error ? e.message : "",
+        variant: "destructive",
+      }),
+  });
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest(
+        "DELETE",
+        `/api/dealer/conversations/${conversationId}`,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dealer/conversations"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dealer/conversations/unread-count"],
+      });
+      onBack();
+    },
+    onError: (e: unknown) =>
+      toast({
+        title: "Smazání chatu selhalo",
+        description: e instanceof Error ? e.message : "",
+        variant: "destructive",
+      }),
+  });
+
   // Auto-scroll to bottom on new messages.
   useEffect(() => {
     const el = scrollRef.current;
@@ -614,6 +675,8 @@ function ChatPane({
         conversation={conversation}
         onBack={onBack}
         onChangeStatus={(s) => statusMutation.mutate(s)}
+        onDeleteChat={() => setConfirmDeleteChat(true)}
+        deleteChatDisabled={deleteConversationMutation.isPending}
       />
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-3 bg-muted/30">
@@ -622,7 +685,15 @@ function ChatPane({
             {t("messages.threadEmpty")}
           </div>
         ) : (
-          messages.map((m) => <MessageBubble key={m.id} m={m} />)
+          messages.map((m) => (
+            <MessageBubble
+              key={m.id}
+              m={m}
+              canDelete={m.sender === "dealer"}
+              onDelete={() => setConfirmDeleteMessageId(m.id)}
+              deleting={deleteMessageMutation.isPending}
+            />
+          ))
         )}
       </div>
 
@@ -695,6 +766,73 @@ function ChatPane({
           {t("messages.shortcutHint")}
         </p>
       </div>
+
+      <AlertDialog
+        open={confirmDeleteChat}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteChat(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Smazat chat</AlertDialogTitle>
+            <AlertDialogDescription>
+              Opravdu chcete smazat tento chat? Tuto akci nelze vrátit zpět.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteConversationMutation.isPending}>
+              Zrušit
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                deleteConversationMutation.mutate(undefined, {
+                  onSettled: () => setConfirmDeleteChat(false),
+                });
+              }}
+              disabled={deleteConversationMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDeleteMessageId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteMessageId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Smazat zprávu</AlertDialogTitle>
+            <AlertDialogDescription>
+              Opravdu chcete smazat tuto zprávu? Tuto akci nelze vrátit zpět.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMessageMutation.isPending}>
+              Zrušit
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (!confirmDeleteMessageId) return;
+                deleteMessageMutation.mutate(confirmDeleteMessageId, {
+                  onSettled: () => setConfirmDeleteMessageId(null),
+                });
+              }}
+              disabled={deleteMessageMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
@@ -707,10 +845,14 @@ function ChatHeader({
   conversation,
   onBack,
   onChangeStatus,
+  onDeleteChat,
+  deleteChatDisabled,
 }: {
   conversation: Conversation & { listing?: ListingSummary | null };
   onBack: () => void;
   onChangeStatus: (s: ConversationStatus) => void;
+  onDeleteChat: () => void;
+  deleteChatDisabled: boolean;
 }) {
   const t = useTranslation();
   const listing = conversation.listing;
@@ -773,6 +915,18 @@ function ChatHeader({
           <SelectItem value="closed">{t("messages.filter.closed")}</SelectItem>
         </SelectContent>
       </Select>
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onDeleteChat}
+        disabled={deleteChatDisabled}
+        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+        aria-label="Smazat chat"
+        title="Smazat chat"
+        data-testid="button-delete-chat"
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
     </div>
   );
 }
@@ -781,7 +935,17 @@ function ChatHeader({
 // Message bubble
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MessageBubble({ m }: { m: Message }) {
+function MessageBubble({
+  m,
+  canDelete = false,
+  onDelete,
+  deleting = false,
+}: {
+  m: Message;
+  canDelete?: boolean;
+  onDelete?: () => void;
+  deleting?: boolean;
+}) {
   const t = useTranslation();
   if (m.sender === "system") {
     return (
@@ -798,7 +962,7 @@ function MessageBubble({ m }: { m: Message }) {
   return (
     <div className={`flex ${isDealer ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 shadow-sm ${
+        className={`group relative max-w-[85%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 shadow-sm ${
           isDealer
             ? "bg-amber-700 text-white rounded-br-sm"
             : "bg-card border rounded-bl-sm"
@@ -829,6 +993,21 @@ function MessageBubble({ m }: { m: Message }) {
             <CheckCheck className="h-3 w-3 ml-0.5" aria-label={t("messages.read")} />
           )}
         </div>
+        {canDelete && onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={deleting}
+            title="Smazat zprávu"
+            aria-label="Smazat zprávu"
+            data-testid={`button-delete-message-${m.id}`}
+            className={`absolute -top-2 ${
+              isDealer ? "-left-2" : "-right-2"
+            } h-6 w-6 rounded-full bg-background border shadow-sm flex items-center justify-center text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-opacity disabled:opacity-50`}
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        )}
       </div>
     </div>
   );

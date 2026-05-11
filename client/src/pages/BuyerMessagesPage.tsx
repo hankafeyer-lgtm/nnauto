@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, MessageCircle, Send } from "lucide-react";
+import { ArrowLeft, MessageCircle, Send, Trash2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation, Link } from "@/lib/navigation";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -10,7 +10,22 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import LoginModal from "@/components/LoginModal";
+import { useTranslation } from "@/lib/translations";
+import {
+  CHAT_COMPOSE_PREFILL_STORAGE_KEY,
+  type ChatComposePrefillPayload,
+} from "@/lib/chatComposePrefill";
 
 type Conversation = {
   id: string;
@@ -39,6 +54,7 @@ type Message = {
 };
 
 export default function BuyerMessagesPage() {
+  const t = useTranslation();
   const { isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
   const router = useRouter();
@@ -99,7 +115,7 @@ export default function BuyerMessagesPage() {
         <Header />
         <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
           <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Správy</h1>
+          <h1 className="text-2xl font-bold mb-2">{t("messages.heading")}</h1>
           <p className="text-muted-foreground text-center mb-2 max-w-md">
             Pro psaní do chatu je potřeba se zaregistrovat nebo přihlásit.
           </p>
@@ -138,7 +154,7 @@ export default function BuyerMessagesPage() {
       <Header />
       <main className="min-h-screen bg-background flex flex-col">
         <div className="container mx-auto max-w-4xl px-4 py-6 flex flex-col flex-1 min-h-0 min-h-[calc(100dvh-10rem)]">
-          <h1 className="text-2xl font-bold mb-4 shrink-0">Správy</h1>
+          <h1 className="text-2xl font-bold mb-4 shrink-0">{t("messages.heading")}</h1>
           {selectedId ? (
             <ChatView
               conversationId={selectedId}
@@ -274,6 +290,10 @@ function ChatView({
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [confirmDeleteChat, setConfirmDeleteChat] = useState(false);
+  const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<
+    string | null
+  >(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["/api/messages/conversations", conversationId, "messages"],
@@ -282,10 +302,74 @@ function ChatView({
         "GET",
         `/api/messages/conversations/${conversationId}/messages`,
       );
-      return res.json() as Promise<{ conversation: unknown; messages: Message[] }>;
+      return res.json() as Promise<{
+        conversation: unknown;
+        messages: Message[];
+        role?: "buyer" | "seller";
+      }>;
     },
     refetchInterval: 15_000,
   });
+
+  const messages = data?.messages ?? [];
+  const role = data?.role;
+  /**
+   * Only messages authored by the current user can be deleted. The
+   * server enforces the same rule, but mirroring it on the client
+   * avoids showing a delete affordance we know will 403.
+   */
+  const ownSender: "client" | "dealer" | null =
+    role === "buyer" ? "client" : role === "seller" ? "dealer" : null;
+
+  const deleteMessageMutation = useMutation({
+    mutationFn: async (messageId: string) => {
+      await apiRequest(
+        "DELETE",
+        `/api/messages/conversations/${conversationId}/messages/${messageId}`,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/messages/conversations", conversationId, "messages"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/messages/conversations"],
+      });
+    },
+  });
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: async () => {
+      await apiRequest(
+        "DELETE",
+        `/api/messages/conversations/${conversationId}`,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/messages/conversations"],
+      });
+      onBack();
+    },
+  });
+
+  /** Draft from listing detail — not sent until Odeslat. */
+  useEffect(() => {
+    if (isLoading) return;
+    if (messages.length > 0) return;
+    try {
+      const raw = sessionStorage.getItem(CHAT_COMPOSE_PREFILL_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as ChatComposePrefillPayload;
+      if (parsed.conversationId !== conversationId || !parsed.text?.trim()) {
+        return;
+      }
+      setDraft((d) => (d.trim() ? d : parsed.text.trim()));
+      sessionStorage.removeItem(CHAT_COMPOSE_PREFILL_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, [isLoading, conversationId, messages.length]);
 
   const sendMutation = useMutation({
     mutationFn: async (content: string) => {
@@ -317,8 +401,6 @@ function ChatView({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [data?.messages?.length]);
 
-  const messages = data?.messages ?? [];
-
   return (
     <div className="flex flex-col flex-1 min-h-0 gap-0">
       <div className="flex items-center gap-3 mb-3 shrink-0">
@@ -326,6 +408,19 @@ function ChatView({
           <ArrowLeft className="h-4 w-4 mr-1" /> Zpět
         </Button>
         <span className="text-sm text-muted-foreground">Konverzace</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          onClick={() => setConfirmDeleteChat(true)}
+          disabled={deleteConversationMutation.isPending}
+          className="ml-auto text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
+          aria-label="Smazat chat"
+          data-testid="button-delete-chat"
+        >
+          <Trash2 className="h-4 w-4" />
+          <span className="hidden sm:inline">Smazat chat</span>
+        </Button>
       </div>
 
       <div className="flex-1 min-h-0 flex flex-col rounded-xl border bg-muted/10 overflow-hidden">
@@ -343,32 +438,53 @@ function ChatView({
               Zatím žádné zprávy — napište první zprávu níže.
             </p>
           ) : (
-            messages.map((m) => (
-              <div
-                key={m.id}
-                className={`max-w-[85%] sm:max-w-[80%] rounded-xl px-4 py-2.5 text-sm ${
-                  m.sender === "client"
-                    ? "ml-auto bg-[#B8860B] text-white"
-                    : m.sender === "system"
-                      ? "mx-auto bg-muted text-muted-foreground text-center text-xs"
-                      : "mr-auto bg-card border"
-                }`}
-              >
-                <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                <p
-                  className={`text-[10px] mt-1 ${
-                    m.sender === "client" ? "text-white/70" : "text-muted-foreground"
+            messages.map((m) => {
+              const isOwn = ownSender !== null && m.sender === ownSender;
+              const isSystem = m.sender === "system";
+              return (
+                <div
+                  key={m.id}
+                  className={`group relative max-w-[85%] sm:max-w-[80%] rounded-xl px-4 py-2.5 text-sm ${
+                    m.sender === "client"
+                      ? "ml-auto bg-[#B8860B] text-white"
+                      : isSystem
+                        ? "mx-auto bg-muted text-muted-foreground text-center text-xs"
+                        : "mr-auto bg-card border"
                   }`}
                 >
-                  {new Date(m.createdAt).toLocaleString("cs-CZ", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    day: "numeric",
-                    month: "numeric",
-                  })}
-                </p>
-              </div>
-            ))
+                  <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                  <p
+                    className={`text-[10px] mt-1 ${
+                      m.sender === "client"
+                        ? "text-white/70"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {new Date(m.createdAt).toLocaleString("cs-CZ", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      day: "numeric",
+                      month: "numeric",
+                    })}
+                  </p>
+                  {isOwn && !isSystem && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteMessageId(m.id)}
+                      disabled={deleteMessageMutation.isPending}
+                      title="Smazat zprávu"
+                      aria-label="Smazat zprávu"
+                      data-testid={`button-delete-message-${m.id}`}
+                      className={`absolute -top-2 ${
+                        m.sender === "client" ? "-left-2" : "-right-2"
+                      } h-6 w-6 rounded-full bg-background border shadow-sm flex items-center justify-center text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-opacity disabled:opacity-50`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              );
+            })
           )}
           <div ref={bottomRef} />
         </div>
@@ -405,6 +521,73 @@ function ChatView({
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={confirmDeleteChat}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteChat(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Smazat chat</AlertDialogTitle>
+            <AlertDialogDescription>
+              Opravdu chcete smazat tento chat? Tuto akci nelze vrátit zpět.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteConversationMutation.isPending}>
+              Zrušit
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                deleteConversationMutation.mutate(undefined, {
+                  onSettled: () => setConfirmDeleteChat(false),
+                });
+              }}
+              disabled={deleteConversationMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmDeleteMessageId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteMessageId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Smazat zprávu</AlertDialogTitle>
+            <AlertDialogDescription>
+              Opravdu chcete smazat tuto zprávu? Tuto akci nelze vrátit zpět.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMessageMutation.isPending}>
+              Zrušit
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (!confirmDeleteMessageId) return;
+                deleteMessageMutation.mutate(confirmDeleteMessageId, {
+                  onSettled: () => setConfirmDeleteMessageId(null),
+                });
+              }}
+              disabled={deleteMessageMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -559,6 +559,98 @@ export const storage = {
     return row || undefined;
   },
 
+  /**
+   * Delete a single message owned by `userId`.
+   *
+   * Authorization: only the original author may delete their message.
+   * - "client" messages → `conversations.clientUserId === userId`
+   * - "dealer" messages → `conversations.dealerUserId === userId`
+   * "system" messages are never deletable by users.
+   *
+   * Also bumps `conversations.updatedAt` and recomputes the `lastMessagePreview`
+   * (so the inbox row reflects the new tail) and the unread counters
+   * (decrement by 1 if the removed message was still unread on the other side).
+   *
+   * Returns true on success, false when not found or forbidden.
+   */
+  async deleteMessage(args: {
+    conversationId: string;
+    messageId: string;
+    userId: string;
+  }): Promise<boolean> {
+    const conv = await this.getConversation(args.conversationId);
+    if (!conv) return false;
+    const [msg] = await db
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.id, args.messageId),
+          eq(messages.conversationId, args.conversationId),
+        ),
+      );
+    if (!msg) return false;
+    if (msg.sender === "system") return false;
+    if (msg.sender === "client" && conv.clientUserId !== args.userId) return false;
+    if (msg.sender === "dealer" && conv.dealerUserId !== args.userId) return false;
+
+    await db.delete(messages).where(eq(messages.id, args.messageId));
+
+    const remaining = await db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, args.conversationId))
+      .orderBy(desc(messages.createdAt))
+      .limit(1);
+    const tail = remaining[0] ?? null;
+
+    const setData: Record<string, unknown> = {
+      updatedAt: new Date(),
+      lastMessageAt: tail?.createdAt ?? null,
+      lastMessagePreview: tail ? tail.content.slice(0, 280) : null,
+    };
+
+    // If we removed a message that was still unread on the other side,
+    // decrement that side's counter (clamped to >=0).
+    if (msg.sender === "client" && !msg.read) {
+      setData.unreadDealerCount = sql`GREATEST(coalesce(${conversations.unreadDealerCount}, 0) - 1, 0)`;
+    } else if (msg.sender === "dealer" && !msg.read) {
+      setData.unreadClientCount = sql`GREATEST(coalesce(${conversations.unreadClientCount}, 0) - 1, 0)`;
+    }
+
+    await db
+      .update(conversations)
+      .set(setData)
+      .where(eq(conversations.id, args.conversationId));
+
+    return true;
+  },
+
+  /**
+   * Delete an entire conversation owned by `userId` (either side).
+   * Cascades all messages first. Returns true on success.
+   */
+  async deleteConversation(args: {
+    conversationId: string;
+    userId: string;
+  }): Promise<boolean> {
+    const conv = await this.getConversation(args.conversationId);
+    if (!conv) return false;
+    if (
+      conv.clientUserId !== args.userId &&
+      conv.dealerUserId !== args.userId
+    ) {
+      return false;
+    }
+    await db
+      .delete(messages)
+      .where(eq(messages.conversationId, args.conversationId));
+    await db
+      .delete(conversations)
+      .where(eq(conversations.id, args.conversationId));
+    return true;
+  },
+
   async getDealerUnreadCount(dealerUserId: string): Promise<number> {
     const result = (await db.execute(sql`
       SELECT COALESCE(SUM(unread_dealer_count), 0)::int AS total

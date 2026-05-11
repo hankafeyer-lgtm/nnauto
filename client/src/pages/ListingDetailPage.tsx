@@ -3150,6 +3150,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import type { Listing } from "@shared/schema";
 import { appendListingSourceTag } from "@shared/messageSource";
 import {
+  CHAT_COMPOSE_PREFILL_STORAGE_KEY,
+  type ChatComposePrefillPayload,
+} from "@/lib/chatComposePrefill";
+import {
   getOptimizedImageUrl,
   getCardImageUrl,
   getFullImageUrl,
@@ -4202,13 +4206,22 @@ export default function ListingDetailPage({
       const res = await apiRequest(
         "POST",
         "/api/messages/conversations/ensure-from-listing",
-        {
-          listingId: listing.id,
-          initialMessage: `Dobrý den, píšu vám ohledně vašeho auta: ${vehicleLabel}`,
-        },
+        { listingId: listing.id },
       );
       const data = (await res.json()) as { conversationId?: string };
       if (data?.conversationId) {
+        const prefill: ChatComposePrefillPayload = {
+          conversationId: data.conversationId,
+          text: `Dobrý den, píšu vám ohledně vašeho auta: ${vehicleLabel}`,
+        };
+        try {
+          sessionStorage.setItem(
+            CHAT_COMPOSE_PREFILL_STORAGE_KEY,
+            JSON.stringify(prefill),
+          );
+        } catch {
+          /* ignore */
+        }
         navigate(
           `/zpravy?conversationId=${encodeURIComponent(data.conversationId)}`,
         );

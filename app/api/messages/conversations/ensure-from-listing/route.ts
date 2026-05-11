@@ -8,22 +8,15 @@ import { eq, sql } from "drizzle-orm";
 import { storage } from "@lib/storage";
 import { ensureMessagingSchema } from "@lib/ensureMessagingSchema";
 import { checkRateLimit } from "@lib/rateLimit";
-import { sendEmail } from "@lib/email";
-import {
-  getFirstMessageAutoReply,
-  makeThreadKey,
-  getPublicOrigin,
-} from "@lib/messaging";
-import { appendListingSourceTag } from "@shared/messageSource";
+import { makeThreadKey } from "@lib/messaging";
 
 const bodySchema = z.object({
   listingId: z.string().min(1),
-  initialMessage: z.string().trim().max(4000).optional(),
 });
 
 /**
- * Logged-in buyer: find or create the NNAuto chat thread for a listing,
- * optionally seed the first message when the thread is still empty.
+ * Logged-in buyer: find or create the NNAuto chat thread for a listing.
+ * First message is sent only when the user clicks Odeslat (client POST …/messages).
  * Used from listing detail → /zpravy deep-link (private + dealer listings).
  */
 export async function POST(req: NextRequest) {
@@ -41,7 +34,7 @@ export async function POST(req: NextRequest) {
     const raw = await req.json().catch(() => null);
     const parsed = bodySchema.safeParse(raw);
     if (!parsed.success) return error("Invalid payload", 400);
-    const { listingId, initialMessage: rawInitial } = parsed.data;
+    const { listingId } = parsed.data;
 
     const [listing] = await db
       .select()
@@ -94,58 +87,6 @@ export async function POST(req: NextRequest) {
         );
       } catch {
         /* non-critical */
-      }
-    }
-
-    const messages = await storage.listMessages(conversation.id);
-    const initial = rawInitial?.trim();
-
-    if (messages.length === 0 && initial) {
-      const tagged = appendListingSourceTag(initial);
-
-      await storage.createMessage({
-        conversationId: conversation.id,
-        sender: "client",
-        type: "text",
-        content: tagged,
-        channel: "chat",
-      });
-
-      await storage.touchConversationAfterMessage({
-        conversationId: conversation.id,
-        sender: "client",
-        contentPreview: tagged,
-        bumpStatusToInProgress: false,
-      });
-
-      const autoText = getFirstMessageAutoReply();
-      if (autoText) {
-        await storage.createMessage({
-          conversationId: conversation.id,
-          sender: "system",
-          type: "text",
-          content: autoText,
-          channel: "chat",
-        });
-      }
-
-      if (owner.email) {
-        const listingTitle =
-          listing.title || `${listing.brand} ${listing.model}`.trim() || "Inzerát";
-        const origin = getPublicOrigin();
-        sendEmail({
-          to: owner.email,
-          subject: `Nová zpráva k inzerátu: ${listingTitle} | NNAuto`,
-          text: `Na NNAuto.cz vám přišla nová zpráva k vašemu inzerátu "${listingTitle}".\n\nOd: ${buyerName || "Zájemce"} (${buyerEmail || buyerPhone || "účet NNAuto"})\n\nZpráva:\n${tagged}\n\nOdpovědět: ${origin}/zpravy`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
-          <p style="font-size:15px;"><strong>Na NNAuto.cz vám přišla nová zpráva</strong> k inzerátu „${listingTitle}".</p>
-          <p style="font-size:14px;color:#555;">Od: ${buyerName || "Zájemce"} (${buyerEmail || buyerPhone || "účet NNAuto"})</p>
-          <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:12px 0;font-size:14px;">${tagged.replace(/\n/g, "<br/>")}</div>
-          <p><a href="${origin}/zpravy" style="display:inline-block;background:#B8860B;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Odpovědět</a></p>
-          <hr style="border:none;border-top:1px solid #eee;margin:20px 0;"/>
-          <p style="font-size:11px;color:#888;text-align:center;">NNAuto.cz</p>
-        </div>`,
-        }).catch(() => {});
       }
     }
 

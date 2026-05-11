@@ -3,8 +3,12 @@ import { error, json } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { storage } from "@lib/storage";
 import { db } from "@lib/db";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { ensureMessagingSchema } from "@lib/ensureMessagingSchema";
+import { listings, users } from "@shared/schema";
+import { appendListingSourceTag } from "@shared/messageSource";
+import { getFirstMessageAutoReply, getPublicOrigin } from "@lib/messaging";
+import { sendEmail } from "@lib/email";
 
 function getUserRole(conv: any, userId: string): "buyer" | "seller" | null {
   if (conv.dealerUserId === userId) return "seller";
@@ -67,24 +71,78 @@ export async function POST(
 
     const sender = role === "seller" ? "dealer" : "client";
 
+    const priorMessages = await storage.listMessages(id);
+    const wasThreadEmpty = priorMessages.length === 0;
+
+    const storedContent =
+      role === "client" ? appendListingSourceTag(content) : content;
+
     const inserted = await storage.createMessage({
       conversationId: id,
       sender,
       type: "text",
-      content,
+      content: storedContent,
       channel: "chat",
     });
 
     await storage.touchConversationAfterMessage({
       conversationId: id,
       sender,
-      contentPreview: content,
+      contentPreview: storedContent,
       bumpStatusToInProgress: role === "seller" && conv.status === "new",
     });
 
     // Bump the OTHER side's unread counter
     if (role === "seller") {
       await db.execute(sql`UPDATE conversations SET unread_client_count = coalesce(unread_client_count, 0) + 1 WHERE id = ${id}`);
+    }
+
+    // First buyer message: auto-reply + e-mail seller (same behaviour as legacy contact flow)
+    if (role === "client" && wasThreadEmpty) {
+      const autoText = getFirstMessageAutoReply();
+      if (autoText) {
+        await storage.createMessage({
+          conversationId: id,
+          sender: "system",
+          type: "text",
+          content: autoText,
+          channel: "chat",
+        });
+      }
+
+      const [listing] = await db
+        .select()
+        .from(listings)
+        .where(eq(listings.id, conv.listingId));
+      const [owner] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, conv.dealerUserId));
+      if (listing && owner?.email) {
+        const listingTitle =
+          listing.title ||
+          `${listing.brand} ${listing.model}`.trim() ||
+          "Inzerát";
+        const buyerLabel =
+          [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
+          "Zájemce";
+        const buyerContact =
+          user.email?.trim() || user.phone?.trim() || "účet NNAuto";
+        const origin = getPublicOrigin();
+        sendEmail({
+          to: owner.email,
+          subject: `Nová zpráva k inzerátu: ${listingTitle} | NNAuto`,
+          text: `Na NNAuto.cz vám přišla nová zpráva k vašemu inzerátu "${listingTitle}".\n\nOd: ${buyerLabel} (${buyerContact})\n\nZpráva:\n${storedContent}\n\nOdpovědět: ${origin}/zpravy`,
+          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <p style="font-size:15px;"><strong>Na NNAuto.cz vám přišla nová zpráva</strong> k inzerátu „${listingTitle}".</p>
+          <p style="font-size:14px;color:#555;">Od: ${buyerLabel} (${buyerContact})</p>
+          <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:12px 0;font-size:14px;">${storedContent.replace(/\n/g, "<br/>")}</div>
+          <p><a href="${origin}/zpravy" style="display:inline-block;background:#B8860B;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">Odpovědět</a></p>
+          <hr style="border:none;border-top:1px solid #eee;margin:20px 0;"/>
+          <p style="font-size:11px;color:#888;text-align:center;">NNAuto.cz</p>
+        </div>`,
+        }).catch(() => {});
+      }
     }
 
     return json({ ok: true, message: inserted });

@@ -765,6 +765,17 @@ function HeaderContent({
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuItem
+                      onClick={() => navigate("/zpravy")}
+                      className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
+                      data-testid="menu-item-messages"
+                    >
+                      <MessageCircle className="mr-3 h-5 w-5" />
+                      <span className="flex items-center gap-2">
+                        {t("messages.heading")}
+                        <UnreadBadge />
+                      </span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
                       onClick={() => navigate("/profile")}
                       className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
                       data-testid="menu-item-profile"
@@ -779,17 +790,6 @@ function HeaderContent({
                     >
                       <Car className="mr-3 h-5 w-5" />
                       <span>{t("header.menu.myListings")}</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => navigate("/zpravy")}
-                      className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
-                      data-testid="menu-item-messages"
-                    >
-                      <MessageCircle className="mr-3 h-5 w-5" />
-                      <span className="flex items-center gap-2">
-                        Správy
-                        <UnreadBadge />
-                      </span>
                     </DropdownMenuItem>
                     {user?.isAdmin && (
                       <>
