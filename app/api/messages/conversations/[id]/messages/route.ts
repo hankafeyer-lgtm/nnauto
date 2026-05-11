@@ -76,9 +76,23 @@ export async function POST(
     // We intentionally ignore prior system/welcome messages here, otherwise
     // a tread that already had an auto-reply bubble would silently miss the
     // seller email — which is what users were reporting in production.
-    const isFirstBuyerMessage =
-      role === "client" &&
-      priorMessages.every((m) => m.sender !== "client");
+    const priorBuyerCount = priorMessages.filter(
+      (m) => m.sender === "client",
+    ).length;
+    const isFirstBuyerMessage = role === "client" && priorBuyerCount === 0;
+    // Diagnostic line — fires on EVERY message POST so the production log
+    // tells us why an email did or did not go out, even when the gate
+    // evaluates to false. Cheap to keep — one structured log per send.
+    console.info("[MSG-EMAIL] eval", {
+      conversationId: id,
+      role,
+      sender: role === "seller" ? "dealer" : "client",
+      priorTotalCount: priorMessages.length,
+      priorBuyerCount,
+      willEmailSeller: isFirstBuyerMessage,
+      hasMailerKey: !!(process.env.MAILERSEND_API_KEY || "").trim(),
+      fromEmail: (process.env.MAILERSEND_FROM_EMAIL || "").trim() || null,
+    });
 
     const storedContent =
       role === "client" ? appendListingSourceTag(content) : content;
