@@ -345,6 +345,25 @@ export const storage = {
   // ensured at runtime via lib/ensureMessagingSchema.ts.
   // ─────────────────────────────────────────────────────────────────────────
 
+  /** Logged-in buyer's thread for a listing (one row per buyer × listing). */
+  async findConversationByClientUserAndListing(args: {
+    clientUserId: string;
+    listingId: string;
+  }): Promise<Conversation | undefined> {
+    const [row] = await db
+      .select()
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.clientUserId, args.clientUserId),
+          eq(conversations.listingId, args.listingId),
+        ),
+      )
+      .orderBy(desc(conversations.updatedAt))
+      .limit(1);
+    return row || undefined;
+  },
+
   async findExistingConversation(args: {
     dealerUserId: string;
     listingId: string;
@@ -376,6 +395,7 @@ export const storage = {
     dealerUserId: string;
     dealerId: string | null;
     listingId: string;
+    clientUserId?: string | null;
     clientName?: string | null;
     clientEmail?: string | null;
     clientPhone?: string | null;
@@ -388,6 +408,7 @@ export const storage = {
         dealerUserId: args.dealerUserId,
         dealerId: args.dealerId,
         listingId: args.listingId,
+        clientUserId: args.clientUserId ?? null,
         clientName: args.clientName ?? null,
         clientEmail: args.clientEmail ?? null,
         clientPhone: args.clientPhone ?? null,

@@ -3295,6 +3295,10 @@ export default function ListingDetailPage({
 
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [showChatLoginModal, setShowChatLoginModal] = useState(false);
+  const [chatAuthPromptOpen, setChatAuthPromptOpen] = useState(false);
+  const [chatLoginInitialTab, setChatLoginInitialTab] = useState<
+    "login" | "register"
+  >("register");
   const [embeddedSearchQuery, setEmbeddedSearchQuery] = useState("");
   const [carouselApi, setCarouselApi] = useState<CarouselApi>();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
@@ -4182,22 +4186,37 @@ export default function ListingDetailPage({
   const handleOpenChat = useCallback(async () => {
     if (!listing) return;
     if (!user) {
-      setShowChatLoginModal(true);
+      setChatAuthPromptOpen(true);
       return;
     }
     if (user.id === listing.userId) {
       toast({ title: "Nelze psát sám sobě", variant: "destructive" });
       return;
     }
+    const vehicleLabel =
+      getListingMainTitle(listing) ||
+      [listing.brand, listing.model].filter(Boolean).join(" ").trim() ||
+      listing.title?.trim() ||
+      "auto";
     try {
-      await apiRequest("POST", "/api/conversations/contact", {
-        listingId: listing.id,
-        name: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || undefined,
-        email: user.email || undefined,
-        phone: (user as any).phone || undefined,
-        message: `Dobrý den, mám zájem o ${getListingMainTitle(listing)}. Je ještě k dispozici?`,
-      });
-    } catch { /* conversation may already exist */ }
+      const res = await apiRequest(
+        "POST",
+        "/api/messages/conversations/ensure-from-listing",
+        {
+          listingId: listing.id,
+          initialMessage: `Dobrý den, píšu vám ohledně vašeho auta: ${vehicleLabel}`,
+        },
+      );
+      const data = (await res.json()) as { conversationId?: string };
+      if (data?.conversationId) {
+        navigate(
+          `/zpravy?conversationId=${encodeURIComponent(data.conversationId)}`,
+        );
+        return;
+      }
+    } catch {
+      /* fall through to generic inbox */
+    }
     navigate("/zpravy");
   }, [listing, user, toast, navigate]);
 
@@ -6191,9 +6210,43 @@ export default function ListingDetailPage({
           <ChatLoginModal
             open={showChatLoginModal}
             onOpenChange={setShowChatLoginModal}
+            initialTab={chatLoginInitialTab}
           />
         </Suspense>
       ) : null}
+      <Dialog open={chatAuthPromptOpen} onOpenChange={setChatAuthPromptOpen}>
+        <DialogContent data-testid="dialog-chat-auth-required">
+          <DialogHeader>
+            <DialogTitle>Napsat do chatu NNAuto</DialogTitle>
+            <DialogDescription>
+              Pro psaní do chatu je potřeba se zaregistrovat nebo přihlásit.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setChatAuthPromptOpen(false);
+                setChatLoginInitialTab("login");
+                setShowChatLoginModal(true);
+              }}
+              data-testid="button-chat-auth-login"
+            >
+              Přihlásit se
+            </Button>
+            <Button
+              onClick={() => {
+                setChatAuthPromptOpen(false);
+                setChatLoginInitialTab("register");
+                setShowChatLoginModal(true);
+              }}
+              data-testid="button-chat-auth-register"
+            >
+              Registrovat se
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

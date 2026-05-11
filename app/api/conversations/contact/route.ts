@@ -50,28 +50,11 @@ export async function POST(req: NextRequest) {
     // the buyer already added the tag we don't duplicate it.
     const message = appendListingSourceTag(rawMessage);
 
-    if (!email && !phone) {
-      return error("E-mail nebo telefon je povinný", 400);
-    }
-
     const [listing] = await db
       .select()
       .from(listings)
       .where(eq(listings.id, listingId));
     if (!listing) return error("Listing not found", 404);
-
-    // Private sellers don't have an inbox / dashboard to read inbound
-    // messages from — the UI hides the form for them, this is the
-    // matching server-side guard so a hand-crafted POST can't slip a
-    // ghost conversation into a user account that never opens it.
-    // Listings without an explicit sellerType (legacy data) keep the
-    // dealer-style behaviour so we don't regress production.
-    if (listing.sellerType === "private") {
-      return error(
-        "Private sellers can be contacted only by phone or e-mail",
-        409,
-      );
-    }
 
     const [owner] = await db.select().from(users).where(eq(users.id, listing.userId));
     if (!owner) return error("Listing owner not found", 404);
@@ -81,19 +64,48 @@ export async function POST(req: NextRequest) {
 
     // Optional: capture logged-in buyer's userId for their inbox
     let clientUserId: string | null = null;
+    let currentUser: typeof owner | null = null;
     try {
-      const currentUser = await getCurrentUser();
+      currentUser = await getCurrentUser();
       if (currentUser && currentUser.id !== dealerUserId) {
         clientUserId = currentUser.id;
       }
     } catch { /* not logged in — fine, contact form works anonymously */ }
 
-    let conversation = await storage.findExistingConversation({
-      dealerUserId,
-      listingId,
-      clientEmail: email ?? null,
-      clientPhone: phone ?? null,
-    });
+    const effectiveEmail =
+      (email && email.trim()) || currentUser?.email?.trim() || null;
+    const effectivePhone =
+      (phone && phone.trim()) || currentUser?.phone?.trim() || null;
+
+    if (!effectiveEmail && !effectivePhone) {
+      return error("E-mail nebo telefon je povinný", 400);
+    }
+
+    // Private listings: NNAuto chat inbox is only for logged-in buyers
+    // (anonymous contact stays phone/e-mail only — no web thread).
+    if (listing.sellerType === "private" && !clientUserId) {
+      return error(
+        "Soukromý inzerát — pro chat se prosím přihlaste.",
+        409,
+      );
+    }
+
+    let conversation =
+      clientUserId
+        ? await storage.findConversationByClientUserAndListing({
+            clientUserId,
+            listingId,
+          })
+        : undefined;
+
+    if (!conversation) {
+      conversation = await storage.findExistingConversation({
+        dealerUserId,
+        listingId,
+        clientEmail: effectiveEmail,
+        clientPhone: effectivePhone,
+      });
+    }
 
     if (!conversation) {
       conversation = await storage.createConversation({
@@ -102,14 +114,14 @@ export async function POST(req: NextRequest) {
         listingId,
         clientUserId,
         clientName: name ?? null,
-        clientEmail: email ?? null,
-        clientPhone: phone ?? null,
+        clientEmail: effectiveEmail,
+        clientPhone: effectivePhone,
         source: "chat",
         threadKey: makeThreadKey({
           dealerUserId,
           listingId,
-          clientEmail: email ?? null,
-          clientPhone: phone ?? null,
+          clientEmail: effectiveEmail,
+          clientPhone: effectivePhone,
         }),
       });
     } else if (clientUserId && !(conversation as any).clientUserId) {
