@@ -821,24 +821,30 @@ export default function ProfilePage() {
     mutationFn: async () => {
       // Get JWT token from localStorage
       const token = localStorage.getItem("nnauto_token");
-      console.log(
-        "[EMAIL-VERIFY] Token exists:",
-        !!token,
-        "Token length:",
-        token?.length || 0,
-      );
+      const debug = process.env.NODE_ENV !== "production";
+      if (debug) {
+        console.log(
+          "[EMAIL-VERIFY] Token exists:",
+          !!token,
+          "Token length:",
+          token?.length || 0,
+        );
+      }
 
       if (!token) {
-        console.error(
-          "[EMAIL-VERIFY] No JWT token found! User needs to re-login.",
-        );
+        if (debug) {
+          console.error(
+            "[EMAIL-VERIFY] No JWT token found! User needs to re-login.",
+          );
+        }
         throw new Error("Session expired. Please log out and log in again.");
       }
 
-      // Make request with Authorization header
-      console.log(
-        "[EMAIL-VERIFY] Sending request with Authorization header...",
-      );
+      if (debug) {
+        console.log(
+          "[EMAIL-VERIFY] Sending request with Authorization header...",
+        );
+      }
       const res = await fetch("/api/auth/send-verification-code", {
         method: "POST",
         headers: {
@@ -849,16 +855,16 @@ export default function ProfilePage() {
         body: JSON.stringify({}),
       });
 
-      console.log("[EMAIL-VERIFY] Response status:", res.status);
+      if (debug) console.log("[EMAIL-VERIFY] Response status:", res.status);
 
       if (!res.ok) {
         const error = await res.json();
-        console.error("[EMAIL-VERIFY] Error response:", error);
+        if (debug) console.error("[EMAIL-VERIFY] Error response:", error);
         throw new Error(error.error || "Failed to send verification code");
       }
 
       const result = await res.json();
-      console.log("[EMAIL-VERIFY] Success:", result);
+      if (debug) console.log("[EMAIL-VERIFY] Success:", result);
       return result;
     },
     onSuccess: () => {
@@ -881,15 +887,17 @@ export default function ProfilePage() {
     mutationFn: async (code: string) => {
       // Get JWT token from localStorage
       const token = localStorage.getItem("nnauto_token");
-      console.log(
-        "[VERIFY-CODE] Submitting code:",
-        code,
-        "length:",
-        code.length,
-      );
-      console.log("[VERIFY-CODE] Token exists:", !!token);
+      const debug = process.env.NODE_ENV !== "production";
+      if (debug) {
+        console.log(
+          "[VERIFY-CODE] Submitting code:",
+          code,
+          "length:",
+          code.length,
+        );
+        console.log("[VERIFY-CODE] Token exists:", !!token);
+      }
 
-      // Make request with Authorization header
       const res = await fetch("/api/auth/verify-email", {
         method: "POST",
         headers: {
@@ -900,16 +908,16 @@ export default function ProfilePage() {
         body: JSON.stringify({ code }),
       });
 
-      console.log("[VERIFY-CODE] Response status:", res.status);
+      if (debug) console.log("[VERIFY-CODE] Response status:", res.status);
 
       if (!res.ok) {
         const error = await res.json();
-        console.error("[VERIFY-CODE] Error:", error);
+        if (debug) console.error("[VERIFY-CODE] Error:", error);
         throw new Error(error.error || "Failed to verify email");
       }
 
       const result = await res.json();
-      console.log("[VERIFY-CODE] Success:", result);
+      if (debug) console.log("[VERIFY-CODE] Success:", result);
       return result;
     },
     onSuccess: () => {

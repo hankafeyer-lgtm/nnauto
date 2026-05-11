@@ -32,7 +32,7 @@ function stableKey(ids: string[]): string {
  *   render a skeleton instead of fake zeros.
  * - After load, returns a map `{ [listingId]: { views, contactClicks, ... } }`
  *   — identical to the numbers shown on the listing detail page.
- * - Auto-refreshes every 60 s; safe to call from many components (react-query
+ * - Auto-refreshes every 2 min; safe to call from many components (react-query
  *   dedupes by `queryKey`).
  */
 export function useListingStatsBatch(
@@ -45,15 +45,17 @@ export function useListingStatsBatch(
   const { data, isLoading, isFetching } = useQuery<{ items: ListingStatsMap }>({
     queryKey: ["/api/listings/analytics/batch", key],
     enabled,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    // Owner-only stats — 1-2 minute lag is acceptable. Lower polling cost on
+    // "Moje inzeráty" with many cards.
+    staleTime: 60_000,
+    refetchInterval: 120_000,
     retry: 1,
     retryDelay: 800,
     queryFn: async () => {
       if (!ids.length) return { items: {} };
-      // Cache-bust once per minute so Safari never serves a stale {}
+      // Cache-bust once per 2 minutes so Safari never serves a stale {}
       // response while in-memory react-query deduplication still works.
-      const bust = Math.floor(Date.now() / 60_000);
+      const bust = Math.floor(Date.now() / 120_000);
       const res = await apiRequest(
         "GET",
         `/api/listings/analytics/batch?ids=${encodeURIComponent(

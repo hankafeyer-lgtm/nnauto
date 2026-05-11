@@ -892,8 +892,11 @@ function UnreadBadge() {
       if (!res.ok) return { unread: 0 };
       return res.json() as Promise<{ unread: number }>;
     },
-    refetchInterval: 30_000,
-    staleTime: 10_000,
+    // Header badge is a passive indicator — 60s is plenty in practice and
+    // halves the chat-unread polling cost across every authenticated page.
+    // Inside /zpravy itself the conversation list polls at its own cadence.
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
   const count = data?.unread ?? 0;
   if (count <= 0) return null;

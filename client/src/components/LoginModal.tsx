@@ -114,13 +114,17 @@ export default function LoginModal({
     },
     onSuccess: (data) => {
       // Store JWT token for production cross-domain auth
-      console.log(
-        "[AUTH] Login response received, token exists:",
-        !!data.token,
-      );
+      if (process.env.NODE_ENV !== "production") {
+        console.log(
+          "[AUTH] Login response received, token exists:",
+          !!data.token,
+        );
+      }
       if (data.token) {
         localStorage.setItem("nnauto_token", data.token);
-        console.log("[AUTH] JWT token stored, length:", data.token.length);
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[AUTH] JWT token stored, length:", data.token.length);
+        }
       } else {
         console.warn("[AUTH] No token in login response!");
       }
@@ -208,7 +212,9 @@ export default function LoginModal({
       // Store JWT token for production cross-domain auth
       if (data.token) {
         localStorage.setItem("nnauto_token", data.token);
-        console.log("[AUTH] JWT token stored after registration");
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[AUTH] JWT token stored after registration");
+        }
       }
 
       // Store session ID for Replit webview fallback

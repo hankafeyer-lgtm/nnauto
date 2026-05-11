@@ -1178,7 +1178,9 @@ export default function EditListingDialog({
   };
 
   const onInvalid = (errors: any) => {
-    console.log("❌ INVALID", errors);
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[EditListing] form invalid", errors);
+    }
     toast({
       variant: "destructive",
       title: "Форма не збережена",

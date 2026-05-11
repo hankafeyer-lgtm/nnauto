@@ -50,7 +50,10 @@ export function useDealerUnreadNotifier(opts?: {
       return res.json() as Promise<{ unread: number }>;
     },
     enabled: isDealer,
-    refetchInterval: 30_000,
+    // Notifier compares prev/next strictly, so 60s polling still catches every
+    // increase. Cutting cadence in half halves dealer-side request cost on
+    // every page that mounts this hook (cabinet pages + inbox shortcut).
+    refetchInterval: 60_000,
   });
 
   useEffect(() => {

@@ -13,12 +13,12 @@ export default function QuickFilters() {
     "2020+",
   ];
 
-  const handleFilterClick = (filter: string) => {
-    console.log("Quick filter clicked:", filter);
+  const handleFilterClick = (_filter: string) => {
+    // TODO: wire up to filter store when these quick filters are activated.
   };
 
   const handleClearAll = () => {
-    console.log("Clear all filters");
+    // TODO: wire up to filter store when these quick filters are activated.
   };
 
   return (
