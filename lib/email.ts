@@ -71,7 +71,22 @@ export async function sendEmail(args: {
       null;
     return { ok: true, externalId };
   } catch (e) {
-    console.error("[EMAIL] sendEmail failed:", e);
+    // MailerSend SDK raises errors that carry useful HTTP context on `body`
+    // / `statusCode`. Surface them explicitly so production logs answer
+    // "why didn't the email arrive?" without needing to reproduce locally.
+    const err = e as {
+      statusCode?: number;
+      message?: string;
+      body?: unknown;
+    };
+    console.error("[EMAIL] sendEmail failed:", {
+      from: senderEmail,
+      to: args.to,
+      subject: args.subject,
+      statusCode: err?.statusCode,
+      message: err?.message,
+      body: err?.body,
+    });
     return { ok: false };
   }
 }

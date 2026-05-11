@@ -72,7 +72,13 @@ export async function POST(
     const sender = role === "seller" ? "dealer" : "client";
 
     const priorMessages = await storage.listMessages(id);
-    const wasThreadEmpty = priorMessages.length === 0;
+    // "First buyer message" = no prior client-sent message in this thread.
+    // We intentionally ignore prior system/welcome messages here, otherwise
+    // a tread that already had an auto-reply bubble would silently miss the
+    // seller email — which is what users were reporting in production.
+    const isFirstBuyerMessage =
+      role === "client" &&
+      priorMessages.every((m) => m.sender !== "client");
 
     const storedContent =
       role === "client" ? appendListingSourceTag(content) : content;
@@ -98,7 +104,7 @@ export async function POST(
     }
 
     // First buyer message: auto-reply + e-mail seller (same behaviour as legacy contact flow)
-    if (role === "client" && wasThreadEmpty) {
+    if (isFirstBuyerMessage) {
       const autoText = getFirstMessageAutoReply();
       if (autoText) {
         await storage.createMessage({
@@ -118,7 +124,19 @@ export async function POST(
         .select()
         .from(users)
         .where(eq(users.id, conv.dealerUserId));
-      if (listing && owner?.email) {
+
+      const sellerEmail = owner?.email?.trim();
+      if (!listing) {
+        console.warn(
+          "[MSG-EMAIL] skip: listing not found",
+          { conversationId: id, listingId: conv.listingId },
+        );
+      } else if (!sellerEmail) {
+        console.warn(
+          "[MSG-EMAIL] skip: seller user has no email on file",
+          { conversationId: id, dealerUserId: conv.dealerUserId },
+        );
+      } else {
         const listingTitle =
           listing.title ||
           `${listing.brand} ${listing.model}`.trim() ||
@@ -129,11 +147,16 @@ export async function POST(
         const buyerContact =
           user.email?.trim() || user.phone?.trim() || "účet NNAuto";
         const origin = getPublicOrigin();
-        sendEmail({
-          to: owner.email,
-          subject: `Nová zpráva k inzerátu: ${listingTitle} | NNAuto`,
-          text: `Na NNAuto.cz vám přišla nová zpráva k vašemu inzerátu "${listingTitle}".\n\nOd: ${buyerLabel} (${buyerContact})\n\nZpráva:\n${storedContent}\n\nOdpovědět: ${origin}/zpravy`,
-          html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        try {
+          // Await so a failed email is observable in logs and the API route
+          // doesn't return before MailerSend has finished the HTTPS call —
+          // background promises after `return` are not guaranteed on Node
+          // serverless lifecycles.
+          const result = await sendEmail({
+            to: sellerEmail,
+            subject: `Nová zpráva k inzerátu: ${listingTitle} | NNAuto`,
+            text: `Na NNAuto.cz vám přišla nová zpráva k vašemu inzerátu "${listingTitle}".\n\nOd: ${buyerLabel} (${buyerContact})\n\nZpráva:\n${storedContent}\n\nOdpovědět: ${origin}/zpravy`,
+            html: `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
           <p style="font-size:15px;"><strong>Na NNAuto.cz vám přišla nová zpráva</strong> k inzerátu „${listingTitle}".</p>
           <p style="font-size:14px;color:#555;">Od: ${buyerLabel} (${buyerContact})</p>
           <div style="background:#f5f5f5;border-radius:8px;padding:12px 16px;margin:12px 0;font-size:14px;">${storedContent.replace(/\n/g, "<br/>")}</div>
@@ -141,7 +164,26 @@ export async function POST(
           <hr style="border:none;border-top:1px solid #eee;margin:20px 0;"/>
           <p style="font-size:11px;color:#888;text-align:center;">NNAuto.cz</p>
         </div>`,
-        }).catch(() => {});
+          });
+          if (!result.ok) {
+            console.error(
+              "[MSG-EMAIL] sendEmail returned ok=false",
+              { conversationId: id, to: sellerEmail },
+            );
+          } else {
+            console.info(
+              "[MSG-EMAIL] sent",
+              {
+                conversationId: id,
+                to: sellerEmail,
+                externalId: result.externalId,
+              },
+            );
+          }
+        } catch (e) {
+          // Never fail the POST response because of an email problem.
+          console.error("[MSG-EMAIL] unexpected throw", e);
+        }
       }
     }
 
