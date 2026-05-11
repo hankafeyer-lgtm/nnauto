@@ -171,6 +171,8 @@ export default function BuyerMessagesPage() {
 }
 
 function ConversationList({ onSelect }: { onSelect: (id: string) => void }) {
+  const queryClient = useQueryClient();
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["/api/messages/conversations"],
     queryFn: async () => {
@@ -178,6 +180,20 @@ function ConversationList({ onSelect }: { onSelect: (id: string) => void }) {
       return res.json() as Promise<{ conversations: Conversation[] }>;
     },
     refetchInterval: 30_000,
+  });
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      await apiRequest(
+        "DELETE",
+        `/api/messages/conversations/${conversationId}`,
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/messages/conversations"],
+      });
+    },
   });
 
   if (isLoading) {
@@ -224,58 +240,111 @@ function ConversationList({ onSelect }: { onSelect: (id: string) => void }) {
             : carTitle;
         const subtitle = c.role === "seller" ? carTitle : null;
         return (
-          <button
+          <div
             key={c.id}
-            type="button"
-            onClick={() => onSelect(c.id)}
-            className="w-full text-left rounded-xl border p-4 hover:bg-accent transition-colors flex items-start gap-3"
+            className="relative rounded-xl border hover:bg-accent transition-colors"
           >
-            {c.listing?.photos?.[0] ? (
-              <img
-                src={`/img/${c.listing.photos[0].replace(/^\/+/, "")}?w=80&q=70&f=webp`}
-                alt=""
-                className="w-12 h-12 rounded-lg object-cover shrink-0"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center text-sm font-bold text-muted-foreground">
-                {(c.clientName || "?")[0].toUpperCase()}
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <p className="font-medium truncate">{roleLabel}</p>
-                {c.unreadCount > 0 && (
-                  <span className="shrink-0 h-5 min-w-5 rounded-full bg-[#B8860B] text-white text-xs flex items-center justify-center px-1.5 font-medium">
-                    {c.unreadCount}
-                  </span>
-                )}
-              </div>
-              {subtitle && (
-                <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+            <button
+              type="button"
+              onClick={() => onSelect(c.id)}
+              className="w-full text-left p-4 pr-12 flex items-start gap-3"
+              data-testid={`conversation-row-${c.id}`}
+            >
+              {c.listing?.photos?.[0] ? (
+                <img
+                  src={`/img/${c.listing.photos[0].replace(/^\/+/, "")}?w=80&q=70&f=webp`}
+                  alt=""
+                  className="w-12 h-12 rounded-lg object-cover shrink-0"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-lg bg-muted shrink-0 flex items-center justify-center text-sm font-bold text-muted-foreground">
+                  {(c.clientName || "?")[0].toUpperCase()}
+                </div>
               )}
-              <p className="text-sm text-muted-foreground truncate mt-0.5">
-                {c.lastMessagePreview || "Žádné zprávy"}
-              </p>
-              <div className="flex items-center gap-2 mt-1">
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                    c.role === "seller"
-                      ? "bg-amber-100 text-amber-800"
-                      : "bg-blue-100 text-blue-800"
-                  }`}
-                >
-                  {c.role === "seller" ? "Prodávám" : "Kupuji"}
-                </span>
-                {c.lastMessageAt && (
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(c.lastMessageAt).toLocaleDateString("cs-CZ")}
-                  </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-medium truncate">{roleLabel}</p>
+                  {c.unreadCount > 0 && (
+                    <span className="shrink-0 h-5 min-w-5 rounded-full bg-[#B8860B] text-white text-xs flex items-center justify-center px-1.5 font-medium">
+                      {c.unreadCount}
+                    </span>
+                  )}
+                </div>
+                {subtitle && (
+                  <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
                 )}
+                <p className="text-sm text-muted-foreground truncate mt-0.5">
+                  {c.lastMessagePreview || "Žádné zprávy"}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                      c.role === "seller"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-blue-100 text-blue-800"
+                    }`}
+                  >
+                    {c.role === "seller" ? "Prodávám" : "Kupuji"}
+                  </span>
+                  {c.lastMessageAt && (
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(c.lastMessageAt).toLocaleDateString("cs-CZ")}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          </button>
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setConfirmDeleteId(c.id);
+              }}
+              disabled={deleteConversationMutation.isPending}
+              aria-label="Smazat chat"
+              title="Smazat chat"
+              data-testid={`button-delete-conversation-${c.id}`}
+              className="absolute top-2 right-2 h-9 w-9 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 disabled:opacity-50"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
         );
       })}
+
+      <AlertDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Smazat chat</AlertDialogTitle>
+            <AlertDialogDescription>
+              Opravdu chcete smazat tento chat? Tuto akci nelze vrátit zpět.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteConversationMutation.isPending}>
+              Zrušit
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (!confirmDeleteId) return;
+                deleteConversationMutation.mutate(confirmDeleteId, {
+                  onSettled: () => setConfirmDeleteId(null),
+                });
+              }}
+              disabled={deleteConversationMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

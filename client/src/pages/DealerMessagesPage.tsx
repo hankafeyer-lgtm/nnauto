@@ -196,10 +196,37 @@ export default function DealerMessagesPage() {
 
 function MessagesShell() {
   const t = useTranslation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const deleteConversationMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      await apiRequest(
+        "DELETE",
+        `/api/dealer/conversations/${conversationId}`,
+      );
+    },
+    onSuccess: (_data, conversationId) => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dealer/conversations"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/dealer/conversations/unread-count"],
+      });
+      setSelectedId((prev) => (prev === conversationId ? null : prev));
+    },
+    onError: (e: unknown) =>
+      toast({
+        title: "Smazání chatu selhalo",
+        description: e instanceof Error ? e.message : "",
+        variant: "destructive",
+      }),
+  });
 
   // Keep the unread cache fresh and pre-warmed (so /dealer page picks up
   // changes the moment the dealer leaves the inbox), but suppress
@@ -302,6 +329,8 @@ function MessagesShell() {
                   c={c}
                   selected={c.id === selectedId}
                   onClick={() => setSelectedId(c.id)}
+                  onRequestDelete={() => setConfirmDeleteId(c.id)}
+                  deleting={deleteConversationMutation.isPending}
                 />
               ))}
             </ul>
@@ -324,6 +353,40 @@ function MessagesShell() {
         )}
       </section>
     </div>
+
+      <AlertDialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDeleteId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Smazat chat</AlertDialogTitle>
+            <AlertDialogDescription>
+              Opravdu chcete smazat tento chat? Tuto akci nelze vrátit zpět.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteConversationMutation.isPending}>
+              Zrušit
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                if (!confirmDeleteId) return;
+                deleteConversationMutation.mutate(confirmDeleteId, {
+                  onSettled: () => setConfirmDeleteId(null),
+                });
+              }}
+              disabled={deleteConversationMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Smazat
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
@@ -415,10 +478,14 @@ function ConversationListItem({
   c,
   selected,
   onClick,
+  onRequestDelete,
+  deleting,
 }: {
   c: ConversationWithListing;
   selected: boolean;
   onClick: () => void;
+  onRequestDelete: () => void;
+  deleting: boolean;
 }) {
   const t = useTranslation();
   const initials = (c.clientName || c.clientEmail || c.clientPhone || "?")
@@ -427,13 +494,15 @@ function ConversationListItem({
     .toUpperCase();
 
   return (
-    <li>
+    <li
+      className={`relative hover:bg-muted/50 transition ${
+        selected ? "bg-muted/70" : ""
+      }`}
+    >
       <button
         type="button"
         onClick={onClick}
-        className={`w-full text-left p-3 hover:bg-muted/50 transition flex gap-3 items-start ${
-          selected ? "bg-muted/70" : ""
-        }`}
+        className="w-full text-left p-3 pr-12 flex gap-3 items-start"
         data-testid={`conversation-row-${c.id}`}
       >
         <div className="relative shrink-0">
@@ -471,6 +540,20 @@ function ConversationListItem({
             </span>
           </div>
         </div>
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRequestDelete();
+        }}
+        disabled={deleting}
+        aria-label="Smazat chat"
+        title="Smazat chat"
+        data-testid={`button-delete-conversation-${c.id}`}
+        className="absolute top-2 right-2 h-8 w-8 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 disabled:opacity-50"
+      >
+        <Trash2 className="h-4 w-4" />
       </button>
     </li>
   );
