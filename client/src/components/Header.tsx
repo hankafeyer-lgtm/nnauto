@@ -770,10 +770,8 @@ function HeaderContent({
                       data-testid="menu-item-messages"
                     >
                       <MessageCircle className="mr-3 h-5 w-5" />
-                      <span className="flex items-center gap-2">
-                        {t("messages.heading")}
-                        <UnreadBadge />
-                      </span>
+                      <span>{t("messages.heading")}</span>
+                      <UnreadBadge className="ml-auto" />
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => navigate("/profile")}
@@ -884,7 +882,7 @@ function HeaderContent({
   );
 }
 
-function UnreadBadge() {
+function UnreadBadge({ className = "" }: { className?: string }) {
   const { data } = useQuery({
     queryKey: ["/api/messages/unread-count"],
     queryFn: async () => {
@@ -901,8 +899,16 @@ function UnreadBadge() {
   const count = data?.unread ?? 0;
   if (count <= 0) return null;
   return (
-    <span className="inline-flex items-center justify-center h-5 min-w-5 rounded-full bg-[#B8860B] text-white text-xs font-medium px-1.5">
-      {count > 99 ? "99+" : count}
+    <span
+      className={`relative inline-flex items-center justify-center h-5 min-w-[1.25rem] rounded-full bg-[#B8860B] text-white text-xs font-semibold px-1.5 shadow-sm ${className}`}
+      aria-label={`Nepřečtené zprávy: ${count}`}
+      data-testid="badge-unread-messages"
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-0 rounded-full bg-[#B8860B] opacity-60 animate-ping"
+      />
+      <span className="relative">{count > 99 ? "99+" : count}</span>
     </span>
   );
 }
