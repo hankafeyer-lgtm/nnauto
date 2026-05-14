@@ -48,3 +48,4 @@ test-results/
 
 # Watermark preview renders (dev-only, regenerate via scripts/watermark-preview.mjs)
 public/watermark-preview/
+.backups/
