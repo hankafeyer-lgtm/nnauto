@@ -39,7 +39,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "@/lib/translations";
 import { useAuth } from "@/hooks/useAuth";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient, setSessionId } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import LoginModal from "@/components/LoginModal";
 import { useFilterParams } from "@/hooks/useFilterParams";
@@ -373,7 +373,6 @@ function HeaderContent({
     },
     onSuccess: () => {
       // Clear all auth tokens and session data
-      setSessionId(null);
       localStorage.removeItem("nnauto_user");
       localStorage.removeItem("nnauto_token"); // Clear JWT token
 

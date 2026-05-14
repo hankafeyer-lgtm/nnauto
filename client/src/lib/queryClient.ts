@@ -28,33 +28,15 @@ export function parseApiError(error: unknown): { status?: number; message: strin
   }
 }
 
-// Session ID storage helpers (for Replit webview fallback)
-function getSessionId(): string | null {
-  try {
-    return localStorage.getItem('x-session-id');
-  } catch {
-    return null;
-  }
-}
-
-// JWT token helper for cross-domain auth
+// JWT token helper for cross-domain auth.
+// (Legacy `x-session-id` localStorage fallback removed — it only existed
+// for the old Replit-hosted Express server; the live Next.js login flow
+// uses JWT + cookies and never wrote that key.)
 function getJwtToken(): string | null {
   try {
     return localStorage.getItem('nnauto_token');
   } catch {
     return null;
-  }
-}
-
-export function setSessionId(sessionId: string | null) {
-  try {
-    if (sessionId) {
-      localStorage.setItem('x-session-id', sessionId);
-    } else {
-      localStorage.removeItem('x-session-id');
-    }
-  } catch {
-    // Ignore localStorage errors
   }
 }
 
@@ -67,10 +49,6 @@ export function listingsFetchHeaders(
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  const sessionId = getSessionId();
-  if (sessionId) {
-    headers["X-Session-Id"] = sessionId;
-  }
   return headers;
 }
 
@@ -80,19 +58,13 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
-  
+
   // Add JWT token if available (production cross-domain auth)
   const token = getJwtToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
-  
-  // Add session ID header if available (Replit webview fallback)
-  const sessionId = getSessionId();
-  if (sessionId) {
-    headers['X-Session-Id'] = sessionId;
-  }
-  
+
   const res = await fetch(url, {
     method,
     headers,
@@ -111,19 +83,13 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const headers: Record<string, string> = {};
-    
+
     // Add JWT token if available (production cross-domain auth)
     const token = getJwtToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
-    
-    // Add session ID header if available (Replit webview fallback)
-    const sessionId = getSessionId();
-    if (sessionId) {
-      headers['X-Session-Id'] = sessionId;
-    }
-    
+
     const res = await fetch(queryKey.join("/") as string, {
       headers,
       credentials: "include",

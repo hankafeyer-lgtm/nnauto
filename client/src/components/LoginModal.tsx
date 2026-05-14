@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient, setSessionId } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useTranslation } from "@/lib/translations";
 import { Eye, EyeOff, Shield, CheckCircle } from "lucide-react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
@@ -129,11 +129,6 @@ export default function LoginModal({
         console.warn("[AUTH] No token in login response!");
       }
 
-      // Store session ID for Replit webview fallback
-      if (data.sessionId) {
-        setSessionId(data.sessionId);
-      }
-
       // Store user in localStorage for production fallback (session issues)
       if (data.user) {
         localStorage.setItem("nnauto_user", JSON.stringify(data.user));
@@ -142,7 +137,7 @@ export default function LoginModal({
       // Normalize auth cache shape to ensure consistent structure
       queryClient.setQueryData(["/api/auth/user"], {
         user: data.user ?? null,
-        sessionId: data.sessionId ?? null,
+        sessionId: null,
       });
 
       // PURGE listings cache to prevent stale anonymous data from showing after login/register
@@ -217,11 +212,6 @@ export default function LoginModal({
         }
       }
 
-      // Store session ID for Replit webview fallback
-      if (data.sessionId) {
-        setSessionId(data.sessionId);
-      }
-
       // Store user in localStorage for production fallback (session issues)
       if (data.user) {
         localStorage.setItem("nnauto_user", JSON.stringify(data.user));
@@ -230,7 +220,7 @@ export default function LoginModal({
       // Normalize auth cache shape to ensure consistent structure
       queryClient.setQueryData(["/api/auth/user"], {
         user: data.user ?? null,
-        sessionId: data.sessionId ?? null,
+        sessionId: null,
       });
 
       // PURGE listings cache to prevent stale anonymous data from showing after login/register
