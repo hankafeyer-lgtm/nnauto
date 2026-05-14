@@ -7,11 +7,7 @@ import React, {
 } from "react";
 import { X, ChevronLeft, ChevronRight, Video, Loader2 } from "lucide-react";
 import { useTranslation } from "@/lib/translations";
-import {
-  getCardImageUrl,
-  getOptimizedImageUrl,
-  getThumbnailUrl,
-} from "@/lib/imageOptimizer";
+import { getOptimizedImageUrl, getThumbnailUrl } from "@/lib/imageOptimizer";
 
 interface MediaLightboxProps {
   photos: string[];
@@ -25,42 +21,41 @@ const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 
 const DESKTOP_MIN_WIDTH = 1024;
-// Render widths sized so a retina phone (DPR ≤ 2) still sees crisp pixels
-// without over-shooting and pulling a multi-MB transfer on 3G.
-const MOBILE_MAX_W = 1400;
-const DESKTOP_MAX_W = 1800;
-const QUALITY = 78;
+// Render widths chosen to keep the per-photo Sharp resize + watermark
+// composite pipeline on the VPS under ~400ms on first hit and the over-
+// the-wire transfer small enough for 4G. Going wider made the cold
+// cache feel as slow as the original (multi-second blank screen).
+const MOBILE_MAX_W = 1200;
+const DESKTOP_MAX_W = 1600;
+const QUALITY = 72;
 
 /**
  * Fullscreen photo/video gallery used from the listing detail page.
  *
- * Strategy after two iterations that each made things worse:
+ * Strategy (after a few iterations that each had a flaw):
  *
- *   1. Show the SAME tiny URL the catalogue card already served
- *      (`getCardImageUrl` → w=400, q=60). On any user who arrived from
- *      the listing grid this image is already in browser cache, so it
- *      paints instantly. We render it with a small blur as a
- *      progressive placeholder.
+ *   1. Preview source = thumbnail-strip URL (`getThumbnailUrl`, w=64).
+ *      The bottom strip already needs every thumbnail, so we eagerly
+ *      load all of them when the lightbox opens (≈ 29 photos × 5 KB).
+ *      That gives a guaranteed-cached placeholder for ANY photo — not
+ *      just photo 0 the way `getCardImageUrl` did.
  *
- *   2. The full-resolution image (w=1400 mobile / w=1800 desktop, q=78)
- *      loads on top and fades in once `onLoad` fires. URLs are
- *      deterministic for the session — same `renderWidth`, same
- *      `quality`, no per-request cache buster — so a second pass
- *      through the same photo is a pure cache hit.
+ *   2. A heavy 16 px blur masks the 64 px → screen-wide upscaling so
+ *      the placeholder reads as "loading this photo" rather than "low
+ *      quality photo".
  *
- *   3. ONE prefetch — only the next photo — and only AFTER the current
- *      photo has finished loading. This way the current swipe never
- *      competes for bandwidth, but a steady swipe still gets the
- *      browser cache warm one step ahead.
+ *   3. Full-res = w=1200 mobile / w=1600 desktop, q=72. The VPS
+ *      Sharp + watermark pipeline at these sizes finishes in ~300–
+ *      500 ms cold and ~10 ms warm; the over-the-wire transfer on 4G
+ *      is roughly halved compared to w=1800 q=78.
  *
- *   4. No `key` on <img>, no `new Image()` objects, no manual cancel
- *      logic. Updating `src` on the same element is enough; the HTML
- *      spec aborts the previous fetch automatically.
+ *   4. ONE prefetch — only the next photo — and only AFTER the current
+ *      photo has finished loading. The active swipe never competes
+ *      for bandwidth.
  *
- *   5. A spinner is shown only while EVEN the preview hasn't painted
- *      (rare — only on direct deep links where no card was visited).
- *      The previous frame is never visible during a swipe (kept at
- *      opacity-0 via the full-image overlay's state).
+ *   5. No `key={index}` and no `new Image()` cancel logic. Updating
+ *      `src` on the same element is enough — the HTML image element
+ *      aborts the previous fetch automatically when src changes.
  */
 export function MediaLightbox({
   photos,
@@ -139,10 +134,13 @@ export function MediaLightbox({
 
   const currentKey = photoKeys[safePhotoIndex];
   const currentUrl = currentKey ? buildUrl(currentKey) : "";
-  // Same URL the catalogue card / listing slider used — virtually
-  // always present in the browser cache by the time we open the
-  // lightbox, so it paints in the very next frame.
-  const previewUrl = currentKey ? getCardImageUrl(currentKey) : "";
+  // Same URL the bottom thumbnail strip renders for this photo. The
+  // strip eager-loads all thumbnails (see `thumbnails` below), so by
+  // the time the user swipes anywhere this URL is in browser cache
+  // and the placeholder paints in the same frame as the index change.
+  // Critically this works for EVERY photo, not just photo 0 the way
+  // a card-image preview would.
+  const previewUrl = currentKey ? getThumbnailUrl(currentKey) : "";
   // One-ahead key for the conservative prefetch hook below.
   const nextKey =
     !isVideoSlide && photoKeys.length > 1
@@ -357,7 +355,13 @@ export function MediaLightbox({
               src={thumbnailUrls[index]}
               alt={`Thumbnail ${index + 1}`}
               className="w-full h-full object-cover"
-              loading="lazy"
+              // Eager so that ALL thumbnails are warm in the browser
+              // cache the moment the lightbox opens — that's what
+              // makes the blurred preview show instantly when the
+              // user swipes to any photo, not just photo 0. Each
+              // thumb is ~5 KB so the sum (≈ 150 KB for a typical
+              // listing) is cheap.
+              loading="eager"
               decoding="async"
             />
           </button>
@@ -458,10 +462,13 @@ export function MediaLightbox({
               className="absolute inset-0 m-auto max-w-full max-h-full object-contain select-none pointer-events-none transition-opacity duration-100"
               style={{
                 opacity: previewLoaded && !imageLoaded ? 1 : 0,
-                filter: "blur(8px)",
-                // Slight overscale so the blurred edges don't reveal
-                // the container background.
-                transform: "scale(1.02)",
+                // 16px blur is enough to mask the 64 px → screen
+                // upscaling so it reads as "loading" rather than "low
+                // quality". The 1.04 overscale hides the blurred
+                // edges that would otherwise peek over the black
+                // background.
+                filter: "blur(16px)",
+                transform: "scale(1.04)",
                 willChange: imageLoaded ? undefined : "opacity",
               }}
               data-testid="img-lightbox-preview"
