@@ -2,7 +2,8 @@
   "include": [
     "client/src/**/*",
     "shared/**/*",
-    "server/**/*",
+    "app/**/*",
+    "lib/**/*",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
@@ -30,8 +31,7 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "types": [
-      "node",
-      "vite/client"
+      "node"
     ],
     "paths": {
       "@/*": [
