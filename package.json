@@ -5,12 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "next dev --webpack",
-    "dev:legacy": "NODE_ENV=development tsx server/index.ts",
-    "build:legacy-client": "vite build",
-    "build:legacy-server": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "build:legacy": "npm run build:legacy-client && npm run build:legacy-server",
     "build": "next build --webpack",
-    "start:legacy": "NODE_ENV=production node dist/index.js",
     "start": "NODE_ENV=production next start -p 5000",
     "check": "tsc",
     "test:e2e": "playwright test",
