@@ -7,7 +7,11 @@ import React, {
 } from "react";
 import { X, ChevronLeft, ChevronRight, Video, Loader2 } from "lucide-react";
 import { useTranslation } from "@/lib/translations";
-import { getThumbnailUrl, getOptimizedImageUrl } from "@/lib/imageOptimizer";
+import {
+  getCardImageUrl,
+  getOptimizedImageUrl,
+  getThumbnailUrl,
+} from "@/lib/imageOptimizer";
 
 interface MediaLightboxProps {
   photos: string[];
@@ -30,22 +34,33 @@ const QUALITY = 78;
 /**
  * Fullscreen photo/video gallery used from the listing detail page.
  *
- * Design rules — kept intentionally minimal after a heavier preload +
- * src-cancel iteration made things *worse* under fast swipes:
+ * Strategy after two iterations that each made things worse:
  *
- *   - One single <img> element. Swapping `src` is enough; the HTML
- *     image element drops its previous in-flight fetch by spec when
- *     src changes, so we don't need extra cancellation gymnastics.
- *   - No neighbour preload. Aggressive prefetch made fast swipes
- *     constantly start-then-abort downloads that never had time to
- *     finish, starving the per-host connection budget instead of
- *     warming the cache.
- *   - One render width per session (chosen at open from viewport +
- *     DPR). Stable URLs ⇒ browser can cache hits cleanly when the
- *     user later swipes back.
- *   - A spinner overlay covers the area while the new frame is
- *     loading; the previous frame is hidden behind opacity-0 so the
- *     user never reads it as the current photo.
+ *   1. Show the SAME tiny URL the catalogue card already served
+ *      (`getCardImageUrl` → w=400, q=60). On any user who arrived from
+ *      the listing grid this image is already in browser cache, so it
+ *      paints instantly. We render it with a small blur as a
+ *      progressive placeholder.
+ *
+ *   2. The full-resolution image (w=1400 mobile / w=1800 desktop, q=78)
+ *      loads on top and fades in once `onLoad` fires. URLs are
+ *      deterministic for the session — same `renderWidth`, same
+ *      `quality`, no per-request cache buster — so a second pass
+ *      through the same photo is a pure cache hit.
+ *
+ *   3. ONE prefetch — only the next photo — and only AFTER the current
+ *      photo has finished loading. This way the current swipe never
+ *      competes for bandwidth, but a steady swipe still gets the
+ *      browser cache warm one step ahead.
+ *
+ *   4. No `key` on <img>, no `new Image()` objects, no manual cancel
+ *      logic. Updating `src` on the same element is enough; the HTML
+ *      spec aborts the previous fetch automatically.
+ *
+ *   5. A spinner is shown only while EVEN the preview hasn't painted
+ *      (rare — only on direct deep links where no card was visited).
+ *      The previous frame is never visible during a swipe (kept at
+ *      opacity-0 via the full-image overlay's state).
  */
 export function MediaLightbox({
   photos,
@@ -74,6 +89,7 @@ export function MediaLightbox({
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [previewLoaded, setPreviewLoaded] = useState(false);
 
   /** Width chosen once at lightbox open; stable URLs over the session. */
   const [renderWidth, setRenderWidth] = useState<number>(MOBILE_MAX_W);
@@ -123,6 +139,15 @@ export function MediaLightbox({
 
   const currentKey = photoKeys[safePhotoIndex];
   const currentUrl = currentKey ? buildUrl(currentKey) : "";
+  // Same URL the catalogue card / listing slider used — virtually
+  // always present in the browser cache by the time we open the
+  // lightbox, so it paints in the very next frame.
+  const previewUrl = currentKey ? getCardImageUrl(currentKey) : "";
+  // One-ahead key for the conservative prefetch hook below.
+  const nextKey =
+    !isVideoSlide && photoKeys.length > 1
+      ? photoKeys[(safePhotoIndex + 1) % photoKeys.length]
+      : null;
 
   const thumbnailUrls = useMemo(
     () => photoKeys.map((k) => getThumbnailUrl(k)),
@@ -156,6 +181,7 @@ export function MediaLightbox({
     setPanPosition({ x: 0, y: 0 });
     lastPanRef.current = { x: 0, y: 0 };
     setImageLoaded(false);
+    setPreviewLoaded(false);
   }, [currentIndex, isOpen]);
 
   const handlePrev = useCallback(() => {
@@ -412,11 +438,39 @@ export function MediaLightbox({
             onClick={(e) => e.stopPropagation()}
           />
         ) : currentKey ? (
-          <>
+          <div className="relative w-full h-full flex items-center justify-center">
             {/*
-              One image element. Changing its src on swipe is enough —
-              the HTML spec aborts the previous fetch automatically.
-              No key, no neighbour preload, no extra Image() objects.
+              Layer 1 — low-res preview using the SAME url the catalogue
+              card served. Almost always already in the browser cache,
+              so it paints in the same frame as the index change. A
+              small blur disguises the upscaling until the full-res
+              version arrives. Hidden under the full image once that
+              has finished loading.
+            */}
+            <img
+              src={previewUrl}
+              alt=""
+              aria-hidden="true"
+              decoding="async"
+              draggable={false}
+              onLoad={() => setPreviewLoaded(true)}
+              onError={() => setPreviewLoaded(true)}
+              className="absolute inset-0 m-auto max-w-full max-h-full object-contain select-none pointer-events-none transition-opacity duration-100"
+              style={{
+                opacity: previewLoaded && !imageLoaded ? 1 : 0,
+                filter: "blur(8px)",
+                // Slight overscale so the blurred edges don't reveal
+                // the container background.
+                transform: "scale(1.02)",
+                willChange: imageLoaded ? undefined : "opacity",
+              }}
+              data-testid="img-lightbox-preview"
+            />
+
+            {/*
+              Layer 2 — full-resolution version. Fades in once `onLoad`
+              fires. Updating its `src` on swipe is enough: the HTML
+              image element aborts its previous fetch automatically.
             */}
             <img
               src={currentUrl}
@@ -427,10 +481,9 @@ export function MediaLightbox({
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageLoaded(true)}
               onClick={(e) => e.stopPropagation()}
-              className={`max-w-full max-h-full object-contain select-none transition-opacity duration-150 ${
-                imageLoaded ? "opacity-100" : "opacity-0"
-              }`}
+              className="absolute inset-0 m-auto max-w-full max-h-full object-contain select-none transition-opacity duration-150"
               style={{
+                opacity: imageLoaded ? 1 : 0,
                 transform: isZoomed
                   ? `scale(2.5) translate(${panPosition.x / 2.5}px, ${panPosition.y / 2.5}px)`
                   : "scale(1) translate(0, 0)",
@@ -438,7 +491,13 @@ export function MediaLightbox({
               }}
               data-testid="img-lightbox"
             />
-            {!imageLoaded && (
+
+            {/*
+              Spinner only when EVEN the preview hasn't painted yet
+              (very rare — would only happen on a direct deep link
+              where no catalogue card was visited beforehand).
+            */}
+            {!previewLoaded && !imageLoaded && (
               <div
                 className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 aria-hidden="true"
@@ -447,7 +506,25 @@ export function MediaLightbox({
                 <Loader2 className="h-10 w-10 text-white/70 animate-spin" />
               </div>
             )}
-          </>
+
+            {/*
+              One-ahead prefetch — only mounted AFTER the current photo
+              finishes loading. This guarantees the current swipe is
+              never starved by a prefetch competing for bandwidth, but
+              a steady swipe still finds the next photo warm.
+              Rendered with display:none so it never affects layout.
+            */}
+            {imageLoaded && nextKey && (
+              <img
+                src={buildUrl(nextKey)}
+                alt=""
+                aria-hidden="true"
+                decoding="async"
+                style={{ display: "none" }}
+                data-testid="img-lightbox-prefetch-next"
+              />
+            )}
+          </div>
         ) : null}
       </div>
 
