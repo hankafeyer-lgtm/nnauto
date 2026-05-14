@@ -21,34 +21,31 @@ const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 
 const DESKTOP_MIN_WIDTH = 1024;
+// Render widths sized so a retina phone (DPR ≤ 2) still sees crisp pixels
+// without over-shooting and pulling a multi-MB transfer on 3G.
+const MOBILE_MAX_W = 1400;
+const DESKTOP_MAX_W = 1800;
+const QUALITY = 78;
 
 /**
  * Fullscreen photo/video gallery used from the listing detail page.
  *
- * Performance contract for fast swiping (the main reason for this
- * component's design):
+ * Design rules — kept intentionally minimal after a heavier preload +
+ * src-cancel iteration made things *worse* under fast swipes:
  *
- *   1. The active <img> uses `key={safePhotoIndex}` so swiping unmounts
- *      the previous element. That makes the browser drop the in-flight
- *      HTTP request for the previous photo — without it, swiping past
- *      a half-loaded image would keep its connection alive and starve
- *      the next request out of the per-host parallel-connection budget
- *      (~6 in Chrome/Safari), which is exactly the "you're already on
- *      the 10th photo but 5–6–7 are still downloading" symptom.
- *
- *   2. Preloading is intentionally limited to ONE neighbour on each
- *      side (idx-1, idx+1). The effect's cleanup empties their `src`
- *      on swipe, which releases their connection slot too.
- *
- *   3. The image's render width is captured ONCE per lightbox open
- *      based on viewport + DPR. We don't run a per-slide "upgrade"
- *      flow (mobile → desktop) because that would fire an additional
- *      preload for every swipe.
- *
- *   4. While the current frame is not yet loaded a single spinner
- *      overlay is rendered so the user gets feedback that the gallery
- *      is alive — without it the previous frame would visibly "stick"
- *      on slow networks.
+ *   - One single <img> element. Swapping `src` is enough; the HTML
+ *     image element drops its previous in-flight fetch by spec when
+ *     src changes, so we don't need extra cancellation gymnastics.
+ *   - No neighbour preload. Aggressive prefetch made fast swipes
+ *     constantly start-then-abort downloads that never had time to
+ *     finish, starving the per-host connection budget instead of
+ *     warming the cache.
+ *   - One render width per session (chosen at open from viewport +
+ *     DPR). Stable URLs ⇒ browser can cache hits cleanly when the
+ *     user later swipes back.
+ *   - A spinner overlay covers the area while the new frame is
+ *     loading; the previous frame is hidden behind opacity-0 so the
+ *     user never reads it as the current photo.
  */
 export function MediaLightbox({
   photos,
@@ -78,28 +75,22 @@ export function MediaLightbox({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  /**
-   * Render-target width captured once at mount based on viewport + DPR.
-   * Stable across swipes so the URL is identical between display and
-   * neighbour preload — letting the browser cache hit on every swipe.
-   */
-  const [renderWidth, setRenderWidth] = useState<number>(1000);
+  /** Width chosen once at lightbox open; stable URLs over the session. */
+  const [renderWidth, setRenderWidth] = useState<number>(MOBILE_MAX_W);
   useEffect(() => {
     if (!isOpen) return;
     if (typeof window === "undefined") return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const isDesktop = window.innerWidth >= DESKTOP_MIN_WIDTH;
-    const w = isDesktop
-      ? Math.min(1600, Math.round(window.innerWidth * dpr))
-      : Math.min(900, Math.round(window.innerWidth * dpr));
-    setRenderWidth(w);
+    const cap = isDesktop ? DESKTOP_MAX_W : MOBILE_MAX_W;
+    setRenderWidth(Math.min(cap, Math.round(window.innerWidth * dpr)));
   }, [isOpen]);
 
   const buildUrl = useCallback(
     (key: string) =>
       getOptimizedImageUrl(key, {
         width: renderWidth,
-        quality: renderWidth > 1200 ? 75 : 68,
+        quality: QUALITY,
         format: "webp",
       }),
     [renderWidth],
@@ -186,43 +177,6 @@ export function MediaLightbox({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, onClose, handlePrev, handleNext]);
-
-  /**
-   * Preload ±1 neighbour and cancel the in-flight requests on cleanup.
-   *
-   * Setting `img.src = ""` on an HTMLImageElement with no other live
-   * references causes Chrome/Firefox/Safari to abort the in-flight
-   * download. That's our "AbortController for <img>" — when the user
-   * swipes past a still-loading neighbour, the connection slot is
-   * freed immediately so the new neighbour gets to start.
-   */
-  useEffect(() => {
-    if (!isOpen) return;
-    if (photoKeys.length === 0) return;
-
-    const idx = clamp(currentIndex, 0, photoKeys.length - 1);
-    const neighbors = [idx - 1, idx + 1].filter(
-      (i, pos, arr) => i >= 0 && i < photoKeys.length && arr.indexOf(i) === pos,
-    );
-
-    const preloads: HTMLImageElement[] = [];
-    for (const i of neighbors) {
-      const img = new Image();
-      img.decoding = "async";
-      img.src = buildUrl(photoKeys[i]);
-      preloads.push(img);
-    }
-
-    return () => {
-      for (const img of preloads) {
-        try {
-          img.src = "";
-        } catch {
-          /* ignore */
-        }
-      }
-    };
-  }, [isOpen, currentIndex, photoKeys, buildUrl]);
 
   // Pan smooth
   const setPanSmooth = useCallback((x: number, y: number) => {
@@ -459,8 +413,12 @@ export function MediaLightbox({
           />
         ) : currentKey ? (
           <>
+            {/*
+              One image element. Changing its src on swipe is enough —
+              the HTML spec aborts the previous fetch automatically.
+              No key, no neighbour preload, no extra Image() objects.
+            */}
             <img
-              key={`slide-${safePhotoIndex}`}
               src={currentUrl}
               alt={`Photo ${currentIndex + 1}`}
               decoding="async"
