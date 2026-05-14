@@ -12,9 +12,7 @@ function getStripe() {
 
 export async function POST(req: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-  const isProduction =
-    process.env.NODE_ENV === "production" ||
-    Boolean(process.env.REPLIT_DEPLOYMENT);
+  const isProduction = process.env.NODE_ENV === "production";
 
   if (isProduction && !webhookSecret) {
     console.error("[STRIPE] STRIPE_WEBHOOK_SECRET is missing in production");

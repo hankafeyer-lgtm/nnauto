@@ -1,6 +1,5 @@
 const isProductionRuntime =
   process.env.NODE_ENV === "production" ||
-  Boolean(process.env.REPLIT_DEPLOYMENT) ||
   process.env.NN_AUTO_REQUIRE_PROD_SECRETS === "true";
 
 /**
