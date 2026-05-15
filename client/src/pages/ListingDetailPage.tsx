@@ -6170,6 +6170,7 @@ export default function ListingDetailPage({
           phone={listing.phone}
           email={seller?.email ?? null}
           carTitle={getListingMainTitle(listing)}
+          onNNAutoChat={handleOpenChat}
           onCall={() => {
             void trackListingAnalyticsEvent("contact_click");
             try {

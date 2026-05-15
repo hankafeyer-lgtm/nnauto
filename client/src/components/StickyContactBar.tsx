@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Send,
 } from "lucide-react";
+const nnAutoLogo = "/logo-icon-only.png";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -45,12 +46,20 @@ export type StickyContactBarProps = {
   // Optional callbacks for analytics (kept generic – page can wire them).
   onMessage?: (channel: "whatsapp" | "telegram" | "email") => void;
   onCall?: () => void;
+  /**
+   * Optional handler for the "Napsat do chatu NNAuto" entry that opens
+   * the in-site /zpravy chat. When provided, the entry is rendered as
+   * the FIRST item in the message menu (above WhatsApp/Telegram/Email)
+   * so logged-in buyers always see the on-site option first.
+   */
+  onNNAutoChat?: () => void;
   // i18n-friendly overrides.
   labelMessage?: string;
   labelCall?: string;
   labelWhatsApp?: string;
   labelTelegram?: string;
   labelEmail?: string;
+  labelNNAutoChat?: string;
 };
 
 const SAFE_BOTTOM = "pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]";
@@ -126,17 +135,86 @@ function ChannelButton({
   );
 }
 
+/**
+ * Same visual contract as ChannelButton but rendered as a real
+ * <button> so it can invoke client-side JS (auth check, navigation
+ * to /zpravy with the prefill payload, …) instead of following a
+ * link. Reused only by the NNAuto in-site chat entry.
+ */
+function ChannelAction({
+  onClick,
+  icon: Icon,
+  iconSrc,
+  label,
+  hint,
+  iconClassName,
+  testId,
+}: {
+  onClick: () => void;
+  icon?: React.ComponentType<{ className?: string }>;
+  iconSrc?: string;
+  label: string;
+  hint?: string;
+  iconClassName?: string;
+  testId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      className="w-full text-left flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-accent active:scale-[0.98] transition-[background,transform] focus:outline-none focus:ring-2 focus:ring-ring"
+    >
+      <span
+        className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${iconClassName ?? "bg-muted"}`}
+      >
+        {iconSrc ? (
+          <img
+            src={iconSrc}
+            alt=""
+            aria-hidden="true"
+            className="h-6 w-6 object-contain"
+            decoding="async"
+          />
+        ) : Icon ? (
+          <Icon className="h-5 w-5" />
+        ) : null}
+      </span>
+      <span className="min-w-0 text-left">
+        <span className="block text-sm font-medium leading-tight">{label}</span>
+        {hint ? (
+          <span className="block text-xs text-muted-foreground truncate">
+            {hint}
+          </span>
+        ) : null}
+      </span>
+    </button>
+  );
+}
+
 function MessageMenuItems({
   links,
   onMessage,
+  onNNAutoChat,
   labels,
 }: {
   links: ReturnType<typeof buildLinks>;
   onMessage?: StickyContactBarProps["onMessage"];
-  labels: { wa: string; tg: string; email: string };
+  onNNAutoChat?: () => void;
+  labels: { wa: string; tg: string; email: string; nn: string };
 }) {
   return (
     <div className="grid gap-1 p-1">
+      {onNNAutoChat ? (
+        <ChannelAction
+          onClick={onNNAutoChat}
+          iconSrc={nnAutoLogo}
+          label={labels.nn}
+          hint="NNAuto.cz"
+          iconClassName="bg-[#B8860B]/10"
+          testId="sticky-contact-nnauto-chat"
+        />
+      ) : null}
       {links.whatsapp ? (
         <ChannelButton
           href={links.whatsapp}
@@ -182,16 +260,26 @@ export default function StickyContactBar(props: StickyContactBarProps) {
     carTitle,
     onMessage,
     onCall,
+    onNNAutoChat,
     labelMessage = "Napsat prodejci",
     labelCall = "Zavolat",
     labelWhatsApp = "Napsat na WhatsApp",
     labelTelegram = "Napsat na Telegram",
     labelEmail = "Napsat e-mail",
+    labelNNAutoChat = "Napsat do chatu NNAuto",
   } = props;
 
   const links = buildLinks(phone, email, carTitle);
-  const hasAnyChannel = !!(links.whatsapp || links.telegram || links.email);
-  const labels = { wa: labelWhatsApp, tg: labelTelegram, email: labelEmail };
+  // NNAuto in-site chat counts as a channel — keep the trigger enabled
+  // even when phone/email aren't published on the listing.
+  const hasAnyChannel =
+    !!(links.whatsapp || links.telegram || links.email) || !!onNNAutoChat;
+  const labels = {
+    wa: labelWhatsApp,
+    tg: labelTelegram,
+    email: labelEmail,
+    nn: labelNNAutoChat,
+  };
   // Drawer state lives at the top to keep hook order stable across variant changes.
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -225,6 +313,7 @@ export default function StickyContactBar(props: StickyContactBarProps) {
                 <MessageMenuItems
                   links={links}
                   onMessage={onMessage}
+                  onNNAutoChat={onNNAutoChat}
                   labels={labels}
                 />
               </DropdownMenuContent>
@@ -286,6 +375,7 @@ export default function StickyContactBar(props: StickyContactBarProps) {
                   <MessageMenuItems
                     links={links}
                     onMessage={onMessage}
+                    onNNAutoChat={onNNAutoChat}
                     labels={labels}
                   />
                 </PopoverContent>
@@ -353,6 +443,14 @@ export default function StickyContactBar(props: StickyContactBarProps) {
                   onMessage?.(c);
                   setDrawerOpen(false);
                 }}
+                onNNAutoChat={
+                  onNNAutoChat
+                    ? () => {
+                        setDrawerOpen(false);
+                        onNNAutoChat();
+                      }
+                    : undefined
+                }
                 labels={labels}
               />
               <DrawerFooter />
