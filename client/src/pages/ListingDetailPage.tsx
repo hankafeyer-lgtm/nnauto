@@ -3123,6 +3123,7 @@ import { displayViews } from "@/lib/displayStats";
 import { useFavorites } from "@/contexts/FavoritesContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useListingStats } from "@/hooks/useListingStats";
+import ListingAnalyticsCard from "@/components/ListingAnalyticsCard";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { canPrefetchHeavyResources } from "@/lib/queryClient";
@@ -4933,75 +4934,24 @@ export default function ListingDetailPage({
                 )}
               </Card>
 
-              {canSeeListingAnalytics ? (
-                <Card className="rounded-2xl border-[#B8860B]/20 bg-[#B8860B]/5">
-                  <CardContent className="p-4 md:p-5">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-semibold">
-                        {language === "uk"
-                          ? "Аналітика оголошення"
-                          : language === "cs"
-                            ? "Statistiky inzerátu"
-                            : "Listing analytics"}
-                      </p>
-                      <span className="text-xs text-muted-foreground">
-                        {language === "uk"
-                          ? "Тільки для власника"
-                          : language === "cs"
-                            ? "Pouze pro vlastníka"
-                            : "Owner only"}
-                      </span>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div className="rounded-lg border bg-background/70 p-3 text-center">
-                        <p className="text-muted-foreground text-xs">
-                          {language === "uk"
-                            ? "Перегляди"
-                            : language === "cs"
-                              ? "Zobrazení"
-                              : "Views"}
-                        </p>
-                        <p className="font-semibold text-base" data-testid="text-analytics-card-views">
-                          {displayViews(listingAnalyticsSafe.views)}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border bg-background/70 p-3 text-center">
-                        <p className="text-muted-foreground text-xs">
-                          {language === "uk"
-                            ? "Контакт"
-                            : language === "cs"
-                              ? "Kontakt"
-                              : "Contact"}
-                        </p>
-                        <p
-                          className="font-semibold text-base"
-                          data-testid="text-analytics-card-contact-clicks"
-                        >
-                          {listingAnalyticsSafe.contactClicks}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border bg-background/70 p-3 text-center">
-                        <p className="text-muted-foreground text-xs">WhatsApp</p>
-                        <p
-                          className="font-semibold text-base"
-                          data-testid="text-analytics-card-whatsapp-clicks"
-                        >
-                          {listingAnalyticsSafe.whatsappClicks}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border bg-background/70 p-3 text-center">
-                        <p className="text-muted-foreground text-xs">Telegram</p>
-                        <p
-                          className="font-semibold text-base"
-                          data-testid="text-analytics-card-telegram-clicks"
-                        >
-                          {listingAnalyticsSafe.telegramClicks}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+              {canSeeListingAnalytics && listing ? (
+                <ListingAnalyticsCard
+                  listingId={listing.id}
+                  listing={{
+                    photos: listing.photos ?? null,
+                    video: listing.video ?? null,
+                    vin: listing.vin ?? null,
+                    description: listing.description ?? null,
+                    price: listing.price ?? null,
+                    year: listing.year ?? null,
+                    mileage: listing.mileage ?? null,
+                    brand: listing.brand ?? null,
+                    model: listing.model ?? null,
+                    fuelType: listing.fuelType ?? null,
+                    transmission: listing.transmission ?? null,
+                    bodyType: listing.bodyType ?? null,
+                  }}
+                />
               ) : null}
 
               {/* Title and basic info */}

@@ -40,6 +40,8 @@ import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
 import { displayViews } from "@/lib/displayStats";
 import { buildListingPath } from "@/lib/listingUrl";
+import ListingCompletionScore from "@/components/ListingCompletionScore";
+import type { CompletionListingInput } from "@/lib/listingCompletion";
 
 interface CarCardProps {
   id: string;
@@ -84,6 +86,13 @@ interface CarCardProps {
   showStatsBlock?: boolean;
   /** True while the first analytics batch request is in flight. */
   statsLoading?: boolean;
+  /**
+   * Optional payload for the inline "Vyplněno na X %" completion bar
+   * shown to the owner/admin under the regular stats. When omitted
+   * the completion bar is simply not rendered — keeping the bar
+   * fully opt-in for callers that don't pass listing detail fields.
+   */
+  completionListing?: CompletionListingInput | null;
 }
 
 function CarCard({
@@ -117,6 +126,7 @@ function CarCard({
   stats,
   showStatsBlock = false,
   statsLoading = false,
+  completionListing = null,
 }: CarCardProps) {
   // Owner-only inline analytics block shown on each listing card in
   // "Moje inzeráty" — matches the layout of the detailed analytics card on
@@ -212,6 +222,14 @@ function CarCard({
             </p>
           </div>
         </div>
+        {completionListing ? (
+          <div className="mt-3 pt-3 border-t border-[#B8860B]/15">
+            <ListingCompletionScore
+              listing={completionListing}
+              variant="compact"
+            />
+          </div>
+        ) : null}
       </div>
     );
   };

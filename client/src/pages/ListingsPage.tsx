@@ -4675,6 +4675,30 @@ export default function ListingsPage() {
                         stats={canSeeStats ? ownerStats[car.id] : undefined}
                         statsLoading={canSeeStats && !ownerStatsLoaded}
                         showStatsBlock={canSeeStats}
+                        completionListing={
+                          canSeeStats
+                            ? {
+                                photos: (car as { photos?: string[] | null }).photos ?? null,
+                                video: (car as { video?: string | null }).video ?? null,
+                                vin: (car as { vin?: string | null }).vin ?? null,
+                                description:
+                                  (car as { description?: string | null }).description ?? null,
+                                price: car.price ?? null,
+                                year: car.year ?? null,
+                                mileage: car.mileage ?? null,
+                                brand: (car as { brand?: string | null }).brand ?? null,
+                                model: (car as { model?: string | null }).model ?? null,
+                                fuelType:
+                                  (car as { fuelType?: string[] | string | null }).fuelType ??
+                                  null,
+                                transmission:
+                                  (car as { transmission?: string[] | string | null })
+                                    .transmission ?? null,
+                                bodyType:
+                                  (car as { bodyType?: string | null }).bodyType ?? null,
+                              }
+                            : null
+                        }
                       />
                     );
                   })}
@@ -4843,6 +4867,30 @@ export default function ListingsPage() {
                         stats={canSeeStats ? ownerStats[car.id] : undefined}
                         statsLoading={canSeeStats && !ownerStatsLoaded}
                         showStatsBlock={canSeeStats}
+                        completionListing={
+                          canSeeStats
+                            ? {
+                                photos: (car as { photos?: string[] | null }).photos ?? null,
+                                video: (car as { video?: string | null }).video ?? null,
+                                vin: (car as { vin?: string | null }).vin ?? null,
+                                description:
+                                  (car as { description?: string | null }).description ?? null,
+                                price: car.price ?? null,
+                                year: car.year ?? null,
+                                mileage: car.mileage ?? null,
+                                brand: (car as { brand?: string | null }).brand ?? null,
+                                model: (car as { model?: string | null }).model ?? null,
+                                fuelType:
+                                  (car as { fuelType?: string[] | string | null }).fuelType ??
+                                  null,
+                                transmission:
+                                  (car as { transmission?: string[] | string | null })
+                                    .transmission ?? null,
+                                bodyType:
+                                  (car as { bodyType?: string | null }).bodyType ?? null,
+                              }
+                            : null
+                        }
                       />
                     );
                   })}
