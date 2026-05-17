@@ -110,6 +110,21 @@ export function getLightboxImageUrl(photoPath: string): string {
   return getOptimizedImageUrl(photoPath, { width: 1280, quality: 80 });
 }
 
+/**
+ * Same dimensions as the listing detail carousel — almost always already
+ * in the browser cache when the user opens the fullscreen lightbox.
+ */
+export function getLightboxInstantUrl(
+  photoPath: string,
+  isDesktop: boolean,
+): string {
+  return getOptimizedImageUrl(photoPath, {
+    width: isDesktop ? 1120 : 560,
+    quality: isDesktop ? 84 : 78,
+    format: "webp",
+  });
+}
+
 export function getCdnImageUrl(photoPath: string): string {
   if (!photoPath) return "";
   return resolveListingPhotoUrl(photoPath);
