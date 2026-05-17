@@ -1,11 +1,12 @@
 /**
  * SEO-friendly listing detail route.
  *
- * URL: /auta/[brand]/[model]/[id]
- *   e.g. /auta/skoda/octavia/507296e4-9441-4af8-80d7-788a036bf8fd
+ * URL: /auta/[brand]/[model]/[slug]
+ *   e.g. /auta/skoda/octavia/skoda-octavia-2018-507296e4
  *
  * Behaviour:
- *   - [id] is a FULL UUID, identical to the legacy `/listing/[id]` identifier.
+ *   - [slug] ends with the first 8 hex chars of the listing UUID; full UUIDs
+ *     in the path still resolve for backwards compatibility.
  *   - The brand/model segments are SEO labels. They are NOT used as a hard
  *     filter for lookup. The listing is resolved by id only.
  *   - SELF-HEALING URL: if the brand/model slugs in the URL don't match the

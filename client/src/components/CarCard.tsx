@@ -332,7 +332,7 @@ function CarCard({
   }, [id]);
 
   const buildListingHref = useCallback(() => {
-    const listingPath = buildListingPath({ id, brand, model });
+    const listingPath = buildListingPath({ id, brand, model, year });
     if (typeof window === "undefined") return listingPath;
     const sourceUrl = `${window.location.pathname}${window.location.search}#listing-${encodeURIComponent(id)}`;
     const targetUrl = new URL(listingPath, window.location.origin);

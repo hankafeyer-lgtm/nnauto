@@ -1,29 +1,26 @@
-type ListingUrlInput = {
-  id: string;
-  brand?: string | null;
-  model?: string | null;
-};
+/**
+ * Client-side listing URL helpers — thin wrapper around the shared SEO
+ * builder in `lib/seo/listing-url.ts` so cards, navigation and CSR meta
+ * use the same canonical slug format as the App Router pages.
+ */
+import {
+  buildListingUrl,
+  buildListingAbsoluteUrl as buildListingAbsoluteUrlWithOrigin,
+  extractShortIdFromSlug,
+  isListingDetailPath,
+  type ListingUrlInput,
+} from "@lib/seo/listing-url";
 
-function normalizeSegment(value: string | null | undefined): string {
-  if (!value) return "";
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+export type { ListingUrlInput };
+export { extractShortIdFromSlug, isListingDetailPath };
 
+const SITE_ORIGIN = "https://nnauto.cz";
+
+/** @deprecated Prefer the name `buildListingUrl` — kept for existing imports. */
 export function buildListingPath(input: ListingUrlInput): string {
-  const brand = normalizeSegment(input.brand);
-  const model = normalizeSegment(input.model);
-  if (!brand || !model || !input.id) {
-    return `/listing/${input.id}`;
-  }
-  return `/auta/${brand}/${model}/${input.id}`;
+  return buildListingUrl(input);
 }
 
 export function buildListingAbsoluteUrl(input: ListingUrlInput): string {
-  return `https://nnauto.cz${buildListingPath(input)}`;
+  return buildListingAbsoluteUrlWithOrigin(SITE_ORIGIN, input);
 }

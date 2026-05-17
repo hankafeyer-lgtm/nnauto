@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { buildListingAbsoluteUrl } from "@/lib/listingUrl";
 
 interface SEOProps {
   title?: string;
@@ -193,7 +194,12 @@ export function generateVehicleSchema(listing: {
   return {
     "@context": "https://schema.org",
     "@type": "Car",
-    "@id": `${baseUrl}/listing/${listing.id}#vehicle`,
+    "@id": `${buildListingAbsoluteUrl({
+      id: listing.id,
+      brand: listing.brand,
+      model: listing.model,
+      year: listing.year,
+    })}#vehicle`,
     name: `${listing.year} ${listing.brand} ${listing.model}`,
     brand: { "@type": "Brand", name: listing.brand },
     manufacturer: { "@type": "Organization", name: listing.brand },
@@ -226,11 +232,26 @@ export function generateVehicleSchema(listing: {
       listing.description ||
       `Prodej ${listing.year} ${listing.brand} ${listing.model}. Najeto ${listing.mileage.toLocaleString("cs-CZ")} km.`,
     image: images,
-    url: `${baseUrl}/listing/${listing.id}`,
+    url: buildListingAbsoluteUrl({
+      id: listing.id,
+      brand: listing.brand,
+      model: listing.model,
+      year: listing.year,
+    }),
     offers: {
       "@type": "Offer",
-      "@id": `${baseUrl}/listing/${listing.id}#offer`,
-      url: `${baseUrl}/listing/${listing.id}`,
+      "@id": `${buildListingAbsoluteUrl({
+        id: listing.id,
+        brand: listing.brand,
+        model: listing.model,
+        year: listing.year,
+      })}#offer`,
+      url: buildListingAbsoluteUrl({
+        id: listing.id,
+        brand: listing.brand,
+        model: listing.model,
+        year: listing.year,
+      }),
       price: listing.price,
       priceCurrency: "CZK",
       availability: "https://schema.org/InStock",
@@ -272,7 +293,12 @@ export function generateListingsSchema(
     itemListElement: listings.slice(0, 20).map((listing, index) => ({
       "@type": "ListItem",
       position: index + 1,
-      url: `${baseUrl}/listing/${listing.id}`,
+      url: buildListingAbsoluteUrl({
+        id: listing.id,
+        brand: listing.brand,
+        model: listing.model,
+        year: listing.year,
+      }),
       name: `${listing.year} ${listing.brand} ${listing.model}`,
     })),
   };

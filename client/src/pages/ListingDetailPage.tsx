@@ -3131,6 +3131,7 @@ import { getListingMainTitle } from "@/lib/listingTitle";
 import { buildListingAbsoluteUrl } from "@/lib/listingUrl";
 import { format } from "date-fns";
 import { extractShortIdFromSlug } from "@lib/seo/listing-url";
+import { normalizeSlug } from "@lib/seo/slug";
 import Header from "@/components/Header";
 import MobileFilters from "@/components/MobileFilters";
 import { MediaLightbox } from "@/components/MediaLightbox";
@@ -4445,6 +4446,7 @@ export default function ListingDetailPage({
             id: listing.id,
             brand: listing.brand,
             model: listing.model,
+            year: listing.year,
           })
         : "",
     [listing],
@@ -4475,27 +4477,39 @@ export default function ListingDetailPage({
 
   const breadcrumbSchema = useMemo(() => {
     if (!listing) return null;
+    const brandSlug = normalizeSlug(listing.brand);
+    const modelSlug = normalizeSlug(listing.model);
+    const brandLabel = String(listing.brand ?? "").trim();
+    const modelLabel = String(listing.model ?? "").trim();
     return generateBreadcrumbSchema([
       {
         name:
           language === "cs" ? "Domů" : language === "uk" ? "Головна" : "Home",
         url: "https://nnauto.cz/",
       },
+      ...(brandSlug
+        ? [
+            {
+              name: brandLabel,
+              url: `https://nnauto.cz/auta/${brandSlug}`,
+            },
+          ]
+        : []),
+      ...(brandSlug && modelSlug
+        ? [
+            {
+              name: modelLabel,
+              url: `https://nnauto.cz/auta/${brandSlug}/${modelSlug}`,
+            },
+          ]
+        : []),
       {
-        name:
-          language === "cs"
-            ? "Inzeráty"
-            : language === "uk"
-              ? "Оголошення"
-              : "Listings",
-        url: "https://nnauto.cz/listings",
-      },
-      {
-        name: `${listing.year} ${listing.brand} ${listing.model}`,
+        name: `${listing.year} ${listing.brand} ${listing.model}`.trim(),
         url: buildListingAbsoluteUrl({
           id: listing.id,
           brand: listing.brand,
           model: listing.model,
+          year: listing.year,
         }),
       },
     ]);
@@ -4901,7 +4915,7 @@ export default function ListingDetailPage({
                               })}
                               desktopMinWidth={1024}
                               upgrade={index === currentCarouselIndex}
-                              alt={`${getListingMainTitle(listing)} – foto ${index + 1}`}
+                              alt={`${getListingMainTitle(listing)}${listing.year ? ` ${listing.year}` : ""} – foto ${index + 1}`}
                               loading={index === 0 ? "eager" : "lazy"}
                               decoding="async"
                               sizes="64px"
@@ -6100,6 +6114,11 @@ export default function ListingDetailPage({
         initialIndex={lightboxIndex}
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
+        imageAltPrefix={
+          listing
+            ? `${getListingMainTitle(listing)}${listing.year ? ` ${listing.year}` : ""}`
+            : undefined
+        }
       />
       {listing ? (
         <Suspense fallback={null}>

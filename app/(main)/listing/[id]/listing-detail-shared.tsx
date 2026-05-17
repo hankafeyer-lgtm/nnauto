@@ -378,6 +378,7 @@ export function renderListingDetailPage({
                   id: item.id,
                   brand: item.brand,
                   model: item.model,
+                  year: item.year,
                 });
                 return (
                   <a

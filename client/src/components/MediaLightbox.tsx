@@ -15,6 +15,8 @@ interface MediaLightboxProps {
   initialIndex: number;
   isOpen: boolean;
   onClose: () => void;
+  /** Prefix for thumbnail alt text, e.g. "Škoda Octavia 2018". */
+  imageAltPrefix?: string;
 }
 
 const clamp = (n: number, min: number, max: number) =>
@@ -63,6 +65,7 @@ export function MediaLightbox({
   initialIndex,
   isOpen,
   onClose,
+  imageAltPrefix,
 }: MediaLightboxProps) {
   const t = useTranslation();
 
@@ -353,7 +356,11 @@ export function MediaLightbox({
           >
             <img
               src={thumbnailUrls[index]}
-              alt={`Thumbnail ${index + 1}`}
+              alt={
+                imageAltPrefix
+                  ? `${imageAltPrefix} - foto ${index + 1}`
+                  : `Thumbnail ${index + 1}`
+              }
               className="w-full h-full object-cover"
               // Eager so that ALL thumbnails are warm in the browser
               // cache the moment the lightbox opens — that's what

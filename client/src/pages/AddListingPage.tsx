@@ -389,11 +389,17 @@ export default function AddListingPage() {
   const [powerOpen, setPowerOpen] = useState(false);
   const [ownersOpen, setOwnersOpen] = useState(false);
   const navigateToListingWithState = useCallback(
-    (listing: { id: string; brand?: string | null; model?: string | null }) => {
+    (listing: {
+      id: string;
+      brand?: string | null;
+      model?: string | null;
+      year?: number | null;
+    }) => {
       const target = buildListingPath({
         id: listing.id,
         brand: listing.brand,
         model: listing.model,
+        year: listing.year ?? undefined,
       });
       if (typeof window === "undefined") {
         setLocation(target);

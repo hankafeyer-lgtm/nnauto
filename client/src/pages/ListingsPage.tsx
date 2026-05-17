@@ -3166,6 +3166,7 @@ export default function ListingsPage() {
           id: listing.id,
           brand: listing.brand,
           model: listing.model,
+          year: (listing as { year?: number }).year,
         });
         w.location.replace(target);
       } catch {
@@ -3437,6 +3438,7 @@ export default function ListingsPage() {
         id,
         brand: listing?.brand,
         model: listing?.model,
+        year: listing?.year,
       }),
       w.location.origin,
     );
@@ -5005,6 +5007,7 @@ export default function ListingsPage() {
               id: openListingId,
               brand: listingsById.get(openListingId)?.brand,
               model: listingsById.get(openListingId)?.model,
+              year: listingsById.get(openListingId)?.year,
             })}?embedded=1`}
             loading="eager"
             fetchPriority="high"

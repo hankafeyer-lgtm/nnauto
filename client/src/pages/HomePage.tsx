@@ -2267,6 +2267,7 @@ export default function HomePage() {
           id: listing.id,
           brand: listing.brand,
           model: listing.model,
+          year: (listing as { year?: number }).year,
         });
         window.location.replace(target);
       } catch {
@@ -2421,6 +2422,7 @@ export default function HomePage() {
         id,
         brand: listing?.brand,
         model: listing?.model,
+        year: listing?.year,
       }),
       window.location.origin,
     );
@@ -3697,6 +3699,7 @@ export default function HomePage() {
                 id: openListingId,
                 brand: listingsById.get(openListingId)?.brand,
                 model: listingsById.get(openListingId)?.model,
+                year: listingsById.get(openListingId)?.year,
               })}?embedded=1`}
               loading="eager"
               fetchPriority="high"
