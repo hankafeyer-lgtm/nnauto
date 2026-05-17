@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   Eye,
   Heart,
@@ -32,11 +32,6 @@ interface ListingAnalyticsCardProps {
   favoritesCount?: number | null;
   className?: string;
 }
-
-const RANGE_BUTTONS: Array<{ value: 7 | 30; label: string }> = [
-  { value: 7, label: "7 dní" },
-  { value: 30, label: "30 dní" },
-];
 
 function StatTile({
   icon: Icon,
@@ -78,13 +73,8 @@ function StatTile({
 
 /**
  * Owner-facing "Statistika inzerátu" block — combines aggregate counts,
- * a daily views chart with a 7/30-day toggle, week-over-week growth,
+ * a daily views chart for the entire listing lifetime, week-over-week growth,
  * CTR, and the completion score with recommendations.
- *
- * Designed to be embedded on the listing detail page (full width, full
- * variant) and on the dealer cabinet listing list (one per card). The
- * caller decides where to place it; no positioning assumptions baked
- * into the component.
  */
 export default function ListingAnalyticsCard({
   listingId,
@@ -92,9 +82,7 @@ export default function ListingAnalyticsCard({
   favoritesCount,
   className = "",
 }: ListingAnalyticsCardProps) {
-  const [windowDays, setWindowDays] = useState<7 | 30>(7);
-
-  const dailyQuery = useListingDailyAnalytics(listingId, { days: windowDays });
+  const dailyQuery = useListingDailyAnalytics(listingId, { days: "all" });
   const totalsQuery = useListingStats(listingId);
 
   const data: ListingDailyAnalytics | undefined = dailyQuery.data;
@@ -155,7 +143,7 @@ export default function ListingAnalyticsCard({
     >
       <CardContent className="p-4 md:p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="font-semibold text-base sm:text-lg leading-tight">
               Statistika inzerátu
             </p>
@@ -163,24 +151,12 @@ export default function ListingAnalyticsCard({
               Pouze pro vlastníka
             </p>
           </div>
-          <div className="inline-flex rounded-lg border border-[#B8860B]/30 bg-background overflow-hidden shrink-0">
-            {RANGE_BUTTONS.map((btn) => (
-              <button
-                key={btn.value}
-                type="button"
-                onClick={() => setWindowDays(btn.value)}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  windowDays === btn.value
-                    ? "bg-[#B8860B] text-white"
-                    : "text-muted-foreground hover:bg-[#B8860B]/10"
-                }`}
-                aria-pressed={windowDays === btn.value}
-                data-testid={`analytics-range-${btn.value}`}
-              >
-                {btn.label}
-              </button>
-            ))}
-          </div>
+          <span
+            className="inline-flex items-center rounded-lg border border-[#B8860B]/35 bg-[#B8860B]/15 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold text-[#8B6914] dark:text-[#D4AF37] shrink-0 whitespace-nowrap"
+            data-testid="analytics-range-all"
+          >
+            Celé období
+          </span>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">

@@ -12,8 +12,8 @@ import type { AnalyticsDailyBucket } from "@/hooks/useListingDailyAnalytics";
 
 interface ListingViewsChartProps {
   data: AnalyticsDailyBucket[];
-  /** 7 or 30 — used to thin out X-axis labels on the wider range. */
-  windowDays: 7 | 30;
+  /** Chart range — used to thin out X-axis labels on wider ranges. */
+  windowDays: 7 | 30 | "all";
   height?: number;
   className?: string;
 }
@@ -39,7 +39,12 @@ export default function ListingViewsChart({
     }));
   }, [data]);
 
-  const tickInterval = windowDays === 30 ? 4 : 0;
+  const tickInterval =
+    windowDays === "all"
+      ? Math.max(0, Math.floor(chartData.length / 7) - 1)
+      : windowDays === 30
+        ? 4
+        : 0;
 
   return (
     <div

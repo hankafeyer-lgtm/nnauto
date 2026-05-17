@@ -30,7 +30,7 @@ type DailyBucket = {
  * Daily breakdown of view / contact events for a single listing,
  * suitable for plotting a chart on the listing detail page.
  *
- *   GET /api/listings/:id/analytics/daily?days=7|30
+ *   GET /api/listings/:id/analytics/daily?days=all|7|30
  *
  * Auth: only the listing owner or an admin may read. Returns 403 for
  * anyone else and 404 when the listing doesn't exist.
@@ -62,42 +62,93 @@ export async function GET(
       return error("Forbidden", 403);
     }
 
-    const rawDays = Number(req.nextUrl.searchParams.get("days") || "7");
-    const days = rawDays === 30 ? 30 : 7;
+    const daysParam = (req.nextUrl.searchParams.get("days") || "all").toLowerCase();
+    const allTime = daysParam === "all" || daysParam === "0";
+    const days: 7 | 30 | "all" = allTime
+      ? "all"
+      : daysParam === "30"
+        ? 30
+        : 7;
 
     // Per-day buckets in the Europe/Prague timezone so cabinet
     // owners see calendar-aligned charts even when the server runs
     // on UTC. `generate_series` zero-fills missing days.
-    const dailyResult = (await db.execute(sql`
-      WITH range AS (
-        SELECT generate_series(
-          (now() AT TIME ZONE 'Europe/Prague')::date - (${days - 1})::int,
-          (now() AT TIME ZONE 'Europe/Prague')::date,
-          interval '1 day'
-        )::date AS day
-      ),
-      bucketed AS (
-        SELECT
-          (lae.created_at AT TIME ZONE 'Europe/Prague')::date AS day,
-          COUNT(*) FILTER (WHERE lae.event_type = 'view')::int           AS views,
-          COUNT(*) FILTER (WHERE lae.event_type = 'contact_click')::int   AS contact_clicks,
-          COUNT(*) FILTER (WHERE lae.event_type = 'whatsapp_click')::int  AS whatsapp_clicks,
-          COUNT(*) FILTER (WHERE lae.event_type = 'telegram_click')::int  AS telegram_clicks
-        FROM listing_analytics_events lae
-        WHERE lae.listing_id = ${id}
-          AND lae.created_at >= (now() AT TIME ZONE 'Europe/Prague')::date - (${days - 1})::int
-        GROUP BY 1
-      )
-      SELECT
-        to_char(r.day, 'YYYY-MM-DD') AS date,
-        COALESCE(b.views, 0)::int            AS views,
-        COALESCE(b.contact_clicks, 0)::int   AS contact_clicks,
-        COALESCE(b.whatsapp_clicks, 0)::int  AS whatsapp_clicks,
-        COALESCE(b.telegram_clicks, 0)::int  AS telegram_clicks
-      FROM range r
-      LEFT JOIN bucketed b ON b.day = r.day
-      ORDER BY r.day ASC
-    `)) as { rows?: Array<Record<string, unknown>> };
+    const dailyResult = allTime
+      ? ((await db.execute(sql`
+          WITH bounds AS (
+            SELECT
+              LEAST(
+                COALESCE(
+                  (
+                    SELECT MIN((lae.created_at AT TIME ZONE 'Europe/Prague')::date)
+                    FROM listing_analytics_events lae
+                    WHERE lae.listing_id = ${id}
+                  ),
+                  (l.created_at AT TIME ZONE 'Europe/Prague')::date
+                ),
+                (l.created_at AT TIME ZONE 'Europe/Prague')::date
+              ) AS start_day,
+              (now() AT TIME ZONE 'Europe/Prague')::date AS end_day
+            FROM listings l
+            WHERE l.id = ${id}
+          ),
+          range AS (
+            SELECT generate_series(b.start_day, b.end_day, interval '1 day')::date AS day
+            FROM bounds b
+          ),
+          bucketed AS (
+            SELECT
+              (lae.created_at AT TIME ZONE 'Europe/Prague')::date AS day,
+              COUNT(*) FILTER (WHERE lae.event_type = 'view')::int           AS views,
+              COUNT(*) FILTER (WHERE lae.event_type = 'contact_click')::int   AS contact_clicks,
+              COUNT(*) FILTER (WHERE lae.event_type = 'whatsapp_click')::int  AS whatsapp_clicks,
+              COUNT(*) FILTER (WHERE lae.event_type = 'telegram_click')::int  AS telegram_clicks
+            FROM listing_analytics_events lae
+            CROSS JOIN bounds b
+            WHERE lae.listing_id = ${id}
+              AND (lae.created_at AT TIME ZONE 'Europe/Prague')::date >= b.start_day
+            GROUP BY 1
+          )
+          SELECT
+            to_char(r.day, 'YYYY-MM-DD') AS date,
+            COALESCE(b.views, 0)::int            AS views,
+            COALESCE(b.contact_clicks, 0)::int   AS contact_clicks,
+            COALESCE(b.whatsapp_clicks, 0)::int  AS whatsapp_clicks,
+            COALESCE(b.telegram_clicks, 0)::int  AS telegram_clicks
+          FROM range r
+          LEFT JOIN bucketed b ON b.day = r.day
+          ORDER BY r.day ASC
+        `)) as { rows?: Array<Record<string, unknown>> })
+      : ((await db.execute(sql`
+          WITH range AS (
+            SELECT generate_series(
+              (now() AT TIME ZONE 'Europe/Prague')::date - (${days - 1})::int,
+              (now() AT TIME ZONE 'Europe/Prague')::date,
+              interval '1 day'
+            )::date AS day
+          ),
+          bucketed AS (
+            SELECT
+              (lae.created_at AT TIME ZONE 'Europe/Prague')::date AS day,
+              COUNT(*) FILTER (WHERE lae.event_type = 'view')::int           AS views,
+              COUNT(*) FILTER (WHERE lae.event_type = 'contact_click')::int   AS contact_clicks,
+              COUNT(*) FILTER (WHERE lae.event_type = 'whatsapp_click')::int  AS whatsapp_clicks,
+              COUNT(*) FILTER (WHERE lae.event_type = 'telegram_click')::int  AS telegram_clicks
+            FROM listing_analytics_events lae
+            WHERE lae.listing_id = ${id}
+              AND lae.created_at >= (now() AT TIME ZONE 'Europe/Prague')::date - (${days - 1})::int
+            GROUP BY 1
+          )
+          SELECT
+            to_char(r.day, 'YYYY-MM-DD') AS date,
+            COALESCE(b.views, 0)::int            AS views,
+            COALESCE(b.contact_clicks, 0)::int   AS contact_clicks,
+            COALESCE(b.whatsapp_clicks, 0)::int  AS whatsapp_clicks,
+            COALESCE(b.telegram_clicks, 0)::int  AS telegram_clicks
+          FROM range r
+          LEFT JOIN bucketed b ON b.day = r.day
+          ORDER BY r.day ASC
+        `)) as { rows?: Array<Record<string, unknown>> });
 
     const daysData: DailyBucket[] = (dailyResult.rows ?? []).map((r) => ({
       date: String(r.date),

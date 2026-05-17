@@ -23,7 +23,7 @@ export type ListingDailyAnalytics = {
     /** Null when prevWeek was 0 and lastWeek > 0 (no meaningful base). */
     deltaPercent: number | null;
   };
-  window: 7 | 30;
+  window: 7 | 30 | "all";
 };
 
 /**
@@ -36,9 +36,9 @@ export type ListingDailyAnalytics = {
  */
 export function useListingDailyAnalytics(
   listingId: string | null | undefined,
-  options: { days?: 7 | 30; enabled?: boolean } = {},
+  options: { days?: 7 | 30 | "all"; enabled?: boolean } = {},
 ) {
-  const days = options.days ?? 7;
+  const days = options.days ?? "all";
   const enabled = (options.enabled ?? true) && !!listingId;
 
   return useQuery<ListingDailyAnalytics>({
