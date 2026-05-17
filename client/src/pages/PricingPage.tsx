@@ -43,7 +43,7 @@ export default function PricingPage() {
         "Kompletní technické údaje",
         "Email podpora",
       ],
-      buttonText: "Zdarma do 15.01.2026",
+      buttonText: "ZDARMA do 15.08.2026",
     },
     {
       title: "Premium",
@@ -58,7 +58,7 @@ export default function PricingPage() {
         "Neomezená fotogalerie",
         "Prioritní podpora",
       ],
-      buttonText: "Zdarma do 15.01.2026",
+      buttonText: "ZDARMA do 15.08.2026",
     },
     {
       title: "Pro",
@@ -71,7 +71,7 @@ export default function PricingPage() {
         "Označení \"Certifikovaný autobazar\"",
         "Flexibilní platební podmínky",
       ],
-      buttonText: "Zdarma do 15.01.2026",
+      buttonText: "ZDARMA do 15.08.2026",
     },
   ];
 
@@ -109,6 +109,7 @@ export default function PricingPage() {
                   {...plan} 
                   onSelect={handlePlanSelect}
                   featureTextColor="text-black dark:text-white text-sm"
+                  promoHighlight
                 />
               ))}
             </div>

@@ -14,6 +14,7 @@ interface PricingCardProps {
   buttonText: string;
   onSelect: (planTitle: string) => void;
   featureTextColor?: string;
+  promoHighlight?: boolean;
 }
 
 export default function PricingCard({
@@ -27,6 +28,7 @@ export default function PricingCard({
   buttonText,
   onSelect,
   featureTextColor = "text-sm",
+  promoHighlight = false,
 }: PricingCardProps) {
   const handleClick = () => {
     onSelect(title);
@@ -61,7 +63,11 @@ export default function PricingCard({
       </CardContent>
       <CardFooter className="pt-0">
         <Button
-          className="w-full h-12 rounded-lg sm:rounded-xl"
+          className={
+            promoHighlight
+              ? "w-full min-h-12 h-auto py-3 px-3 sm:px-4 rounded-lg sm:rounded-xl font-semibold text-xs sm:text-sm tracking-wide border-2 border-primary bg-primary/10 text-primary shadow-sm hover:bg-primary/20 hover:text-primary dark:bg-primary/15 dark:hover:bg-primary/25"
+              : "w-full h-12 rounded-lg sm:rounded-xl"
+          }
           variant="outline"
           onClick={handleClick}
           data-testid={`button-plan-${title.toLowerCase()}`}
