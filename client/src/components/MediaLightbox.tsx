@@ -31,7 +31,39 @@ const DESKTOP_MIN_WIDTH = 1024;
 const MOBILE_MAX_W = 1200;
 const DESKTOP_MAX_W = 1600;
 const QUALITY = 72;
-const PREFETCH_RADIUS = 2;
+/** Aggressive radius: neighbors of the current photo prefetched in parallel
+ *  with the active fetch. /img/ ships `immutable` so repeat hits cost 0. */
+const PREFETCH_RADIUS = 3;
+
+type IdleHandle = number;
+type IdleApi = {
+  schedule: (cb: () => void) => IdleHandle;
+  cancel: (h: IdleHandle) => void;
+};
+
+const idle: IdleApi =
+  typeof window !== "undefined" &&
+  typeof (window as unknown as { requestIdleCallback?: unknown })
+    .requestIdleCallback === "function"
+    ? {
+        schedule: (cb) =>
+          (window as unknown as {
+            requestIdleCallback: (cb: () => void, opts?: { timeout: number }) => number;
+          }).requestIdleCallback(cb, { timeout: 1500 }),
+        cancel: (h) =>
+          (window as unknown as {
+            cancelIdleCallback: (h: number) => void;
+          }).cancelIdleCallback(h),
+      }
+    : {
+        schedule: (cb) =>
+          (typeof window !== "undefined"
+            ? window.setTimeout(cb, 250)
+            : 0) as IdleHandle,
+        cancel: (h) => {
+          if (typeof window !== "undefined") window.clearTimeout(h);
+        },
+      };
 
 function probeImageCached(url: string): boolean {
   if (!url || typeof window === "undefined") return false;
@@ -236,6 +268,42 @@ export function MediaLightbox({
     neighborFullUrls,
     neighborInstantUrls,
   ]);
+
+  /**
+   * Background sweep: once the lightbox is open, schedule an idle prefetch
+   * of EVERY photo in the listing at the carousel-instant size + full size.
+   * The browser keeps them in `immutable` cache, so subsequent swipes —
+   * even skipping 5–10 photos at once — paint without a server round-trip.
+   * Runs only on idle frames, so it never competes with the active fetch
+   * or any user gesture.
+   */
+  useEffect(() => {
+    if (!isOpen || photoKeys.length <= 1) return;
+    if (typeof window === "undefined") return;
+    const cache = loadedUrlsRef.current;
+    const tasks: Array<() => void> = [];
+    for (let i = 0; i < photoKeys.length; i++) {
+      const key = photoKeys[i];
+      const instant = buildInstantUrl(key);
+      const full = buildUrl(key);
+      tasks.push(() => prefetchUrls([instant, full], cache));
+    }
+    let cancelled = false;
+    let handle: IdleHandle | null = null;
+    const runNext = (i: number) => {
+      if (cancelled || i >= tasks.length) return;
+      handle = idle.schedule(() => {
+        if (cancelled) return;
+        tasks[i]();
+        runNext(i + 1);
+      });
+    };
+    runNext(0);
+    return () => {
+      cancelled = true;
+      if (handle != null) idle.cancel(handle);
+    };
+  }, [isOpen, photoKeys, buildInstantUrl, buildUrl]);
 
   const handlePrev = useCallback(() => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));

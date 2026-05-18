@@ -3160,6 +3160,7 @@ import {
   getCardImageUrl,
   getFullImageUrl,
   getThumbnailUrl,
+  getLightboxInstantUrl,
 } from "@/lib/imageOptimizer";
 import { ResponsiveImage } from "@/components/ResponsiveImage";
 import { trackContact, trackViewContent } from "@/lib/analytics";
@@ -3738,6 +3739,62 @@ export default function ListingDetailPage({
     return () => w.clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoKeys.length, currentCarouselIndex]);
+
+  // Lightbox pre-warm: once the detail page is interactive, drip-feed
+  // lightbox-sized URLs for ALL photos into the browser cache so the very
+  // first fullscreen open and any later fast swipe paint immediately. The
+  // /img/ route ships `immutable` headers, so repeat hits cost zero. Runs
+  // exclusively on idle frames; never competes with the carousel.
+  const preloadedLightboxUrlsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const len = photoKeys.length;
+    if (len <= 1) return;
+    const w = safeWindow();
+    if (!w) return;
+    if (!canPrefetchHeavyResources()) return;
+    const isDesktop = isLgViewport();
+    const seen = preloadedLightboxUrlsRef.current;
+
+    const idleApi = w as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const schedule = (cb: () => void) =>
+      idleApi.requestIdleCallback
+        ? idleApi.requestIdleCallback(cb, { timeout: 2000 })
+        : (w.setTimeout(cb, 600) as unknown as number);
+    const cancel = (id: number) => {
+      if (idleApi.cancelIdleCallback) idleApi.cancelIdleCallback(id);
+      else w.clearTimeout(id);
+    };
+
+    let cancelled = false;
+    let handle: number | null = null;
+
+    const step = (i: number) => {
+      if (cancelled || i >= len) return;
+      handle = schedule(() => {
+        if (cancelled) return;
+        const key = photoKeys[i];
+        const instantUrl = getLightboxInstantUrl(key, isDesktop);
+        if (!seen.has(instantUrl)) {
+          seen.add(instantUrl);
+          const img = new Image();
+          img.decoding = "async";
+          img.src = instantUrl;
+        }
+        step(i + 1);
+      });
+    };
+    // Skip the first photo — carousel handles it eagerly already.
+    step(1);
+
+    return () => {
+      cancelled = true;
+      if (handle != null) cancel(handle);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoKeys]);
 
   const scrollToCarouselItem = useCallback(
     (index: number) => {
