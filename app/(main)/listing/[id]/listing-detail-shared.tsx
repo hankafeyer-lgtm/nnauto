@@ -196,6 +196,26 @@ export function renderListingDetailPage({
     : [];
   const primaryImage = productImageUrls[0] ?? null;
 
+  // Build preload URLs for the very first gallery photo so the browser
+  // starts fetching the LCP image before the React bundle even runs. The
+  // exact same URLs are then reused by the client-side carousel and the
+  // fullscreen lightbox (immutable cache hit → instant paint).
+  const firstPhotoKey = Array.isArray(listing.photos)
+    ? listing.photos.find(
+        (p): p is string => typeof p === "string" && p.trim().length > 0,
+      )
+    : undefined;
+  const firstPhotoCleanKey = firstPhotoKey
+    ? firstPhotoKey.replace(/^\/+/, "")
+    : null;
+  const PIPELINE_VERSION = "wm4";
+  const preloadImageSrcSet = firstPhotoCleanKey
+    ? `/img/${firstPhotoCleanKey}?w=560&q=78&f=webp&v=${PIPELINE_VERSION} 560w, /img/${firstPhotoCleanKey}?w=1120&q=84&f=webp&v=${PIPELINE_VERSION} 1120w`
+    : null;
+  const preloadImageDefault = firstPhotoCleanKey
+    ? `/img/${firstPhotoCleanKey}?w=1120&q=84&f=webp&v=${PIPELINE_VERSION}`
+    : null;
+
   const conditionRaw = (listing.condition || "").toLowerCase();
   const itemConditionUrl = conditionRaw.includes("nov")
     ? "https://schema.org/NewCondition"
@@ -329,6 +349,18 @@ export function renderListingDetailPage({
       <JsonLd data={productJsonLd} />
       {carJsonLd ? <JsonLd data={carJsonLd} /> : null}
       <JsonLd data={breadcrumbJsonLd} />
+      {preloadImageDefault && preloadImageSrcSet ? (
+        <link
+          rel="preload"
+          as="image"
+          href={preloadImageDefault}
+          // @ts-expect-error imageSrcSet / imageSizes are valid in HTML5 but
+          // missing from React's older type definitions for <link>.
+          imageSrcSet={preloadImageSrcSet}
+          imageSizes="(max-width: 1023px) 100vw, 1120px"
+          fetchPriority="high"
+        />
+      ) : null}
       <main className="min-h-screen bg-background">
         <div className="container mx-auto px-3 pt-3 sm:px-4 sm:pt-4 max-w-7xl">
           <a

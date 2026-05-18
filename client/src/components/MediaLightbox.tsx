@@ -10,7 +10,6 @@ import { X, ChevronLeft, ChevronRight, Video, Loader2 } from "lucide-react";
 import { useTranslation } from "@/lib/translations";
 import {
   getLightboxInstantUrl,
-  getOptimizedImageUrl,
   getThumbnailUrl,
 } from "@/lib/imageOptimizer";
 
@@ -28,9 +27,6 @@ const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 
 const DESKTOP_MIN_WIDTH = 1024;
-const MOBILE_MAX_W = 1200;
-const DESKTOP_MAX_W = 1600;
-const QUALITY = 72;
 /** Aggressive radius: neighbors of the current photo prefetched in parallel
  *  with the active fetch. /img/ ships `immutable` so repeat hits cost 0. */
 const PREFETCH_RADIUS = 3;
@@ -86,12 +82,18 @@ function prefetchUrls(urls: string[], cache: Set<string>) {
 /**
  * Fullscreen photo/video gallery used from the listing detail page.
  *
- * Speed strategy:
- *   - Instant layer uses carousel-sized URLs (w=560 / w=1120) — same as
- *     the detail page gallery, so opening or swiping usually hits cache.
- *   - Per-URL loaded cache survives slide changes (no flash on revisit).
- *   - On open + each swipe, prefetch full-res for ±2 neighbors via Image().
- *   - Full-res fades in only when not already warm in cache.
+ * Speed strategy (tutut.cz-style):
+ *   - We use ONE URL per photo (`getLightboxInstantUrl` → w=560 mobile,
+ *     w=1120 desktop). The detail-page carousel and the SSR `<link
+ *     rel="preload">` use the same URL, so the first lightbox open
+ *     hits an already-warm browser cache.
+ *   - Thumb fallback only shows if the carousel image somehow wasn't
+ *     fetched yet (deep link, cold tab).
+ *   - On open + each swipe, prefetch ±3 neighbors via `new Image()`.
+ *   - Idle sweep prefetches the rest of the gallery so any skip-ahead
+ *     swipe paints from cache too.
+ *   - `/img/` route ships `Cache-Control: public, max-age=31536000,
+ *     immutable`, so repeat hits cost zero bytes.
  */
 export function MediaLightbox({
   photos,
@@ -122,34 +124,17 @@ export function MediaLightbox({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [previewLoaded, setPreviewLoaded] = useState(false);
-  const [instantOk, setInstantOk] = useState(false);
 
   const loadedUrlsRef = useRef<Set<string>>(new Set());
 
-  const [renderWidth, setRenderWidth] = useState<number>(MOBILE_MAX_W);
   const [isDesktop, setIsDesktop] = useState(false);
-
   useEffect(() => {
     if (!isOpen) return;
     if (typeof window === "undefined") return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const desktop = window.innerWidth >= DESKTOP_MIN_WIDTH;
-    setIsDesktop(desktop);
-    const cap = desktop ? DESKTOP_MAX_W : MOBILE_MAX_W;
-    setRenderWidth(Math.min(cap, Math.round(window.innerWidth * dpr)));
+    setIsDesktop(window.innerWidth >= DESKTOP_MIN_WIDTH);
   }, [isOpen]);
 
   const buildUrl = useCallback(
-    (key: string) =>
-      getOptimizedImageUrl(key, {
-        width: renderWidth,
-        quality: QUALITY,
-        format: "webp",
-      }),
-    [renderWidth],
-  );
-
-  const buildInstantUrl = useCallback(
     (key: string) => getLightboxInstantUrl(key, isDesktop),
     [isDesktop],
   );
@@ -176,7 +161,6 @@ export function MediaLightbox({
 
   const currentKey = photoKeys[safePhotoIndex];
   const currentUrl = currentKey ? buildUrl(currentKey) : "";
-  const instantUrl = currentKey ? buildInstantUrl(currentKey) : "";
   const previewUrl = currentKey ? getThumbnailUrl(currentKey) : "";
 
   const thumbnailUrls = useMemo(
@@ -184,7 +168,7 @@ export function MediaLightbox({
     [photoKeys],
   );
 
-  const neighborFullUrls = useMemo(() => {
+  const neighborUrls = useMemo(() => {
     if (isVideoSlide || photoKeys.length <= 1) return [];
     const urls: string[] = [];
     for (let offset = -PREFETCH_RADIUS; offset <= PREFETCH_RADIUS; offset++) {
@@ -196,28 +180,12 @@ export function MediaLightbox({
     return urls;
   }, [isVideoSlide, photoKeys, safePhotoIndex, buildUrl]);
 
-  const neighborInstantUrls = useMemo(() => {
-    if (isVideoSlide || photoKeys.length <= 1) return [];
-    const urls: string[] = [];
-    for (let offset = -PREFETCH_RADIUS; offset <= PREFETCH_RADIUS; offset++) {
-      if (offset === 0) continue;
-      const idx =
-        (safePhotoIndex + offset + photoKeys.length) % photoKeys.length;
-      urls.push(buildInstantUrl(photoKeys[idx]));
-    }
-    return urls;
-  }, [isVideoSlide, photoKeys, safePhotoIndex, buildInstantUrl]);
-
-  const applyCachedLoadState = useCallback((full: string, instant: string) => {
+  const applyCachedLoadState = useCallback((url: string) => {
     const cache = loadedUrlsRef.current;
-    const fullWarm = cache.has(full) || probeImageCached(full);
-    const instantWarm =
-      cache.has(instant) || probeImageCached(instant) || probeImageCached(full);
-    if (fullWarm) cache.add(full);
-    if (instantWarm) cache.add(instant);
-    setImageLoaded(fullWarm);
-    setInstantOk(instantWarm);
-    setPreviewLoaded(instantWarm || fullWarm);
+    const warm = cache.has(url) || probeImageCached(url);
+    if (warm) cache.add(url);
+    setImageLoaded(warm);
+    setPreviewLoaded(warm);
   }, []);
 
   useEffect(() => {
@@ -240,8 +208,8 @@ export function MediaLightbox({
 
   useLayoutEffect(() => {
     if (!isOpen || isVideoSlide || !currentUrl) return;
-    applyCachedLoadState(currentUrl, instantUrl);
-  }, [isOpen, isVideoSlide, currentUrl, instantUrl, applyCachedLoadState]);
+    applyCachedLoadState(currentUrl);
+  }, [isOpen, isVideoSlide, currentUrl, applyCachedLoadState]);
 
   useEffect(() => {
     if (!isOpen || isVideoSlide) return;
@@ -253,48 +221,27 @@ export function MediaLightbox({
   useEffect(() => {
     if (!isOpen || isVideoSlide || !currentUrl) return;
     const cache = loadedUrlsRef.current;
-    const batch = [
-      currentUrl,
-      instantUrl,
-      ...neighborFullUrls,
-      ...neighborInstantUrls,
-    ];
-    prefetchUrls(batch, cache);
-  }, [
-    isOpen,
-    isVideoSlide,
-    currentUrl,
-    instantUrl,
-    neighborFullUrls,
-    neighborInstantUrls,
-  ]);
+    prefetchUrls([currentUrl, ...neighborUrls], cache);
+  }, [isOpen, isVideoSlide, currentUrl, neighborUrls]);
 
   /**
    * Background sweep: once the lightbox is open, schedule an idle prefetch
-   * of EVERY photo in the listing at the carousel-instant size + full size.
-   * The browser keeps them in `immutable` cache, so subsequent swipes —
-   * even skipping 5–10 photos at once — paint without a server round-trip.
-   * Runs only on idle frames, so it never competes with the active fetch
-   * or any user gesture.
+   * of EVERY photo in the listing. The browser keeps them in `immutable`
+   * cache, so subsequent swipes — even skipping 5–10 photos at once —
+   * paint without a server round-trip. Runs only on idle frames, so it
+   * never competes with the active fetch or any user gesture.
    */
   useEffect(() => {
     if (!isOpen || photoKeys.length <= 1) return;
     if (typeof window === "undefined") return;
     const cache = loadedUrlsRef.current;
-    const tasks: Array<() => void> = [];
-    for (let i = 0; i < photoKeys.length; i++) {
-      const key = photoKeys[i];
-      const instant = buildInstantUrl(key);
-      const full = buildUrl(key);
-      tasks.push(() => prefetchUrls([instant, full], cache));
-    }
     let cancelled = false;
     let handle: IdleHandle | null = null;
     const runNext = (i: number) => {
-      if (cancelled || i >= tasks.length) return;
+      if (cancelled || i >= photoKeys.length) return;
       handle = idle.schedule(() => {
         if (cancelled) return;
-        tasks[i]();
+        prefetchUrls([buildUrl(photoKeys[i])], cache);
         runNext(i + 1);
       });
     };
@@ -303,7 +250,7 @@ export function MediaLightbox({
       cancelled = true;
       if (handle != null) idle.cancel(handle);
     };
-  }, [isOpen, photoKeys, buildInstantUrl, buildUrl]);
+  }, [isOpen, photoKeys, buildUrl]);
 
   const handlePrev = useCallback(() => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : totalItems - 1));
@@ -446,12 +393,6 @@ export function MediaLightbox({
     setPreviewLoaded(true);
   }, [currentUrl]);
 
-  const markInstantLoaded = useCallback(() => {
-    if (instantUrl) loadedUrlsRef.current.add(instantUrl);
-    setInstantOk(true);
-    setPreviewLoaded(true);
-  }, [instantUrl]);
-
   const markThumbLoaded = useCallback(() => {
     if (previewUrl) loadedUrlsRef.current.add(previewUrl);
     setPreviewLoaded(true);
@@ -512,8 +453,7 @@ export function MediaLightbox({
 
   if (!isOpen) return null;
 
-  const showInstant = instantOk && !imageLoaded;
-  const showThumbFallback = previewLoaded && !instantOk && !imageLoaded;
+  const showThumbFallback = previewLoaded && !imageLoaded;
   const showSpinner = !previewLoaded && !imageLoaded;
 
   return (
@@ -568,26 +508,8 @@ export function MediaLightbox({
           />
         ) : currentKey ? (
           <div className="relative w-full h-full flex items-center justify-center">
-            {/* Carousel-sized — usually cached from the detail gallery */}
-            <img
-              src={instantUrl}
-              alt=""
-              aria-hidden="true"
-              decoding="async"
-              fetchPriority="high"
-              draggable={false}
-              onLoad={markInstantLoaded}
-              onError={() => setInstantOk(false)}
-              className="absolute inset-0 m-auto max-w-full max-h-full object-contain select-none pointer-events-none"
-              style={{
-                opacity: showInstant ? 1 : 0,
-                filter: showInstant ? "blur(6px)" : undefined,
-                transform: showInstant ? "scale(1.02)" : undefined,
-                transition: "opacity 80ms ease-out",
-              }}
-              data-testid="img-lightbox-instant"
-            />
-            {/* Tiny thumb fallback if carousel size not warm yet */}
+            {/* Tiny thumb fallback only if the carousel/preload image isn't
+                in cache yet (e.g. deep link to fullscreen). */}
             <img
               src={previewUrl}
               alt=""
@@ -605,6 +527,9 @@ export function MediaLightbox({
               }}
               data-testid="img-lightbox-preview"
             />
+            {/* Main image — uses the SAME URL as the detail-page carousel
+                and the SSR `<link rel="preload">`, so the very first paint
+                is a browser cache hit on warm visits. */}
             <img
               src={currentUrl}
               alt={`Photo ${currentIndex + 1}`}
@@ -622,8 +547,8 @@ export function MediaLightbox({
                   ? `scale(2.5) translate(${panPosition.x / 2.5}px, ${panPosition.y / 2.5}px)`
                   : undefined,
                 transition: imageLoaded
-                  ? "opacity 120ms ease-out, transform 0.2s ease-out"
-                  : "opacity 120ms ease-out",
+                  ? "opacity 80ms ease-out, transform 0.2s ease-out"
+                  : "opacity 80ms ease-out",
                 willChange: isZoomed ? "transform" : undefined,
               }}
               data-testid="img-lightbox"
