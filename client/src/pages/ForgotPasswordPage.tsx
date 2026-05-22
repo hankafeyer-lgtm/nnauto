@@ -20,7 +20,9 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { SEO } from "@/components/SEO";
 import { Mail } from "lucide-react";
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import ReliableTurnstile, {
+  type ReliableTurnstileHandle,
+} from "@/components/ReliableTurnstile";
 
 const TURNSTILE_SITE_KEY =
   (typeof import.meta !== "undefined" &&
@@ -39,7 +41,7 @@ export default function ForgotPasswordPage() {
   const [turnstileToken, setTurnstileToken] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [submittedAt, setSubmittedAt] = useState<number | null>(null);
-  const turnstileRef = useRef<TurnstileInstance>(null);
+  const turnstileRef = useRef<ReliableTurnstileHandle>(null);
 
   const handleTurnstileSuccess = useCallback((tok: string) => {
     setTurnstileToken(tok);
@@ -141,13 +143,13 @@ export default function ForgotPasswordPage() {
 
                 {!TURNSTILE_UI_OFF && (
                   <div className="flex justify-center">
-                    <Turnstile
+                    <ReliableTurnstile
                       ref={turnstileRef}
                       siteKey={TURNSTILE_SITE_KEY}
+                      theme="auto"
                       onSuccess={handleTurnstileSuccess}
                       onError={() => setTurnstileToken("")}
                       onExpire={() => setTurnstileToken("")}
-                      options={{ theme: "auto" }}
                     />
                   </div>
                 )}

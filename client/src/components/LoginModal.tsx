@@ -16,7 +16,9 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useTranslation } from "@/lib/translations";
 import { Eye, EyeOff, Shield, CheckCircle } from "lucide-react";
-import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import ReliableTurnstile, {
+  type ReliableTurnstileHandle,
+} from "@/components/ReliableTurnstile";
 import Swal from "sweetalert2";
 import { useLocation } from "@/lib/navigation";
 import { consumePostAuthRedirect } from "@/lib/authRedirect";
@@ -27,14 +29,17 @@ interface LoginModalProps {
 }
 
 const TURNSTILE_SITE_KEY =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_TURNSTILE_SITE_KEY) ||
+  (typeof import.meta !== "undefined" &&
+    (import.meta as unknown as { env?: { VITE_TURNSTILE_SITE_KEY?: string } }).env
+      ?.VITE_TURNSTILE_SITE_KEY) ||
   process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ||
   "1x00000000000000000000AA";
 
-/** When true, skip Turnstile UI + client checks (server still enforces if TURNSTILE_SECRET_KEY is set). For local / E2E only. */
+/** Skip Turnstile UI in local development; production still requires server verification. */
 const TURNSTILE_UI_OFF =
-  typeof process !== "undefined" &&
-  process.env.NEXT_PUBLIC_TURNSTILE_UI_OFF === "true";
+  process.env.NODE_ENV !== "production" ||
+  (typeof process !== "undefined" &&
+    process.env.NEXT_PUBLIC_TURNSTILE_UI_OFF === "true");
 
 export default function LoginModal({
   open,
@@ -54,7 +59,20 @@ export default function LoginModal({
   const [forgotPasswordTurnstileToken, setForgotPasswordTurnstileToken] =
     useState<string>("");
   const [forgotPasswordSent, setForgotPasswordSent] = useState(false);
-  const forgotPasswordTurnstileRef = useRef<TurnstileInstance>(null);
+  const forgotPasswordTurnstileRef = useRef<ReliableTurnstileHandle>(null);
+  // Defer Turnstile mount until the dialog open animation has finished —
+  // mounting it mid-animation is the root cause of the blank widget seen
+  // on iOS Safari.
+  const [dialogReady, setDialogReady] = useState(false);
+  useEffect(() => {
+    if (!open) {
+      setDialogReady(false);
+      return;
+    }
+    const id = setTimeout(() => setDialogReady(true), 220);
+    return () => clearTimeout(id);
+  }, [open]);
+  const [forgotDialogReady, setForgotDialogReady] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
   const [loginTurnstileToken, setLoginTurnstileToken] = useState<string>("");
@@ -63,8 +81,8 @@ export default function LoginModal({
   const [loginVerified, setLoginVerified] = useState(false);
   const [registerVerified, setRegisterVerified] = useState(false);
   const [loginErrorMessage, setLoginErrorMessage] = useState<string | null>(null);
-  const loginTurnstileRef = useRef<TurnstileInstance>(null);
-  const registerTurnstileRef = useRef<TurnstileInstance>(null);
+  const loginTurnstileRef = useRef<ReliableTurnstileHandle>(null);
+  const registerTurnstileRef = useRef<ReliableTurnstileHandle>(null);
   const [, setLocation] = useLocation();
 
   const { toast } = useToast();
@@ -474,26 +492,18 @@ export default function LoginModal({
                         <span>{t("auth.verified")}</span>
                       </div>
                     ) : (
-                      <Turnstile
+                      <ReliableTurnstile
                         ref={loginTurnstileRef}
                         siteKey={TURNSTILE_SITE_KEY}
+                        ready={dialogReady && activeTab === "login"}
                         onSuccess={handleLoginTurnstileSuccess}
                         onError={() => {
                           setLoginVerified(false);
                           setLoginTurnstileToken("");
-                          loginTurnstileRef.current?.reset();
                         }}
                         onExpire={() => {
                           setLoginVerified(false);
                           setLoginTurnstileToken("");
-                          loginTurnstileRef.current?.reset();
-                        }}
-                        options={{
-                          theme: "light",
-                          size: "compact",
-                          retry: "auto",
-                          retryInterval: 2000,
-                          refreshExpired: "auto",
                         }}
                       />
                     )}
@@ -634,26 +644,18 @@ export default function LoginModal({
                         <span>{t("auth.verified")}</span>
                       </div>
                     ) : (
-                      <Turnstile
+                      <ReliableTurnstile
                         ref={registerTurnstileRef}
                         siteKey={TURNSTILE_SITE_KEY}
+                        ready={dialogReady && activeTab === "register"}
                         onSuccess={handleRegisterTurnstileSuccess}
                         onError={() => {
                           setRegisterVerified(false);
                           setRegisterTurnstileToken("");
-                          registerTurnstileRef.current?.reset();
                         }}
                         onExpire={() => {
                           setRegisterVerified(false);
                           setRegisterTurnstileToken("");
-                          registerTurnstileRef.current?.reset();
-                        }}
-                        options={{
-                          theme: "light",
-                          size: "compact",
-                          retry: "auto",
-                          retryInterval: 2000,
-                          refreshExpired: "auto",
                         }}
                       />
                     )}
@@ -684,7 +686,10 @@ export default function LoginModal({
         open={forgotPasswordOpen}
         onOpenChange={(o) => {
           setForgotPasswordOpen(o);
-          if (!o) {
+          if (o) {
+            setTimeout(() => setForgotDialogReady(true), 220);
+          } else {
+            setForgotDialogReady(false);
             setForgotPasswordEmail("");
             setForgotPasswordTurnstileToken("");
             setForgotPasswordSent(false);
@@ -734,13 +739,14 @@ export default function LoginModal({
 
               {!TURNSTILE_UI_OFF && (
                 <div className="flex justify-center">
-                  <Turnstile
+                  <ReliableTurnstile
                     ref={forgotPasswordTurnstileRef}
                     siteKey={TURNSTILE_SITE_KEY}
+                    ready={forgotDialogReady}
+                    theme="auto"
                     onSuccess={handleForgotPasswordTurnstileSuccess}
                     onError={() => setForgotPasswordTurnstileToken("")}
                     onExpire={() => setForgotPasswordTurnstileToken("")}
-                    options={{ theme: "auto" }}
                   />
                 </div>
               )}
