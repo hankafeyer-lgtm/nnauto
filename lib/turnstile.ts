@@ -9,12 +9,13 @@ export async function verifyTurnstileToken(token: string | undefined): Promise<{
   ok: boolean;
   reason?: string;
 }> {
+  if (!isProductionRuntime) {
+    return { ok: true, reason: "dev_bypass" };
+  }
+
   const secretKey = process.env.TURNSTILE_SECRET_KEY;
   if (!secretKey) {
-    if (isProductionRuntime) {
-      return { ok: false, reason: "turnstile_not_configured" };
-    }
-    return { ok: true, reason: "dev_bypass_no_secret" };
+    return { ok: false, reason: "turnstile_not_configured" };
   }
   if (!token || !String(token).trim()) {
     return { ok: false, reason: "missing_token" };

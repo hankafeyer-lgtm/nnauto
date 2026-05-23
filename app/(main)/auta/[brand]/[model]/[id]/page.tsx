@@ -24,6 +24,8 @@ import { permanentRedirect } from "next/navigation";
 import { normalizeSlug } from "@lib/seo/slug";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import {
+  getDealerInventoryForListing,
+  getDealerProfileForListing,
   getListingBySlugId,
   getSimilarListings,
 } from "../../../../listing/[id]/get-listing";
@@ -93,6 +95,16 @@ export default async function ListingDetailSeo({
     }
   }
 
-  const similarListings = await getSimilarListings(listing, 6);
-  return renderListingDetailPage({ listing, similarListings, isEmbedded });
+  const [similarListings, dealerProfile, dealerInventory] = await Promise.all([
+    getSimilarListings(listing, 6),
+    getDealerProfileForListing(listing),
+    getDealerInventoryForListing(listing, 8),
+  ]);
+  return renderListingDetailPage({
+    listing,
+    similarListings,
+    dealerProfile,
+    dealerInventory,
+    isEmbedded,
+  });
 }

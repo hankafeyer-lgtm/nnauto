@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { db } from "@lib/db";
-import { listings } from "@shared/schema";
+import { dealers, listings } from "@shared/schema";
 import { and, desc, eq, ne, or, sql } from "drizzle-orm";
 
 export const getListingById = cache(async (id: string) => {
@@ -35,6 +35,89 @@ export type SimilarListing = Pick<
   ListingRecord,
   "id" | "title" | "price" | "brand" | "model" | "year" | "photos"
 >;
+
+export type DealerProfileForListing = Pick<
+  typeof dealers.$inferSelect,
+  | "id"
+  | "ownerId"
+  | "companyName"
+  | "description"
+  | "logoUrl"
+  | "website"
+  | "phone"
+  | "email"
+  | "address"
+  | "region"
+  | "isVerified"
+  | "createdAt"
+>;
+
+export type DealerInventoryListing = Pick<
+  ListingRecord,
+  | "id"
+  | "title"
+  | "price"
+  | "brand"
+  | "model"
+  | "year"
+  | "mileage"
+  | "fuelType"
+  | "transmission"
+  | "photos"
+  | "isTopListing"
+>;
+
+export const getDealerProfileForListing = cache(async (listing: ListingRecord) => {
+  const [dealer] = await db
+    .select({
+      id: dealers.id,
+      ownerId: dealers.ownerId,
+      companyName: dealers.companyName,
+      description: dealers.description,
+      logoUrl: dealers.logoUrl,
+      website: dealers.website,
+      phone: dealers.phone,
+      email: dealers.email,
+      address: dealers.address,
+      region: dealers.region,
+      isVerified: dealers.isVerified,
+      createdAt: dealers.createdAt,
+    })
+    .from(dealers)
+    .where(eq(dealers.ownerId, listing.userId))
+    .limit(1);
+  return dealer ?? null;
+});
+
+export const getDealerInventoryForListing = cache(
+  async (listing: ListingRecord, take = 8): Promise<DealerInventoryListing[]> => {
+    const rows = await db
+      .select({
+        id: listings.id,
+        title: listings.title,
+        price: listings.price,
+        brand: listings.brand,
+        model: listings.model,
+        year: listings.year,
+        mileage: listings.mileage,
+        fuelType: listings.fuelType,
+        transmission: listings.transmission,
+        photos: listings.photos,
+        isTopListing: listings.isTopListing,
+      })
+      .from(listings)
+      .where(
+        and(
+          ne(listings.id, listing.id),
+          eq(listings.userId, listing.userId),
+          eq(listings.isSold, false),
+        ),
+      )
+      .orderBy(desc(listings.isTopListing), desc(listings.updatedAt), desc(listings.createdAt))
+      .limit(take);
+    return rows;
+  },
+);
 
 export const getSimilarListings = cache(
   async (listing: ListingRecord, take = 6): Promise<SimilarListing[]> => {

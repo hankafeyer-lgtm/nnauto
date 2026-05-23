@@ -30,7 +30,11 @@ import {
 import { normalizeSlug } from "@lib/seo/slug";
 import ListingDetailClient from "./listing-detail-client";
 import ListingSeoSummary from "./ListingSeoSummary";
-import type { SimilarListing } from "./get-listing";
+import type {
+  DealerInventoryListing,
+  DealerProfileForListing,
+  SimilarListing,
+} from "./get-listing";
 import type { listings } from "@shared/schema";
 
 type ListingRecord = typeof listings.$inferSelect;
@@ -142,6 +146,8 @@ export function buildListingMetadata(
 export interface RenderListingDetailProps {
   listing: ListingRecord;
   similarListings: SimilarListing[];
+  dealerProfile?: DealerProfileForListing | null;
+  dealerInventory?: DealerInventoryListing[];
   isEmbedded: boolean;
 }
 
@@ -157,13 +163,29 @@ function cloneListingRecordForClient(listing: ListingRecord): ListingRecord {
   }
 }
 
+function cloneSerializable<T>(value: T): T {
+  try {
+    return JSON.parse(
+      JSON.stringify(value, (_k, v) =>
+        typeof v === "bigint" ? v.toString() : v,
+      ),
+    ) as T;
+  } catch {
+    return value;
+  }
+}
+
 export function renderListingDetailPage({
   listing,
   similarListings,
+  dealerProfile = null,
+  dealerInventory = [],
   isEmbedded,
 }: RenderListingDetailProps) {
   const id = listing.id;
   const initialListing = cloneListingRecordForClient(listing);
+  const initialDealerProfile = dealerProfile ? cloneSerializable(dealerProfile) : null;
+  const initialDealerInventory = cloneSerializable(dealerInventory);
   const brand = formatBrandDisplay(listing.brand);
   const price = Number(listing.price).toLocaleString("cs-CZ");
   const modelLabel = formatModelDisplay(listing.model);
@@ -337,6 +359,8 @@ export function renderListingDetailPage({
         <ListingDetailClient
           initialListing={initialListing}
           initialListingId={id}
+          initialDealerProfile={initialDealerProfile}
+          initialDealerInventory={initialDealerInventory}
           disableSsr
           embeddedMode
         />
@@ -354,8 +378,6 @@ export function renderListingDetailPage({
           rel="preload"
           as="image"
           href={preloadImageDefault}
-          // @ts-expect-error imageSrcSet / imageSizes are valid in HTML5 but
-          // missing from React's older type definitions for <link>.
           imageSrcSet={preloadImageSrcSet}
           imageSizes="(max-width: 1023px) 100vw, 1120px"
           fetchPriority="high"
@@ -396,6 +418,8 @@ export function renderListingDetailPage({
         <ListingDetailClient
           initialListing={initialListing}
           initialListingId={id}
+          initialDealerProfile={initialDealerProfile}
+          initialDealerInventory={initialDealerInventory}
           embeddedMode={false}
           primaryHeading="delegated"
         />

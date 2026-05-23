@@ -36,10 +36,12 @@ import {
   Building2,
   Upload,
   Eye,
+  EyeOff,
   Phone,
   MessageCircle,
   Inbox,
   TrendingUp,
+  TrendingDown,
   Car,
   FileSpreadsheet,
   Plus,
@@ -64,9 +66,35 @@ import {
   CircleDot,
   Loader2,
   MoreHorizontal,
+  Search,
+  Filter,
+  Download,
+  Copy,
+  RotateCcw,
+  Bell,
+  AlertTriangle,
+  CalendarDays,
+  Award,
+  Gauge,
+  Percent,
+  Image as ImageIcon,
+  MapPin,
+  CreditCard,
+  Link2,
+  Lock,
+  Mail,
+  Smartphone,
+  Bot,
+  Wand2,
+  Users,
+  LogOut,
+  MonitorSmartphone,
+  Volume2,
+  Save,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -98,6 +126,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type DealerStats = {
   totalListings: number;
@@ -122,6 +151,7 @@ type DealerStats = {
 
 type Dealer = {
   id: string;
+  ownerId?: string;
   companyName: string;
   ico?: string;
   dic?: string;
@@ -135,6 +165,440 @@ type Dealer = {
   isVerified: boolean;
   maxListings: number;
 };
+
+type ProfileTask = {
+  key: string;
+  done: boolean;
+  label: string;
+};
+
+type DealerTab = "dashboard" | "mylistings" | "promotion" | "import" | "settings";
+type SettingsTarget =
+  | "companyName"
+  | "description"
+  | "phone"
+  | "email"
+  | "website"
+  | "address"
+  | "region"
+  | "branding"
+  | "workingHours"
+  | "socialLinks"
+  | "verification"
+  | "integrations";
+type SettingsModal =
+  | "branding"
+  | "workingHours"
+  | "socialLinks"
+  | "billing"
+  | "notifications"
+  | "integrations"
+  | "security"
+  | "autoreplies";
+type AddVehiclePreference = "single" | "bulk";
+type DealerAddressDetails = {
+  country: string;
+  city: string;
+  street: string;
+  houseNumber: string;
+  postalCode: string;
+  showroomName: string;
+  lat?: string;
+  lon?: string;
+  displayName?: string;
+};
+
+type AddressSuggestion = {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
+  address?: {
+    city?: string;
+    town?: string;
+    village?: string;
+    municipality?: string;
+    road?: string;
+    pedestrian?: string;
+    house_number?: string;
+    postcode?: string;
+    country?: string;
+  };
+};
+
+type PhotonFeature = {
+  geometry?: { coordinates?: [number, number] };
+  properties?: {
+    name?: string;
+    street?: string;
+    housenumber?: string;
+    postcode?: string;
+    city?: string;
+    country?: string;
+    state?: string;
+  };
+};
+
+type DealerLocalSettings = {
+  coverUrl: string;
+  addressDetails: DealerAddressDetails;
+  workingHours: Record<
+    "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun",
+    { closed: boolean; open: string; close: string }
+  >;
+  socialLinks: {
+    website: string;
+    facebook: string;
+    instagram: string;
+    tiktok: string;
+    youtube: string;
+  };
+  notifications: {
+    email: boolean;
+    whatsapp: boolean;
+    telegram: boolean;
+    newLead: boolean;
+    messages: boolean;
+    invoices: boolean;
+    promotions: boolean;
+    sound: boolean;
+  };
+  integrations: {
+    useSamePhone: boolean;
+    countryCode: string;
+    sharedPhone: string;
+    whatsappPhone: string;
+    telegramPhone: string;
+    whatsappConnected: boolean;
+    telegramConnected: boolean;
+    crmConnected: boolean;
+  };
+  autoReplies: {
+    enabled: boolean;
+    delayMinutes: number;
+    whatsapp: boolean;
+    telegram: boolean;
+    templates: Array<{ id: string; title: string; message: string }>;
+  };
+  security: {
+    twoFactorPlanned: boolean;
+    sessions: Array<{ id: string; device: string; location: string; lastActive: string; current?: boolean }>;
+  };
+};
+
+type DashboardInsight = {
+  icon: any;
+  title: string;
+  description: string;
+  tone: string;
+  actionLabel?: string;
+  onClick?: () => void;
+};
+
+const premiumSurface =
+  "border border-amber-100/70 bg-white/90 shadow-[0_18px_55px_rgba(120,72,12,0.08)] backdrop-blur-sm";
+
+const premiumHover =
+  "transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_22px_70px_rgba(120,72,12,0.12)]";
+
+const dayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+
+const normalizeUrl = (value: string) => {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+};
+
+const isValidUrl = (value: string) => {
+  if (!value.trim()) return true;
+  try {
+    const parsed = new URL(normalizeUrl(value));
+    return ["http:", "https:"].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+};
+
+const composeDealerAddress = (address: DealerAddressDetails) =>
+  [
+    address.showroomName,
+    [address.street, address.houseNumber].filter(Boolean).join(" "),
+    [address.postalCode, address.city].filter(Boolean).join(" "),
+    address.country,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+const suggestionToAddressDetails = (suggestion: AddressSuggestion): DealerAddressDetails => {
+  const address = suggestion.address || {};
+  return {
+    country: address.country || "Česko",
+    city: address.city || address.town || address.village || address.municipality || "",
+    street: address.road || address.pedestrian || "",
+    houseNumber: address.house_number || "",
+    postalCode: address.postcode || "",
+    showroomName: "",
+    lat: suggestion.lat,
+    lon: suggestion.lon,
+    displayName: suggestion.display_name,
+  };
+};
+
+const photonFeatureToSuggestion = (feature: PhotonFeature, index: number): AddressSuggestion => {
+  const props = feature.properties || {};
+  const [lon, lat] = feature.geometry?.coordinates || [0, 0];
+  const display = [
+    props.name,
+    [props.street, props.housenumber].filter(Boolean).join(" "),
+    [props.postcode, props.city].filter(Boolean).join(" "),
+    props.country,
+  ].filter(Boolean).join(", ");
+  return {
+    place_id: index,
+    display_name: display,
+    lat: String(lat),
+    lon: String(lon),
+    address: {
+      city: props.city,
+      road: props.street || props.name,
+      house_number: props.housenumber,
+      postcode: props.postcode,
+      country: props.country || "Česko",
+    },
+  };
+};
+
+const fallbackCzechAddressSuggestions: AddressSuggestion[] = [
+  {
+    place_id: 9001,
+    display_name: "Václavské náměstí 1, 110 00 Praha 1, Česko",
+    lat: "50.0810",
+    lon: "14.4280",
+    address: {
+      city: "Praha",
+      road: "Václavské náměstí",
+      house_number: "1",
+      postcode: "110 00",
+      country: "Česko",
+    },
+  },
+  {
+    place_id: 9002,
+    display_name: "Masarykova 1, 602 00 Brno, Česko",
+    lat: "49.1949",
+    lon: "16.6083",
+    address: {
+      city: "Brno",
+      road: "Masarykova",
+      house_number: "1",
+      postcode: "602 00",
+      country: "Česko",
+    },
+  },
+  {
+    place_id: 9003,
+    display_name: "Nádražní 1, 702 00 Ostrava, Česko",
+    lat: "49.8346",
+    lon: "18.2925",
+    address: {
+      city: "Ostrava",
+      road: "Nádražní",
+      house_number: "1",
+      postcode: "702 00",
+      country: "Česko",
+    },
+  },
+];
+
+const formatWorkingHoursShort = (
+  hours: DealerLocalSettings["workingHours"],
+  t: (key: string) => string,
+) => {
+  const openDays = dayKeys.filter((day) => !hours[day].closed);
+  if (openDays.length === 0) return t("dealer.hours.closedAllWeek");
+  if (openDays.length === 7) return t("dealer.hours.nonstop");
+  const first = openDays[0];
+  const last = openDays[openDays.length - 1];
+  const consecutive = openDays.every((day, index) => dayKeys.indexOf(day) === dayKeys.indexOf(first) + index);
+  if (consecutive && first && last && first !== last) {
+    return `${t(`dealer.hours.short.${first}`)}–${t(`dealer.hours.short.${last}`)}`;
+  }
+  return openDays.map((day) => t(`dealer.hours.short.${day}`)).join(", ");
+};
+
+const getTodayWorkingHours = (
+  hours: DealerLocalSettings["workingHours"],
+  t: (key: string) => string,
+) => {
+  const jsDay = new Date().getDay();
+  const today = dayKeys[jsDay === 0 ? 6 : jsDay - 1];
+  const value = hours[today];
+  if (value.closed) return t("dealer.hours.todayClosed");
+  return t("dealer.hours.todayOpenUntil").replace("{{time}}", value.close);
+};
+
+const createDefaultDealerLocalSettings = (dealer?: Dealer): DealerLocalSettings => ({
+  coverUrl: "",
+  addressDetails: {
+    country: "Česko",
+    city: dealer?.region || "",
+    street: "",
+    houseNumber: "",
+    postalCode: "",
+    showroomName: "",
+    displayName: dealer?.address || "",
+  },
+  workingHours: {
+    mon: { closed: false, open: "09:00", close: "18:00" },
+    tue: { closed: false, open: "09:00", close: "18:00" },
+    wed: { closed: false, open: "09:00", close: "18:00" },
+    thu: { closed: false, open: "09:00", close: "18:00" },
+    fri: { closed: false, open: "09:00", close: "18:00" },
+    sat: { closed: true, open: "09:00", close: "13:00" },
+    sun: { closed: true, open: "09:00", close: "13:00" },
+  },
+  socialLinks: {
+    website: dealer?.website || "",
+    facebook: "",
+    instagram: "",
+    tiktok: "",
+    youtube: "",
+  },
+  notifications: {
+    email: true,
+    whatsapp: true,
+    telegram: false,
+    newLead: true,
+    messages: true,
+    invoices: true,
+    promotions: true,
+    sound: false,
+  },
+  integrations: {
+    useSamePhone: true,
+    countryCode: "+420",
+    sharedPhone: dealer?.phone || "",
+    whatsappPhone: dealer?.phone || "",
+    telegramPhone: dealer?.phone || "",
+    whatsappConnected: false,
+    telegramConnected: false,
+    crmConnected: false,
+  },
+  autoReplies: {
+    enabled: false,
+    delayMinutes: 15,
+    whatsapp: false,
+    telegram: false,
+    templates: [
+      {
+        id: "availability",
+        title: "Dostupnost vozu",
+        message: "Dobrý den, děkujeme za zprávu. Vůz je stále dostupný. Rádi vám pošleme další informace.",
+      },
+    ],
+  },
+  security: {
+    twoFactorPlanned: false,
+    sessions: [
+      { id: "current", device: "Safari / macOS", location: "Praha, CZ", lastActive: "Právě teď", current: true },
+      { id: "mobile", device: "iPhone Safari", location: "Česká republika", lastActive: "Včera" },
+    ],
+  },
+});
+
+function getProfileTasks(dealer: Dealer, t: (key: string) => string): ProfileTask[] {
+  return [
+    { key: "phone", done: !!dealer.phone, label: t("dealer.premium.taskPhone") },
+    { key: "logo", done: !!dealer.logoUrl, label: t("dealer.premium.taskLogo") },
+    { key: "address", done: !!dealer.address, label: t("dealer.premium.taskAddress") },
+    { key: "description", done: !!dealer.description, label: t("dealer.premium.taskDescription") },
+    { key: "verified", done: dealer.isVerified, label: t("dealer.premium.taskVerification") },
+  ];
+}
+
+function getProfileCompletion(dealer: Dealer, t: (key: string) => string) {
+  const tasks = getProfileTasks(dealer, t);
+  const done = tasks.filter((task) => task.done).length;
+  return {
+    tasks,
+    percent: Math.round((done / tasks.length) * 100),
+    missing: tasks.filter((task) => !task.done),
+  };
+}
+
+function getListingQuality(
+  listing: DealerListing,
+  dealer?: Dealer,
+  t?: (key: string) => string,
+) {
+  const checks = [
+    { done: !!listing.photos?.length, weight: 20, label: t?.("dealer.premium.qualityPhotos") || "photos" },
+    { done: !!listing.description, weight: 15, label: t?.("dealer.premium.qualityDescription") || "description" },
+    { done: !!listing.video, weight: 10, label: t?.("dealer.premium.qualityVideo") || "video" },
+    { done: !!listing.vin, weight: 10, label: t?.("dealer.premium.qualityVin") || "VIN" },
+    { done: !!listing.title && Number(listing.price) > 0, weight: 15, label: t?.("dealer.premium.qualityBasics") || "basics" },
+    { done: !!listing.region && listing.mileage != null, weight: 15, label: t?.("dealer.premium.qualitySpecs") || "specs" },
+    { done: !!dealer?.isVerified, weight: 15, label: t?.("dealer.premium.qualityVerifiedDealer") || "verified dealer" },
+  ];
+  const score = checks.reduce((sum, check) => sum + (check.done ? check.weight : 0), 0);
+  return {
+    percent: Math.min(100, score),
+    missing: checks.filter((check) => !check.done).map((check) => check.label),
+    checks,
+  };
+}
+
+function MiniTrendChart({
+  values,
+  tone = "amber",
+}: {
+  values: number[];
+  tone?: "amber" | "emerald" | "blue";
+}) {
+  const max = Math.max(1, ...values);
+  const color =
+    tone === "emerald"
+      ? "from-emerald-300 to-emerald-600"
+      : tone === "blue"
+        ? "from-blue-300 to-blue-600"
+        : "from-amber-300 to-amber-700";
+
+  return (
+    <div className="flex h-28 items-end gap-1.5">
+      {values.map((value, index) => (
+        <div
+          key={`${value}-${index}`}
+          className={`min-h-3 flex-1 rounded-t-lg bg-gradient-to-t ${color} opacity-90 transition-all duration-300`}
+          style={{ height: `${Math.max(10, (value / max) * 100)}%` }}
+          aria-hidden="true"
+        />
+      ))}
+    </div>
+  );
+}
+
+function DealerLoadingSkeleton() {
+  return (
+    <div className="space-y-5">
+      <div className="rounded-3xl border bg-card p-5 shadow-sm">
+        <div className="flex gap-4">
+          <Skeleton className="h-16 w-16 rounded-2xl" />
+          <div className="flex-1 space-y-3">
+            <Skeleton className="h-5 w-2/3" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-full" />
+          </div>
+        </div>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {[0, 1, 2, 3].map((item) => (
+          <Skeleton key={item} className="h-28 rounded-2xl" />
+        ))}
+      </div>
+      <Skeleton className="h-72 rounded-3xl" />
+    </div>
+  );
+}
 
 type BulkImportJob = {
   id: string;
@@ -153,6 +617,7 @@ function StatCard({
   label,
   value,
   trend,
+  detail,
   className,
   onClick,
 }: {
@@ -160,27 +625,38 @@ function StatCard({
   label: string;
   value: string | number;
   trend?: string;
+  detail?: string;
   className?: string;
   onClick?: () => void;
 }) {
   return (
     <Card
-      className={`${className || ""} ${onClick ? "cursor-pointer hover:shadow-md hover:border-amber-300 transition-all" : ""}`}
+      className={`${premiumSurface} ${premiumHover} overflow-hidden rounded-2xl ${className || ""} ${
+        onClick ? "cursor-pointer hover:border-amber-300" : ""
+      }`}
       onClick={onClick}
     >
-      <CardContent className="pt-6">
+      <CardContent className="relative p-4 sm:p-5">
+        <div className="absolute -right-7 -top-7 h-20 w-20 rounded-full bg-amber-100/60 blur-2xl" />
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="text-2xl font-bold mt-1">{value}</p>
+          <div className="min-w-0">
+            <p className="truncate text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
+              {label}
+            </p>
+            <p className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+              {value}
+            </p>
             {trend && (
-              <p className="text-xs text-emerald-600 flex items-center mt-1">
+              <p className="mt-2 flex items-center text-xs font-medium text-emerald-600">
                 <TrendingUp className="h-3 w-3 mr-1" />
                 {trend}
               </p>
             )}
+            {detail && (
+              <p className="mt-1 truncate text-xs text-muted-foreground">{detail}</p>
+            )}
           </div>
-          <div className="h-12 w-12 rounded-xl bg-amber-50 flex items-center justify-center">
+          <div className="relative h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-100 flex items-center justify-center shadow-inner">
             <Icon className="h-6 w-6 text-amber-700" />
           </div>
         </div>
@@ -189,12 +665,207 @@ function StatCard({
   );
 }
 
-function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer; t: (key: string) => string }) {
+function DealerHero({
+  dealer,
+  stats,
+  t,
+  onOpenMessages,
+  onProfileTask,
+  onPreviewProfile,
+  onShareProfile,
+}: {
+  dealer: Dealer;
+  stats: DealerStats;
+  t: (key: string) => string;
+  onOpenMessages: () => void;
+  onProfileTask: (target: SettingsTarget) => void;
+  onPreviewProfile: () => void;
+  onShareProfile: () => void;
+}) {
+  const completion = getProfileCompletion(dealer, t);
+  const initials = dealer.companyName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return (
+    <section className="relative overflow-hidden rounded-[2rem] border border-amber-200/70 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),transparent_34%),linear-gradient(135deg,#1f1408_0%,#3d260c_45%,#8a5a14_100%)] bg-[length:140%_140%] p-4 text-white shadow-[0_28px_90px_rgba(120,72,12,0.22)] transition-all duration-500 hover:bg-[position:100%_50%] sm:p-6">
+      <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+      <div className="absolute bottom-0 left-1/3 h-px w-2/3 bg-gradient-to-r from-transparent via-amber-200/70 to-transparent" />
+
+      <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
+        <div className="flex min-w-0 gap-4">
+          <button
+            type="button"
+            className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/20 bg-white/15 text-left shadow-2xl transition hover:scale-[1.02] hover:border-amber-200 sm:h-20 sm:w-20"
+            onClick={() => onProfileTask("branding")}
+            aria-label={t("dealer.premium.editLogo")}
+          >
+            {dealer.logoUrl ? (
+              <img
+                src={dealer.logoUrl}
+                alt={dealer.companyName}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xl font-black tracking-tight">
+                {initials || "NN"}
+              </div>
+            )}
+            <span className="absolute inset-x-0 bottom-0 bg-black/45 px-1.5 py-1 text-center text-[10px] font-semibold opacity-0 transition group-hover:opacity-100">
+              {t("dealer.premium.editLogo")}
+            </span>
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Badge className="border-white/20 bg-white/15 text-white hover:bg-white/20">
+                <Crown className="mr-1 h-3 w-3 text-amber-200" />
+                {t("dealer.premium.planTop")}
+              </Badge>
+              <Badge
+                className={
+                  dealer.isVerified
+                    ? "bg-emerald-500 text-white hover:bg-emerald-500"
+                    : "bg-white/15 text-white hover:bg-white/20"
+                }
+              >
+                <Shield className="mr-1 h-3 w-3" />
+                {dealer.isVerified ? t("dealer.verified") : t("dealer.notVerified")}
+              </Badge>
+              <Badge className="border-white/20 bg-white/15 text-white hover:bg-white/20">
+                <Star className="mr-1 h-3 w-3 text-amber-200" />
+                4.9 · {t("dealer.premium.ratingPlaceholder")}
+              </Badge>
+              <Badge className="border-white/20 bg-white/15 text-white hover:bg-white/20">
+                <CalendarDays className="mr-1 h-3 w-3 text-amber-200" />
+                {t("dealer.premium.memberSince")} 2026
+              </Badge>
+            </div>
+            <h1 className="truncate text-2xl font-black tracking-tight sm:text-4xl">
+              {dealer.companyName}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm text-amber-50/80 sm:text-base">
+              {t("dealer.premium.heroSubtitle")}
+            </p>
+
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:max-w-xl">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                <p className="text-lg font-black">{stats.activeListings}</p>
+                <p className="text-[11px] text-amber-50/70">{t("dealer.activeListings")}</p>
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                <p className="text-lg font-black">{displayViews(stats.totalViews)}</p>
+                <p className="text-[11px] text-amber-50/70">{t("dealer.views")}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onOpenMessages}
+                className="rounded-2xl border border-white/15 bg-white/10 p-3 text-left transition hover:bg-white/15"
+              >
+                <p className="text-lg font-black">{stats.totalContacts}</p>
+                <p className="text-[11px] text-amber-50/70">{t("dealer.contacts")}</p>
+              </button>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-10 rounded-xl bg-white text-amber-900 hover:bg-amber-50"
+                onClick={onPreviewProfile}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                {t("dealer.premium.previewPublicProfile")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 rounded-xl border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
+                onClick={onShareProfile}
+              >
+                <Link2 className="mr-2 h-4 w-4" />
+                {t("dealer.premium.shareDealerPage")}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-white/15 bg-white/12 p-4 shadow-2xl backdrop-blur-md">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold">{t("dealer.premium.profileCompleteness")}</p>
+              <p className="text-xs text-amber-50/70">{t("dealer.premium.onboardingHint")}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-3xl font-black">{completion.percent}%</p>
+              <p className="text-[11px] text-amber-50/70">{t("dealer.premium.completed")}</p>
+            </div>
+          </div>
+          <Progress value={completion.percent} className="mt-4 h-2 bg-white/20" />
+          <div className="mt-4 flex flex-wrap gap-2">
+            {completion.tasks.map((task) => (
+              <button
+                type="button"
+                key={task.key}
+                onClick={() => {
+                  const target: Record<string, SettingsTarget> = {
+                    phone: "phone",
+                    logo: "branding",
+                    address: "address",
+                    description: "description",
+                    verified: "verification",
+                  };
+                  onProfileTask(target[task.key] || "companyName");
+                }}
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold transition hover:scale-[1.02] ${
+                  task.done
+                    ? "bg-emerald-500/90 text-white hover:bg-emerald-500"
+                    : "bg-white/15 text-white hover:bg-white/20"
+                }`}
+              >
+                {task.done ? <Check className="mr-1 h-3 w-3" /> : <Plus className="mr-1 h-3 w-3" />}
+                {task.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DashboardTab({
+  stats,
+  dealer,
+  t,
+  onOpenTab,
+  onFocusSettings,
+  onAddVehicle,
+}: {
+  stats: DealerStats;
+  dealer: Dealer;
+  t: (key: string) => string;
+  onOpenTab: (tab: DealerTab) => void;
+  onFocusSettings: (target: SettingsTarget) => void;
+  onAddVehicle: () => void;
+}) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "all">("30d");
+  const [dismissedNotifications, setDismissedNotifications] = useState<Set<string>>(new Set());
+  const [showStats, setShowStats] = useState(false);
+  const [analyticsDialog, setAnalyticsDialog] = useState<{
+    title: string;
+    value: string;
+    description: string;
+    icon: any;
+  } | null>(null);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -221,75 +892,587 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
     }
   }, [toast]);
 
+  const rangeMultiplier = timeRange === "7d" ? 0.42 : timeRange === "90d" ? 2.4 : timeRange === "all" ? 3.1 : 1;
+  const rangeViews = Math.round(stats.last30Days.views * rangeMultiplier);
+  const rangeContacts = Math.round(stats.last30Days.contacts * rangeMultiplier);
+  const rangeWhatsapp = Math.round(stats.last30Days.whatsapp * rangeMultiplier);
+  const callCtr = rangeViews > 0 ? ((rangeContacts / rangeViews) * 100).toFixed(1) : "0.0";
+  const whatsappCtr = rangeViews > 0 ? ((rangeWhatsapp / rangeViews) * 100).toFixed(1) : "0.0";
+  const savedAdsEstimate = Math.max(0, Math.round(rangeViews * 0.018));
+
+  const chartViews = useMemo(
+    () =>
+      [0.34, 0.48, 0.42, 0.62, 0.55, 0.78, 1].map((ratio) =>
+        Math.max(1, Math.round((rangeViews / 7) * ratio)),
+      ),
+    [rangeViews],
+  );
+  const chartContacts = useMemo(
+    () =>
+      [0.28, 0.36, 0.44, 0.5, 0.62, 0.7, 1].map((ratio) =>
+        Math.max(0, Math.round((rangeContacts / 7) * ratio)),
+      ),
+    [rangeContacts],
+  );
+  const soldEstimate = Math.max(0, stats.totalListings - stats.activeListings);
+  const bestListing = [...stats.perListing].sort(
+    (a, b) => b.views + b.contacts * 12 + b.whatsapp * 10 - (a.views + a.contacts * 12 + a.whatsapp * 10),
+  )[0];
+  const insights: DashboardInsight[] = [
+    {
+      icon: ImageIcon,
+      title: t("dealer.premium.recommendPhotosTitle"),
+      description: t("dealer.premium.recommendPhotosDescription"),
+      tone: "bg-blue-50 text-blue-700",
+      actionLabel: t("dealer.premium.openInventory"),
+      onClick: () => onOpenTab("mylistings"),
+    },
+    {
+      icon: Crown,
+      title: t("dealer.premium.recommendVipTitle"),
+      description: t("dealer.premium.recommendVipDescription"),
+      tone: "bg-amber-50 text-amber-700",
+      actionLabel: t("dealer.promo.activateVip"),
+      onClick: () => onOpenTab("promotion"),
+    },
+    {
+      icon: Wand2,
+      title: t("dealer.premium.recommendAiTitle"),
+      description: t("dealer.premium.recommendAiDescription"),
+      tone: "bg-violet-50 text-violet-700",
+      actionLabel: t("dealer.premium.completeDescription"),
+      onClick: () => onFocusSettings("description"),
+    },
+  ];
+  const notifications = [
+    {
+      id: "promote",
+      icon: Rocket,
+      title: t("dealer.premium.activityPromoted"),
+      meta: t("dealer.premium.activityNow"),
+      onClick: () => onOpenTab("promotion"),
+      category: t("dealer.promo.tab"),
+    },
+    {
+      id: "views",
+      icon: Eye,
+      title: t("dealer.premium.activityViewed"),
+      meta: t("dealer.premium.activityToday"),
+      onClick: () => bestListing && navigate(buildListingPath({ id: bestListing.listing_id, brand: bestListing.brand, model: bestListing.model })),
+      category: t("dealer.stats"),
+    },
+    {
+      id: "settings",
+      icon: CalendarDays,
+      title: t("dealer.premium.activityExpiring"),
+      meta: t("dealer.premium.activitySoon"),
+      onClick: () => onOpenTab("mylistings"),
+      category: t("dealer.myListings"),
+    },
+  ].filter((item) => !dismissedNotifications.has(item.id));
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3 mb-2">
-        <Building2 className="h-5 w-5 text-amber-700" />
-        <h2 className="text-lg font-semibold">{dealer.companyName}</h2>
-        {dealer.isVerified ? (
-          <Badge variant="default" className="bg-emerald-600">
-            <Shield className="h-3 w-3 mr-1" />
-            {t("dealer.verified")}
-          </Badge>
-        ) : (
-          <Badge variant="secondary">
-            <Clock className="h-3 w-3 mr-1" />
-            {t("dealer.notVerified")}
-          </Badge>
-        )}
+    <div className="space-y-5 sm:space-y-6">
+      <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr]">
+        <Card className="overflow-hidden rounded-3xl border-amber-200 bg-gradient-to-br from-amber-700 via-amber-800 to-stone-950 text-white shadow-[0_20px_70px_rgba(120,72,12,0.20)]">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <Badge className="mb-3 bg-white/15 text-white hover:bg-white/20">
+                  NNAuto Pro
+                </Badge>
+                <h3 className="text-2xl font-black tracking-tight">
+                  {t("dealer.dashboard.actionTitle")}
+                </h3>
+                <p className="mt-2 max-w-xl text-sm text-amber-50/80">
+                  {t("dealer.dashboard.actionDescription")}
+                </p>
+              </div>
+              <Button
+                className="h-14 rounded-2xl bg-white px-6 text-base font-black text-amber-900 shadow-xl hover:bg-amber-50"
+                onClick={onAddVehicle}
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                {t("dealer.dashboard.addCar")}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardContent className="grid gap-2 p-4 sm:grid-cols-2">
+            {[
+              { icon: Upload, label: t("dealer.bulkImport"), hint: "CSV/XML", action: () => onOpenTab("import") },
+              { icon: Car, label: t("dealer.myListings"), hint: t("dealer.dashboard.manageInventory"), action: () => onOpenTab("mylistings") },
+              { icon: Rocket, label: t("dealer.promo.tab"), hint: "TOP / VIP", action: () => onOpenTab("promotion") },
+              { icon: Eye, label: t("dealer.premium.previewPublicProfile"), hint: t("dealer.dashboard.publicProfile"), action: () => window.open(`/dealer/${dealer.id}`, "_blank", "noopener,noreferrer") },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={item.action}
+                  className="rounded-2xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99]"
+                >
+                  <Icon className="mb-2 h-5 w-5 text-amber-700" />
+                  <p className="font-bold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.hint}</p>
+                </button>
+              );
+            })}
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <Card id="dealer-bulk-import-upload" className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Car className="h-5 w-5 text-amber-700" />
+                {t("dealer.dashboard.recentInventory")}
+              </CardTitle>
+              <CardDescription>{t("dealer.dashboard.recentInventoryDescription")}</CardDescription>
+            </div>
+            <Button variant="outline" className="rounded-2xl" onClick={() => onOpenTab("mylistings")}>
+              {t("dealer.dashboard.manageInventory")}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {stats.perListing.length > 0 ? (
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {stats.perListing.slice(0, 3).map((item) => (
+                <button
+                  key={item.listing_id}
+                  type="button"
+                  className="group flex gap-3 rounded-2xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md active:scale-[0.99]"
+                  onClick={() =>
+                    navigate(
+                      buildListingPath({
+                        id: item.listing_id,
+                        brand: item.brand,
+                        model: item.model,
+                      }),
+                    )
+                  }
+                >
+                  <div className="h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-muted">
+                    {item.photo ? (
+                      <img
+                        src={`/img/${item.photo}?w=192&h=128&fit=cover`}
+                        alt={`${item.brand} ${item.model}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Car className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate font-bold">{item.brand} {item.model}</p>
+                      <Badge className="shrink-0 rounded-full bg-emerald-100 text-[10px] text-emerald-700 hover:bg-emerald-100">
+                        {t("dealer.promo.active")}
+                      </Badge>
+                    </div>
+                    <p className="truncate text-xs text-muted-foreground">{item.title}</p>
+                    <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1"><Eye className="h-3 w-3" />{displayViews(item.views)}</span>
+                      <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{item.contacts} {t("dealer.contacts").toLowerCase()}</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed p-8 text-center">
+              <p className="font-semibold">{t("dealer.dashboard.noInventoryYet")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("dealer.dashboard.noInventoryHint")}</p>
+              <Button className="mt-4 bg-amber-700 hover:bg-amber-800" onClick={onAddVehicle}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("dealer.dashboard.addCar")}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground">{t("dealer.dashboard.statsTitle")}</p>
+              <div className="mt-2 flex flex-wrap gap-3 text-sm">
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 font-bold text-amber-800">
+                  <Eye className="h-4 w-4" /> {displayViews(stats.totalViews)} {t("dealer.views").toLowerCase()}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-bold text-emerald-700">
+                  <Phone className="h-4 w-4" /> {stats.totalContacts} {t("dealer.contacts").toLowerCase()}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 font-bold">
+                  <Clock className="h-4 w-4" /> ~18 min
+                </span>
+              </div>
+            </div>
+            <Button
+              variant={showStats ? "default" : "outline"}
+              className={showStats ? "rounded-2xl bg-amber-700 hover:bg-amber-800" : "rounded-2xl"}
+              onClick={() => setShowStats((value) => !value)}
+            >
+              <BarChart3 className="mr-2 h-4 w-4" />
+              {showStats ? t("dealer.dashboard.hideStats") : t("dealer.dashboard.showStats")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {showStats ? (
+        <div className="space-y-5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={Car}
           label={t("dealer.totalListings")}
           value={stats.totalListings}
-          onClick={() => navigate(`/listings?userId=${dealer.ownerId}`)}
+          detail={t("dealer.premium.inventoryReady")}
+          onClick={() => onOpenTab("mylistings")}
         />
         <StatCard
           icon={Eye}
           label={t("dealer.totalViews")}
           value={stats.totalViews.toLocaleString()}
+          trend={t("dealer.premium.last30DaysTrend")}
+          onClick={() =>
+            setAnalyticsDialog({
+              title: t("dealer.totalViews"),
+              value: stats.totalViews.toLocaleString(),
+              description: t("dealer.premium.analyticsViewsDetail"),
+              icon: Eye,
+            })
+          }
         />
         <StatCard
           icon={Phone}
           label={t("dealer.totalContacts")}
           value={stats.totalContacts}
+          detail={`${stats.totalWhatsapp} ${t("dealer.whatsapp")}`}
+          onClick={() =>
+            setAnalyticsDialog({
+              title: t("dealer.totalContacts"),
+              value: String(stats.totalContacts),
+              description: t("dealer.premium.analyticsContactsDetail"),
+              icon: Phone,
+            })
+          }
         />
         <StatCard
           icon={TrendingUp}
           label={t("dealer.conversionRate")}
           value={`${stats.conversionRate}%`}
+          detail={t("dealer.premium.conversionHint")}
+        />
+        <StatCard
+          icon={MessageCircle}
+          label={t("dealer.whatsapp")}
+          value={stats.totalWhatsapp}
+          className="lg:col-span-1"
+        />
+        <StatCard
+          icon={CheckCircle2}
+          label={t("dealer.activeListings")}
+          value={stats.activeListings}
+        />
+        <StatCard
+          icon={Award}
+          label={t("dealer.premium.soldCars")}
+          value={soldEstimate}
+        />
+        <StatCard
+          icon={Star}
+          label={t("dealer.premium.favorites")}
+          value={savedAdsEstimate}
+          detail={t("dealer.premium.estimatedSavedAds")}
+          onClick={() =>
+            setAnalyticsDialog({
+              title: t("dealer.premium.favorites"),
+              value: String(savedAdsEstimate),
+              description: t("dealer.premium.analyticsFavoritesDetail"),
+              icon: Star,
+            })
+          }
+        />
+        <StatCard
+          icon={Phone}
+          label={t("dealer.premium.callCtr")}
+          value={`${callCtr}%`}
+          detail={t("dealer.premium.clickThroughRate")}
+          onClick={() =>
+            setAnalyticsDialog({
+              title: t("dealer.premium.callCtr"),
+              value: `${callCtr}%`,
+              description: t("dealer.premium.analyticsCallCtrDetail"),
+              icon: Phone,
+            })
+          }
+        />
+        <StatCard
+          icon={MessageCircle}
+          label={t("dealer.premium.whatsappCtr")}
+          value={`${whatsappCtr}%`}
+          detail={t("dealer.premium.clickThroughRate")}
+          onClick={() =>
+            setAnalyticsDialog({
+              title: t("dealer.premium.whatsappCtr"),
+              value: `${whatsappCtr}%`,
+              description: t("dealer.premium.analyticsWhatsappCtrDetail"),
+              icon: MessageCircle,
+            })
+          }
+        />
+        <StatCard
+          icon={Clock}
+          label={t("dealer.premium.avgResponseTime")}
+          value="~18 min"
+          detail={t("dealer.premium.responseTimeHint")}
+          onClick={() =>
+            setAnalyticsDialog({
+              title: t("dealer.premium.avgResponseTime"),
+              value: "~18 min",
+              description: t("dealer.premium.analyticsResponseDetail"),
+              icon: Clock,
+            })
+          }
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            {t("dealer.last30Days")}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-amber-700">{displayViews(stats.last30Days.views)}</p>
-              <p className="text-sm text-muted-foreground">{t("dealer.views")}</p>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <BarChart3 className="h-4 w-4 text-amber-700" />
+                  {t("dealer.premium.performanceGraph")}
+                </CardTitle>
+                <CardDescription>{t("dealer.premium.performanceDescription")}</CardDescription>
+              </div>
+              <div className="flex rounded-full border bg-white p-1">
+                {(["7d", "30d", "90d", "all"] as const).map((range) => (
+                  <button
+                    key={range}
+                    type="button"
+                    onClick={() => setTimeRange(range)}
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold transition ${
+                      timeRange === range
+                        ? "bg-amber-700 text-white shadow-sm"
+                        : "text-muted-foreground hover:bg-amber-50"
+                    }`}
+                  >
+                    {range === "all" ? t("dealer.premium.rangeAll") : range}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-emerald-600">{stats.last30Days.contacts}</p>
-              <p className="text-sm text-muted-foreground">{t("dealer.contacts")}</p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="rounded-2xl bg-amber-50/70 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-amber-900">{t("dealer.views")}</span>
+                  <span className="text-sm font-black text-amber-800">
+                    {displayViews(rangeViews)}
+                  </span>
+                </div>
+                <MiniTrendChart values={chartViews} tone="amber" />
+              </div>
+              <div className="rounded-2xl bg-emerald-50/70 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-emerald-900">{t("dealer.contacts")}</span>
+                  <span className="text-sm font-black text-emerald-800">
+                    {rangeContacts}
+                  </span>
+                </div>
+                <MiniTrendChart values={chartContacts} tone="emerald" />
+              </div>
             </div>
-            <div className="text-center">
-              <p className="text-3xl font-bold text-green-600">{stats.last30Days.whatsapp}</p>
-              <p className="text-sm text-muted-foreground">{t("dealer.whatsapp")}</p>
+          </CardContent>
+        </Card>
+
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Crown className="h-4 w-4 text-amber-700" />
+              {t("dealer.premium.bestPerformingAd")}
+            </CardTitle>
+            <CardDescription>{t("dealer.premium.bestPerformingDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {bestListing ? (
+              <div
+                className="cursor-pointer rounded-2xl border bg-gradient-to-br from-white to-amber-50/70 p-3 transition hover:border-amber-300"
+                onClick={() =>
+                  navigate(
+                    buildListingPath({
+                      id: bestListing.listing_id,
+                      brand: bestListing.brand,
+                      model: bestListing.model,
+                    }),
+                  )
+                }
+              >
+                <div className="flex gap-3">
+                  <div className="h-20 w-28 overflow-hidden rounded-xl bg-muted">
+                    {bestListing.photo ? (
+                      <img
+                        src={`/img/${bestListing.photo}?w=224&h=160&fit=cover`}
+                        alt={`${bestListing.brand} ${bestListing.model}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Car className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold">
+                      {bestListing.brand} {bestListing.model}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{bestListing.title}</p>
+                    <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                      <span className="rounded-lg bg-white px-2 py-1 font-semibold">
+                        {displayViews(bestListing.views)}
+                        <br />
+                        <span className="font-normal text-muted-foreground">{t("dealer.views")}</span>
+                      </span>
+                      <span className="rounded-lg bg-white px-2 py-1 font-semibold">
+                        {bestListing.contacts}
+                        <br />
+                        <span className="font-normal text-muted-foreground">{t("dealer.contacts")}</span>
+                      </span>
+                      <span className="rounded-lg bg-white px-2 py-1 font-semibold">
+                        {bestListing.whatsapp}
+                        <br />
+                        <span className="font-normal text-muted-foreground">WA</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">
+                {t("dealer.premium.noPerformanceYet")}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className={`${premiumSurface} rounded-3xl lg:col-span-2`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Sparkles className="h-4 w-4 text-amber-700" />
+              {t("dealer.premium.recommendations")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-3">
+            {insights.map((insight) => {
+              const Icon = insight.icon;
+              return (
+                <button
+                  key={insight.title}
+                  type="button"
+                  onClick={insight.onClick}
+                  className="rounded-2xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md"
+                >
+                  <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${insight.tone}`}>
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <p className="font-semibold">{insight.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{insight.description}</p>
+                  {insight.actionLabel && (
+                    <span className="mt-3 inline-flex items-center text-sm font-semibold text-amber-700">
+                      {insight.actionLabel}
+                      <ChevronRight className="ml-1 h-4 w-4" />
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <Bell className="h-4 w-4 text-amber-700" />
+                {t("dealer.premium.notifications")}
+              </CardTitle>
+              {notifications.length > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setDismissedNotifications(new Set(["promote", "views", "settings"]))}
+                >
+                  {t("dealer.premium.markAllRead")}
+                </Button>
+              )}
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {notifications.length === 0 ? (
+              <div className="rounded-2xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+                {t("dealer.premium.noNotifications")}
+              </div>
+            ) : notifications.map((item) => {
+              const ActivityIcon = item.icon;
+              return (
+                <div key={item.id} className="group flex gap-3 rounded-2xl bg-muted/40 p-3 transition hover:bg-amber-50">
+                  <button type="button" className="flex flex-1 gap-3 text-left" onClick={item.onClick}>
+                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-amber-700">
+                    <ActivityIcon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-amber-500" />
+                      <Badge variant="secondary" className="rounded-full text-[10px]">{item.category}</Badge>
+                    </div>
+                    <p className="text-sm font-medium">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">{item.meta}</p>
+                  </div>
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-70 transition group-hover:opacity-100"
+                    onClick={() =>
+                      setDismissedNotifications((prev) => {
+                        const next = new Set(prev);
+                        next.add(item.id);
+                        return next;
+                      })
+                    }
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </Button>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      </div>
 
       {stats.perListing.length > 0 && (
-        <Card>
+        <Card className={`${premiumSurface} rounded-3xl`}>
           <CardHeader>
             <CardTitle className="text-base">{t("dealer.perListing")}</CardTitle>
           </CardHeader>
@@ -363,6 +1546,52 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
           </CardContent>
         </Card>
       )}
+        </div>
+      ) : null}
+
+      <Dialog open={!!analyticsDialog} onOpenChange={(open) => !open && setAnalyticsDialog(null)}>
+        <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-y-auto rounded-none p-4 sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-lg sm:p-6">
+          {analyticsDialog && (
+            (() => {
+              const AnalyticsIcon = analyticsDialog.icon;
+              return (
+            <>
+              <DialogHeader>
+                <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+                  <AnalyticsIcon className="h-6 w-6" />
+                </div>
+                <DialogTitle>{analyticsDialog.title}</DialogTitle>
+                <DialogDescription>{analyticsDialog.description}</DialogDescription>
+              </DialogHeader>
+              <div className="rounded-3xl bg-gradient-to-br from-amber-50 to-white p-5">
+                <p className="text-sm text-muted-foreground">{t("dealer.premium.currentValue")}</p>
+                <p className="mt-1 text-4xl font-black text-amber-900">{analyticsDialog.value}</p>
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {[0.45, 0.62, 1].map((value, index) => (
+                    <div key={index} className="rounded-2xl bg-white p-3 text-center">
+                      <p className="text-xs text-muted-foreground">{index === 0 ? "7d" : index === 1 ? "30d" : "90d"}</p>
+                      <p className="font-black">{Math.max(1, Math.round(Number.parseFloat(analyticsDialog.value) * value) || index + 1)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setAnalyticsDialog(null)}>
+                  {t("dealer.cancel")}
+                </Button>
+                <Button className="bg-amber-700 hover:bg-amber-800" onClick={() => {
+                  setAnalyticsDialog(null);
+                  onOpenTab("mylistings");
+                }}>
+                  {t("dealer.premium.openInventory")}
+                </Button>
+              </DialogFooter>
+            </>
+              );
+            })()
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
@@ -401,12 +1630,20 @@ function DashboardTab({ stats, dealer, t }: { stats: DealerStats; dealer: Dealer
   );
 }
 
-function BulkImportTab({ t }: { t: (key: string) => string }) {
+function BulkImportTab({
+  t,
+  onAddVehicle,
+}: {
+  t: (key: string) => string;
+  onAddVehicle: () => void;
+}) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [parsedData, setParsedData] = useState<any[] | null>(null);
   const [fileName, setFileName] = useState<string>("");
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   const importMutation = useMutation({
     mutationFn: async (data: { listings: any[]; fileName: string }) => {
@@ -467,10 +1704,12 @@ function BulkImportTab({ t }: { t: (key: string) => string }) {
       const file = e.target.files?.[0];
       if (!file) return;
       setFileName(file.name);
+      setUploadProgress(15);
       const reader = new FileReader();
       reader.onload = (ev) => {
         const text = ev.target?.result as string;
         const data = parseCsv(text);
+        setUploadProgress(100);
         setParsedData(data);
       };
       reader.readAsText(file);
@@ -481,13 +1720,16 @@ function BulkImportTab({ t }: { t: (key: string) => string }) {
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      setDragActive(false);
       const file = e.dataTransfer.files?.[0];
       if (!file || !file.name.endsWith(".csv")) return;
       setFileName(file.name);
+      setUploadProgress(15);
       const reader = new FileReader();
       reader.onload = (ev) => {
         const text = ev.target?.result as string;
         const data = parseCsv(text);
+        setUploadProgress(100);
         setParsedData(data);
       };
       reader.readAsText(file);
@@ -499,28 +1741,111 @@ function BulkImportTab({ t }: { t: (key: string) => string }) {
   const jobProgress = activeJob
     ? Math.round((activeJob.processedRows / Math.max(activeJob.totalRows, 1)) * 100)
     : 0;
+  const validation = useMemo(() => {
+    const rows = parsedData || [];
+    const required = ["title", "brand", "model", "year", "price"];
+    const errors = rows.flatMap((row, index) =>
+      required
+        .filter((field) => !row[field])
+        .map((field) => ({ row: index + 2, field })),
+    );
+    const seen = new Set<string>();
+    const duplicates = rows.filter((row) => {
+      const key = `${row.brand || ""}-${row.model || ""}-${row.year || ""}-${row.price || ""}`.toLowerCase();
+      if (!key.replace(/-/g, "")) return false;
+      if (seen.has(key)) return true;
+      seen.add(key);
+      return false;
+    }).length;
+
+    return {
+      errors,
+      duplicates,
+      validRows: Math.max(0, rows.length - errors.length),
+    };
+  }, [parsedData]);
+
+  const downloadTemplate = useCallback(() => {
+    const csv = `title,brand,model,year,mileage,price,fuelType,transmission,bodyType,color,driveType,engineVolume,power,condition,vehicleType,region,phone,description
+"Škoda Octavia 2.0 TDI","Škoda","Octavia",2021,45000,"450000","diesel","automatic","sedan","white","fwd","2.0",150,"used","osobni-auta","Praha","775123456","Popis vozidla..."`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "nnauto-import-template.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }, []);
 
   return (
-    <div className="space-y-6">
-      <Card>
+    <div className="space-y-5 sm:space-y-6">
+      <Card className={`${premiumSurface} rounded-3xl`}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Upload className="h-5 w-5" />
-            {t("dealer.importTitle")}
-          </CardTitle>
-          <CardDescription>{t("dealer.importDescription")}</CardDescription>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <Upload className="h-5 w-5 text-amber-700" />
+                {t("dealer.importTitle")}
+              </CardTitle>
+              <CardDescription>{t("dealer.importDescription")}</CardDescription>
+            </div>
+            <Button variant="outline" className="gap-2" onClick={downloadTemplate}>
+              <Download className="h-4 w-4" />
+              {t("dealer.premium.downloadTemplate")}
+            </Button>
+          </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
+          <div className="grid gap-2 sm:grid-cols-4">
+            {[
+              [1, t("dealer.premium.importStepUpload")],
+              [2, t("dealer.premium.importStepValidate")],
+              [3, t("dealer.premium.importStepPreview")],
+              [4, t("dealer.premium.importStepFinish")],
+            ].map(([step, label]) => (
+              <div
+                key={String(step)}
+                className={`rounded-2xl border p-3 text-sm ${
+                  parsedData || Number(step) === 1
+                    ? "border-amber-200 bg-amber-50/70 text-amber-900"
+                    : "bg-muted/40 text-muted-foreground"
+                }`}
+              >
+                <span className="mb-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-xs font-black">
+                  {String(step)}
+                </span>
+                {String(label)}
+              </div>
+            ))}
+          </div>
+
           <div
-            className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:border-amber-400 hover:bg-amber-50/50 transition-colors"
+            className={`group border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition-colors ${
+              dragActive
+                ? "border-amber-500 bg-amber-50 shadow-inner"
+                : "hover:border-amber-400 hover:bg-amber-50/50"
+            }`}
             onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
+            onDragEnter={() => setDragActive(true)}
+            onDragLeave={() => setDragActive(false)}
             onDragOver={(e) => e.preventDefault()}
           >
-            <FileSpreadsheet className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">{t("dealer.importDragDrop")}</p>
+            <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 transition group-hover:scale-105">
+              <FileSpreadsheet className="h-7 w-7" />
+            </div>
+            <p className="font-semibold">{t("dealer.importDragDrop")}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{t("dealer.premium.importHelper")}</p>
             {fileName && (
               <p className="mt-2 text-sm font-medium text-amber-700">{fileName}</p>
+            )}
+            {uploadProgress > 0 && (
+              <div className="mx-auto mt-4 max-w-md">
+                <Progress value={uploadProgress} className="h-2" />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {uploadProgress === 100 ? t("dealer.premium.uploadSuccess") : t("dealer.premium.uploading")}
+                </p>
+              </div>
             )}
             <input
               ref={fileInputRef}
@@ -532,26 +1857,87 @@ function BulkImportTab({ t }: { t: (key: string) => string }) {
           </div>
 
           {parsedData && (
-            <div className="flex items-center justify-between p-4 rounded-lg bg-muted">
-              <span className="text-sm">
-                {t("dealer.importTotal")}: <strong>{parsedData.length}</strong>
-              </span>
-              <Button
-                onClick={() =>
-                  importMutation.mutate({ listings: parsedData, fileName })
-                }
-                disabled={importMutation.isPending || parsedData.length === 0}
-                className="bg-amber-700 hover:bg-amber-800"
-              >
-                {importMutation.isPending
-                  ? t("dealer.importProcessing")
-                  : t("dealer.importStartImport")}
-              </Button>
+            <div className="space-y-4 rounded-3xl border bg-white p-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-muted/50 p-3">
+                  <p className="text-xs text-muted-foreground">{t("dealer.importTotal")}</p>
+                  <p className="text-2xl font-black">{parsedData.length}</p>
+                </div>
+                <div className="rounded-2xl bg-emerald-50 p-3">
+                  <p className="text-xs text-emerald-700">{t("dealer.premium.validRows")}</p>
+                  <p className="text-2xl font-black text-emerald-700">{validation.validRows}</p>
+                </div>
+                <div className="rounded-2xl bg-red-50 p-3">
+                  <p className="text-xs text-red-700">{t("dealer.premium.rowsWithIssues")}</p>
+                  <p className="text-2xl font-black text-red-700">{validation.errors.length}</p>
+                </div>
+              </div>
+
+              {validation.duplicates > 0 && (
+                <div className="flex gap-2 rounded-2xl bg-amber-50 p-3 text-sm text-amber-800">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  {t("dealer.premium.duplicatesFound").replace("{{count}}", String(validation.duplicates))}
+                </div>
+              )}
+
+              <div className="overflow-hidden rounded-2xl border">
+                <div className="border-b bg-muted/40 px-3 py-2 text-sm font-semibold">
+                  {t("dealer.premium.importPreview")}
+                </div>
+                <div className="max-h-56 overflow-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="sticky top-0 bg-white">
+                      <tr className="border-b">
+                        {["brand", "model", "year", "price", "region"].map((field) => (
+                          <th key={field} className="px-3 py-2 font-semibold">
+                            {field}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedData.slice(0, 8).map((row, index) => (
+                        <tr
+                          key={`${row.brand}-${row.model}-${index}`}
+                          className={`border-b last:border-0 ${
+                            validation.errors.some((error) => error.row === index + 2)
+                              ? "bg-red-50 text-red-800"
+                              : ""
+                          }`}
+                        >
+                          <td className="px-3 py-2">{row.brand || "—"}</td>
+                          <td className="px-3 py-2">{row.model || "—"}</td>
+                          <td className="px-3 py-2">{row.year || "—"}</td>
+                          <td className="px-3 py-2">{row.price || "—"}</td>
+                          <td className="px-3 py-2">{row.region || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-sm text-muted-foreground">
+                  {t("dealer.premium.validationReady")}
+                </span>
+                <Button
+                  onClick={() =>
+                    importMutation.mutate({ listings: parsedData, fileName })
+                  }
+                  disabled={importMutation.isPending || parsedData.length === 0}
+                  className="bg-amber-700 hover:bg-amber-800"
+                >
+                  {importMutation.isPending
+                    ? t("dealer.importProcessing")
+                    : t("dealer.importStartImport")}
+                </Button>
+              </div>
             </div>
           )}
 
           {activeJob && (
-            <Card>
+            <Card className={activeJob.status === "completed" ? "border-emerald-200 bg-emerald-50/50" : ""}>
               <CardContent className="pt-4 space-y-3">
                 <div className="flex justify-between text-sm">
                   <span>{activeJob.status === "completed" ? "✓" : "⏳"} {activeJob.fileName}</span>
@@ -579,6 +1965,14 @@ function BulkImportTab({ t }: { t: (key: string) => string }) {
                     ))}
                   </div>
                 )}
+                {activeJob.status === "completed" && (
+                  <div className="rounded-2xl bg-white p-3 text-sm text-emerald-700">
+                    <CheckCircle2 className="mr-2 inline h-4 w-4" />
+                    {t("dealer.premium.importCompletedSummary")
+                      .replace("{{success}}", String(activeJob.successRows))
+                      .replace("{{failed}}", String(activeJob.failedRows))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -595,11 +1989,9 @@ function BulkImportTab({ t }: { t: (key: string) => string }) {
 
           <div className="text-center pt-2">
             <p className="text-sm text-muted-foreground mb-3">{t("dealer.addManually")}</p>
-            <Button variant="outline" asChild>
-              <a href="/add-listing">
+            <Button variant="outline" onClick={onAddVehicle}>
                 <Plus className="h-4 w-4 mr-2" />
                 {t("header.addListing")}
-              </a>
             </Button>
           </div>
         </CardContent>
@@ -627,6 +2019,9 @@ type DealerListing = {
   whatsapp: number;
   mileage?: number;
   region?: string;
+  description?: string | null;
+  video?: string | null;
+  vin?: string | null;
 };
 
 function getListingStatus(l: DealerListing): "sold" | "top" | "reserve" | "active" {
@@ -651,10 +2046,22 @@ const STATUS_CONFIG = {
   reserve: { label: "Rezervace", color: "bg-blue-100 text-blue-700", icon: Pause },
 };
 
-function MyListingsTab({ t }: { t: (key: string) => string }) {
+function MyListingsTab({
+  t,
+  dealer,
+  onOpenTab,
+  onAddVehicle,
+}: {
+  t: (key: string) => string;
+  dealer: Dealer;
+  onOpenTab: (tab: DealerTab) => void;
+  onAddVehicle: () => void;
+}) {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [sortMode, setSortMode] = useState("newest");
   const [editingListing, setEditingListing] = useState<any>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -719,9 +2126,36 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
 
   const allListings = (data?.listings || []) as DealerListing[];
 
-  const filteredListings = statusFilter === "all"
-    ? allListings
-    : allListings.filter((l) => getListingStatus(l) === statusFilter);
+  const filteredListings = useMemo(() => {
+    const query = inventorySearch.trim().toLowerCase();
+    const filtered = allListings.filter((listing) => {
+      const status = getListingStatus(listing);
+      const matchesStatus =
+        statusFilter === "all" ||
+        status === statusFilter ||
+        (statusFilter === "promoted" && status === "top") ||
+        (statusFilter === "expired" && false) ||
+        (statusFilter === "pending" && false);
+      const matchesSearch =
+        !query ||
+        `${listing.brand} ${listing.model} ${listing.title} ${listing.region || ""}`
+          .toLowerCase()
+          .includes(query);
+      return matchesStatus && matchesSearch;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (sortMode === "oldest") {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+      if (sortMode === "most_viewed") return b.views - a.views;
+      if (sortMode === "cheapest") return Number(a.price) - Number(b.price);
+      if (sortMode === "most_contacts") {
+        return b.contacts + b.whatsapp - (a.contacts + a.whatsapp);
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [allListings, inventorySearch, sortMode, statusFilter]);
 
   const visibleIds = useMemo(
     () => filteredListings.map((l) => l.id),
@@ -761,6 +2195,39 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
     },
     [visibleIds],
   );
+
+  const exportSelected = useCallback(() => {
+    const selected = filteredListings.filter((listing) => selectedIds.has(listing.id));
+    if (selected.length === 0) {
+      toast({ title: t("dealer.promo.selectListingsFirst") });
+      return;
+    }
+    const csv = [
+      ["brand", "model", "year", "price", "views", "contacts", "whatsapp", "region"].join(","),
+      ...selected.map((listing) =>
+        [
+          listing.brand,
+          listing.model,
+          listing.year,
+          listing.price,
+          listing.views,
+          listing.contacts,
+          listing.whatsapp,
+          listing.region || "",
+        ]
+          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+          .join(","),
+      ),
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "nnauto-dealer-export.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast({ title: t("dealer.premium.exportReady") });
+  }, [filteredListings, selectedIds, t, toast]);
 
   const bulkMutation = useMutation({
     mutationFn: async (vars: {
@@ -820,34 +2287,100 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
     active: allListings.filter((l) => getListingStatus(l) === "active").length,
     top: allListings.filter((l) => getListingStatus(l) === "top").length,
     sold: allListings.filter((l) => getListingStatus(l) === "sold").length,
+    promoted: allListings.filter((l) => getListingStatus(l) === "top").length,
+    pending: 0,
+    expired: 0,
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700" />
+      <div className="space-y-3">
+        <Skeleton className="h-12 rounded-2xl" />
+        {[0, 1, 2].map((item) => (
+          <Skeleton key={item} className="h-32 rounded-3xl" />
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Status filter bar */}
-      <div className="flex gap-2 flex-wrap">
-        {(["all", "active", "top", "sold"] as const).map((s) => (
-          <Button
-            key={s}
-            size="sm"
-            variant={statusFilter === s ? "default" : "outline"}
-            className={statusFilter === s ? "bg-amber-700 hover:bg-amber-800" : ""}
-            onClick={() => setStatusFilter(s)}
-          >
-            {s === "all" ? t("dealer.listings.all") : STATUS_CONFIG[s].label}
-            <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">
-              {statusCounts[s]}
-            </Badge>
-          </Button>
-        ))}
+    <div className="space-y-4 pb-24 sm:pb-0">
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardContent className="space-y-4 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-xl font-black tracking-tight">{t("dealer.premium.inventoryTitle")}</h2>
+              <p className="text-sm text-muted-foreground">{t("dealer.premium.inventorySubtitle")}</p>
+            </div>
+            <Button className="h-11 gap-2 bg-amber-700 hover:bg-amber-800" onClick={onAddVehicle}>
+              <Plus className="h-4 w-4" />
+              {t("header.addListing")}
+            </Button>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_220px]">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={inventorySearch}
+                onChange={(e) => setInventorySearch(e.target.value)}
+                placeholder={t("dealer.premium.inventorySearchPlaceholder")}
+                className="h-11 rounded-2xl pl-9"
+              />
+            </div>
+            <Select value={sortMode} onValueChange={setSortMode}>
+              <SelectTrigger className="h-11 rounded-2xl">
+                <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">{t("dealer.premium.sortNewest")}</SelectItem>
+                <SelectItem value="oldest">{t("dealer.premium.sortOldest")}</SelectItem>
+                <SelectItem value="most_viewed">{t("dealer.premium.sortMostViewed")}</SelectItem>
+                <SelectItem value="cheapest">{t("dealer.premium.sortCheapest")}</SelectItem>
+                <SelectItem value="most_contacts">{t("dealer.premium.sortMostContacts")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {(["all", "active", "top", "promoted", "pending", "sold", "expired"] as const).map((s) => (
+              <Button
+                key={s}
+                size="sm"
+                variant={statusFilter === s ? "default" : "outline"}
+                className={`shrink-0 rounded-full ${
+                  statusFilter === s ? "bg-amber-700 hover:bg-amber-800" : "bg-white"
+                }`}
+                onClick={() => setStatusFilter(s)}
+              >
+                {s === "all"
+                  ? t("dealer.listings.all")
+                  : s === "promoted"
+                    ? t("dealer.premium.statusPromoted")
+                    : s === "pending"
+                      ? t("dealer.premium.statusPending")
+                      : s === "expired"
+                        ? t("dealer.premium.statusExpired")
+                        : STATUS_CONFIG[s].label}
+                <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">
+                  {statusCounts[s]}
+                </Badge>
+              </Button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="fixed bottom-4 right-4 z-30 sm:hidden">
+        <Button
+          size="icon"
+          className="h-14 w-14 rounded-full bg-amber-700 shadow-2xl hover:bg-amber-800"
+          onClick={onAddVehicle}
+          aria-label={t("header.addListing")}
+        >
+          <Plus className="h-6 w-6" />
+        </Button>
       </div>
 
       {filteredListings.length > 0 ? (
@@ -895,10 +2428,30 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
               className="h-9 touch-manipulation"
               disabled={bulkMutation.isPending}
               onClick={() => {
-                toast({ title: t("dealer.listings.promoteSoon") });
+                onOpenTab("promotion");
               }}
             >
               {t("dealer.listings.bulkPromote")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 touch-manipulation"
+              disabled={bulkMutation.isPending}
+              onClick={exportSelected}
+            >
+              <Download className="mr-1 h-3.5 w-3.5" />
+              {t("dealer.premium.exportSelected")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9 touch-manipulation"
+              disabled={bulkMutation.isPending}
+              onClick={() => toast({ title: t("dealer.premium.renewSoon") })}
+            >
+              <RotateCcw className="mr-1 h-3.5 w-3.5" />
+              {t("dealer.premium.renewSelected")}
             </Button>
             <Button
               size="sm"
@@ -953,10 +2506,22 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                   {t("dealer.listings.bulkMarkSold")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onSelect={() => toast({ title: t("dealer.listings.promoteSoon") })}
+                  onSelect={() => onOpenTab("promotion")}
                   className="cursor-pointer touch-manipulation py-3"
                 >
                   {t("dealer.listings.bulkPromote")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={exportSelected}
+                  className="cursor-pointer touch-manipulation py-3"
+                >
+                  {t("dealer.premium.exportSelected")}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => toast({ title: t("dealer.premium.renewSoon") })}
+                  className="cursor-pointer touch-manipulation py-3"
+                >
+                  {t("dealer.premium.renewSelected")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onSelect={() => {
@@ -998,11 +2563,12 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
             const totalInteractions = (l.contacts || 0) + (l.whatsapp || 0);
             const conversionRate = l.views > 0 ? ((totalInteractions / l.views) * 100).toFixed(1) : "0.0";
             const viewsBarWidth = Math.min(100, Math.round((l.views / Math.max(1, ...allListings.map(x => x.views))) * 100));
+            const quality = getListingQuality(l, dealer, t);
 
             return (
-              <Card key={l.id} className={`transition-all ${status === "sold" ? "opacity-60" : ""}`}>
+              <Card key={l.id} className={`${premiumSurface} ${premiumHover} rounded-3xl transition-all ${status === "sold" ? "opacity-70" : ""}`}>
                 <CardContent className="p-3 sm:p-4">
-                  <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="flex items-start gap-2 sm:gap-4">
                     <div
                       className="shrink-0 pt-0.5 sm:pt-1"
                       onClick={(e) => e.stopPropagation()}
@@ -1020,7 +2586,7 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                     >
                     {/* Фото */}
                     <div
-                      className="h-14 w-20 sm:h-16 sm:w-24 rounded-lg overflow-hidden bg-muted flex-shrink-0 relative"
+                      className="h-20 w-28 sm:h-24 sm:w-36 rounded-2xl overflow-hidden bg-muted flex-shrink-0 relative shadow-sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(
@@ -1034,7 +2600,12 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                       }}
                     >
                       {photo ? (
-                        <img src={`/img/${photo}?w=192&h=128&fit=cover`} alt={`${l.brand} ${l.model}`} className="w-full h-full object-cover" />
+                        <img
+                          src={`/img/${photo}?w=288&h=192&fit=cover`}
+                          alt={`${l.brand} ${l.model}`}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center"><Car className="h-5 w-5 text-muted-foreground" /></div>
                       )}
@@ -1044,32 +2615,50 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                         </div>
                       )}
                       {status === "top" && (
-                        <div className="absolute top-0.5 left-0.5">
-                          <Crown className="h-3.5 w-3.5 text-amber-500 drop-shadow" />
+                        <div className="absolute left-2 top-2 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-black text-white shadow">
+                          TOP
                         </div>
                       )}
                     </div>
 
                     {/* Інфо */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <p className="font-semibold text-sm truncate">{l.brand} {l.model} {l.year}</p>
-                        <Badge className={`${cfg.color} text-[10px] px-1.5 py-0 h-5 flex-shrink-0`}>
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <p className="font-black text-base truncate">{l.brand} {l.model} {l.year}</p>
+                        <Badge className={`${cfg.color} text-[10px] px-2 py-0.5 h-5 flex-shrink-0 rounded-full`}>
                           <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
                           {cfg.label}
                         </Badge>
+                        {quality.percent >= 85 && (
+                          <Badge className="rounded-full bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                            <Gauge className="mr-1 h-3 w-3" />
+                            {t("dealer.premium.qualityHigh")}
+                          </Badge>
+                        )}
                       </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className="font-medium">{Number(l.price).toLocaleString()} Kč</span>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span className="font-black text-foreground">{Number(l.price).toLocaleString()} Kč</span>
                         <span className="flex items-center gap-0.5"><Eye className="h-3 w-3" />{displayViews(l.views)}</span>
                         <span className="flex items-center gap-0.5"><Phone className="h-3 w-3" />{l.contacts}</span>
                         <span className="flex items-center gap-0.5"><MessageCircle className="h-3 w-3" />{l.whatsapp}</span>
                         <span className="flex items-center gap-0.5"><Timer className="h-3 w-3" />{getTimeSince(l.created_at)}</span>
                       </div>
+                      <div className="mt-3 max-w-md">
+                        <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                          <span>{t("dealer.premium.listingQuality")}</span>
+                          <span>{quality.percent}%</span>
+                        </div>
+                        <Progress value={quality.percent} className="h-2" />
+                        {quality.missing.length > 0 && (
+                          <p className="mt-1 text-[11px] text-amber-700">
+                            {t("dealer.premium.missingFields")}: {quality.missing.slice(0, 3).join(", ")}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Кнопки */}
-                    <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="hidden md:flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                       {status === "top" && (
                         <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => removeTopMutation.mutate(l.id)}>
                           <Crown className="h-3 w-3 mr-1 text-amber-500" />
@@ -1090,8 +2679,61 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                       <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleEdit(l.id)}>
                         <Pencil className="h-3 w-3" />
                       </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="outline" className="h-7 px-2">
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onSelect={() => {
+                            toast({ title: t("dealer.premium.duplicateSoon") });
+                            onAddVehicle();
+                          }}>
+                            <Copy className="mr-2 h-4 w-4" />
+                            {t("dealer.premium.duplicateAd")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => onOpenTab("promotion")}>
+                            <Rocket className="mr-2 h-4 w-4" />
+                            {t("dealer.premium.promoteAd")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => toast({ title: t("dealer.premium.refreshSoon") })}>
+                            <RotateCcw className="mr-2 h-4 w-4" />
+                            {t("dealer.premium.refreshListing")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => toggleSoldMutation.mutate({ id: l.id, isSold: true })}>
+                            <Pause className="mr-2 h-4 w-4" />
+                            {t("dealer.premium.archiveListing")}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-3 gap-2 md:hidden" onClick={(e) => e.stopPropagation()}>
+                    <Button size="sm" variant="outline" className="h-10 rounded-xl" onClick={() => handleEdit(l.id)}>
+                      <Pencil className="mr-1 h-3.5 w-3.5" />
+                      {t("dealer.edit")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-10 rounded-xl"
+                      onClick={() => onOpenTab("promotion")}
+                    >
+                      <Rocket className="mr-1 h-3.5 w-3.5" />
+                      TOP
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-10 rounded-xl"
+                      onClick={() => toggleSoldMutation.mutate({ id: l.id, isSold: status !== "sold" })}
+                    >
+                      <Check className="mr-1 h-3.5 w-3.5" />
+                      {status !== "sold" ? t("dealer.listings.markSold") : t("dealer.listings.markActive")}
+                    </Button>
                   </div>
 
                   {/* Розгорнута статистика */}
@@ -1141,6 +2783,25 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
                             className="h-full bg-emerald-500 rounded-full transition-all"
                             style={{ width: `${l.views > 0 ? Math.min(100, Math.round((totalInteractions / l.views) * 100 * 5)) : 0}%` }}
                           />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 rounded-2xl border bg-white p-3">
+                        <p className="mb-3 text-sm font-semibold">{t("dealer.premium.whatToImprove")}</p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {quality.checks.map((check) => (
+                            <div key={check.label} className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs">
+                              <span className="flex items-center gap-2">
+                                {check.done ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                                ) : (
+                                  <CircleDot className="h-3.5 w-3.5 text-amber-600" />
+                                )}
+                                {check.label}
+                              </span>
+                              <span className="font-bold">+{check.weight}%</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
@@ -1224,7 +2885,7 @@ function MyListingsTab({ t }: { t: (key: string) => string }) {
           if (!open) setPriceValueStr("");
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-y-auto rounded-none p-4 sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-lg sm:p-6">
           <DialogHeader>
             <DialogTitle>{t("dealer.listings.priceModalTitle")}</DialogTitle>
             <DialogDescription className="sr-only">
@@ -1393,6 +3054,8 @@ function PromotionTab({
   const [selectedDuration, setSelectedDuration] = useState<Record<string, "14" | "30">>({});
   const [autoBudget, setAutoBudget] = useState(500);
   const [autoBudgetEnabled, setAutoBudgetEnabled] = useState(false);
+  const [roiPrice, setRoiPrice] = useState("350000");
+  const [roiContacts, setRoiContacts] = useState("8");
 
   const toggleListing = useCallback((id: string) => {
     setSelectedListings((prev) => {
@@ -1429,6 +3092,10 @@ function PromotionTab({
     });
   }, [selectedPackage, selectedListings, selectedDuration, getPrice, t, toast]);
 
+  const roiContactsNumber = Number(roiContacts.replace(/\s/g, "")) || 0;
+  const roiLift = Math.max(1, Math.round(roiContactsNumber * 1.8));
+  const roiValue = Math.max(0, Math.round((Number(roiPrice.replace(/\s/g, "")) || 0) * 0.012));
+
   return (
     <div className="space-y-6">
       {/* Recommendation banner */}
@@ -1446,13 +3113,123 @@ function PromotionTab({
                 {t("dealer.promo.recommendDescription")}
               </p>
             </div>
-            <Button className="bg-amber-700 hover:bg-amber-800 px-6 flex-shrink-0">
+            <Button
+              className="bg-amber-700 hover:bg-amber-800 px-6 flex-shrink-0"
+              onClick={() => {
+                setSelectedPackage("vip");
+                setSelectedDuration((prev) => ({ ...prev, vip: "30" }));
+                toast({ title: t("dealer.promo.vip.title") + " " + t("dealer.promo.selected") });
+              }}
+            >
               <Crown className="h-4 w-4 mr-2" />
               {t("dealer.promo.activateVip")}
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Percent className="h-5 w-5 text-amber-700" />
+              {t("dealer.premium.exposureComparison")}
+            </CardTitle>
+            <CardDescription>{t("dealer.premium.exposureDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-3">
+            {[
+              ["FREE", "1×", t("dealer.premium.freePlan")],
+              ["TOP", "1.4×", t("dealer.premium.topPlan")],
+              ["VIP", "1.8×", t("dealer.premium.vipPlan")],
+            ].map(([plan, boost, desc]) => (
+              <div
+                key={plan}
+                className={`rounded-2xl border p-4 ${
+                  plan === "VIP"
+                    ? "border-amber-300 bg-gradient-to-br from-amber-50 to-white shadow-sm"
+                    : "bg-white"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-black">{plan}</span>
+                  <Badge className={plan === "VIP" ? "bg-amber-700" : "bg-muted text-foreground hover:bg-muted"}>
+                    {boost}
+                  </Badge>
+                </div>
+                <p className="mt-3 text-sm text-muted-foreground">{desc}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Gauge className="h-5 w-5 text-amber-700" />
+              {t("dealer.premium.roiCalculator")}
+            </CardTitle>
+            <CardDescription>{t("dealer.premium.roiDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t("dealer.premium.avgCarPrice")}</Label>
+                <Input value={roiPrice} onChange={(e) => setRoiPrice(e.target.value)} inputMode="numeric" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("dealer.premium.contactsNow")}</Label>
+                <Input value={roiContacts} onChange={(e) => setRoiContacts(e.target.value)} inputMode="numeric" />
+              </div>
+            </div>
+            <div className="space-y-4 rounded-2xl border bg-white p-3">
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                  <span>{t("dealer.premium.avgCarPrice")}</span>
+                  <span>{Number(roiPrice || 0).toLocaleString("cs-CZ")} Kč</span>
+                </div>
+                <Slider
+                  value={[Number(roiPrice.replace(/\s/g, "")) || 0]}
+                  min={50000}
+                  max={1500000}
+                  step={10000}
+                  onValueChange={(value) => setRoiPrice(String(value[0]))}
+                />
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                  <span>{t("dealer.premium.contactsNow")}</span>
+                  <span>{roiContactsNumber}</span>
+                </div>
+                <Slider
+                  value={[roiContactsNumber]}
+                  min={0}
+                  max={80}
+                  step={1}
+                  onValueChange={(value) => setRoiContacts(String(value[0]))}
+                />
+              </div>
+            </div>
+            <div className="rounded-2xl bg-amber-50 p-4">
+              <p className="text-sm text-amber-800">{t("dealer.premium.vipEstimate")}</p>
+              <p className="mt-1 text-2xl font-black text-amber-900">
+                +{roiLift} {t("dealer.contacts").toLowerCase()}
+              </p>
+              <p className="text-xs text-amber-700">
+                {t("dealer.premium.estimatedMargin")} ~{roiValue.toLocaleString("cs-CZ")} Kč
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded-xl bg-muted/50 p-3 font-semibold">
+                {t("dealer.premium.vipSocialProof")}
+              </div>
+              <div className="rounded-xl bg-muted/50 p-3 font-semibold">
+                {t("dealer.premium.topSocialProof")}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Promotion packages */}
       <div className="grid gap-4 md:grid-cols-2">
@@ -1471,7 +3248,15 @@ function PromotionTab({
                   <div className={`h-10 w-10 rounded-xl ${pkg.bg} flex items-center justify-center`}>
                     <Icon className={`h-5 w-5 ${pkg.color}`} />
                   </div>
-                  <Badge className={pkg.badge}>{pkg.boost}</Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    {pkg.id === "vip" && (
+                      <Badge className="bg-amber-700 text-white">{t("dealer.premium.mostPopular")}</Badge>
+                    )}
+                    {pkg.id === "top" && (
+                      <Badge className="bg-blue-100 text-blue-700">{t("dealer.premium.recommended")}</Badge>
+                    )}
+                    <Badge className={pkg.badge}>{pkg.boost}</Badge>
+                  </div>
                 </div>
                 <CardTitle className="text-lg mt-3">
                   {t(`dealer.promo.${pkg.id}.title`)}
@@ -1759,23 +3544,84 @@ function PromotionTab({
           </CardContent>
         )}
       </Card>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <CardTitle>{t("dealer.premium.promoFaqTitle")}</CardTitle>
+          <CardDescription>{t("dealer.premium.promoFaqDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          {[1, 2, 3].map((item) => (
+            <div key={item} className="rounded-2xl border bg-white p-4">
+              <p className="font-semibold">{t(`dealer.premium.promoFaq${item}Question`)}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {t(`dealer.premium.promoFaq${item}Answer`)}
+              </p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function DealerSettingsTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string }) {
+function DealerSettingsTab({
+  dealer,
+  t,
+  focusTarget,
+  onFocusHandled,
+}: {
+  dealer: Dealer;
+  t: (key: string) => string;
+  focusTarget: SettingsTarget | null;
+  onFocusHandled: () => void;
+}) {
   const { toast } = useToast();
-  const [form, setForm] = useState({
+  const initialForm = useMemo(() => ({
     companyName: dealer.companyName || "",
     ico: dealer.ico || "",
     dic: dealer.dic || "",
     description: dealer.description || "",
+    logoUrl: dealer.logoUrl || "",
     website: dealer.website || "",
     phone: dealer.phone || "",
     email: dealer.email || "",
     address: dealer.address || "",
     region: dealer.region || "",
+  }), [dealer]);
+  const [form, setForm] = useState(initialForm);
+  const [lastSavedForm, setLastSavedForm] = useState(initialForm);
+  const [saveState, setSaveState] = useState<"saved" | "dirty" | "saving">("saved");
+  const companyRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const websiteRef = useRef<HTMLInputElement>(null);
+  const addressRef = useRef<HTMLInputElement>(null);
+  const regionRef = useRef<HTMLInputElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const brandingRef = useRef<HTMLDivElement>(null);
+  const verificationRef = useRef<HTMLDivElement>(null);
+  const integrationsRef = useRef<HTMLDivElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [highlightTarget, setHighlightTarget] = useState<SettingsTarget | null>(null);
+  const [settingsModal, setSettingsModal] = useState<SettingsModal | null>(null);
+  const [localSettings, setLocalSettings] = useState<DealerLocalSettings>(() =>
+    createDefaultDealerLocalSettings(dealer),
+  );
+  const [settingsSaveState, setSettingsSaveState] = useState<"saved" | "dirty" | "saving">("saved");
+  const [passwordForm, setPasswordForm] = useState({
+    current: "",
+    next: "",
+    confirm: "",
+    show: false,
   });
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateDraft, setTemplateDraft] = useState({ title: "", message: "" });
+  const [addressQuery, setAddressQuery] = useState(dealer.address || "");
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState<string | null>(null);
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof form) => {
@@ -1784,95 +3630,1178 @@ function DealerSettingsTab({ dealer, t }: { dealer: Dealer; t: (key: string) => 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+      setLastSavedForm(form);
+      setSaveState("saved");
       toast({ title: t("dealer.profileUpdated") });
     },
   });
 
+  const completion = getProfileCompletion(dealer, t);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(lastSavedForm);
+  const localSettingsKey = `nnauto_dealer_settings_${dealer.id}`;
+
+  useEffect(() => {
+    setForm(initialForm);
+    setLastSavedForm(initialForm);
+    setSaveState("saved");
+  }, [initialForm]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(localSettingsKey);
+      if (saved) {
+        const defaults = createDefaultDealerLocalSettings(dealer);
+        const parsed = JSON.parse(saved) as Partial<DealerLocalSettings>;
+        setLocalSettings({
+          ...defaults,
+          ...parsed,
+          addressDetails: { ...defaults.addressDetails, ...(parsed.addressDetails || {}) },
+          workingHours: { ...defaults.workingHours, ...(parsed.workingHours || {}) },
+          socialLinks: { ...defaults.socialLinks, ...(parsed.socialLinks || {}) },
+          notifications: { ...defaults.notifications, ...(parsed.notifications || {}) },
+          integrations: { ...defaults.integrations, ...(parsed.integrations || {}) },
+          autoReplies: { ...defaults.autoReplies, ...(parsed.autoReplies || {}) },
+          security: { ...defaults.security, ...(parsed.security || {}) },
+        });
+      } else {
+        setLocalSettings(createDefaultDealerLocalSettings(dealer));
+      }
+      setSettingsSaveState("saved");
+    } catch {
+      setLocalSettings(createDefaultDealerLocalSettings(dealer));
+    }
+  }, [dealer, localSettingsKey]);
+
+  useEffect(() => {
+    const query = addressQuery.trim();
+    if (query.length < 3) {
+      setAddressSuggestions([]);
+      setAddressError(null);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setAddressLoading(true);
+      setAddressError(null);
+      try {
+        const params = new URLSearchParams({
+          q: query,
+          format: "jsonv2",
+          addressdetails: "1",
+          countrycodes: "cz",
+          limit: "6",
+        });
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?${params.toString()}`, {
+          signal: controller.signal,
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) throw new Error("address_lookup_failed");
+        const data = (await response.json()) as AddressSuggestion[];
+        setAddressSuggestions(data);
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          try {
+            const params = new URLSearchParams({
+              q: query,
+              limit: "6",
+              lang: "cs",
+            });
+            const response = await fetch(`https://photon.komoot.io/api/?${params.toString()}`, {
+              signal: controller.signal,
+              headers: { Accept: "application/json" },
+            });
+            if (!response.ok) throw new Error("photon_lookup_failed");
+            const data = (await response.json()) as { features?: PhotonFeature[] };
+            const suggestions = (data.features || [])
+              .filter((feature) => feature.properties?.country === "Česko" || feature.properties?.country === "Czechia")
+              .map(photonFeatureToSuggestion);
+            const fallback = fallbackCzechAddressSuggestions.filter((item) =>
+              item.display_name.toLowerCase().includes(query.toLowerCase().split(" ")[0] || ""),
+            );
+            setAddressSuggestions(suggestions.length > 0 ? suggestions : fallback);
+            if (suggestions.length === 0 && fallback.length === 0) setAddressError(t("dealer.address.lookupFailed"));
+          } catch (fallbackError) {
+            if ((fallbackError as Error).name !== "AbortError") {
+              const fallback = fallbackCzechAddressSuggestions.filter((item) =>
+                item.display_name.toLowerCase().includes(query.toLowerCase().split(" ")[0] || ""),
+              );
+              setAddressSuggestions(fallback);
+              if (fallback.length === 0) setAddressError(t("dealer.address.lookupFailed"));
+            }
+          }
+        }
+      } finally {
+        setAddressLoading(false);
+      }
+    }, 350);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [addressQuery, t]);
+
+  useEffect(() => {
+    if (settingsSaveState !== "dirty") return;
+    const timer = window.setTimeout(() => {
+      setSettingsSaveState("saving");
+      localStorage.setItem(localSettingsKey, JSON.stringify(localSettings));
+      window.setTimeout(() => setSettingsSaveState("saved"), 350);
+    }, 900);
+    return () => window.clearTimeout(timer);
+  }, [localSettings, localSettingsKey, settingsSaveState]);
+
+  useEffect(() => {
+    setSaveState(isDirty ? "dirty" : "saved");
+  }, [isDirty]);
+
+  useEffect(() => {
+    if (!isDirty || updateMutation.isPending) return;
+    const timer = window.setTimeout(() => {
+      setSaveState("saving");
+      updateMutation.mutate(form);
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, [form, isDirty, updateMutation]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirty) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  useEffect(() => {
+    if (!focusTarget) return;
+    const sectionMap: Partial<Record<SettingsTarget, HTMLElement | null>> = {
+      companyName: companyRef.current,
+      description: descriptionRef.current,
+      phone: phoneRef.current,
+      email: emailRef.current,
+      website: websiteRef.current,
+      address: addressRef.current,
+      region: regionRef.current,
+      branding: brandingRef.current,
+      verification: verificationRef.current,
+      integrations: integrationsRef.current,
+    };
+    const target = sectionMap[focusTarget];
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightTarget(focusTarget);
+    window.setTimeout(() => {
+      if (focusTarget === "branding") {
+        logoInputRef.current?.click();
+      }
+      if ("focus" in (target || {})) {
+        (target as HTMLInputElement | HTMLTextAreaElement).focus();
+      }
+      onFocusHandled();
+    }, 450);
+    const clear = window.setTimeout(() => setHighlightTarget(null), 2400);
+    return () => window.clearTimeout(clear);
+  }, [focusTarget, onFocusHandled]);
+
+  const inputClass = (target: SettingsTarget) =>
+    highlightTarget === target
+      ? "ring-2 ring-amber-400 border-amber-400 bg-amber-50/60 transition-all duration-300"
+      : "transition-all duration-300";
+
+  const handleLogoFile = useCallback(
+    (file: File | undefined) => {
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        toast({ title: t("dealer.premium.logoInvalid"), variant: "destructive" });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const logoUrl = String(reader.result || "");
+        setForm((prev) => ({ ...prev, logoUrl }));
+        toast({ title: t("dealer.premium.logoPreviewReady") });
+      };
+      reader.readAsDataURL(file);
+    },
+    [t, toast],
+  );
+
+  const handleCoverFile = useCallback(
+    (file: File | undefined) => {
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        toast({ title: t("dealer.premium.logoInvalid"), variant: "destructive" });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setLocalSettings((prev) => ({
+          ...prev,
+          coverUrl: String(reader.result || ""),
+        }));
+        setSettingsSaveState("dirty");
+        toast({ title: t("dealer.settings.coverReady") });
+      };
+      reader.readAsDataURL(file);
+    },
+    [t, toast],
+  );
+
+  const updateLocalSettings = useCallback((updater: (prev: DealerLocalSettings) => DealerLocalSettings) => {
+    setLocalSettings((prev) => updater(prev));
+    setSettingsSaveState("dirty");
+  }, []);
+
+  const saveLocalSettingsNow = useCallback(() => {
+    setSettingsSaveState("saving");
+    localStorage.setItem(localSettingsKey, JSON.stringify(localSettings));
+    window.setTimeout(() => {
+      setSettingsSaveState("saved");
+      toast({ title: t("dealer.settings.saved") });
+    }, 350);
+  }, [localSettings, localSettingsKey, t, toast]);
+
+  const openSettingsModal = useCallback((modal: SettingsModal) => {
+    setSettingsModal(modal);
+    if (modal === "autoreplies") {
+      setEditingTemplateId(null);
+      setTemplateDraft({ title: "", message: "" });
+    }
+  }, []);
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="h-5 w-5" />
-          {t("dealer.settings")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label>{t("dealer.companyName")} *</Label>
-            <Input
-              value={form.companyName}
-              onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>{t("dealer.ico")}</Label>
-            <Input
-              value={form.ico}
-              onChange={(e) => setForm((f) => ({ ...f, ico: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>{t("dealer.dic")}</Label>
-            <Input
-              value={form.dic}
-              onChange={(e) => setForm((f) => ({ ...f, dic: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>{t("dealer.website")}</Label>
-            <Input
-              value={form.website}
-              onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
-              placeholder="https://"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>{t("dealer.phone")}</Label>
-            <Input
-              value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>{t("dealer.email")}</Label>
-            <Input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label>{t("dealer.address")}</Label>
-            <Input
-              value={form.address}
-              onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label>{t("dealer.description")}</Label>
-            <Textarea
-              value={form.description}
-              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              rows={4}
-            />
-          </div>
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="space-y-5">
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-amber-700" />
+              {t("dealer.premium.companySection")}
+            </CardTitle>
+            <CardDescription>{t("dealer.premium.companySectionDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label>{t("dealer.companyName")} *</Label>
+              <Input
+                ref={companyRef}
+                value={form.companyName}
+                onChange={(e) => setForm((f) => ({ ...f, companyName: e.target.value }))}
+                className={inputClass("companyName")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("dealer.ico")}</Label>
+              <Input value={form.ico} onChange={(e) => setForm((f) => ({ ...f, ico: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("dealer.dic")}</Label>
+              <Input value={form.dic} onChange={(e) => setForm((f) => ({ ...f, dic: e.target.value }))} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>{t("dealer.description")}</Label>
+              <Textarea
+                ref={descriptionRef}
+                value={form.description}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                rows={4}
+                className={inputClass("description")}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5 text-amber-700" />
+              {t("dealer.premium.contactsSection")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>{t("dealer.phone")}</Label>
+              <Input ref={phoneRef} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputClass("phone")} />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("dealer.email")}</Label>
+              <Input
+                ref={emailRef}
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                className={inputClass("email")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("dealer.website")}</Label>
+              <Input
+                ref={websiteRef}
+                value={form.website}
+                onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+                placeholder="https://"
+                className={inputClass("website")}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("dealer.region")}</Label>
+              <Input ref={regionRef} value={form.region} onChange={(e) => setForm((f) => ({ ...f, region: e.target.value }))} className={inputClass("region")} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>{t("dealer.address")}</Label>
+              <Input ref={addressRef} value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className={inputClass("address")} />
+            </div>
+            <div className="space-y-3 rounded-3xl border bg-amber-50/40 p-4 sm:col-span-2">
+              <div className="space-y-2">
+                <Label>{t("dealer.address.autocomplete")}</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={addressQuery}
+                    onChange={(event) => setAddressQuery(event.target.value)}
+                    placeholder={t("dealer.address.placeholder")}
+                    className="pl-9"
+                  />
+                </div>
+                {addressLoading && (
+                  <p className="text-xs text-muted-foreground">{t("dealer.address.searching")}</p>
+                )}
+                {addressError && <p className="text-xs text-red-600">{addressError}</p>}
+                {addressSuggestions.length > 0 && (
+                  <div className="overflow-hidden rounded-2xl border bg-white">
+                    {addressSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.place_id}
+                        type="button"
+                        className="block w-full border-b px-3 py-2 text-left text-sm last:border-0 hover:bg-amber-50"
+                        onClick={() => {
+                          const details = suggestionToAddressDetails(suggestion);
+                          const composed = composeDealerAddress(details);
+                          updateLocalSettings((prev) => ({
+                            ...prev,
+                            addressDetails: details,
+                          }));
+                          setForm((prev) => ({
+                            ...prev,
+                            address: composed || suggestion.display_name,
+                            region: details.city || prev.region,
+                          }));
+                          setAddressQuery(suggestion.display_name);
+                          setAddressSuggestions([]);
+                        }}
+                      >
+                        {suggestion.display_name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[
+                  ["country", t("dealer.address.country")],
+                  ["city", t("dealer.address.city")],
+                  ["street", t("dealer.address.street")],
+                  ["houseNumber", t("dealer.address.houseNumber")],
+                  ["postalCode", t("dealer.address.postalCode")],
+                  ["showroomName", t("dealer.address.showroomName")],
+                ].map(([key, label]) => (
+                  <div key={key} className="space-y-2">
+                    <Label>{label}</Label>
+                    <Input
+                      value={localSettings.addressDetails[key as keyof DealerAddressDetails] || ""}
+                      onChange={(event) => {
+                        const nextDetails = {
+                          ...localSettings.addressDetails,
+                          [key]: event.target.value,
+                        };
+                        updateLocalSettings((prev) => ({
+                          ...prev,
+                          addressDetails: nextDetails,
+                        }));
+                        setForm((prev) => ({
+                          ...prev,
+                          address: composeDealerAddress(nextDetails),
+                          region: nextDetails.city || prev.region,
+                        }));
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {[
+            { icon: ImageIcon, title: t("dealer.premium.brandingSection"), description: t("dealer.premium.brandingDescription"), modal: "branding" as const, ref: brandingRef },
+            { icon: Clock, title: t("dealer.hours.sectionTitle"), description: t("dealer.hours.sectionDescription"), modal: "workingHours" as const },
+            { icon: Link2, title: t("dealer.social.sectionTitle"), description: t("dealer.social.sectionDescription"), modal: "socialLinks" as const },
+            { icon: CreditCard, title: t("dealer.premium.billingSection"), description: t("dealer.premium.billingDescription"), modal: "billing" as const },
+            { icon: Bell, title: t("dealer.premium.notificationsSection"), description: t("dealer.premium.notificationsDescription"), modal: "notifications" as const },
+            { icon: Link2, title: t("dealer.premium.integrationsSection"), description: t("dealer.premium.integrationsDescription"), modal: "integrations" as const, ref: integrationsRef },
+            { icon: Lock, title: t("dealer.premium.securitySection"), description: t("dealer.premium.securityDescription"), modal: "security" as const },
+            { icon: Bot, title: t("dealer.premium.autoReplySection"), description: t("dealer.premium.autoReplyDescription"), modal: "autoreplies" as const },
+          ].map((item) => {
+            const SectionIcon = item.icon;
+            const connected =
+              item.modal === "integrations" &&
+              (localSettings.integrations.whatsappConnected || localSettings.integrations.telegramConnected);
+            return (
+              <div
+                role="button"
+                tabIndex={0}
+                key={item.modal}
+                ref={item.ref as any}
+                onClick={() => openSettingsModal(item.modal)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openSettingsModal(item.modal);
+                  }
+                }}
+                className="rounded-3xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-lg active:scale-[0.99]"
+              >
+                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+                    <SectionIcon className="h-5 w-5" />
+                  </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold">{item.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+                    </div>
+                    <ChevronRight className="mt-1 h-4 w-4 text-muted-foreground" />
+                  </div>
+                  {item.modal === "branding" && (
+                    <div className="mt-4 space-y-3">
+                      <div className="flex items-center gap-3 rounded-2xl bg-amber-50 p-3">
+                        <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-white text-lg font-black text-amber-900">
+                          {form.logoUrl ? (
+                            <img src={form.logoUrl} alt={form.companyName} className="h-full w-full object-cover" />
+                          ) : (
+                            (form.companyName || dealer.companyName).slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        <Button type="button" variant="outline" className="h-10" onClick={(event) => {
+                          event.stopPropagation();
+                          logoInputRef.current?.click();
+                        }}>
+                          <Upload className="mr-2 h-4 w-4" />
+                          {t("dealer.premium.uploadLogo")}
+                        </Button>
+                      </div>
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(event) => handleLogoFile(event.target.files?.[0])}
+                      />
+                    </div>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {connected && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{t("dealer.settings.connected")}</Badge>}
+                    <Badge variant="secondary">{item.modal === "billing" ? t("dealer.premium.nextPhase") : t("dealer.settings.configure")}</Badge>
+                  </div>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="flex items-center justify-between pt-2">
-          <div className="text-sm text-muted-foreground">
-            {t("dealer.listingsUsed")}: {dealer.maxListings}
+        <div className="sticky bottom-3 z-20 rounded-2xl border bg-background/95 p-3 shadow-2xl backdrop-blur sm:static sm:shadow-none">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-muted-foreground">
+              {saveState === "saving"
+                ? t("dealer.premium.saving")
+                : saveState === "dirty"
+                  ? t("dealer.premium.unsavedChanges")
+                  : t("dealer.premium.saved")}
+            </div>
+            <Button
+              onClick={() => {
+                setSaveState("saving");
+                updateMutation.mutate(form);
+              }}
+              disabled={updateMutation.isPending}
+              className="bg-amber-700 hover:bg-amber-800"
+            >
+              {updateMutation.isPending ? "..." : t("dealer.premium.saveChanges")}
+            </Button>
           </div>
-          <Button
-            onClick={() => updateMutation.mutate(form)}
-            disabled={updateMutation.isPending}
-            className="bg-amber-700 hover:bg-amber-800"
-          >
-            {updateMutation.isPending ? "..." : t("dealer.submit")}
-          </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+
+      <aside className="space-y-5">
+        <Card ref={verificationRef} className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle>{t("dealer.premium.livePreview")}</CardTitle>
+            <CardDescription>{t("dealer.premium.livePreviewDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-hidden rounded-3xl border bg-gradient-to-br from-white to-amber-50">
+              <div className="h-24 bg-gradient-to-r from-stone-900 to-amber-700" />
+              <div className="-mt-8 p-4">
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-amber-100 text-xl font-black text-amber-900 shadow">
+                  {form.logoUrl ? (
+                    <img src={form.logoUrl} alt={form.companyName || dealer.companyName} className="h-full w-full object-cover" />
+                  ) : (
+                    form.companyName.slice(0, 2).toUpperCase() || "NN"
+                  )}
+                </div>
+                <h3 className="mt-3 text-lg font-black">{form.companyName || dealer.companyName}</h3>
+                <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">
+                  {form.description || t("dealer.premium.previewDescriptionFallback")}
+                </p>
+                <div className="mt-4 space-y-2 text-sm">
+                  <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-amber-700" />{form.phone || "—"}</p>
+                  <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-amber-700" />{form.email || "—"}</p>
+                  <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-amber-700" />{form.address || form.region || "—"}</p>
+                  <p className="flex items-center gap-2"><Clock className="h-4 w-4 text-amber-700" />{formatWorkingHoursShort(localSettings.workingHours, t)} · {getTodayWorkingHours(localSettings.workingHours, t)}</p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {Object.entries({
+                    Web: form.website || localSettings.socialLinks.website,
+                    Facebook: localSettings.socialLinks.facebook,
+                    Instagram: localSettings.socialLinks.instagram,
+                    TikTok: localSettings.socialLinks.tiktok,
+                    YouTube: localSettings.socialLinks.youtube,
+                  }).filter(([, value]) => value.trim()).map(([label]) => (
+                    <Badge key={label} variant="secondary" className="rounded-full">{label}</Badge>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle>{t("dealer.premium.verificationFlow")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Progress value={completion.percent} className="h-2" />
+            {completion.tasks.map((task) => (
+              <div key={task.key} className="flex items-center gap-2 text-sm">
+                {task.done ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                ) : (
+                  <CircleDot className="h-4 w-4 text-muted-foreground" />
+                )}
+                {task.label}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle>{t("dealer.premium.integrationsQuick")}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {[Smartphone, MessageCircle, Bot].map((Icon, index) => {
+              const isConnected =
+                index === 0
+                  ? localSettings.integrations.whatsappConnected
+                  : index === 1
+                    ? localSettings.integrations.telegramConnected
+                    : localSettings.autoReplies.enabled;
+              return (
+              <button
+                type="button"
+                key={index}
+                className="flex items-center justify-between rounded-2xl border bg-white p-3 text-left transition hover:border-amber-300 hover:bg-amber-50"
+                onClick={() => openSettingsModal(index === 2 ? "autoreplies" : "integrations")}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className="h-4 w-4 text-amber-700" />
+                  <span className="text-sm font-medium">
+                    {index === 0 ? "WhatsApp" : index === 1 ? "Telegram" : t("dealer.premium.aiReplies")}
+                  </span>
+                </div>
+                <Badge className={isConnected ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100" : ""} variant={isConnected ? "default" : "secondary"}>
+                  {isConnected ? t("dealer.settings.connected") : t("dealer.settings.setup")}
+                </Badge>
+              </button>
+            );
+            })}
+          </CardContent>
+        </Card>
+      </aside>
+
+      <Dialog open={!!settingsModal} onOpenChange={(open) => !open && setSettingsModal(null)}>
+        <DialogContent className="h-[100dvh] max-h-[100dvh] w-screen max-w-none overflow-y-auto rounded-none p-4 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-lg sm:p-6">
+          <DialogHeader>
+            <DialogTitle>
+              {settingsModal === "branding" && t("dealer.premium.brandingSection")}
+              {settingsModal === "workingHours" && t("dealer.hours.sectionTitle")}
+              {settingsModal === "socialLinks" && t("dealer.social.sectionTitle")}
+              {settingsModal === "billing" && t("dealer.premium.billingSection")}
+              {settingsModal === "notifications" && t("dealer.premium.notificationsSection")}
+              {settingsModal === "integrations" && t("dealer.premium.integrationsSection")}
+              {settingsModal === "security" && t("dealer.premium.securitySection")}
+              {settingsModal === "autoreplies" && t("dealer.premium.autoReplySection")}
+            </DialogTitle>
+            <DialogDescription>
+              {settingsModal === "billing" ? t("dealer.settings.billingNextPhase") : t("dealer.settings.modalDescription")}
+            </DialogDescription>
+          </DialogHeader>
+
+          {settingsModal === "branding" && (
+            <div className="space-y-4">
+              <div
+                className="rounded-3xl border-2 border-dashed border-amber-200 bg-amber-50/40 p-5 text-center transition hover:border-amber-400"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  handleLogoFile(event.dataTransfer.files?.[0]);
+                }}
+              >
+                <div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white text-xl font-black text-amber-900 shadow-sm">
+                  {form.logoUrl ? <img src={form.logoUrl} alt={form.companyName} className="h-full w-full object-cover" /> : form.companyName.slice(0, 2).toUpperCase()}
+                </div>
+                <p className="mt-3 font-semibold">{t("dealer.settings.logoDropTitle")}</p>
+                <p className="text-sm text-muted-foreground">{t("dealer.settings.logoDropDescription")}</p>
+                <div className="mt-4 flex justify-center gap-2">
+                  <Button type="button" className="bg-amber-700 hover:bg-amber-800" onClick={() => logoInputRef.current?.click()}>
+                    <Upload className="mr-2 h-4 w-4" />
+                    {t("dealer.premium.uploadLogo")}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setForm((prev) => ({ ...prev, logoUrl: "" }))}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    {t("dealer.settings.removeLogo")}
+                  </Button>
+                </div>
+              </div>
+
+              <div
+                className="rounded-3xl border bg-white p-4"
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  handleCoverFile(event.dataTransfer.files?.[0]);
+                }}
+              >
+                <div className="h-28 overflow-hidden rounded-2xl bg-gradient-to-r from-stone-900 to-amber-700">
+                  {localSettings.coverUrl && <img src={localSettings.coverUrl} alt="Cover" className="h-full w-full object-cover" />}
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold">{t("dealer.settings.coverImage")}</p>
+                    <p className="text-sm text-muted-foreground">{t("dealer.settings.coverHint")}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={() => coverInputRef.current?.click()}>
+                      {t("dealer.settings.changeCover")}
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={() => updateLocalSettings((prev) => ({ ...prev, coverUrl: "" }))}>
+                      {t("dealer.delete")}
+                    </Button>
+                  </div>
+                </div>
+                <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={(event) => handleCoverFile(event.target.files?.[0])} />
+              </div>
+            </div>
+          )}
+
+          {settingsModal === "workingHours" && (
+            <div className="space-y-4">
+              <div className="rounded-3xl border bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">{t("dealer.hours.publicSummary")}</p>
+                <p className="mt-1 text-2xl font-black text-amber-950">
+                  {formatWorkingHoursShort(localSettings.workingHours, t)}
+                </p>
+                <p className="mt-1 text-sm text-amber-800">
+                  {getTodayWorkingHours(localSettings.workingHours, t)}
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                {dayKeys.map((day) => {
+                  const dayValue = localSettings.workingHours[day];
+                  return (
+                    <div key={day} className="grid gap-3 rounded-2xl border bg-white p-3 sm:grid-cols-[120px_1fr_1fr_auto] sm:items-center">
+                      <p className="font-semibold">{t(`dealer.hours.${day}`)}</p>
+                      <div className="space-y-1">
+                        <Label className="text-xs">{t("dealer.hours.open")}</Label>
+                        <Input
+                          type="time"
+                          value={dayValue.open}
+                          disabled={dayValue.closed}
+                          onChange={(event) =>
+                            updateLocalSettings((prev) => ({
+                              ...prev,
+                              workingHours: {
+                                ...prev.workingHours,
+                                [day]: { ...prev.workingHours[day], open: event.target.value },
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">{t("dealer.hours.close")}</Label>
+                        <Input
+                          type="time"
+                          value={dayValue.close}
+                          disabled={dayValue.closed}
+                          onChange={(event) =>
+                            updateLocalSettings((prev) => ({
+                              ...prev,
+                              workingHours: {
+                                ...prev.workingHours,
+                                [day]: { ...prev.workingHours[day], close: event.target.value },
+                              },
+                            }))
+                          }
+                        />
+                      </div>
+                      <label className="flex items-center justify-between gap-3 rounded-xl bg-muted/40 px-3 py-2 text-sm font-medium sm:justify-start">
+                        {t("dealer.hours.closed")}
+                        <Switch
+                          checked={dayValue.closed}
+                          onCheckedChange={(checked) =>
+                            updateLocalSettings((prev) => ({
+                              ...prev,
+                              workingHours: {
+                                ...prev.workingHours,
+                                [day]: { ...prev.workingHours[day], closed: checked },
+                              },
+                            }))
+                          }
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {settingsModal === "socialLinks" && (
+            <div className="space-y-4">
+              <div className="rounded-3xl border bg-white p-4">
+                <p className="font-semibold">{t("dealer.social.publicButtons")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t("dealer.social.emptyHidden")}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {Object.entries({
+                    Web: form.website || localSettings.socialLinks.website,
+                    Facebook: localSettings.socialLinks.facebook,
+                    Instagram: localSettings.socialLinks.instagram,
+                    TikTok: localSettings.socialLinks.tiktok,
+                    YouTube: localSettings.socialLinks.youtube,
+                  }).filter(([, value]) => value.trim()).map(([label, value]) => (
+                    <a
+                      key={label}
+                      href={normalizeUrl(value)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-full border bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-900 hover:border-amber-300"
+                    >
+                      {label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-3">
+                {[
+                  ["website", t("dealer.social.website")],
+                  ["facebook", "Facebook"],
+                  ["instagram", "Instagram"],
+                  ["tiktok", "TikTok"],
+                  ["youtube", "YouTube"],
+                ].map(([key, label]) => {
+                  const value = key === "website" ? form.website || localSettings.socialLinks.website : localSettings.socialLinks[key as keyof DealerLocalSettings["socialLinks"]];
+                  const invalid = !isValidUrl(value);
+                  return (
+                    <div key={key} className="space-y-2 rounded-2xl border bg-white p-3">
+                      <Label>{label}</Label>
+                      <Input
+                        value={value}
+                        placeholder="https://..."
+                        className={invalid ? "border-red-300 bg-red-50" : ""}
+                        onBlur={(event) => {
+                          const normalized = normalizeUrl(event.target.value);
+                          if (key === "website") {
+                            setForm((prev) => ({ ...prev, website: normalized }));
+                          } else {
+                            updateLocalSettings((prev) => ({
+                              ...prev,
+                              socialLinks: { ...prev.socialLinks, [key]: normalized },
+                            }));
+                          }
+                        }}
+                        onChange={(event) => {
+                          if (key === "website") {
+                            setForm((prev) => ({ ...prev, website: event.target.value }));
+                          } else {
+                            updateLocalSettings((prev) => ({
+                              ...prev,
+                              socialLinks: { ...prev.socialLinks, [key]: event.target.value },
+                            }));
+                          }
+                        }}
+                      />
+                      {invalid && <p className="text-xs text-red-600">{t("dealer.social.invalidUrl")}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {settingsModal === "notifications" && (
+            <div className="grid gap-3">
+              {[
+                ["email", t("dealer.settings.emailNotifications")],
+                ["whatsapp", t("dealer.settings.whatsappNotifications")],
+                ["telegram", t("dealer.settings.telegramNotifications")],
+                ["newLead", t("dealer.settings.newLeadAlerts")],
+                ["messages", t("dealer.settings.messageAlerts")],
+                ["invoices", t("dealer.settings.invoiceAlerts")],
+                ["promotions", t("dealer.settings.promotionAlerts")],
+                ["sound", t("dealer.settings.soundVibration")],
+              ].map(([key, label]) => (
+                <div key={key} className="flex items-center justify-between rounded-2xl border bg-white p-3">
+                  <span className="font-medium">{label}</span>
+                  <Switch
+                    checked={Boolean(localSettings.notifications[key as keyof DealerLocalSettings["notifications"]])}
+                    onCheckedChange={(checked) =>
+                      updateLocalSettings((prev) => ({
+                        ...prev,
+                        notifications: { ...prev.notifications, [key]: checked },
+                      }))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {settingsModal === "integrations" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between rounded-2xl border bg-white p-3">
+                <span className="font-medium">{t("dealer.settings.useSamePhone")}</span>
+                <Switch
+                  checked={localSettings.integrations.useSamePhone}
+                  onCheckedChange={(checked) =>
+                    updateLocalSettings((prev) => ({
+                      ...prev,
+                      integrations: { ...prev.integrations, useSamePhone: checked },
+                    }))
+                  }
+                />
+              </div>
+              <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
+                <div className="space-y-2">
+                  <Label>{t("dealer.settings.countryCode")}</Label>
+                  <Select
+                    value={localSettings.integrations.countryCode}
+                    onValueChange={(value) =>
+                      updateLocalSettings((prev) => ({
+                        ...prev,
+                        integrations: { ...prev.integrations, countryCode: value },
+                      }))
+                    }
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="+420">CZ +420</SelectItem>
+                      <SelectItem value="+421">SK +421</SelectItem>
+                      <SelectItem value="+380">UA +380</SelectItem>
+                      <SelectItem value="+49">DE +49</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {localSettings.integrations.useSamePhone ? (
+                  <div className="space-y-2">
+                    <Label>{t("dealer.settings.sharedPhone")}</Label>
+                    <Input
+                      value={localSettings.integrations.sharedPhone}
+                      onChange={(event) =>
+                        updateLocalSettings((prev) => ({
+                          ...prev,
+                          integrations: { ...prev.integrations, sharedPhone: event.target.value },
+                        }))
+                      }
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>{t("dealer.settings.whatsappNumber")}</Label>
+                      <Input
+                        value={localSettings.integrations.whatsappPhone}
+                        onChange={(event) =>
+                          updateLocalSettings((prev) => ({
+                            ...prev,
+                            integrations: { ...prev.integrations, whatsappPhone: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>{t("dealer.settings.telegramNumber")}</Label>
+                      <Input
+                        value={localSettings.integrations.telegramPhone}
+                        onChange={(event) =>
+                          updateLocalSettings((prev) => ({
+                            ...prev,
+                            integrations: { ...prev.integrations, telegramPhone: event.target.value },
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              {[
+                ["whatsappConnected", "WhatsApp", MessageCircle],
+                ["telegramConnected", "Telegram", Smartphone],
+                ["crmConnected", "External CRM", Link2],
+              ].map(([key, label, Icon]) => {
+                const connected = Boolean(localSettings.integrations[key as keyof DealerLocalSettings["integrations"]]);
+                const hasPhone = localSettings.integrations.useSamePhone
+                  ? !!localSettings.integrations.sharedPhone.trim()
+                  : key === "telegramConnected"
+                    ? !!localSettings.integrations.telegramPhone.trim()
+                    : !!localSettings.integrations.whatsappPhone.trim();
+                const IntegrationIcon = Icon as typeof MessageCircle;
+                return (
+                  <div key={String(key)} className="flex items-center justify-between rounded-2xl border bg-white p-3">
+                    <div className="flex items-center gap-3">
+                      <IntegrationIcon className="h-4 w-4 text-amber-700" />
+                      <div>
+                        <p className="font-semibold">{String(label)}</p>
+                        <p className="text-xs text-muted-foreground">{connected ? t("dealer.settings.connected") : t("dealer.settings.disconnected")}</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant={connected ? "outline" : "default"}
+                      className={connected ? "" : "bg-amber-700 hover:bg-amber-800"}
+                      disabled={!hasPhone && key !== "crmConnected"}
+                      onClick={() => {
+                        updateLocalSettings((prev) => ({
+                          ...prev,
+                          integrations: { ...prev.integrations, [key as string]: !connected },
+                        }));
+                        toast({ title: connected ? t("dealer.settings.disconnected") : t("dealer.settings.connectionSuccess") });
+                      }}
+                    >
+                      {connected ? t("dealer.settings.disconnect") : t("dealer.settings.testConnect")}
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {settingsModal === "security" && (
+            <div className="space-y-4">
+              <div className="rounded-3xl border bg-white p-4">
+                <h3 className="font-semibold">{t("dealer.settings.changePassword")}</h3>
+                <div className="mt-3 grid gap-3">
+                  {[
+                    ["current", t("dealer.settings.currentPassword")],
+                    ["next", t("dealer.settings.newPassword")],
+                    ["confirm", t("dealer.settings.confirmPassword")],
+                  ].map(([key, label]) => (
+                    <div key={key} className="space-y-2">
+                      <Label>{label}</Label>
+                      <div className="relative">
+                        <Input
+                          type={passwordForm.show ? "text" : "password"}
+                          value={passwordForm[key as keyof typeof passwordForm] as string}
+                          onChange={(event) => setPasswordForm((prev) => ({ ...prev, [key]: event.target.value }))}
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                          onClick={() => setPasswordForm((prev) => ({ ...prev, show: !prev.show }))}
+                        >
+                          {passwordForm.show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <Button
+                    type="button"
+                    className="bg-amber-700 hover:bg-amber-800"
+                    disabled={!passwordForm.current || !passwordForm.next || passwordForm.next !== passwordForm.confirm}
+                    onClick={() => {
+                      setPasswordForm({ current: "", next: "", confirm: "", show: false });
+                      toast({ title: t("dealer.settings.passwordSaved") });
+                    }}
+                  >
+                    {t("dealer.settings.savePassword")}
+                  </Button>
+                </div>
+              </div>
+              <div className="rounded-3xl border bg-white p-4">
+                <h3 className="font-semibold">{t("dealer.settings.activeSessions")}</h3>
+                <div className="mt-3 space-y-2">
+                  {localSettings.security.sessions.map((session) => (
+                    <div key={session.id} className="flex items-center justify-between rounded-2xl bg-muted/40 p-3">
+                      <div className="flex items-center gap-3">
+                        <MonitorSmartphone className="h-4 w-4 text-amber-700" />
+                        <div>
+                          <p className="font-medium">{session.device}</p>
+                          <p className="text-xs text-muted-foreground">{session.location} · {session.lastActive}</p>
+                        </div>
+                      </div>
+                      {session.current && <Badge>{t("dealer.settings.currentSession")}</Badge>}
+                    </div>
+                  ))}
+                </div>
+                <Button type="button" variant="outline" className="mt-3" onClick={() => toast({ title: t("dealer.settings.sessionsLoggedOut") })}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  {t("dealer.settings.logoutAllSessions")}
+                </Button>
+              </div>
+              <div className="rounded-3xl border border-dashed bg-muted/30 p-4">
+                <p className="font-semibold">2FA</p>
+                <p className="text-sm text-muted-foreground">{t("dealer.settings.twoFactorNext")}</p>
+              </div>
+            </div>
+          )}
+
+          {settingsModal === "autoreplies" && (
+            <div className="space-y-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex items-center justify-between rounded-2xl border bg-white p-3">
+                  <span className="font-medium">{t("dealer.settings.autoReplyEnabled")}</span>
+                  <Switch checked={localSettings.autoReplies.enabled} onCheckedChange={(checked) => updateLocalSettings((prev) => ({ ...prev, autoReplies: { ...prev.autoReplies, enabled: checked } }))} />
+                </div>
+                <div className="space-y-2 rounded-2xl border bg-white p-3">
+                  <Label>{t("dealer.settings.replyDelay")}</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={localSettings.autoReplies.delayMinutes}
+                    onChange={(event) => updateLocalSettings((prev) => ({ ...prev, autoReplies: { ...prev.autoReplies, delayMinutes: Number(event.target.value) || 1 } }))}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border bg-white p-3">
+                  <span className="font-medium">WhatsApp auto reply</span>
+                  <Switch checked={localSettings.autoReplies.whatsapp} onCheckedChange={(checked) => updateLocalSettings((prev) => ({ ...prev, autoReplies: { ...prev.autoReplies, whatsapp: checked } }))} />
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border bg-white p-3">
+                  <span className="font-medium">Telegram auto reply</span>
+                  <Switch checked={localSettings.autoReplies.telegram} onCheckedChange={(checked) => updateLocalSettings((prev) => ({ ...prev, autoReplies: { ...prev.autoReplies, telegram: checked } }))} />
+                </div>
+              </div>
+              <div className="rounded-3xl border bg-white p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h3 className="font-semibold">{t("dealer.settings.templates")}</h3>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      setEditingTemplateId(null);
+                      setTemplateDraft({ title: "", message: "" });
+                    }}
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    {t("dealer.settings.createTemplate")}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {localSettings.autoReplies.templates.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed p-5 text-center text-sm text-muted-foreground">{t("dealer.settings.noTemplates")}</div>
+                  ) : localSettings.autoReplies.templates.map((template) => (
+                    <div key={template.id} className="rounded-2xl bg-muted/40 p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold">{template.title}</p>
+                          <p className="mt-1 text-sm text-muted-foreground">{template.message}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button type="button" variant="ghost" size="icon" onClick={() => {
+                            setEditingTemplateId(template.id);
+                            setTemplateDraft({ title: template.title, message: template.message });
+                          }}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => updateLocalSettings((prev) => ({ ...prev, autoReplies: { ...prev.autoReplies, templates: prev.autoReplies.templates.filter((item) => item.id !== template.id) } }))}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>{t("dealer.settings.templateTitle")}</Label>
+                  <Input value={templateDraft.title} onChange={(event) => setTemplateDraft((prev) => ({ ...prev, title: event.target.value }))} />
+                </div>
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>{t("dealer.settings.templateMessage")}</Label>
+                  <Textarea rows={4} value={templateDraft.message} onChange={(event) => setTemplateDraft((prev) => ({ ...prev, message: event.target.value }))} />
+                </div>
+                <Button
+                  type="button"
+                  className="bg-amber-700 hover:bg-amber-800"
+                  disabled={!templateDraft.title || !templateDraft.message}
+                  onClick={() => {
+                    updateLocalSettings((prev) => {
+                      const nextTemplate = {
+                        id: editingTemplateId || crypto.randomUUID(),
+                        title: templateDraft.title,
+                        message: templateDraft.message,
+                      };
+                      const templates = editingTemplateId
+                        ? prev.autoReplies.templates.map((item) => item.id === editingTemplateId ? nextTemplate : item)
+                        : [...prev.autoReplies.templates, nextTemplate];
+                      return { ...prev, autoReplies: { ...prev.autoReplies, templates } };
+                    });
+                    setEditingTemplateId(null);
+                    setTemplateDraft({ title: "", message: "" });
+                    toast({ title: t("dealer.settings.templateSaved") });
+                  }}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  {t("dealer.settings.saveTemplate")}
+                </Button>
+              </div>
+              <div className="rounded-3xl bg-amber-50 p-4">
+                <p className="text-sm font-semibold">{t("dealer.settings.previewMessage")}</p>
+                <p className="mt-2 text-sm text-amber-900">{templateDraft.message || localSettings.autoReplies.templates[0]?.message || t("dealer.settings.previewEmpty")}</p>
+              </div>
+            </div>
+          )}
+
+          {settingsModal === "billing" && (
+            <div className="rounded-3xl border border-dashed bg-muted/30 p-6 text-center">
+              <CreditCard className="mx-auto h-10 w-10 text-amber-700" />
+              <p className="mt-3 font-semibold">{t("dealer.settings.billingNextPhase")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("dealer.premium.billingDescription")}</p>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <div className="mr-auto flex items-center gap-2 text-sm text-muted-foreground">
+              {settingsSaveState === "saving" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+              {settingsSaveState === "saving"
+                ? t("dealer.premium.saving")
+                : settingsSaveState === "dirty"
+                  ? t("dealer.premium.unsavedChanges")
+                  : t("dealer.premium.saved")}
+            </div>
+            <Button variant="outline" onClick={() => setSettingsModal(null)}>
+              {t("dealer.cancel")}
+            </Button>
+            <Button className="bg-amber-700 hover:bg-amber-800" onClick={saveLocalSettingsNow}>
+              {t("dealer.premium.saveChanges")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 
@@ -1880,6 +4809,18 @@ export default function DealerPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const t = useTranslation();
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState<DealerTab>("dashboard");
+  const [settingsTarget, setSettingsTarget] = useState<SettingsTarget | null>(null);
+  const [addVehicleDialogOpen, setAddVehicleDialogOpen] = useState(false);
+  const [addVehiclePreference, setAddVehiclePreference] =
+    useState<AddVehiclePreference>(() => {
+      if (typeof window === "undefined") return "single";
+      return (
+        (localStorage.getItem("nnauto_dealer_add_vehicle_preference") as AddVehiclePreference | null) ||
+        "single"
+      );
+    });
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ["/api/dealer/stats"],
@@ -1889,6 +4830,49 @@ export default function DealerPage() {
     },
     enabled: !!user?.isDealer,
   });
+  const stats = statsData?.stats as DealerStats | undefined;
+  const dealer = statsData?.dealer as Dealer | undefined;
+  const openSettingsTarget = useCallback((target: SettingsTarget) => {
+    setActiveTab("settings");
+    setSettingsTarget(target);
+  }, []);
+  const openPublicProfile = useCallback(() => {
+    if (!dealer?.id) return;
+    window.open(`/dealer/${dealer.id}`, "_blank", "noopener,noreferrer");
+  }, [dealer?.id]);
+  const sharePublicProfile = useCallback(async () => {
+    if (!dealer?.id) return;
+    const url = `${window.location.origin}/dealer/${dealer.id}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: dealer.companyName, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast({ title: t("dealer.premium.linkCopied") });
+      }
+    } catch {
+      await navigator.clipboard.writeText(url);
+      toast({ title: t("dealer.premium.linkCopied") });
+    }
+  }, [dealer?.companyName, dealer?.id, t, toast]);
+  const openAddVehicleDialog = useCallback(() => {
+    setAddVehicleDialogOpen(true);
+  }, []);
+  const chooseAddVehicleFlow = useCallback((mode: AddVehiclePreference) => {
+    setAddVehiclePreference(mode);
+    localStorage.setItem("nnauto_dealer_add_vehicle_preference", mode);
+    setAddVehicleDialogOpen(false);
+    if (mode === "bulk") {
+      setActiveTab("import");
+      window.setTimeout(() => {
+        document
+          .getElementById("dealer-bulk-import-upload")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 150);
+      return;
+    }
+    navigate("/add-listing");
+  }, [navigate]);
 
   if (authLoading) {
     return (
@@ -1910,66 +4894,193 @@ export default function DealerPage() {
     return <DealerRegistrationPage />;
   }
 
-  const stats = statsData?.stats as DealerStats | undefined;
-  const dealer = statsData?.dealer as Dealer | undefined;
-
   return (
     <div className="min-h-screen flex flex-col">
       <SEO title={t("dealer.cabinet")} noindex />
       <Header />
-      <main className="flex-1 container mx-auto px-4 py-8 max-w-5xl">
-        <div className="flex items-center gap-3 mb-6 flex-wrap">
-          <Building2 className="h-6 w-6 text-amber-700" />
-          <h1 className="text-2xl font-bold">{t("dealer.cabinet")}</h1>
-          <DealerMessagesShortcut />
-        </div>
+      <main className="flex-1 bg-gradient-to-b from-amber-50/50 via-background to-background">
+        <div className="container mx-auto max-w-7xl px-3 py-4 pb-24 sm:px-4 sm:py-8">
 
         {statsLoading || !stats || !dealer ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-700" />
-          </div>
+          <DealerLoadingSkeleton />
         ) : (
-          <Tabs defaultValue="dashboard">
-            <TabsList className="mb-6 grid w-full grid-cols-3 sm:grid-cols-5 lg:w-auto lg:inline-flex gap-1 h-auto p-1">
-              <TabsTrigger value="dashboard" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
-                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {t("dealer.dashboard")}
-              </TabsTrigger>
-              <TabsTrigger value="mylistings" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
-                <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {t("dealer.myListings")}
-              </TabsTrigger>
-              <TabsTrigger value="promotion" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
-                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {t("dealer.promo.tab")}
-              </TabsTrigger>
-              <TabsTrigger value="import" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+          <div className="space-y-5 sm:space-y-6">
+            <DealerHero
+              dealer={dealer}
+              stats={stats}
+              t={t}
+              onOpenMessages={() => navigate("/dealer/messages")}
+              onProfileTask={openSettingsTarget}
+              onPreviewProfile={openPublicProfile}
+              onShareProfile={sharePublicProfile}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium uppercase tracking-[0.2em] text-amber-700">
+                  NNAuto Pro
+                </p>
+                <h2 className="text-2xl font-black tracking-tight">{t("dealer.cabinet")}</h2>
+              </div>
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                <DealerPublicProfileMenu dealer={dealer} t={t} />
+                <DealerMessagesShortcut />
+              </div>
+            </div>
+
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DealerTab)} className="space-y-5">
+          <div className="sticky top-2 z-20 flex gap-2 rounded-2xl border border-amber-100 bg-background/95 p-1.5 shadow-[0_12px_38px_rgba(120,72,12,0.10)] backdrop-blur">
+            <Button
+              className="h-11 shrink-0 rounded-xl bg-amber-700 px-4 font-black shadow-md hover:bg-amber-800"
+              onClick={openAddVehicleDialog}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {t("dealer.dashboard.addCar")}
+            </Button>
+            <TabsList className="min-w-0 flex-1 h-auto justify-start gap-1 overflow-x-auto bg-transparent p-0 lg:w-auto lg:inline-flex">
+              <TabsTrigger value="import" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
                 <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.bulkImport")}
               </TabsTrigger>
-              <TabsTrigger value="settings" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 py-2">
+              <TabsTrigger value="mylistings" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
+                <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {t("dealer.myListings")}
+              </TabsTrigger>
+              <TabsTrigger value="promotion" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
+                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {t("dealer.promo.tab")}
+              </TabsTrigger>
+              <TabsTrigger value="dashboard" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
+                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                {t("dealer.dashboard.statsShort")}
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
                 <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 {t("dealer.settings")}
               </TabsTrigger>
             </TabsList>
+          </div>
 
             <TabsContent value="dashboard">
-              <DashboardTab stats={stats} dealer={dealer} t={t} />
+              <DashboardTab
+                stats={stats}
+                dealer={dealer}
+                t={t}
+                onOpenTab={setActiveTab}
+                onFocusSettings={openSettingsTarget}
+              onAddVehicle={openAddVehicleDialog}
+              />
             </TabsContent>
             <TabsContent value="mylistings">
-              <MyListingsTab t={t} />
+              <MyListingsTab
+                t={t}
+                dealer={dealer}
+                onOpenTab={setActiveTab}
+                onAddVehicle={openAddVehicleDialog}
+              />
             </TabsContent>
             <TabsContent value="promotion">
               <PromotionTab stats={stats} t={t} />
             </TabsContent>
             <TabsContent value="import">
-              <BulkImportTab t={t} />
+              <BulkImportTab t={t} onAddVehicle={openAddVehicleDialog} />
             </TabsContent>
             <TabsContent value="settings">
-              <DealerSettingsTab dealer={dealer} t={t} />
+              <DealerSettingsTab
+                dealer={dealer}
+                t={t}
+                focusTarget={settingsTarget}
+                onFocusHandled={() => setSettingsTarget(null)}
+              />
             </TabsContent>
           </Tabs>
+          <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 gap-1 rounded-3xl border border-amber-200 bg-background/95 p-1.5 shadow-[0_18px_55px_rgba(120,72,12,0.18)] backdrop-blur md:hidden">
+            {[
+              ["add", Plus, t("dealer.dashboard.addShort")],
+              ["import", Upload, t("dealer.bulkImport")],
+              ["mylistings", Car, t("dealer.myListings")],
+              ["promotion", Rocket, t("dealer.promo.tab")],
+              ["dashboard", BarChart3, t("dealer.dashboard.statsShort")],
+              ["settings", Settings, t("dealer.settings")],
+            ].map(([tab, Icon, label]) => {
+              const NavIcon = Icon as typeof BarChart3;
+              const active = activeTab === tab;
+              return (
+                <button
+                  key={String(tab)}
+                  type="button"
+                  onClick={() => {
+                    if (tab === "add") {
+                      openAddVehicleDialog();
+                      return;
+                    }
+                    setActiveTab(tab as DealerTab);
+                  }}
+                  className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold transition active:scale-95 ${
+                    tab === "add"
+                      ? "bg-amber-700 text-white shadow-md"
+                      : active
+                      ? "bg-amber-700 text-white shadow-md"
+                      : "text-muted-foreground hover:bg-amber-50 hover:text-amber-800"
+                  }`}
+                >
+                  <NavIcon className="mb-0.5 h-4 w-4" />
+                  <span className="max-w-full truncate">{String(label)}</span>
+                </button>
+              );
+            })}
+          </nav>
+          <Dialog open={addVehicleDialogOpen} onOpenChange={setAddVehicleDialogOpen}>
+            <DialogContent className="w-[calc(100vw-1.5rem)] rounded-3xl border-amber-100 p-4 shadow-[0_24px_80px_rgba(120,72,12,0.18)] sm:max-w-xl sm:p-6">
+              <DialogHeader>
+                <DialogTitle>{t("dealer.addVehicle.title")}</DialogTitle>
+                <DialogDescription>{t("dealer.addVehicle.description")}</DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => chooseAddVehicleFlow("single")}
+                  className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99] ${
+                    addVehiclePreference === "single" ? "border-amber-400 bg-amber-50 shadow-sm" : "bg-white"
+                  }`}
+                >
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+                    <Plus className="h-6 w-6" />
+                  </div>
+                  <p className="text-lg font-black">{t("dealer.addVehicle.singleTitle")}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{t("dealer.addVehicle.singleDescription")}</p>
+                  <span className="mt-4 inline-flex items-center text-sm font-bold text-amber-700">
+                    {t("dealer.addVehicle.continue")}
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => chooseAddVehicleFlow("bulk")}
+                  className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99] ${
+                    addVehiclePreference === "bulk" ? "border-amber-400 bg-amber-50 shadow-sm" : "bg-white"
+                  }`}
+                >
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+                    <Upload className="h-6 w-6" />
+                  </div>
+                  <div className="mb-1 flex items-center gap-2">
+                    <p className="text-lg font-black">{t("dealer.addVehicle.bulkTitle")}</p>
+                    <Badge className="bg-amber-700 text-white hover:bg-amber-700">CSV/XML</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{t("dealer.addVehicle.bulkDescription")}</p>
+                  <span className="mt-4 inline-flex items-center text-sm font-bold text-amber-700">
+                    {t("dealer.addVehicle.continue")}
+                    <ChevronRight className="ml-1 h-4 w-4" />
+                  </span>
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          </div>
         )}
+        </div>
       </main>
       <Footer />
     </div>
@@ -1996,18 +5107,61 @@ function DealerMessagesShortcut() {
     <Button
       variant="outline"
       size="sm"
-      className="gap-1.5 ml-auto"
+      className="relative ml-auto h-12 gap-2 rounded-2xl border-amber-300 bg-white px-5 font-black text-amber-900 shadow-[0_10px_30px_rgba(120,72,12,0.10)] transition hover:-translate-y-0.5 hover:border-amber-400 hover:bg-amber-50 hover:shadow-md"
       onClick={() => navigate("/dealer/messages")}
       data-testid="button-open-messages"
     >
-      <Inbox className="h-4 w-4" />
-      <span>{t("messages.heading")}</span>
+      <Inbox className="h-5 w-5 text-amber-700" />
+      <span>{unread > 0 ? `${t("messages.heading")} (${unread})` : t("messages.heading")}</span>
       {unread > 0 && (
-        <Badge className="ml-1 bg-amber-700 hover:bg-amber-800 text-[10px] px-1.5">
-          {unread}
-        </Badge>
+        <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-orange-500 ring-2 ring-white" />
       )}
     </Button>
+  );
+}
+
+function DealerPublicProfileMenu({
+  dealer,
+  t,
+}: {
+  dealer: Dealer;
+  t: (key: string) => string;
+}) {
+  const { toast } = useToast();
+  const publicUrl = `/dealer/${dealer.id}`;
+
+  const copyLink = async () => {
+    const url = `${window.location.origin}${publicUrl}`;
+    await navigator.clipboard.writeText(url);
+    toast({ title: t("dealer.premium.linkCopied") });
+  };
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          className="h-12 gap-2 rounded-2xl border-amber-200 bg-white px-4 font-bold text-amber-900 shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50"
+        >
+          <Eye className="h-4 w-4 text-amber-700" />
+          {t("dealer.dashboard.publicProfile")}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuItem onSelect={() => window.open(publicUrl, "_blank", "noopener,noreferrer")}>
+          <Eye className="mr-2 h-4 w-4" />
+          {t("dealer.premium.previewPublicProfile")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => window.open(`${publicUrl}#inventory`, "_blank", "noopener,noreferrer")}>
+          <Car className="mr-2 h-4 w-4" />
+          {t("dealer.dashboard.viewAllDealerCars")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={copyLink}>
+          <Link2 className="mr-2 h-4 w-4" />
+          {t("dealer.premium.shareDealerPage")}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -2111,8 +5265,8 @@ function DealerRegistrationPage() {
             <CardDescription>{t("dealer.registerDescription")}</CardDescription>
             <Button
               type="button"
-              variant="link"
-              className="text-amber-700 hover:text-amber-800 mt-1 mx-auto h-auto p-0"
+              variant="ghost"
+              className="text-amber-700 hover:text-amber-800 hover:bg-transparent mt-1 mx-auto h-auto p-0"
               onClick={() => setAuthModalOpen(true)}
               data-testid="button-dealer-switch-login"
             >

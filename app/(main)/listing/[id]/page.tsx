@@ -16,7 +16,12 @@
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { buildListingUrl } from "@lib/seo/listing-url";
-import { getListingById, getSimilarListings } from "./get-listing";
+import {
+  getDealerInventoryForListing,
+  getDealerProfileForListing,
+  getListingById,
+  getSimilarListings,
+} from "./get-listing";
 import {
   buildListingMetadata,
   renderListingDetailPage,
@@ -81,6 +86,16 @@ export default async function ListingDetail({ params, searchParams }: Props) {
     permanentRedirect(appendSearchParams(nextPath, resolvedSearchParams));
   }
 
-  const similarListings = await getSimilarListings(listing, 6);
-  return renderListingDetailPage({ listing, similarListings, isEmbedded });
+  const [similarListings, dealerProfile, dealerInventory] = await Promise.all([
+    getSimilarListings(listing, 6),
+    getDealerProfileForListing(listing),
+    getDealerInventoryForListing(listing, 8),
+  ]);
+  return renderListingDetailPage({
+    listing,
+    similarListings,
+    dealerProfile,
+    dealerInventory,
+    isEmbedded,
+  });
 }

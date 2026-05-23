@@ -60,6 +60,8 @@ export type StickyContactBarProps = {
   labelTelegram?: string;
   labelEmail?: string;
   labelNNAutoChat?: string;
+  showWhatsApp?: boolean;
+  showTelegram?: boolean;
 };
 
 const SAFE_BOTTOM = "pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]";
@@ -197,11 +199,15 @@ function MessageMenuItems({
   onMessage,
   onNNAutoChat,
   labels,
+  showWhatsApp = true,
+  showTelegram = true,
 }: {
   links: ReturnType<typeof buildLinks>;
   onMessage?: StickyContactBarProps["onMessage"];
   onNNAutoChat?: () => void;
   labels: { wa: string; tg: string; email: string; nn: string };
+  showWhatsApp?: boolean;
+  showTelegram?: boolean;
 }) {
   return (
     <div className="grid gap-1 p-1">
@@ -215,7 +221,7 @@ function MessageMenuItems({
           testId="sticky-contact-nnauto-chat"
         />
       ) : null}
-      {links.whatsapp ? (
+      {showWhatsApp && links.whatsapp ? (
         <ChannelButton
           href={links.whatsapp}
           onClick={() => onMessage?.("whatsapp")}
@@ -226,7 +232,7 @@ function MessageMenuItems({
           testId="sticky-contact-whatsapp"
         />
       ) : null}
-      {links.telegram ? (
+      {showTelegram && links.telegram ? (
         <ChannelButton
           href={links.telegram}
           onClick={() => onMessage?.("telegram")}
@@ -267,6 +273,8 @@ export default function StickyContactBar(props: StickyContactBarProps) {
     labelTelegram = "Napsat na Telegram",
     labelEmail = "Napsat e-mail",
     labelNNAutoChat = "Napsat do chatu NNAuto",
+    showWhatsApp = true,
+    showTelegram = true,
   } = props;
 
   const links = buildLinks(phone, email, carTitle);
@@ -315,6 +323,8 @@ export default function StickyContactBar(props: StickyContactBarProps) {
                   onMessage={onMessage}
                   onNNAutoChat={onNNAutoChat}
                   labels={labels}
+                  showWhatsApp={showWhatsApp}
+                  showTelegram={showTelegram}
                 />
               </DropdownMenuContent>
             </DropdownMenu>
@@ -377,6 +387,8 @@ export default function StickyContactBar(props: StickyContactBarProps) {
                     onMessage={onMessage}
                     onNNAutoChat={onNNAutoChat}
                     labels={labels}
+                    showWhatsApp={showWhatsApp}
+                    showTelegram={showTelegram}
                   />
                 </PopoverContent>
               </Popover>
@@ -452,6 +464,8 @@ export default function StickyContactBar(props: StickyContactBarProps) {
                     : undefined
                 }
                 labels={labels}
+                showWhatsApp={showWhatsApp}
+                showTelegram={showTelegram}
               />
               <DrawerFooter />
             </DrawerContent>

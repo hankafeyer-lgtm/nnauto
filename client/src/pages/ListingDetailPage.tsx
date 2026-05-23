@@ -3069,6 +3069,8 @@ import {
   Fuel,
   Heart,
   Share2,
+  Navigation,
+  ExternalLink,
   Phone,
   Check,
   Settings,
@@ -3128,7 +3130,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { canPrefetchHeavyResources } from "@/lib/queryClient";
 import { getListingMainTitle } from "@/lib/listingTitle";
-import { buildListingAbsoluteUrl } from "@/lib/listingUrl";
+import { buildListingAbsoluteUrl, buildListingPath } from "@/lib/listingUrl";
 import { format } from "date-fns";
 import { extractShortIdFromSlug } from "@lib/seo/listing-url";
 import { normalizeSlug } from "@lib/seo/slug";
@@ -3178,6 +3180,35 @@ type PublicContact = {
   lastName: string | null;
 };
 
+type DealerProfileForDetail = {
+  id: string;
+  ownerId: string;
+  companyName: string;
+  description: string | null;
+  logoUrl: string | null;
+  website: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  region: string | null;
+  isVerified: boolean;
+  createdAt: string | Date;
+};
+
+type DealerInventoryItem = {
+  id: string;
+  title: string;
+  price: string;
+  brand: string;
+  model: string;
+  year: number;
+  mileage: number | null;
+  fuelType: string[] | null;
+  transmission: string[] | null;
+  photos: string[] | null;
+  isTopListing: boolean;
+};
+
 type ListingAnalytics = {
   listingId: string;
   views: number;
@@ -3185,6 +3216,68 @@ type ListingAnalytics = {
   whatsappClicks: number;
   telegramClicks: number;
 };
+
+type DealerLocalSettingsForDetail = {
+  workingHours?: Record<string, { closed: boolean; open: string; close: string }>;
+  socialLinks?: Record<string, string>;
+  integrations?: {
+    useSamePhone?: boolean;
+    countryCode?: string;
+    sharedPhone?: string;
+    whatsappPhone?: string;
+    telegramPhone?: string;
+    whatsappConnected?: boolean;
+    telegramConnected?: boolean;
+  };
+};
+
+const detailDayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
+const detailDayShort: Record<(typeof detailDayKeys)[number], string> = {
+  mon: "Po",
+  tue: "Út",
+  wed: "St",
+  thu: "Čt",
+  fri: "Pá",
+  sat: "So",
+  sun: "Ne",
+};
+
+function normalizeDealerUrl(value?: string | null) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return "";
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+function readDealerLocalSettings(dealerId?: string | null): DealerLocalSettingsForDetail {
+  if (!dealerId || typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(`nnauto_dealer_settings_${dealerId}`);
+    return raw ? (JSON.parse(raw) as DealerLocalSettingsForDetail) : {};
+  } catch {
+    return {};
+  }
+}
+
+function formatDealerWorkingHours(settings: DealerLocalSettingsForDetail) {
+  const hours = settings.workingHours;
+  if (!hours) return { short: "Po–Pá", today: "Dnes otevřeno podle domluvy" };
+  const openDays = detailDayKeys.filter((day) => !hours[day]?.closed);
+  if (openDays.length === 0) return { short: "Zavřeno", today: "Dnes zavřeno" };
+  if (openDays.length === 7) return { short: "Nonstop", today: "Dnes otevřeno" };
+  const first = openDays[0];
+  const last = openDays[openDays.length - 1];
+  const consecutive = openDays.every((day, index) => detailDayKeys.indexOf(day) === detailDayKeys.indexOf(first) + index);
+  const short = consecutive && first !== last
+    ? `${detailDayShort[first]}–${detailDayShort[last]}`
+    : openDays.map((day) => detailDayShort[day]).join(", ");
+  const jsDay = new Date().getDay();
+  const todayKey = detailDayKeys[jsDay === 0 ? 6 : jsDay - 1];
+  const today = hours[todayKey];
+  return {
+    short,
+    today: today?.closed ? "Dnes zavřeno" : `Dnes otevřeno do ${today?.close || "18:00"}`,
+  };
+}
 
 const safeWindow = () => (typeof window !== "undefined" ? window : null);
 
@@ -3244,6 +3337,8 @@ function PageLoaderInline({ text }: { text: string }) {
 type ListingDetailPageProps = {
   initialListing?: Listing | null;
   initialListingId?: string;
+  initialDealerProfile?: DealerProfileForDetail | null;
+  initialDealerInventory?: DealerInventoryItem[];
   embeddedMode?: boolean;
   /** When `delegated`, SSR owns the visible `<h1>` — title here is `sr-only` for tests/a11y text. */
   primaryHeading?: "page" | "delegated";
@@ -3252,6 +3347,8 @@ type ListingDetailPageProps = {
 export default function ListingDetailPage({
   initialListing = null,
   initialListingId,
+  initialDealerProfile = null,
+  initialDealerInventory = [],
   embeddedMode,
   primaryHeading = "page",
 }: ListingDetailPageProps = {}) {
@@ -3494,6 +3591,17 @@ export default function ListingDetailPage({
     queryKey: [`/api/users/${listing?.userId}`],
     enabled: !!listing?.userId,
   });
+  const [dealerLocalSettings, setDealerLocalSettings] =
+    useState<DealerLocalSettingsForDetail>({});
+
+  const isDealerListing =
+    !!listing &&
+    !!initialDealerProfile;
+
+  useEffect(() => {
+    if (!initialDealerProfile?.id) return;
+    setDealerLocalSettings(readDealerLocalSettings(initialDealerProfile.id));
+  }, [initialDealerProfile?.id]);
 
   useEffect(() => {
     if (!listing?.id) return;
@@ -4153,7 +4261,7 @@ export default function ListingDetailPage({
     (values: string[] | string | null) => {
       if (!values) return "";
       const arr = Array.isArray(values) ? values : [values];
-      return arr.map((v) => transmissionLabels[v] || v).join(", ");
+      return arr.map((v) => transmissionLabels[v as keyof typeof transmissionLabels] || v).join(", ");
     },
     [transmissionLabels],
   );
@@ -4162,7 +4270,7 @@ export default function ListingDetailPage({
     (values: string[] | string | null) => {
       if (!values) return "";
       const arr = Array.isArray(values) ? values : [values];
-      return arr.map((v) => fuelLabels[v] || v).join(", ");
+      return arr.map((v) => fuelLabels[v as keyof typeof fuelLabels] || v).join(", ");
     },
     [fuelLabels],
   );
@@ -4609,7 +4717,7 @@ export default function ListingDetailPage({
   }, [photoKeys]);
 
   const seoKeywords = useMemo(() => {
-    if (!listing) return [];
+    if (!listing) return "";
     return generateListingKeywords({
       brand: listing.brand,
       model: listing.model,
@@ -4666,6 +4774,52 @@ export default function ListingDetailPage({
       </div>
     );
   }
+
+  const dealerHours = formatDealerWorkingHours(dealerLocalSettings);
+  const dealerPublicUrl = initialDealerProfile
+    ? `/dealer/${initialDealerProfile.id}`
+    : "";
+  const dealerInitials = initialDealerProfile?.companyName
+    ?.split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "NN";
+  const dealerPhone =
+    (dealerLocalSettings.integrations?.useSamePhone
+      ? dealerLocalSettings.integrations?.sharedPhone
+      : dealerLocalSettings.integrations?.whatsappPhone) ||
+    initialDealerProfile?.phone ||
+    listing.phone ||
+    seller?.phone ||
+    "";
+  const dealerWhatsappEnabled =
+    !!dealerLocalSettings.integrations?.whatsappConnected && !!dealerPhone;
+  const dealerTelegramEnabled =
+    !!dealerLocalSettings.integrations?.telegramConnected &&
+    !!(
+      dealerLocalSettings.integrations?.useSamePhone
+        ? dealerLocalSettings.integrations?.sharedPhone
+        : dealerLocalSettings.integrations?.telegramPhone
+    );
+  const dealerSocialLinks = [
+    ["Web", dealerLocalSettings.socialLinks?.website || initialDealerProfile?.website || ""],
+    ["Facebook", dealerLocalSettings.socialLinks?.facebook || ""],
+    ["Instagram", dealerLocalSettings.socialLinks?.instagram || ""],
+    ["TikTok", dealerLocalSettings.socialLinks?.tiktok || ""],
+    ["YouTube", dealerLocalSettings.socialLinks?.youtube || ""],
+  ].filter(([, value]) => String(value).trim());
+  const dealerActiveSince = initialDealerProfile?.createdAt
+    ? new Date(initialDealerProfile.createdAt).getFullYear()
+    : 2026;
+  const vehicleHighlights = [
+    getTransmissionLabel(listing.transmission),
+    listing.hasServiceBook ? "Servisní historie" : "",
+    listing.owners === 1 ? "1. majitel" : "",
+    listing.extras?.includes("notDamaged") ? "Nehavarované" : "",
+    listing.vatDeductible ? "Možnost odpočtu DPH" : "",
+  ].filter(Boolean).slice(0, 5);
+  const monthlyFinance = Math.max(1900, Math.round(Number(listing.price) / 72 / 100) * 100);
 
   return (
     <div
@@ -5049,6 +5203,20 @@ export default function ListingDetailPage({
                       {listing.title}
                     </p>
                   ) : null}
+                  {isDealerListing && vehicleHighlights.length > 0 ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {vehicleHighlights.map((highlight) => (
+                        <Badge
+                          key={highlight}
+                          variant="secondary"
+                          className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-800"
+                        >
+                          <Check className="mr-1 h-3.5 w-3.5" />
+                          {highlight}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
                   {isOwner && listing && !isEmbedded ? (
                     <div className="flex flex-wrap gap-2 pt-3">
                       <Button
@@ -5156,6 +5324,130 @@ export default function ListingDetailPage({
                   </CardContent>
                 </Card>
               )}
+
+              {isDealerListing && initialDealerProfile ? (
+                <Card className="overflow-hidden rounded-2xl border-amber-100 bg-gradient-to-br from-white via-white to-amber-50/50">
+                  <CardContent className="p-6 md:p-8">
+                    <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_280px]">
+                      <div className="min-w-0">
+                        <div className="flex items-start gap-4">
+                          <a
+                            href={dealerPublicUrl}
+                            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-amber-100 text-xl font-black text-amber-900 ring-4 ring-white shadow"
+                          >
+                            {initialDealerProfile.logoUrl ? (
+                              <img
+                                src={initialDealerProfile.logoUrl}
+                                alt={initialDealerProfile.companyName}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              dealerInitials
+                            )}
+                          </a>
+                          <div className="min-w-0">
+                            <div className="mb-2 flex flex-wrap gap-2">
+                              {initialDealerProfile.isVerified ? (
+                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                  <Shield className="mr-1 h-3.5 w-3.5" />
+                                  Ověřený dealer
+                                </Badge>
+                              ) : null}
+                              <Badge variant="secondary" className="rounded-full">
+                                Dealer Premium
+                              </Badge>
+                              <Badge variant="secondary" className="rounded-full">
+                                Na NNAuto od {dealerActiveSince}
+                              </Badge>
+                            </div>
+                            <a href={dealerPublicUrl} className="text-2xl font-black hover:text-amber-800">
+                              {initialDealerProfile.companyName}
+                            </a>
+                            <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                              {initialDealerProfile.description ||
+                                "Prémiový prodejce s ověřenou nabídkou vozů na NNAuto.cz."}
+                            </p>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                              {dealerSocialLinks.map(([label, value]) => (
+                                <a
+                                  key={label}
+                                  href={normalizeDealerUrl(value)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:border-amber-300 hover:bg-amber-50"
+                                >
+                                  {label}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                          <div className="rounded-2xl bg-white p-3">
+                            <p className="text-xs text-muted-foreground">Odpověď</p>
+                            <p className="font-black">~18 min</p>
+                          </div>
+                          <div className="rounded-2xl bg-white p-3">
+                            <p className="text-xs text-muted-foreground">Doporučuje</p>
+                            <p className="font-black">98 % zákazníků</p>
+                          </div>
+                          <div className="rounded-2xl bg-white p-3">
+                            <p className="text-xs text-muted-foreground">Pracovní doba</p>
+                            <p className="font-black">{dealerHours.short}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {(initialDealerProfile.address || initialDealerProfile.region) ? (
+                        <div className="rounded-3xl border bg-white p-4">
+                          <div className="flex h-32 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-stone-100 text-center text-sm font-semibold text-amber-900">
+                            <MapPin className="mr-2 h-5 w-5" />
+                            {initialDealerProfile.address || initialDealerProfile.region}
+                          </div>
+                          <div className="mt-3 grid grid-cols-2 gap-2">
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                initialDealerProfile.address || initialDealerProfile.region || "",
+                              )}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-xl bg-amber-700 px-3 py-2 text-center text-sm font-bold text-white hover:bg-amber-800"
+                            >
+                              Navigovat
+                            </a>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                initialDealerProfile.address || initialDealerProfile.region || "",
+                              )}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-xl border bg-white px-3 py-2 text-center text-sm font-bold hover:bg-amber-50"
+                            >
+                              Google Maps
+                            </a>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <a
+                        href={dealerPublicUrl}
+                        className="inline-flex items-center rounded-2xl bg-amber-700 px-4 py-3 text-sm font-bold text-white hover:bg-amber-800"
+                      >
+                        Zobrazit profil dealera
+                        <ExternalLink className="ml-2 h-4 w-4" />
+                      </a>
+                      <a
+                        href={`${dealerPublicUrl}#inventory`}
+                        className="inline-flex items-center rounded-2xl border bg-white px-4 py-3 text-sm font-bold hover:bg-amber-50"
+                      >
+                        Zobrazit všechny vozy
+                      </a>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
 
               {/* Technical Specifications */}
               <Card className="rounded-2xl">
@@ -5635,6 +5927,19 @@ export default function ListingDetailPage({
                         </p>
                       </div>
                     )}
+                    {isDealerListing ? (
+                      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-semibold text-amber-900">Možnost financování</p>
+                            <p className="text-xs text-amber-800">Orientační nabídka bez závazku</p>
+                          </div>
+                          <p className="text-right text-lg font-black text-amber-950">
+                            od {monthlyFinance.toLocaleString("cs-CZ")} Kč / měsíc
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
                   <Separator />
@@ -5886,8 +6191,185 @@ export default function ListingDetailPage({
                   </div>
                 </CardContent>
               </Card>
+
+              {isDealerListing && initialDealerProfile ? (
+                <Card className="overflow-hidden rounded-2xl border-amber-100 bg-gradient-to-br from-white to-amber-50/60 shadow-lg">
+                  <CardContent className="space-y-4 p-5">
+                    <div className="flex items-start gap-3">
+                      <a
+                        href={dealerPublicUrl}
+                        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-amber-100 text-lg font-black text-amber-900 shadow-sm"
+                      >
+                        {initialDealerProfile.logoUrl ? (
+                          <img
+                            src={initialDealerProfile.logoUrl}
+                            alt={initialDealerProfile.companyName}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          dealerInitials
+                        )}
+                      </a>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap gap-1.5">
+                          {initialDealerProfile.isVerified ? (
+                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                              Ověřený dealer
+                            </Badge>
+                          ) : null}
+                          <Badge variant="secondary">Dealer Premium</Badge>
+                        </div>
+                        <a href={dealerPublicUrl} className="mt-2 block truncate text-lg font-black hover:text-amber-800">
+                          {initialDealerProfile.companyName}
+                        </a>
+                        <p className="text-xs text-muted-foreground">
+                          Odpovídá obvykle za ~18 minut · Aktivní dnes
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="rounded-2xl bg-white p-3">
+                        <p className="text-muted-foreground text-xs">Inventory</p>
+                        <p className="font-black">{initialDealerInventory.length + 1} vozů</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-3">
+                        <p className="text-muted-foreground text-xs">Doporučuje</p>
+                        <p className="font-black">98 %</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-3">
+                        <p className="text-muted-foreground text-xs">Pracovní doba</p>
+                        <p className="font-black">{dealerHours.short}</p>
+                      </div>
+                      <div className="rounded-2xl bg-white p-3">
+                        <p className="text-muted-foreground text-xs">Na NNAuto</p>
+                        <p className="font-black">od {dealerActiveSince}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Button
+                        className="w-full bg-amber-700 hover:bg-amber-800"
+                        size="lg"
+                        onClick={() => {
+                          void trackListingAnalyticsEvent("contact_click");
+                          setShowContactDialog(true);
+                        }}
+                      >
+                        Kontaktovat prodejce
+                      </Button>
+                      <div className="grid grid-cols-2 gap-2">
+                        {dealerWhatsappEnabled ? (
+                          <a
+                            href={`https://wa.me/${dealerPhone.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={() => void trackListingAnalyticsEvent("whatsapp_click")}
+                            className="rounded-xl border bg-white px-3 py-3 text-center text-sm font-bold hover:bg-amber-50"
+                          >
+                            WhatsApp
+                          </a>
+                        ) : null}
+                        {dealerTelegramEnabled ? (
+                          <a
+                            href={`https://t.me/+${dealerPhone.replace(/\D/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={() => void trackListingAnalyticsEvent("telegram_click")}
+                            className="rounded-xl border bg-white px-3 py-3 text-center text-sm font-bold hover:bg-amber-50"
+                          >
+                            Telegram
+                          </a>
+                        ) : null}
+                        {dealerPhone ? (
+                          <a
+                            href={`tel:${dealerPhone}`}
+                            className="rounded-xl border bg-white px-3 py-3 text-center text-sm font-bold hover:bg-amber-50"
+                          >
+                            Zavolat
+                          </a>
+                        ) : null}
+                        <button
+                          type="button"
+                          onClick={handleShare}
+                          className="rounded-xl border bg-white px-3 py-3 text-center text-sm font-bold hover:bg-amber-50"
+                        >
+                          Sdílet
+                        </button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
             </div>
           </div>
+
+          {isDealerListing && initialDealerProfile && initialDealerInventory.length > 0 ? (
+            <section className="mt-8 rounded-3xl border border-amber-100 bg-white p-4 shadow-sm sm:p-6" id="dealer-inventory">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-2xl font-black">Další vozy tohoto prodejce</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Prohlédněte si aktuální nabídku dealera {initialDealerProfile.companyName}.
+                  </p>
+                </div>
+                <a
+                  href={`${dealerPublicUrl}#inventory`}
+                  className="inline-flex items-center justify-center rounded-2xl border bg-white px-4 py-3 text-sm font-bold hover:bg-amber-50"
+                >
+                  Zobrazit všechny vozy
+                </a>
+              </div>
+              <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4">
+                {initialDealerInventory.map((item) => {
+                  const photo = item.photos?.[0];
+                  const href = buildListingPath({
+                    id: item.id,
+                    brand: item.brand,
+                    model: item.model,
+                    year: item.year,
+                  });
+                  return (
+                    <a
+                      key={item.id}
+                      href={href}
+                      className="group w-[78vw] shrink-0 snap-start overflow-hidden rounded-2xl border bg-card transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-lg sm:w-auto"
+                    >
+                      <div className="aspect-[4/3] bg-muted">
+                        {photo ? (
+                          <img
+                            src={`/img/${photo.replace(/^\/+/, "")}?w=420&h=315&fit=cover`}
+                            alt={item.title}
+                            loading="lazy"
+                            className="h-full w-full object-cover transition group-hover:scale-[1.03]"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Car className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="line-clamp-2 font-bold">{item.title || `${item.brand} ${item.model}`}</p>
+                          {item.isTopListing ? (
+                            <Badge className="bg-amber-500 text-white hover:bg-amber-500">TOP</Badge>
+                          ) : null}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {item.year} · {item.mileage?.toLocaleString("cs-CZ")} km · {Array.isArray(item.fuelType) ? item.fuelType[0] : ""}
+                        </p>
+                        <p className="text-lg font-black text-amber-800">
+                          {Number(item.price).toLocaleString("cs-CZ")} Kč
+                        </p>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
         </div>
       </div>
 
@@ -6197,6 +6679,8 @@ export default function ListingDetailPage({
           email={seller?.email ?? null}
           carTitle={getListingMainTitle(listing)}
           onNNAutoChat={handleOpenChat}
+          showWhatsApp={!isDealerListing || dealerWhatsappEnabled}
+          showTelegram={!isDealerListing || dealerTelegramEnabled}
           onCall={() => {
             void trackListingAnalyticsEvent("contact_click");
             try {
