@@ -1200,7 +1200,11 @@ export default function EditListingDialog({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className="max-w-3xl max-h-[90vh] overflow-y-auto"
+          // Mobile: dvh accounts for iOS Safari's dynamic toolbar so the
+          // bottom of the dialog stays inside the visible viewport, plus
+          // safe-area-inset-bottom padding so the "Uložit změny" button
+          // never sits under the browser chrome. Desktop is unchanged.
+          className="max-w-3xl max-h-[82dvh] sm:max-h-[90vh] overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]"
           data-testid="dialog-edit-listing"
         >
           <DialogHeader>
@@ -1784,7 +1788,7 @@ export default function EditListingDialog({
                 />
               </div>
 
-              <DialogFooter className="flex flex-col sm:flex-row gap-2">
+              <DialogFooter className="flex flex-col sm:flex-row gap-2 pb-[max(0px,env(safe-area-inset-bottom))]">
                 <Button
                   type="button"
                   variant="destructive"
