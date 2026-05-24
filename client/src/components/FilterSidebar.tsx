@@ -2477,7 +2477,7 @@ import vanIcon from "@assets/4E8B9722-D061-47D3-9C2F-2C8C1070F01B_1763443339270.
 import suvIcon from "@assets/0E073D5C-92A6-4128-9DB1-7736CCDBBB25_1763443580852.png";
 import elektroIcon from "@assets/7BF268AD-E859-4A28-8509-47319F8BCF33_1763450027820.png";
 
-import { brandIcons } from "@/lib/brandIcons";
+import { brandIcons, getBrandIcon } from "@/lib/brandIcons";
 import { bodyTypeIcons } from "@/lib/bodyTypeIcons";
 
 import { PriceRangeInput } from "@/components/PriceRangeInput";
@@ -2630,8 +2630,24 @@ function FilterSidebar() {
 
   const availableModels = useMemo(() => {
     if (!filters.brand) return [];
-    if (catalogModels.length > 0) return catalogModels;
-    return getModelsForVehicleType(filters.brand, filters.vehicleType);
+    const localFiltered = getModelsForVehicleType(
+      filters.brand,
+      filters.vehicleType,
+    );
+    if (catalogModels.length > 0) {
+      // Server endpoint /api/catalog/models returns every model ever
+      // registered for a brand — for mixed brands like BMW that includes
+      // motorcycles. Intersect with the locally vehicle-type-filtered list
+      // so the dropdown only shows the relevant category. Falls back to
+      // the raw server list when nothing intersects (defensive: keeps the
+      // filter usable for brands not present in the local catalogue).
+      const allowed = new Set(localFiltered);
+      const intersected = catalogModels.filter((m) => allowed.has(m));
+      if (intersected.length > 0) return intersected;
+      if (localFiltered.length > 0) return localFiltered;
+      return catalogModels;
+    }
+    return localFiltered;
   }, [catalogModels, filters.brand, filters.vehicleType]);
 
   const trimLevels = useMemo(
@@ -2687,6 +2703,44 @@ function FilterSidebar() {
   };
 
   const handleVehicleTypeToggle = (type: string) => {
+    // Pin the scroll position the user was at BEFORE updating filters.
+    // Without this the page can shift down because:
+    //   (1) clicking a <button> moves focus and the browser may scroll the
+    //       button into view, and
+    //   (2) the listings grid below shrinks/grows when the filter applies,
+    //       which reflows content above the user's viewport.
+    // We snap back for ~500 ms or until the user scrolls themselves.
+    if (typeof window !== "undefined") {
+      const startX = window.scrollX;
+      const startY = window.scrollY;
+      const startedAt = Date.now();
+      const userScrolled = { current: false };
+      const onUserScroll = () => {
+        userScrolled.current = true;
+      };
+      window.addEventListener("wheel", onUserScroll, { passive: true });
+      window.addEventListener("touchmove", onUserScroll, { passive: true });
+      const tick = () => {
+        if (userScrolled.current) {
+          window.removeEventListener("wheel", onUserScroll);
+          window.removeEventListener("touchmove", onUserScroll);
+          return;
+        }
+        if (Date.now() - startedAt > 500) {
+          window.removeEventListener("wheel", onUserScroll);
+          window.removeEventListener("touchmove", onUserScroll);
+          return;
+        }
+        if (
+          Math.abs(window.scrollY - startY) > 4 ||
+          Math.abs(window.scrollX - startX) > 4
+        ) {
+          window.scrollTo({ left: startX, top: startY, behavior: "auto" });
+        }
+        window.requestAnimationFrame(tick);
+      };
+      window.requestAnimationFrame(tick);
+    }
     setFilters((prev) => {
       const currentTypes = splitComma(prev.vehicleType);
       const isAlreadySelected = currentTypes.includes(type);
@@ -2744,7 +2798,7 @@ function FilterSidebar() {
       })
       .map((brand) => ({
         ...brand,
-        icon: brandIcons[brand.value],
+        icon: getBrandIcon(brand.value, brand.label),
       }));
   }, [filters.vehicleType]);
 
@@ -3003,6 +3057,12 @@ function FilterSidebar() {
                     <button
                       key={item.key}
                       type="button"
+                      // Stop the default focus-scroll: clicking a <button>
+                      // ordinarily moves focus to it, and Chrome/Firefox can
+                      // scroll the document so the focused element is in
+                      // view. We don't need keyboard focus on a tile that
+                      // updates filters, so suppress the focus-induced jump.
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => handleVehicleTypeToggle(item.key)}
                       className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
                         selected

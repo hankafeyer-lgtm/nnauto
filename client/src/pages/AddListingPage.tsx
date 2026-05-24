@@ -46,7 +46,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CarPhotoUploader } from "@/components/CarPhotoUploader";
 import { VideoUploader } from "@/components/VideoUploader";
 import { BrandCombobox } from "@/components/BrandCombobox";
-import { brandIcons } from "@/lib/brandIcons";
+import { brandIcons, getBrandIcon } from "@/lib/brandIcons";
 import { ModelCombobox } from "@/components/ModelCombobox";
 import { useModelGenerations } from "@/hooks/useModelGenerations";
 import Header from "@/components/Header";
@@ -1131,7 +1131,7 @@ export default function AddListingPage() {
                                   .map(brand => ({
                                     value: brand.value,
                                     label: brand.label,
-                                    icon: brandIcons[brand.value]
+                                    icon: getBrandIcon(brand.value, brand.label)
                                   }))}
                                 value={field.value}
                                 onValueChange={(value) => {

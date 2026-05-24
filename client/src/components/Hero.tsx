@@ -1880,6 +1880,7 @@ import {
   brandIcons,
   BrandIconEntry,
   BrandIconRenderer,
+  getBrandIcon,
 } from "@/lib/brandIcons";
 
 const NNAUTO_RESET_HOME_FILTERS_EVENT = "nnauto:reset-home-filters";
@@ -2717,12 +2718,21 @@ function Hero() {
     filters.brand,
     filters.model,
   );
-  const availableModels =
-    catalogModels.length > 0
-      ? catalogModels
-      : filters.brand
-        ? getModelsForVehicleType(filters.brand, filters.vehicleType)
-        : [];
+  const availableModels = (() => {
+    if (!filters.brand) return [];
+    const localFiltered = getModelsForVehicleType(
+      filters.brand,
+      filters.vehicleType,
+    );
+    if (catalogModels.length > 0) {
+      const allowed = new Set(localFiltered);
+      const intersected = catalogModels.filter((m) => allowed.has(m));
+      if (intersected.length > 0) return intersected;
+      if (localFiltered.length > 0) return localFiltered;
+      return catalogModels;
+    }
+    return localFiltered;
+  })();
 
   const handleVehicleTypeToggle = (type: string) => {
     const currentVehicleType =
@@ -2806,7 +2816,7 @@ function Hero() {
         })
         .map((brand) => ({
           ...brand,
-          icon: brandIcons[brand.value],
+          icon: getBrandIcon(brand.value, brand.label),
         })),
     [filters.vehicleType],
   );

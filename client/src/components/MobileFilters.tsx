@@ -2713,7 +2713,7 @@ import {
 } from "@/lib/translations";
 
 import { carBrands } from "@shared/carDatabase";
-import { brandIcons } from "@/lib/brandIcons";
+import { brandIcons, getBrandIcon } from "@/lib/brandIcons";
 import { bodyTypeIcons } from "@/lib/bodyTypeIcons";
 
 import { BrandCombobox } from "@/components/BrandCombobox";
@@ -2917,7 +2917,10 @@ function MobileFilters({
   // ✅ Бренди під обрані типи авто (union)
   const filteredBrands = useMemo(() => {
     if (!selectedVehicleTypes.length) {
-      return carBrands.map((b) => ({ ...b, icon: brandIcons[b.value] }));
+      return carBrands.map((b) => ({
+        ...b,
+        icon: getBrandIcon(b.value, b.label),
+      }));
     }
 
     const allowed = new Set<string>();
@@ -2933,7 +2936,10 @@ function MobileFilters({
       ? carBrands.filter((b) => allowed.has(b.value))
       : carBrands;
 
-    return base.map((b) => ({ ...b, icon: brandIcons[b.value] }));
+    return base.map((b) => ({
+      ...b,
+      icon: getBrandIcon(b.value, b.label),
+    }));
   }, [selectedVehicleTypes]);
   const { models: catalogModels } = useBrandModels(filters.brand);
   const { generations: availableGenerations } = useModelGenerations(
@@ -2951,8 +2957,22 @@ function MobileFilters({
 
   const availableModels = useMemo(() => {
     if (!filters.brand) return [];
-    if (catalogModels.length > 0) return catalogModels;
-    return getModelsForVehicleType(filters.brand, filters.vehicleType);
+    const localFiltered = getModelsForVehicleType(
+      filters.brand,
+      filters.vehicleType,
+    );
+    if (catalogModels.length > 0) {
+      // Server catalogue contains every registered model for a brand
+      // (cars + motos for mixed brands). Intersect with vehicleType-aware
+      // local list so motorcycles disappear from the model dropdown when
+      // the user is filtering for cars and vice versa.
+      const allowed = new Set(localFiltered);
+      const intersected = catalogModels.filter((m) => allowed.has(m));
+      if (intersected.length > 0) return intersected;
+      if (localFiltered.length > 0) return localFiltered;
+      return catalogModels;
+    }
+    return localFiltered;
   }, [catalogModels, filters.brand, filters.vehicleType]);
 
   const priceMin = filters.priceMin;

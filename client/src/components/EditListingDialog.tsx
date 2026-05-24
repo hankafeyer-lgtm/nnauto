@@ -786,6 +786,7 @@ import {
   type Listing,
 } from "@shared/schema";
 import { carBrands } from "@shared/carDatabase";
+import { BrandIconRenderer, getBrandIcon } from "@/lib/brandIcons";
 import {
   useTranslation,
   useLocalizedOptions,
@@ -1345,7 +1346,13 @@ export default function EditListingDialog({
                           <SelectContent>
                             {filteredBrands.map((brand) => (
                               <SelectItem key={brand.value} value={brand.value}>
-                                {brand.label}
+                                <span className="inline-flex items-center gap-2">
+                                  <BrandIconRenderer
+                                    icon={getBrandIcon(brand.value, brand.label)}
+                                    className="h-5 w-5 shrink-0 rounded"
+                                  />
+                                  <span>{brand.label}</span>
+                                </span>
                               </SelectItem>
                             ))}
                           </SelectContent>

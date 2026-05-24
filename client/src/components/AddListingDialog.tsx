@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertListingSchema, type InsertListing } from "@shared/schema";
 import { carBrands, carModels } from "@shared/carDatabase";
+import { BrandIconRenderer, getBrandIcon } from "@/lib/brandIcons";
 import {
   useTranslation,
   useLocalizedOptions,
@@ -307,7 +308,13 @@ export default function AddListingDialog({ open, onOpenChange, userId }: AddList
                         <SelectContent>
                           {filteredBrands.map((brand) => (
                             <SelectItem key={brand.value} value={brand.value}>
-                              {brand.label}
+                              <span className="inline-flex items-center gap-2">
+                                <BrandIconRenderer
+                                  icon={getBrandIcon(brand.value, brand.label)}
+                                  className="h-5 w-5 shrink-0 rounded"
+                                />
+                                <span>{brand.label}</span>
+                              </span>
                             </SelectItem>
                           ))}
                         </SelectContent>
