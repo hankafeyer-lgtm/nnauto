@@ -2182,10 +2182,13 @@ function Hero() {
   const fuelTypes = [
     { value: "benzin", label: t("hero.benzin") },
     { value: "diesel", label: t("hero.diesel") },
-    { value: "hybrid", label: t("hero.hybrid") },
-    { value: "electric", label: t("hero.electric") },
     { value: "lpg", label: t("hero.lpg") },
     { value: "cng", label: t("hero.cng") },
+    { value: "electric", label: t("hero.electric") },
+    { value: "hybrid", label: t("hero.hybrid") },
+    { value: "ethanol", label: t("hero.ethanol") },
+    { value: "hydrogen", label: t("hero.hydrogen") },
+    { value: "other", label: t("hero.otherFuel") },
   ];
 
   const transmissionTypes = [

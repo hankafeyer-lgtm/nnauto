@@ -80,7 +80,17 @@ type VinDecodeResponse = {
   make: string | null;
   model: string | null;
   year: number | null;
-  fuelType: "benzin" | "diesel" | "hybrid" | "electric" | "lpg" | "cng" | null;
+  fuelType:
+    | "benzin"
+    | "diesel"
+    | "hybrid"
+    | "electric"
+    | "lpg"
+    | "cng"
+    | "ethanol"
+    | "hydrogen"
+    | "other"
+    | null;
   bodyType:
     | "sedan"
     | "hatchback"
@@ -546,10 +556,13 @@ export default function AddListingPage() {
   const fuelTypes = [
     { value: "benzin", label: t("hero.benzin") },
     { value: "diesel", label: t("hero.diesel") },
-    { value: "hybrid", label: t("hero.hybrid") },
-    { value: "electric", label: t("hero.electric") },
     { value: "lpg", label: t("hero.lpg") },
     { value: "cng", label: t("hero.cng") },
+    { value: "electric", label: t("hero.electric") },
+    { value: "hybrid", label: t("hero.hybrid") },
+    { value: "ethanol", label: t("hero.ethanol") },
+    { value: "hydrogen", label: t("hero.hydrogen") },
+    { value: "other", label: t("hero.otherFuel") },
   ];
 
   const transmissionTypes = [
@@ -1677,10 +1690,13 @@ export default function AddListingPage() {
                                 {[
                                   { label: t("hero.benzin"), key: "benzin" },
                                   { label: t("hero.diesel"), key: "diesel" },
-                                  { label: t("hero.hybrid"), key: "hybrid" },
-                                  { label: t("hero.electric"), key: "electric" },
                                   { label: t("hero.lpg"), key: "lpg" },
-                                  { label: t("hero.cng"), key: "cng" }
+                                  { label: t("hero.cng"), key: "cng" },
+                                  { label: t("hero.electric"), key: "electric" },
+                                  { label: t("hero.hybrid"), key: "hybrid" },
+                                  { label: t("hero.ethanol"), key: "ethanol" },
+                                  { label: t("hero.hydrogen"), key: "hydrogen" },
+                                  { label: t("hero.otherFuel"), key: "other" },
                                 ].map((fuel) => {
                                   const isChecked = (field.value as string[] || []).includes(fuel.key);
                                   return (

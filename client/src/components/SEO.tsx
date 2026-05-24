@@ -151,8 +151,12 @@ export function generateVehicleSchema(listing: {
     diesel: "Diesel",
     hybrid: "HybridElectric",
     elektro: "Electric",
+    electric: "Electric",
     lpg: "NaturalGas",
     cng: "NaturalGas",
+    ethanol: "Ethanol",
+    hydrogen: "Hydrogen",
+    other: "Other",
   };
   const transmissionMap: Record<string, string> = {
     manual: "ManualTransmission",

@@ -3618,10 +3618,13 @@ function MobileFilters({
                       {[
                         { label: t("hero.benzin"), key: "benzin" },
                         { label: t("hero.diesel"), key: "diesel" },
-                        { label: t("hero.hybrid"), key: "hybrid" },
-                        { label: t("hero.electric"), key: "electric" },
                         { label: t("hero.lpg"), key: "lpg" },
                         { label: t("hero.cng"), key: "cng" },
+                        { label: t("hero.electric"), key: "electric" },
+                        { label: t("hero.hybrid"), key: "hybrid" },
+                        { label: t("hero.ethanol"), key: "ethanol" },
+                        { label: t("hero.hydrogen"), key: "hydrogen" },
+                        { label: t("hero.otherFuel"), key: "other" },
                       ].map((fuel) => {
                         const checked = splitComma(filters.fuel).includes(
                           fuel.key,

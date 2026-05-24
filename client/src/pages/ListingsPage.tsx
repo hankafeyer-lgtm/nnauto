@@ -4310,6 +4310,9 @@ export default function ListingsPage() {
       electric: t("hero.electric"),
       lpg: t("hero.lpg"),
       cng: t("hero.cng"),
+      ethanol: t("hero.ethanol"),
+      hydrogen: t("hero.hydrogen"),
+      other: t("hero.otherFuel"),
     }),
     [t, language],
   );
