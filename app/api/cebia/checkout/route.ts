@@ -89,7 +89,11 @@ export async function POST(req: NextRequest) {
     }
 
     const baseUrl = getBaseUrl(req);
-    const successPath = `/listing/${listingId}`;
+    // Always return to the dedicated /cebia/return page that actively
+    // resolves the report, polls Cebia, and delivers the PDF. The previous
+    // "back to listing" behaviour just showed a toast and dropped the
+    // user without a PDF, so paid users never received their report.
+    const successPath = `/cebia/return`;
     const cancelPath = `/listing/${listingId}`;
 
     const session = await stripe.checkout.sessions.create({

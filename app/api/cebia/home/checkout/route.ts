@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${baseUrl}/?cebia=success&session_id={CHECKOUT_SESSION_ID}&report_id=${encodeURIComponent(report.id)}`,
+      success_url: `${baseUrl}/cebia/return?cebia=success&session_id={CHECKOUT_SESSION_ID}&report_id=${encodeURIComponent(report.id)}`,
       cancel_url: `${baseUrl}/?cebia=cancelled`,
       metadata: {
         type: "cebia_pdf_autotracer",

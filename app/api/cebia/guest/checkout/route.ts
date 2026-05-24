@@ -90,7 +90,10 @@ export async function POST(req: NextRequest) {
     }
 
     const baseUrl = getBaseUrl(req);
-    const successPath = `/listing/${listingId}`;
+    // Same fix as cebia/checkout: always return to /cebia/return so the
+    // PDF is actually fetched and handed to the buyer; sending them back
+    // to the listing only fired a toast and stranded them without a report.
+    const successPath = `/cebia/return`;
     const cancelPath = `/listing/${listingId}`;
 
     const session = await stripe.checkout.sessions.create({

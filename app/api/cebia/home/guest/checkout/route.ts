@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${baseUrl}/?cebia=success&session_id={CHECKOUT_SESSION_ID}&report_id=${encodeURIComponent(report.id)}`,
+      success_url: `${baseUrl}/cebia/return?cebia=success&session_id={CHECKOUT_SESSION_ID}&report_id=${encodeURIComponent(report.id)}`,
       cancel_url: `${baseUrl}/?cebia=cancelled`,
       client_reference_id: report.id,
       metadata: {
