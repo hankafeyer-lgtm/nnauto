@@ -100,7 +100,7 @@ export const metadata: Metadata = {
     // env var on the server (Hetzner) once a token is generated in GSC.
     // When unset, no Google verification meta tag is emitted.
     google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
-    other: { "seznam-wmt": "WkCNQahMGCRUBmv80uXiNuqygYhEcbCm" },
+    other: { "seznam-wmt": "5DIH0UhkjhdZ3TA11ic0kBordkvfjcpH" },
   },
   other: {
     googlebot: "index, follow",
