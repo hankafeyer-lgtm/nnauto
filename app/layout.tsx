@@ -23,6 +23,10 @@ const poppins = Poppins({
   preload: true,
 });
 
+/** Seznam Webmaster domain verification (reporter.seznam.cz). */
+const SEZNAM_WMT_VERIFICATION =
+  process.env.SEZNAM_WMT_VERIFICATION ?? "5DIH0UhkjhdZ3TA11ic0kBordkvfjcpH";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://nnauto.cz"),
   title: {
@@ -100,7 +104,7 @@ export const metadata: Metadata = {
     // env var on the server (Hetzner) once a token is generated in GSC.
     // When unset, no Google verification meta tag is emitted.
     google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
-    other: { "seznam-wmt": "5DIH0UhkjhdZ3TA11ic0kBordkvfjcpH" },
+    other: { "seznam-wmt": SEZNAM_WMT_VERIFICATION },
   },
   other: {
     googlebot: "index, follow",
@@ -129,6 +133,7 @@ export default function RootLayout({
   return (
     <html lang="cs-CZ" className={poppins.variable} suppressHydrationWarning>
       <head>
+        <meta name="seznam-wmt" content={SEZNAM_WMT_VERIFICATION} />
         <link
           rel="preconnect"
           href="https://pub-d325306cbf594d02a62f39fb6a92a0fd.r2.dev"
