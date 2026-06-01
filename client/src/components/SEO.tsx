@@ -314,7 +314,7 @@ export function generateOrganizationSchema() {
     "@type": "Organization",
     name: "NNAuto",
     url: baseUrl,
-    logo: `${baseUrl}/og-image.png`,
+    logo: `${baseUrl}/logo-512.png`,
   };
 }
 

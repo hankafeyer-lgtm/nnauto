@@ -122,9 +122,9 @@ export function buildOrganizationJsonLd() {
     url: SITE_ORIGIN,
     logo: {
       "@type": "ImageObject",
-      url: `${SITE_ORIGIN}/og-image.png`,
-      width: 1200,
-      height: 630,
+      url: `${SITE_ORIGIN}/logo-512.png`,
+      width: 512,
+      height: 512,
     },
     description:
       "NNAuto je online autobazar v České republice s ověřenými inzeráty osobních aut, motocyklů a nákladních vozidel.",
