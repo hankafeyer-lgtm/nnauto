@@ -301,7 +301,7 @@ function CarCard({
     didPrefetchRef.current = true;
     const runNetworkWarmup = () => {
       prefetchListing(id);
-      prefetchListingDocument(id);
+      prefetchListingDocument(id, { brand, model, year });
       warmListingFrame(id);
     };
     const idleApi = window as Window & {
@@ -323,7 +323,7 @@ function CarCard({
     if (didPrefetchRef.current) return;
     didPrefetchRef.current = true;
     prefetchListing(id);
-    prefetchListingDocument(id);
+    prefetchListingDocument(id, { brand, model, year });
     warmListingFrame(id);
   }, [id]);
 

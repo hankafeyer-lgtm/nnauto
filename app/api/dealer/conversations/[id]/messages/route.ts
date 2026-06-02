@@ -13,6 +13,7 @@ import {
   renderDealerEmailHtml,
   renderDealerEmailText,
 } from "@lib/messaging";
+import { buildListingUrl } from "@lib/seo/listing-url";
 
 /**
  * GET — full message timeline for a conversation. Marks all client-sent
@@ -99,7 +100,12 @@ export async function POST(
       const subject = `Re: ${listing?.title || "Inzerát"} | NNAuto.cz`;
       const replyTo = buildReplyToAlias(conv.id) || undefined;
       const listingUrl = listing
-        ? `${getPublicOrigin()}/listing/${listing.id}`
+        ? `${getPublicOrigin()}${buildListingUrl({
+            id: listing.id,
+            brand: listing.brand,
+            model: listing.model,
+            year: listing.year,
+          })}`
         : undefined;
 
       // Format the price once (CZK) so both HTML and plain-text variants

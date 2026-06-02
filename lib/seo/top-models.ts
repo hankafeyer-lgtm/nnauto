@@ -89,7 +89,7 @@ export function getTopModelLinks(): TopModelLink[] {
     const modelDisplay = formatModelDisplay(modelRaw);
     return {
       slug,
-      href: `/${slug}-prodej`,
+      href: `/auta/${normalizeSlug(brandRaw)}/${normalizeSlug(modelRaw)}`,
       label: `${brandDisplay} ${modelDisplay}`,
     };
   });

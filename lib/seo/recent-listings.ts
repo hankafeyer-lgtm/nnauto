@@ -10,6 +10,7 @@ export async function getRecentActiveListings(limit: number) {
       title: listings.title,
       brand: listings.brand,
       model: listings.model,
+      year: listings.year,
       updatedAt: listings.updatedAt,
       createdAt: listings.createdAt,
     })

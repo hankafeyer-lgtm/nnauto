@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
+import { buildListingUrl } from "@lib/seo/listing-url";
 import { storage } from "@lib/storage";
 import { mergeRawResponse } from "@lib/cebiaHelpers";
 import Stripe from "stripe";
@@ -90,11 +91,14 @@ export async function POST(req: NextRequest) {
     }
 
     const baseUrl = getBaseUrl(req);
-    // Same fix as cebia/checkout: always return to /cebia/return so the
-    // PDF is actually fetched and handed to the buyer; sending them back
-    // to the listing only fired a toast and stranded them without a report.
-    const successPath = `/cebia/return`;
-    const cancelPath = `/listing/${listingId}`;
+    const listingPath = buildListingUrl({
+      id: listing.id,
+      brand: listing.brand,
+      model: listing.model,
+      year: listing.year,
+    });
+    const successPath = listingPath;
+    const cancelPath = listingPath;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],

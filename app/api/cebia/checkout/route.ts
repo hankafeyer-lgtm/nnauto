@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
+import { buildListingUrl } from "@lib/seo/listing-url";
 import { storage } from "@lib/storage";
 import Stripe from "stripe";
 
@@ -94,7 +95,12 @@ export async function POST(req: NextRequest) {
     // "back to listing" behaviour just showed a toast and dropped the
     // user without a PDF, so paid users never received their report.
     const successPath = `/cebia/return`;
-    const cancelPath = `/listing/${listingId}`;
+    const cancelPath = buildListingUrl({
+      id: listing.id,
+      brand: listing.brand,
+      model: listing.model,
+      year: listing.year,
+    });
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],

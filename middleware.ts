@@ -1,7 +1,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { buildListingUrl } from "@lib/seo/listing-url";
 import { rateLimitAllow } from "@lib/rateLimitMemory";
 import { securityLog } from "@lib/securityLog";
+
+const LEGACY_LISTING_PATH = /^\/listing\/([^/]+)\/?$/;
 
 function clientIp(req: NextRequest) {
   return (
@@ -11,13 +14,52 @@ function clientIp(req: NextRequest) {
   );
 }
 
-export function middleware(req: NextRequest) {
-  if (!req.nextUrl.pathname.startsWith("/api/")) {
+export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+
+  // SEO: legacy /listing/{id} → canonical /auta/… as HTTP 301 (Next
+  // permanentRedirect() emits 308). Skip iframe embeds (`embedded=1`).
+  const legacyListing = pathname.match(LEGACY_LISTING_PATH);
+  if (legacyListing && req.nextUrl.searchParams.get("embedded") !== "1") {
+    const listingId = legacyListing[1];
+    try {
+      const apiUrl = new URL(
+        `/api/listings/${encodeURIComponent(listingId)}`,
+        req.url,
+      );
+      const res = await fetch(apiUrl, {
+        headers: { cookie: req.headers.get("cookie") ?? "" },
+      });
+      if (res.ok) {
+        const listing = (await res.json()) as {
+          id: string;
+          brand?: string | null;
+          model?: string | null;
+          year?: number | null;
+        };
+        const destPath = buildListingUrl({
+          id: listing.id,
+          brand: listing.brand,
+          model: listing.model,
+          year: listing.year,
+        });
+        const dest = new URL(destPath, req.url);
+        req.nextUrl.searchParams.forEach((value, key) => {
+          if (key !== "embedded") dest.searchParams.set(key, value);
+        });
+        return NextResponse.redirect(dest, 301);
+      }
+    } catch {
+      // Fall through to page handler (404 / embed).
+    }
+  }
+
+  if (!pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 
   const ip = clientIp(req);
-  const path = req.nextUrl.pathname;
+  const path = pathname;
   const method = req.method;
 
   if (path === "/api/login" && method === "POST") {
@@ -61,4 +103,6 @@ export function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/api/:path*"] };
+export const config = {
+  matcher: ["/listing/:id*", "/api/:path*"],
+};

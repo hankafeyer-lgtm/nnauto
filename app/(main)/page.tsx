@@ -158,7 +158,7 @@ export default async function Home() {
               return (
                 <li key={`${brandSlug}-${modelSlug}`}>
                   <a
-                    href={`/${brandSlug}-${modelSlug}-prodej`}
+                    href={`/auta/${brandSlug}/${modelSlug}`}
                     className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
                   >
                     <span className="truncate font-medium">

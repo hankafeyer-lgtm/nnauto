@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { buildListingPath } from "@/lib/listingUrl";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -168,10 +169,16 @@ export function warmListingFrame(_id: string) {
   // Navigation is fast enough with API prefetch + link rel=prefetch alone.
 }
 
-export function prefetchListingDocument(id: string) {
+export function prefetchListingDocument(
+  id: string,
+  meta?: { brand?: string | null; model?: string | null; year?: number | null },
+) {
   if (typeof window === "undefined") return;
   if (!id || !canPrefetchHeavyResources()) return;
-  const url = `/listing/${id}`;
+  const url =
+    meta?.brand && meta?.model
+      ? buildListingPath({ id, brand: meta.brand, model: meta.model, year: meta.year })
+      : `/listing/${id}`;
 
   if (prefetchedListingDocLinks.has(url)) return;
   prefetchedListingDocLinks.add(url);

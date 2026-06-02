@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { SITE_ORIGIN } from "@lib/seo/constants";
+import { buildListingUrl } from "@lib/seo/listing-url";
 import { getRecentActiveListings } from "@lib/seo/recent-listings";
 
 export const revalidate = 300;
@@ -23,7 +24,12 @@ export async function GET() {
   const channelLink = `${SITE_ORIGIN}/listings`;
   const items = rows
     .map((row) => {
-      const link = `${SITE_ORIGIN}/listing/${row.id}`;
+      const link = `${SITE_ORIGIN}${buildListingUrl({
+        id: row.id,
+        brand: row.brand,
+        model: row.model,
+        year: row.year,
+      })}`;
       const title = escapeXml(row.title || `${row.brand} ${row.model}`.trim());
       const when = row.updatedAt ?? row.createdAt ?? new Date();
       return `    <item>

@@ -123,15 +123,13 @@ export function parseProdejSlug(slug: string): ProdejSlugParsed | null {
 
   const normBrand = normalizeSlug(brandSlug);
   const normModel = normalizeSlug(modelSlug);
-  const canonicalParts = [normBrand, normModel];
-  if (filter) canonicalParts.push(filter.value);
 
   return {
     brandSlug: normBrand,
     modelSlug: normModel,
     brandDisplay: formatBrandDisplay(brandSlug),
     modelDisplay: formatModelDisplay(modelSlug),
-    canonical: `${SITE_ORIGIN}/prodej/${canonicalParts.join("-")}`,
+    canonical: `${SITE_ORIGIN}/auta/${normBrand}/${normModel}`,
     filter,
   };
 }

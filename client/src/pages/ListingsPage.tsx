@@ -3014,6 +3014,7 @@ import hatchbackImage from "@assets/generated_images/Featured_car_hatchback_89d0
 import truckImage from "@assets/generated_images/Featured_car_truck_55bea7bf.png";
 import { getListingMainTitle } from "@/lib/listingTitle";
 import { buildListingPath } from "@/lib/listingUrl";
+import { listingsSeoFromSearch } from "@lib/seo/listings-metadata";
 import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
 
@@ -4513,6 +4514,11 @@ export default function ListingsPage() {
         )
       : undefined;
 
+  const listingsSeo = useMemo(
+    () => listingsSeoFromSearch(searchString),
+    [searchString],
+  );
+
   return (
     <div className="min-h-screen flex flex-col">
       <SEO
@@ -4524,7 +4530,8 @@ export default function ListingsPage() {
         keywords={
           seoKeywords[language as keyof typeof seoKeywords] || seoKeywords.cs
         }
-        url="https://nnauto.cz/listings"
+        url={listingsSeo.canonical}
+        noindex={listingsSeo.noindex}
         locale={
           language === "cs"
             ? "cs_CZ"
@@ -4534,15 +4541,7 @@ export default function ListingsPage() {
                 ? "de_DE"
                 : "en_US"
         }
-        alternateLanguages={[
-          { lang: "cs", url: "https://nnauto.cz/listings" },
-          { lang: "uk", url: "https://nnauto.cz/listings?lang=uk" },
-          { lang: "en", url: "https://nnauto.cz/listings?lang=en" },
-          { lang: "de", url: "https://nnauto.cz/listings?lang=de" },
-        ]}
-        structuredData={listingsSchema}
-        prevPage={currentPage > 1 ? `https://nnauto.cz/listings?page=${currentPage - 1}` : undefined}
-        nextPage={currentPage < totalPages ? `https://nnauto.cz/listings?page=${currentPage + 1}` : undefined}
+        structuredData={listingsSeo.noindex ? undefined : listingsSchema}
       />
 
       <Header />

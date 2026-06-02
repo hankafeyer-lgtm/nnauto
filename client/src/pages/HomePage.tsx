@@ -3220,12 +3220,6 @@ export default function HomePage() {
                 ? "de_DE"
                 : "en_US"
         }
-        alternateLanguages={[
-          { lang: "cs", url: "https://nnauto.cz/" },
-          { lang: "uk", url: "https://nnauto.cz/?lang=uk" },
-          { lang: "en", url: "https://nnauto.cz/?lang=en" },
-          { lang: "de", url: "https://nnauto.cz/?lang=de" },
-        ]}
         structuredData={{
           "@context": "https://schema.org",
           "@graph": [organizationSchema, websiteSchema],

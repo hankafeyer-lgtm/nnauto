@@ -70,14 +70,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `Prohlédněte si nabídku vozů ${bm} ${filter.display} na prodej. Aktuální inzeráty ${filter.type === "fuel" ? `s palivem ${filter.display}` : filter.type === "transmission" ? `s převodovkou ${filter.display}` : filter.type === "body" ? `v karosérii ${filter.display}` : `rok ${filter.display}`} na NNAuto.cz.`
     : `Prohlédněte si nabídku vozů ${bm} na prodej. Ověřená auta, aktuální nabídky a jednoduchý výběr na NNAuto.cz. Filtrujte podle roku, ceny a najetých km.`;
 
-  const total = await countListings(parsed.brandSlug, parsed.modelSlug, filter);
-  const shouldIndex = total >= 2;
+  await countListings(parsed.brandSlug, parsed.modelSlug, filter);
 
   return {
     title,
     description,
     alternates: { canonical },
-    robots: shouldIndex ? { index: true, follow: true } : { index: false, follow: true },
+    robots: { index: false, follow: true },
     openGraph: {
       title,
       description,

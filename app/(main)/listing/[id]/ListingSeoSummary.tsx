@@ -158,7 +158,7 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
       <nav aria-label="Interní odkazy">
         <a href={`/auta/${brandSlug}`}>{listing.brand} – všechny modely</a>
         <a href={`/auta/${brandSlug}/${modelSlug}`}>{listing.brand} {listing.model} – inzeráty</a>
-        <a href={`/${brandSlug}-${modelSlug}-prodej`}>{listing.brand} {listing.model} na prodej</a>
+        <a href={`/auta/${brandSlug}/${modelSlug}`}>{listing.brand} {listing.model} na prodej</a>
       </nav>
     </section>
   );

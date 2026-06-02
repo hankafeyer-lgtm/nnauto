@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import Script from "next/script";
+import WebVitalsReporter from "@/components/WebVitalsReporter";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -39,13 +40,6 @@ export const metadata: Metadata = {
     "prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, nákladní vozy, autobazar, Česká republika, NNAuto, prémiový marketplace, auto inzerce, авто базар Чехія, car marketplace Czech Republic",
   authors: [{ name: "NNAuto" }],
   alternates: {
-    languages: {
-      cs: "/",
-      uk: "/?lang=uk",
-      en: "/?lang=en",
-      de: "/?lang=de",
-      "x-default": "/",
-    },
     types: {
       "application/rss+xml": "/feed.xml",
     },
@@ -58,7 +52,6 @@ export const metadata: Metadata = {
       "Najděte své vysněné auto na NNAuto. Tisíce ověřených inzerátů osobních aut, motocyklů a nákladních vozidel. Prémiová kvalita, snadné vyhledávání.",
     siteName: "NNAuto",
     locale: "cs_CZ",
-    alternateLocale: ["uk_UA", "en_US", "de_DE"],
     images: [
       {
         url: "/og-image.png",
@@ -328,6 +321,7 @@ export default function RootLayout({
             `,
           }}
         />
+        <WebVitalsReporter />
         {children}
         {/* Landing attribution capture — runs as the very first analytics step
             so UTM/click-id parameters are persisted before any history.replaceState

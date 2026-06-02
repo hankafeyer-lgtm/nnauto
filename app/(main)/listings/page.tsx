@@ -4,7 +4,9 @@ import { getRecentActiveListings } from "@lib/seo/recent-listings";
 import { buildListingIndexItemListJsonLd } from "@lib/seo/structured-data";
 import { formatBrandDisplay } from "@lib/seo/brand-format";
 import { SITE_ORIGIN } from "@lib/seo/constants";
+import { buildListingsPageMetadata } from "@lib/seo/listings-metadata";
 import ListingsClient from "./listings-client";
+import ListingsServerPreview from "./listings-server-preview";
 
 const POPULAR_BRANDS = [
   "bmw",
@@ -25,11 +27,8 @@ const LISTINGS_DESCRIPTION =
   "Prohlédněte si aktuální nabídku osobních aut, motocyklů a nákladních vozidel na NNAuto. Ověřené inzeráty od soukromých prodejců i autobazarů. Filtrujte podle značky, modelu, roku výroby, ceny, najetých kilometrů a regionu. Kontaktujte prodejce přímo.";
 
 /**
- * /listings supports filtering via search params. The plain /listings (no
- * brand+model) and /listings?brand=X (brand only) remain indexable. The
- * combination /listings?brand=X&model=Y is canonicalized to the SEO landing
- * /auta/X/Y, so we mark the filter view as `noindex,follow` to avoid
- * duplicate-content. Visible UI and filter behaviour stay unchanged.
+ * Plain /listings is indexable. Any /listings?… filter URL is noindex,follow
+ * with canonical to /listings or the matching /auta/… SEO cluster.
  */
 export async function generateMetadata({
   searchParams,
@@ -37,22 +36,16 @@ export async function generateMetadata({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }): Promise<Metadata> {
   const params = await searchParams;
-  const brandParam = Array.isArray(params.brand) ? params.brand[0] : params.brand;
-  const modelParam = Array.isArray(params.model) ? params.model[0] : params.model;
-  const hasBrandAndModel = Boolean(brandParam) && Boolean(modelParam);
 
-  return {
+  return buildListingsPageMetadata(params, {
     title: LISTINGS_TITLE,
     description: LISTINGS_DESCRIPTION,
-    robots: hasBrandAndModel
-      ? { index: false, follow: true }
-      : { index: true, follow: true },
     openGraph: {
       title: LISTINGS_TITLE,
       description: LISTINGS_DESCRIPTION,
-      url: "https://nnauto.cz/listings",
+      url: `${SITE_ORIGIN}/listings`,
       siteName: "NNAuto",
-      images: [{ url: "https://nnauto.cz/og-image.png", width: 1200, height: 630 }],
+      images: [{ url: `${SITE_ORIGIN}/og-image.png`, width: 1200, height: 630 }],
       locale: "cs_CZ",
       type: "website",
     },
@@ -60,10 +53,9 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: LISTINGS_TITLE,
       description: LISTINGS_DESCRIPTION,
-      images: ["https://nnauto.cz/og-image.png"],
+      images: [`${SITE_ORIGIN}/og-image.png`],
     },
-    alternates: { canonical: "https://nnauto.cz/listings" },
-  };
+  });
 }
 
 const LISTING_INDEX_JSONLD_COUNT = 80;
@@ -100,6 +92,7 @@ export default async function Listings() {
       <JsonLd data={breadcrumbJsonLd} />
       {/* SEO H1 — kept visually hidden so the catalog UI is untouched. */}
       <h1 className="sr-only">Inzeráty vozidel v České republice</h1>
+      <ListingsServerPreview />
       <ListingsClient />
 
       {/* Visible SEO content + brand internal links — placed below the catalog.

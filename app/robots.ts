@@ -16,13 +16,11 @@ const DISALLOW_COMMON = [
   "/en/",
   "/de",
   "/de/",
+  "/listings?",
   "/*.json$",
 ];
 
-// Explicit allow list for SEO-important sections. Google ignores unknown
-// directives; adding explicit allows keeps intent documented and removes any
-// ambiguity with pattern-based disallows further down.
-const PRIMARY_ALLOW = ["/", "/listings", "/listing/", "/auta/"];
+const PRIMARY_ALLOW = ["/", "/listings", "/listing/", "/auta/", "/prodej/"];
 
 const MAIN_BOT_DISALLOW = [
   "/api/",
@@ -30,14 +28,14 @@ const MAIN_BOT_DISALLOW = [
   "/admin/*",
   "/profile",
   "/settings",
+  "/add-listing",
+  "/listings?",
 ];
 
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       {
-        // Default policy for everyone. Crawl-delay is kept modest (not 1)
-        // because Google/Bing ignore it and large values only hurt Seznam/Yandex.
         userAgent: "*",
         allow: PRIMARY_ALLOW,
         disallow: DISALLOW_COMMON,

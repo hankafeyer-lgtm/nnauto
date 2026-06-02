@@ -67,11 +67,11 @@ function Footer() {
                 </li>
               ))}
               {[
-                { label: "Škoda Octavia", href: "/skoda-octavia-prodej" },
-                { label: "BMW X5", href: "/bmw-x5-prodej" },
-                { label: "Audi A4", href: "/audi-a4-prodej" },
-                { label: "VW Passat", href: "/volkswagen-passat-prodej" },
-                { label: "Mercedes C", href: "/mercedes-benz-c-class-prodej" },
+                { label: "Škoda Octavia", href: "/auta/skoda/octavia" },
+                { label: "BMW X5", href: "/auta/bmw/x5" },
+                { label: "Audi A4", href: "/auta/audi/a4" },
+                { label: "VW Passat", href: "/auta/volkswagen/passat" },
+                { label: "Mercedes C", href: "/auta/mercedes-benz/c-class" },
               ].map((m) => (
                 <li key={m.href}>
                   <a

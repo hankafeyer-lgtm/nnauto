@@ -493,7 +493,7 @@ export default async function BrandLandingPage({ params }: Props) {
               {dedupedModels.map((m) => (
                 <li key={m.slug}>
                   <a
-                    href={`/${brandSlug}-${m.slug}-prodej`}
+                    href={`/auta/${brandSlug}/${m.slug}`}
                     className="flex items-center justify-between rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
                   >
                     <span className="truncate font-medium">

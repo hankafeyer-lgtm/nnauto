@@ -33,9 +33,6 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const ENABLE_LEGACY_LISTING_REDIRECT =
-  process.env.ENABLE_LEGACY_LISTING_REDIRECT !== "false";
-
 function appendSearchParams(
   pathname: string,
   searchParams: Record<string, string | string[] | undefined>,
@@ -70,13 +67,8 @@ export default async function ListingDetail({ params, searchParams }: Props) {
 
   if (!listing) return renderListingNotFound();
 
-  // Optional redirect switch for migration rollout:
-  // - OFF by default (canonical-first remains active)
-  // - ON in preview/staging when we want to test hard redirects
-  // Keep ALL iframe embeds on legacy URL to avoid breaking parent integrations,
-  // including unknown third-party iframe consumers that may not add
-  // `embedded=1`.
-  if (ENABLE_LEGACY_LISTING_REDIRECT && !isEmbedded) {
+  // Permanent 301 to the canonical SEO URL. Iframe embeds keep the legacy URL.
+  if (!isEmbedded) {
     const nextPath = buildListingUrl({
       id: listing.id,
       brand: listing.brand,

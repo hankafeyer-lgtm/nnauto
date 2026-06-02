@@ -40,9 +40,8 @@ test("listing detail HTML when API returns an id", async ({ request }) => {
     test.skip(true, "no listings in database");
     return;
   }
-  const res = await request.get(`/listing/${id}`);
-  expect(res.status()).toBeLessThan(500);
-  const body = await res.text();
-  expect(body.toLowerCase()).toContain("<html");
-  expect(body).not.toMatch(/internal server error/i);
+  const res = await request.get(`/listing/${id}`, { maxRedirects: 0 });
+  expect(res.status()).toBe(301);
+  const location = res.headers()["location"] || "";
+  expect(location).toMatch(/\/auta\//);
 });
