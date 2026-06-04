@@ -217,32 +217,29 @@ function InboxSummaryBar({
   loading: boolean;
 }) {
   const t = useTranslation();
-  const total = conversations.length;
   const unread = conversations.reduce((sum, c) => sum + (c.unreadDealerCount || 0), 0);
+  const fresh = conversations.filter((c) => c.status === "new").length;
   const active = conversations.filter((c) => c.status !== "closed").length;
-  const emailLeads = conversations.filter((c) => c.clientEmail || c.source === "email").length;
 
   const stats = [
-    { label: t("messages.summary.total"), value: total, Icon: Inbox },
-    { label: t("messages.summary.unread"), value: unread, Icon: Bell },
-    { label: t("messages.summary.active"), value: active, Icon: MessageCircle },
-    { label: t("messages.summary.email"), value: emailLeads, Icon: Mail },
+    { label: t("messages.summary.newMessages"), value: Math.max(fresh, unread), Icon: Bell },
+    { label: t("messages.summary.activeRequests"), value: active, Icon: MessageCircle },
   ];
 
   return (
-    <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+    <div className="mb-3 grid grid-cols-2 overflow-hidden rounded-3xl border border-amber-100 bg-white/90 shadow-[0_12px_34px_rgba(120,72,12,0.08)]">
       {stats.map(({ label, value, Icon }) => (
         <div
           key={label}
-          className="rounded-3xl border border-amber-100 bg-white/90 p-3 shadow-[0_12px_34px_rgba(120,72,12,0.08)] sm:p-3.5"
+          className="border-r border-amber-100 p-2.5 last:border-r-0 sm:p-3"
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#fff4d8] text-[#7a5518] sm:h-10 sm:w-10">
-              <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+          <div className="flex flex-col items-center gap-1 text-center sm:flex-row sm:text-left">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#fff4d8] text-[#7a5518]">
+              <Icon className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-              <p className="text-xl font-black text-[#5c3b10] sm:text-2xl">
+            <div className="min-w-0">
+              <p className="truncate text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:text-xs">{label}</p>
+              <p className="text-lg font-black leading-tight text-[#5c3b10] sm:text-xl">
                 {loading ? "…" : value}
               </p>
             </div>

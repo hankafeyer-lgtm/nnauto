@@ -753,18 +753,20 @@ function DealerHero({
   t,
   onOpenMessages,
   onProfileTask,
-  onPreviewProfile,
-  onShareProfile,
+  onAddVehicle,
 }: {
   dealer: Dealer;
   stats: DealerStats;
   t: (key: string) => string;
   onOpenMessages: () => void;
   onProfileTask: (target: SettingsTarget) => void;
-  onPreviewProfile: () => void;
-  onShareProfile: () => void;
+  onAddVehicle: () => void;
 }) {
-  const completion = getProfileCompletion(dealer, t);
+  const visibleInventoryCount = Math.max(
+    stats.activeListings,
+    stats.perListing.length,
+    stats.totalListings,
+  );
   const initials = dealer.companyName
     .split(/\s+/)
     .filter(Boolean)
@@ -772,7 +774,6 @@ function DealerHero({
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
-  const remaining = Math.max(0, dealer.maxListings - stats.activeListings);
   const stat = (
     label: string,
     value: React.ReactNode,
@@ -783,12 +784,12 @@ function DealerHero({
       <Element
         type={onClick ? "button" : undefined}
         onClick={onClick}
-        className={`flex flex-col items-start rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-left ${
-          onClick ? "transition hover:bg-white/10" : ""
+        className={`flex min-w-0 flex-col items-start rounded-xl bg-white/55 px-2.5 py-1.5 text-left ring-1 ring-amber-200/70 ${
+          onClick ? "transition hover:bg-white/75" : ""
         }`}
       >
-        <span className="text-base font-black leading-none sm:text-lg">{value}</span>
-        <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-amber-100/70">
+        <span className="text-base font-black leading-none text-[#4b2d08] sm:text-lg">{value}</span>
+        <span className="mt-0.5 truncate text-[9px] font-semibold uppercase tracking-wide text-[#8a641f]">
           {label}
         </span>
       </Element>
@@ -796,14 +797,14 @@ function DealerHero({
   };
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-amber-200/70 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.22),transparent_38%),linear-gradient(135deg,#1f1408_0%,#3d260c_45%,#8a5a14_100%)] px-3 py-3 text-white shadow-[0_18px_55px_rgba(120,72,12,0.18)] sm:px-5 sm:py-4">
-      <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-white/8 blur-3xl" />
+    <section className="relative overflow-hidden rounded-3xl border border-amber-200/70 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.22),transparent_36%),linear-gradient(135deg,#fff8e8_0%,#f8e8bd_52%,#d59d3f_100%)] px-3 py-3 text-[#4b2d08] shadow-[0_14px_38px_rgba(120,72,12,0.12)] sm:px-4">
+      <div className="absolute -right-16 -top-16 h-36 w-36 rounded-full bg-white/60 blur-3xl" />
 
-      <div className="relative grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-center">
-        <div className="flex min-w-0 gap-3">
+      <div className="relative flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 gap-2.5">
           <button
             type="button"
-            className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-white/15 text-left shadow-lg transition hover:scale-[1.03] hover:border-amber-200 sm:h-14 sm:w-14"
+            className="group relative h-10 w-10 shrink-0 overflow-hidden rounded-2xl border border-white/70 bg-white/65 text-left shadow-sm transition hover:scale-[1.03] hover:border-amber-300 sm:h-12 sm:w-12"
             onClick={() => onProfileTask("branding")}
             aria-label={t("dealer.premium.editLogo")}
           >
@@ -815,7 +816,7 @@ function DealerHero({
                 loading="lazy"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-base font-black tracking-tight sm:text-lg">
+              <div className="flex h-full w-full items-center justify-center text-sm font-black tracking-tight sm:text-base">
                 {initials || "NN"}
               </div>
             )}
@@ -823,108 +824,249 @@ function DealerHero({
 
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <h1 className="truncate text-lg font-black tracking-tight sm:text-2xl">
+              <h1 className="truncate text-base font-black tracking-tight sm:text-xl">
                 {dealer.companyName}
               </h1>
-              <Badge className="h-5 rounded-md border-white/20 bg-amber-300/20 px-1.5 text-[10px] font-bold text-amber-100 hover:bg-amber-300/25">
-                <Crown className="mr-1 h-3 w-3 text-amber-200" />
+              <Badge className="h-5 rounded-md border-amber-200 bg-white/70 px-1.5 text-[10px] font-bold text-[#7a5518] hover:bg-white/80">
+                <Crown className="mr-1 h-3 w-3 text-amber-700" />
                 {t("dealer.premium.planTop")}
               </Badge>
-              <Badge
-                className={`h-5 rounded-md px-1.5 text-[10px] font-bold ${
-                  dealer.isVerified
-                    ? "bg-emerald-500 text-white hover:bg-emerald-500"
-                    : "border-white/20 bg-white/15 text-white hover:bg-white/20"
-                }`}
-              >
-                <Shield className="mr-1 h-3 w-3" />
-                {dealer.isVerified ? t("dealer.verified") : t("dealer.notVerified")}
-              </Badge>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-100">
-                <Star className="h-3 w-3 fill-amber-200 text-amber-200" />
-                4.9
-              </span>
             </div>
 
-            <div className="mt-2 flex flex-wrap gap-1.5">
+            <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
               {stat(
                 t("dealer.activeListings"),
                 <>
-                  {stats.activeListings}
-                  <span className="ml-0.5 text-[10px] font-semibold text-amber-100/60">
+                  {visibleInventoryCount}
+                  <span className="ml-0.5 text-[10px] font-semibold text-[#8a641f]/70">
                     /{dealer.maxListings}
                   </span>
                 </>,
               )}
-              {stat(t("dealer.premium.remainingSlots"), remaining)}
               {stat(t("dealer.views"), displayViews(stats.totalViews))}
               {stat(t("dealer.contacts"), stats.totalContacts, onOpenMessages)}
-            </div>
-
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              <button
-                type="button"
-                onClick={onPreviewProfile}
-                className="inline-flex h-7 items-center gap-1 rounded-lg bg-white/95 px-2.5 text-[11px] font-bold text-amber-900 transition hover:bg-white"
-              >
-                <Eye className="h-3 w-3" />
-                {t("dealer.premium.previewPublicProfile")}
-              </button>
-              <button
-                type="button"
-                onClick={onShareProfile}
-                className="inline-flex h-7 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-bold text-white transition hover:bg-white/20"
-              >
-                <Link2 className="h-3 w-3" />
-                {t("dealer.premium.shareDealerPage")}
-              </button>
+              {stat(t("dealer.billing.currentPlanShort"), t("dealer.premium.planTop"))}
             </div>
           </div>
         </div>
 
-        <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 backdrop-blur-md">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-100/80">
-              {t("dealer.premium.profileCompleteness")}
-            </p>
-            <p className="text-lg font-black leading-none">{completion.percent}%</p>
-          </div>
-          <Progress value={completion.percent} className="mt-1.5 h-1.5 bg-white/15" />
-          <div className="mt-2 flex flex-wrap gap-1">
-            {completion.tasks.map((task) => (
-              <button
-                type="button"
-                key={task.key}
-                onClick={() => {
-                  const target: Record<string, SettingsTarget> = {
-                    phone: "phone",
-                    logo: "branding",
-                    address: "address",
-                    description: "description",
-                    verified: "verification",
-                  };
-                  onProfileTask(target[task.key] || "companyName");
-                }}
-                className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition hover:scale-[1.04] ${
-                  task.done
-                    ? "bg-emerald-500/90 text-white hover:bg-emerald-500"
-                    : "bg-white/15 text-white hover:bg-white/20"
-                }`}
-                title={task.label}
-              >
-                {task.done ? (
-                  <Check className="h-2.5 w-2.5" />
-                ) : (
-                  <Plus className="h-2.5 w-2.5" />
-                )}
-                <span className="ml-1">{task.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+        <Button
+          className="h-11 shrink-0 rounded-2xl bg-[#6f4c17] px-5 font-black text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5c3b10] lg:h-12"
+          onClick={onAddVehicle}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          {t("dealer.dashboard.addCar")}
+        </Button>
       </div>
     </section>
   );
+}
+
+function DashboardProfileCompletion({
+  dealer,
+  t,
+  onProfileTask,
+}: {
+  dealer: Dealer;
+  t: (key: string) => string;
+  onProfileTask: (target: SettingsTarget) => void;
+}) {
+  const completion = getProfileCompletion(dealer, t);
+  const targets: Record<string, SettingsTarget> = {
+    phone: "phone",
+    logo: "branding",
+    verified: "verification",
+  };
+  const tasks = completion.tasks.filter((task) =>
+    ["phone", "logo", "verified"].includes(task.key),
+  );
+
+  return (
+    <Card className="rounded-3xl border-amber-100 bg-white/80 shadow-[0_10px_30px_rgba(120,72,12,0.06)]">
+      <CardContent className="p-2.5 sm:p-3">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="inline-flex items-center gap-1.5 text-sm font-black text-[#5c3b10]">
+                  <Shield className="h-3.5 w-3.5 text-amber-700" />
+                  {t("dealer.premium.profileCompleteness")}
+                </p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                  {t("dealer.dashboard.profileMotivation")}
+                </p>
+              </div>
+              <span className="shrink-0 text-lg font-black text-[#6f4c17]">
+                {completion.percent}%
+              </span>
+            </div>
+            <Progress value={completion.percent} className="mt-1.5 h-1.5 bg-amber-100" />
+            <div className="mt-1.5 grid gap-1.5 sm:grid-cols-3">
+              {tasks.map((task) => (
+                <button
+                  type="button"
+                  key={task.key}
+                  onClick={() => onProfileTask(targets[task.key] || "companyName")}
+                  className={`flex items-center gap-1.5 rounded-xl px-2 py-1.5 text-left text-[11px] font-bold transition active:scale-[0.99] ${
+                    task.done
+                      ? "bg-emerald-50 text-emerald-700"
+                      : "bg-amber-50 text-[#6f4c17] hover:bg-amber-100"
+                  }`}
+                >
+                  {task.done ? (
+                    <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <Plus className="h-4 w-4 shrink-0" />
+                  )}
+                  <span className="truncate">{task.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardTodayStrip({
+  t,
+  todayViews,
+  todayContacts,
+  vehicleCount,
+  onOpenMessages,
+  onOpenListings,
+}: {
+  t: (key: string) => string;
+  todayViews: number;
+  todayContacts: number;
+  vehicleCount: number;
+  onOpenMessages: () => void;
+  onOpenListings: () => void;
+}) {
+  const items = [
+    {
+      label: t("dealer.dashboard.todayViews"),
+      value: todayViews,
+      Icon: Eye,
+      onClick: undefined,
+    },
+    {
+      label: t("dealer.dashboard.todayContacts"),
+      value: todayContacts,
+      Icon: Phone,
+      onClick: onOpenMessages,
+    },
+    {
+      label: t("dealer.dashboard.todayActiveCars"),
+      value: vehicleCount,
+      Icon: Car,
+      onClick: onOpenListings,
+    },
+  ];
+
+  return (
+    <Card className="rounded-3xl border-amber-100 bg-white/85 shadow-[0_10px_30px_rgba(120,72,12,0.06)]">
+      <CardContent className="p-2.5">
+        <div className="mb-2 flex items-center gap-2 px-1">
+          <CalendarDays className="h-4 w-4 text-amber-700" />
+          <p className="text-sm font-black text-[#5c3b10]">{t("dealer.dashboard.today")}</p>
+        </div>
+        <div className="grid grid-cols-3 gap-1.5">
+          {items.map(({ label, value, Icon, onClick }) => {
+            const Element = onClick ? "button" : "div";
+            return (
+              <Element
+                key={label}
+                type={onClick ? "button" : undefined}
+                onClick={onClick}
+                className="flex min-w-0 items-center gap-2 rounded-2xl bg-amber-50 px-2 py-2 text-left transition hover:bg-amber-100"
+              >
+                <Icon className="h-4 w-4 shrink-0 text-amber-800" />
+                <span className="min-w-0">
+                  <span className="block text-lg font-black leading-none text-[#4b2d08]">
+                    {value}
+                  </span>
+                  <span className="block truncate text-[9px] font-bold uppercase tracking-wide text-[#8a641f]">
+                    {label}
+                  </span>
+                </span>
+              </Element>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardAttentionPanel({
+  items,
+  t,
+}: {
+  items: Array<{ id: string; label: string; onClick: () => void }>;
+  t: (key: string) => string;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <Card className="rounded-3xl border-amber-200 bg-amber-50/80 shadow-[0_10px_30px_rgba(120,72,12,0.06)]">
+      <CardContent className="p-3">
+        <div className="mb-2 flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          <p className="text-sm font-black text-[#5c3b10]">
+            {t("dealer.dashboard.requiresAttention")}
+          </p>
+        </div>
+        <div className="grid gap-1.5 sm:grid-cols-2">
+          {items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={item.onClick}
+              className="flex items-center justify-between gap-2 rounded-2xl bg-white/80 px-3 py-2 text-left text-sm font-bold text-[#6f4c17] transition hover:bg-white active:scale-[0.99]"
+            >
+              <span className="min-w-0 truncate">{item.label}</span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-amber-700" />
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardListingStatusBadge({
+  status,
+  t,
+}: {
+  status: "active" | "pending" | "needsWork" | "inactive" | "sold";
+  t: (key: string) => string;
+}) {
+  const config = {
+    active: {
+      label: t("dealer.dashboard.statusActive"),
+      className: "bg-emerald-100 text-emerald-700",
+    },
+    pending: {
+      label: t("dealer.dashboard.statusPending"),
+      className: "bg-yellow-100 text-yellow-800",
+    },
+    needsWork: {
+      label: t("dealer.dashboard.statusNeedsWork"),
+      className: "bg-orange-100 text-orange-800",
+    },
+    inactive: {
+      label: t("dealer.dashboard.statusInactive"),
+      className: "bg-red-100 text-red-700",
+    },
+    sold: {
+      label: t("dealer.dashboard.statusSold"),
+      className: "bg-stone-200 text-stone-700",
+    },
+  }[status];
+
+  return <Badge className={`shrink-0 rounded-full text-[10px] ${config.className}`}>{config.label}</Badge>;
 }
 
 function DashboardTab({
@@ -1060,87 +1202,89 @@ function DashboardTab({
       category: t("dealer.myListings"),
     },
   ].filter((item) => !dismissedNotifications.has(item.id));
+  const todayViews = Math.round(stats.last30Days.views / 30);
+  const todayContacts = Math.round(stats.last30Days.contacts / 30);
+  const vehicleCount = Math.max(
+    stats.activeListings,
+    stats.perListing.length,
+    stats.totalListings,
+  );
+  const attentionItems = [
+    ...(!dealer.isVerified
+      ? [
+          {
+            id: "dealer-verification",
+            label: t("dealer.dashboard.attentionDealerUnverified"),
+            onClick: () => onFocusSettings("verification"),
+          },
+        ]
+      : []),
+    ...(!dealer.logoUrl
+      ? [
+          {
+            id: "dealer-logo",
+            label: t("dealer.dashboard.attentionLogoMissing"),
+            onClick: () => onFocusSettings("branding"),
+          },
+        ]
+      : []),
+    ...stats.perListing
+      .filter((item) => !item.photo)
+      .slice(0, 2)
+      .map((item) => ({
+        id: `photo-${item.listing_id}`,
+        label: t("dealer.dashboard.attentionPhotoMissing").replace(
+          "{car}",
+          `${item.brand} ${item.model}`.trim(),
+        ),
+        onClick: () =>
+          navigate(
+            buildListingPath({
+              id: item.listing_id,
+              brand: item.brand,
+              model: item.model,
+            }),
+          ),
+      })),
+  ];
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-3 sm:space-y-4">
       <DealerInboxBanner t={t} />
-      <div className="grid items-start gap-3 lg:grid-cols-[0.72fr_1.28fr]">
-        <Card className="self-start overflow-hidden rounded-[1.45rem] border-[#d7b46a]/60 bg-[radial-gradient(circle_at_top_left,rgba(246,220,148,0.18),transparent_34%),linear-gradient(135deg,#2a1a07_0%,#5c3b10_50%,#7a571a_100%)] text-white shadow-[0_12px_34px_rgba(120,72,12,0.14)]">
-          <CardContent className="p-3 sm:p-3.5">
-            <div className="flex flex-col gap-2.5">
-              <div className="min-w-0">
-                <Badge className="mb-2 h-6 bg-white/15 px-2 text-[11px] text-white hover:bg-white/20">
-                  NNAuto Pro
-                </Badge>
-                <h3 className="max-w-[15rem] text-base font-black leading-[1.12] tracking-tight sm:text-lg">
-                  {t("dealer.dashboard.actionTitle")}
-                </h3>
-                <p className="mt-1.5 max-w-[18rem] text-[12px] leading-relaxed text-amber-50/80">
-                  {t("dealer.dashboard.actionDescription")}
-                </p>
-              </div>
-              <Button
-                className="ml-auto h-9 rounded-xl bg-white px-3.5 text-xs font-black text-[#5c3b10] shadow-lg hover:bg-[#fff8e8]"
-                onClick={onAddVehicle}
-              >
-                <Plus className="mr-1.5 h-3.5 w-3.5" />
-                {t("dealer.dashboard.addCar")}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <DashboardTodayStrip
+        t={t}
+        todayViews={todayViews}
+        todayContacts={todayContacts}
+        vehicleCount={vehicleCount}
+        onOpenMessages={() => navigate("/dealer/messages")}
+        onOpenListings={() => onOpenTab("mylistings")}
+      />
 
-        <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardContent className="grid gap-2 p-3 sm:grid-cols-2">
-            {[
-              { icon: Upload, label: t("dealer.bulkImport"), hint: "CSV/XML", action: () => onOpenTab("import") },
-              { icon: Car, label: t("dealer.myListings"), hint: t("dealer.dashboard.manageInventory"), action: () => onOpenTab("mylistings") },
-              { icon: Rocket, label: t("dealer.promo.tab"), hint: "TOP / VIP", action: () => onOpenTab("promotion") },
-              { icon: MonitorSmartphone, label: t("dealer.microsite.tab"), hint: t("dealer.microsite.subtitle"), action: () => onOpenTab("microsite") },
-              { icon: CreditCard, label: t("dealer.billing.tab"), hint: t("dealer.billing.subtitle"), action: () => onOpenTab("billing") },
-              { icon: Star, label: t("dealer.reviews.tab"), hint: t("dealer.reviews.subtitle"), action: () => onOpenTab("reviews") },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={item.action}
-                  className="rounded-2xl border bg-white p-2.5 text-left transition hover:-translate-y-0.5 hover:border-[#d7b46a] hover:bg-[#fff8e8] active:scale-[0.99]"
-                >
-                  <Icon className="mb-2 h-5 w-5 text-[#7a5518]" />
-                  <p className="font-bold">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.hint}</p>
-                </button>
-              );
-            })}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card id="dealer-bulk-import-upload" className={`${premiumSurface} rounded-3xl`}>
-        <CardHeader>
+      <Card className="rounded-3xl border-amber-100 bg-white/85 shadow-[0_10px_30px_rgba(120,72,12,0.06)]">
+        <CardHeader className="pb-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <Car className="h-5 w-5 text-amber-700" />
-                {t("dealer.dashboard.recentInventory")}
+                {t("dealer.dashboard.activeCars").replace(
+                  "{count}",
+                  String(vehicleCount),
+                )}
               </CardTitle>
-              <CardDescription>{t("dealer.dashboard.recentInventoryDescription")}</CardDescription>
             </div>
             <Button variant="outline" className="rounded-2xl" onClick={() => onOpenTab("mylistings")}>
-              {t("dealer.dashboard.manageInventory")}
+              {t("dealer.dashboard.manageAllCars")}
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           {stats.perListing.length > 0 ? (
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {stats.perListing.slice(0, 3).map((item) => (
                 <button
                   key={item.listing_id}
                   type="button"
-                  className="group flex gap-3 rounded-2xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-md active:scale-[0.99]"
+                  className="group flex gap-3 rounded-2xl bg-white/85 p-3 text-left transition hover:-translate-y-0.5 hover:bg-amber-50 active:scale-[0.99]"
                   onClick={() =>
                     navigate(
                       buildListingPath({
@@ -1168,9 +1312,7 @@ function DashboardTab({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="truncate font-bold">{item.brand} {item.model}</p>
-                      <Badge className="shrink-0 rounded-full bg-emerald-100 text-[10px] text-emerald-700 hover:bg-emerald-100">
-                        {t("dealer.promo.active")}
-                      </Badge>
+                      <DashboardListingStatusBadge status="active" t={t} />
                     </div>
                     <p className="truncate text-xs text-muted-foreground">{item.title}</p>
                     <div className="mt-2 flex gap-3 text-xs text-muted-foreground">
@@ -1194,46 +1336,9 @@ function DashboardTab({
         </CardContent>
       </Card>
 
-      <DashboardLimitsCard
-        dealer={dealer}
-        stats={stats}
-        t={t}
-        onOpenBilling={() => onOpenTab("billing")}
-        onOpenPromotion={() => onOpenTab("promotion")}
-        onOpenInventory={() => onOpenTab("mylistings")}
-        onAddVehicle={onAddVehicle}
-      />
-
+      <DashboardAttentionPanel items={attentionItems} t={t} />
       <DashboardPeriodCompare stats={stats} t={t} />
-
-      <Card className={`${premiumSurface} rounded-3xl`}>
-        <CardContent className="p-4 sm:p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground">{t("dealer.dashboard.statsTitle")}</p>
-              <div className="mt-2 flex flex-wrap gap-3 text-sm">
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 font-bold text-amber-800">
-                  <Eye className="h-4 w-4" /> {displayViews(stats.totalViews)} {t("dealer.views").toLowerCase()}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 font-bold text-emerald-700">
-                  <Phone className="h-4 w-4" /> {stats.totalContacts} {t("dealer.contacts").toLowerCase()}
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 font-bold">
-                  <Clock className="h-4 w-4" /> ~18 min
-                </span>
-              </div>
-            </div>
-            <Button
-              variant={showStats ? "default" : "outline"}
-              className={showStats ? "rounded-2xl bg-amber-700 hover:bg-amber-800" : "rounded-2xl"}
-              onClick={() => setShowStats((value) => !value)}
-            >
-              <BarChart3 className="mr-2 h-4 w-4" />
-              {showStats ? t("dealer.dashboard.hideStats") : t("dealer.dashboard.showStats")}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <DashboardProfileCompletion dealer={dealer} t={t} onProfileTask={onFocusSettings} />
 
       {showStats ? (
         <div className="space-y-5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
@@ -5047,71 +5152,43 @@ function DashboardPeriodCompare({
   stats: DealerStats;
   t: (key: string) => string;
 }) {
-  const week = {
-    views: Math.round(stats.last30Days.views * 0.42),
-    contacts: Math.round(stats.last30Days.contacts * 0.42),
-    whatsapp: Math.round(stats.last30Days.whatsapp * 0.42),
-  };
-  const month = stats.last30Days;
-  const total = {
-    views: stats.totalViews,
-    contacts: stats.totalContacts,
-    whatsapp: stats.totalWhatsapp,
-  };
-
-  const periods: Array<{
-    key: "week" | "month" | "total";
+  const items: Array<{
     label: string;
-    accent: string;
-    data: { views: number; contacts: number; whatsapp: number };
+    value: string | number;
   }> = [
-    { key: "week", label: t("dealer.compare.week"), accent: "text-amber-800", data: week },
-    { key: "month", label: t("dealer.compare.month"), accent: "text-emerald-700", data: month },
-    { key: "total", label: t("dealer.compare.total"), accent: "text-blue-700", data: total },
+    {
+      label: t("dealer.dashboard.totalViews"),
+      value: displayViews(stats.totalViews),
+    },
+    {
+      label: t("dealer.dashboard.monthViews"),
+      value: displayViews(stats.last30Days.views),
+    },
+    {
+      label: t("dealer.dashboard.weekViews"),
+      value: displayViews(Math.round(stats.last30Days.views * 0.42)),
+    },
+    {
+      label: t("dealer.contacts"),
+      value: stats.totalContacts,
+    },
   ];
 
   return (
-    <Card className={`${premiumSurface} rounded-3xl`}>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <BarChart3 className="h-5 w-5 text-amber-700" />
-          {t("dealer.compare.title")}
-        </CardTitle>
-        <CardDescription>{t("dealer.compare.description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {periods.map((period) => (
+    <Card className="rounded-3xl border-amber-100 bg-white/80 shadow-[0_10px_30px_rgba(120,72,12,0.06)]">
+      <CardContent className="p-2">
+        <div className="grid grid-cols-4 overflow-hidden rounded-2xl bg-[#fffaf0]">
+          {items.map(({ label, value }) => (
             <div
-              key={period.key}
-              className="rounded-3xl border bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+              key={label}
+              className="border-r border-amber-100 px-2 py-2 text-center last:border-r-0"
             >
-              <p className={`text-xs font-bold uppercase tracking-[0.18em] ${period.accent}`}>
-                {period.label}
+              <p className="truncate text-[9px] font-bold uppercase tracking-wide text-[#8a641f]">
+                {label}
               </p>
-              <div className="mt-3 space-y-2 text-sm">
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <Eye className="h-4 w-4" />
-                    {t("dealer.views")}
-                  </span>
-                  <span className="font-black">{displayViews(period.data.views)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <Phone className="h-4 w-4" />
-                    {t("dealer.contacts")}
-                  </span>
-                  <span className="font-black">{period.data.contacts}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                    <MessageCircle className="h-4 w-4" />
-                    {t("dealer.whatsapp")}
-                  </span>
-                  <span className="font-black">{period.data.whatsapp}</span>
-                </div>
-              </div>
+              <p className="mt-0.5 text-base font-black leading-tight text-[#4b2d08] sm:text-lg">
+                {value}
+              </p>
             </div>
           ))}
         </div>
@@ -6268,7 +6345,7 @@ export default function DealerPage() {
       <SEO title={t("dealer.cabinet")} noindex />
       <Header />
       <main className="flex-1 bg-gradient-to-b from-amber-50/50 via-background to-background">
-        <div className="container mx-auto max-w-7xl px-3 py-4 pb-24 sm:px-4 sm:py-8">
+        <div className="container mx-auto max-w-[1540px] px-3 py-4 pb-24 sm:px-4 sm:py-8 xl:px-6">
 
         {statsLoading || !stats || !dealer ? (
           <DealerLoadingSkeleton />
@@ -6280,8 +6357,7 @@ export default function DealerPage() {
               t={t}
               onOpenMessages={() => navigate("/dealer/messages")}
               onProfileTask={openSettingsTarget}
-              onPreviewProfile={openPublicProfile}
-              onShareProfile={sharePublicProfile}
+              onAddVehicle={openAddVehicleDialog}
             />
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -6291,14 +6367,19 @@ export default function DealerPage() {
                 <h2 className="text-2xl font-black tracking-tight">{t("dealer.cabinet")}</h2>
               </div>
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-                <DealerPublicProfileMenu dealer={dealer} t={t} />
                 <DealerMessagesShortcut />
               </div>
             </div>
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DealerTab)}>
-            <div className="grid gap-4 md:grid-cols-[300px_minmax(0,1fr)] md:items-start xl:grid-cols-[320px_minmax(0,1fr)]">
-              <DealerCabinetSideNav t={t} onAddVehicle={openAddVehicleDialog} />
+            <div className="grid gap-6 md:grid-cols-[280px_minmax(0,1fr)] md:items-start xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)] 2xl:gap-8">
+              <DealerCabinetSideNav
+                activeTab={activeTab}
+                t={t}
+                onAddVehicle={openAddVehicleDialog}
+                onOpenPublicProfile={openPublicProfile}
+                onSelect={setActiveTab}
+              />
               <div className="min-w-0 space-y-5">
             <TabsContent value="dashboard" className="mt-0">
               <DashboardTab
@@ -6347,6 +6428,7 @@ export default function DealerPage() {
           <DealerMobileNav
             activeTab={activeTab}
             t={t}
+            onOpenPublicProfile={openPublicProfile}
             onSelect={(tab) => {
               if (tab === "add") {
                 openAddVehicleDialog();
@@ -6414,14 +6496,26 @@ export default function DealerPage() {
 }
 
 function DealerCabinetSideNav({
+  activeTab,
   t,
   onAddVehicle,
+  onOpenPublicProfile,
+  onSelect,
 }: {
+  activeTab: DealerTab;
   t: (key: string) => string;
   onAddVehicle: () => void;
+  onOpenPublicProfile: () => void;
+  onSelect: (tab: DealerTab) => void;
 }) {
-  const items: Array<{
-    value: DealerTab;
+  const [, navigate] = useLocation();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const { data } = useDealerUnreadNotifier();
+  const unread = data?.unread ?? 0;
+  const moreActive = ["import", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab);
+
+  const primaryItems: Array<{
+    value: "dashboard" | "mylistings";
     Icon: typeof BarChart3;
     label: string;
     hint: string;
@@ -6438,81 +6532,180 @@ function DealerCabinetSideNav({
       label: t("dealer.myListings"),
       hint: t("dealer.dashboard.manageInventory"),
     },
+  ];
+
+  const overflow: Array<{
+    id: DealerTab | "publicProfile";
+    Icon: typeof BarChart3;
+    label: string;
+    hint: string;
+  }> = [
     {
-      value: "import",
-      Icon: Upload,
-      label: t("dealer.bulkImport"),
-      hint: "CSV/XML",
-    },
-    {
-      value: "promotion",
+      id: "promotion",
       Icon: Rocket,
       label: t("dealer.promo.tab"),
       hint: "TOP / VIP",
     },
     {
-      value: "microsite",
+      id: "import",
+      Icon: Upload,
+      label: t("dealer.bulkImport"),
+      hint: "CSV/XML",
+    },
+    {
+      id: "microsite",
       Icon: MonitorSmartphone,
       label: t("dealer.microsite.tab"),
       hint: t("dealer.microsite.subtitle"),
     },
     {
-      value: "billing",
+      id: "billing",
       Icon: CreditCard,
       label: t("dealer.billing.tab"),
       hint: t("dealer.billing.subtitle"),
     },
     {
-      value: "settings",
+      id: "settings",
       Icon: Settings,
       label: t("dealer.settings"),
       hint: t("dealer.premium.settingsHint"),
     },
     {
-      value: "reviews",
+      id: "reviews",
       Icon: Star,
       label: t("dealer.reviews.tab"),
       hint: t("dealer.reviews.subtitle"),
     },
+    {
+      id: "publicProfile",
+      Icon: Eye,
+      label: t("dealer.dashboard.publicProfile"),
+      hint: t("dealer.premium.previewPublicProfile"),
+    },
   ];
 
   return (
-    <aside className="sticky top-3 z-20 hidden rounded-3xl border border-[#ead7aa] bg-white/95 p-4 shadow-[0_16px_45px_rgba(120,72,12,0.09)] backdrop-blur md:block">
+    <aside className="sticky top-3 z-20 hidden rounded-[2rem] border border-amber-100 bg-white/92 p-4 shadow-[0_16px_42px_rgba(120,72,12,0.08)] backdrop-blur md:block xl:p-5">
       <Button
-        className="mb-4 h-14 w-full justify-start rounded-2xl bg-[#6f4c17] px-5 text-base font-black shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a3a10]"
+        className="mb-5 h-16 w-full justify-start rounded-3xl bg-[#6f4c17] px-6 text-base font-black shadow-[0_14px_30px_rgba(111,76,23,0.22)] transition hover:-translate-y-0.5 hover:bg-[#5a3a10] xl:h-[72px] xl:text-lg"
         onClick={onAddVehicle}
       >
-        <Plus className="mr-2 h-5 w-5" />
+        <Plus className="mr-3 h-5 w-5 xl:h-6 xl:w-6" />
         {t("dealer.dashboard.addCar")}
       </Button>
 
-      <div className="mb-3 px-2">
+      <div className="mb-4 px-2">
         <p className="text-xs font-black uppercase tracking-[0.22em] text-[#8a641f]">
           NNAuto Pro
         </p>
         <p className="text-sm text-muted-foreground">{t("dealer.cabinet")}</p>
       </div>
 
-      <TabsList className="grid h-auto w-full gap-1.5 bg-transparent p-0">
-        {items.map(({ value, Icon, label, hint }) => (
+      <TabsList className="grid h-auto w-full gap-2 bg-transparent p-0">
+        {primaryItems.map(({ value, Icon, label, hint }) => (
           <TabsTrigger
             key={value}
             value={value}
-            className="group h-auto w-full justify-start gap-3.5 rounded-2xl border border-transparent px-4 py-3.5 text-left transition-all data-[state=active]:border-[#d7b46a] data-[state=active]:bg-[linear-gradient(135deg,#3d260c_0%,#6f4c17_100%)] data-[state=active]:text-white data-[state=active]:shadow-[0_10px_26px_rgba(120,72,12,0.18)] [&[data-state=active]_svg]:text-white"
+            className="group h-auto min-h-[64px] w-full justify-start gap-4 rounded-3xl border border-transparent px-4 py-3.5 text-left transition-all data-[state=active]:border-amber-200 data-[state=active]:bg-amber-50 data-[state=active]:text-[#5c3b10] data-[state=active]:shadow-none [&[data-state=active]_svg]:text-amber-800 xl:min-h-[72px]"
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fff8e8] text-[#7a5518] transition group-data-[state=active]:bg-white/15 group-data-[state=active]:text-white">
-              <Icon className="h-[18px] w-[18px]" />
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8e8] text-[#7a5518] transition group-data-[state=active]:bg-white group-data-[state=active]:text-amber-800">
+              <Icon className="h-5 w-5" />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-base font-black">{label}</span>
-              <span className="block truncate text-xs font-medium text-muted-foreground group-data-[state=active]:text-amber-50/80">
+              <span className="block truncate text-xs font-medium text-muted-foreground group-data-[state=active]:text-[#8a641f]">
                 {hint}
               </span>
             </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100 group-data-[state=active]:text-white/80 group-data-[state=active]:opacity-100" />
+            <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100 group-data-[state=active]:text-amber-700 group-data-[state=active]:opacity-100" />
           </TabsTrigger>
         ))}
       </TabsList>
+
+      <div className="mt-2 grid gap-2">
+        <button
+          type="button"
+          onClick={() => navigate("/dealer/messages")}
+          className="group flex min-h-[64px] w-full items-center gap-4 rounded-3xl border border-transparent px-4 py-3.5 text-left text-muted-foreground transition hover:border-amber-100 hover:bg-amber-50 hover:text-[#5c3b10] xl:min-h-[72px]"
+        >
+          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8e8] text-[#7a5518]">
+            {unread > 0 ? (
+              <BellRing className="h-5 w-5 motion-safe:animate-wiggle" />
+            ) : (
+              <Inbox className="h-5 w-5" />
+            )}
+            {unread > 0 ? (
+              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white ring-2 ring-white">
+                {unread > 9 ? "9+" : unread}
+              </span>
+            ) : null}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-base font-black">{t("messages.heading")}</span>
+            <span className="block truncate text-xs font-medium">{t("messages.shortcut.openInbox")}</span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 opacity-0 transition group-hover:opacity-100" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className={`group flex min-h-[64px] w-full items-center gap-4 rounded-3xl border px-4 py-3.5 text-left transition xl:min-h-[72px] ${
+            moreActive
+              ? "border-amber-200 bg-amber-50 text-[#5c3b10]"
+              : "border-transparent text-muted-foreground hover:border-amber-100 hover:bg-amber-50 hover:text-[#5c3b10]"
+          }`}
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8e8] text-[#7a5518]">
+            <MoreHorizontal className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-base font-black">{t("dealer.mobileNav.more")}</span>
+            <span className="block truncate text-xs font-medium text-muted-foreground">
+              {t("dealer.mobileNav.moreDescription")}
+            </span>
+          </span>
+          <ChevronRight className="h-5 w-5 shrink-0 opacity-0 transition group-hover:opacity-100" />
+        </button>
+      </div>
+
+      <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
+        <DialogContent className="rounded-3xl border-amber-100 p-4 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("dealer.mobileNav.moreTitle")}</DialogTitle>
+            <DialogDescription>{t("dealer.mobileNav.moreDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            {overflow.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  if (item.id === "publicProfile") {
+                    onOpenPublicProfile();
+                    setMoreOpen(false);
+                    return;
+                  }
+                  onSelect(item.id);
+                  setMoreOpen(false);
+                }}
+                className={`flex items-center gap-3 rounded-2xl bg-white p-3 text-left transition hover:bg-amber-50 active:scale-[0.99] ${
+                  activeTab === item.id ? "bg-amber-50 text-[#5c3b10]" : ""
+                }`}
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-800">
+                  <item.Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold">{item.label}</p>
+                  <p className="truncate text-xs text-muted-foreground">{item.hint}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
     </aside>
   );
 }
@@ -6520,10 +6713,12 @@ function DealerCabinetSideNav({
 function DealerMobileNav({
   activeTab,
   t,
+  onOpenPublicProfile,
   onSelect,
 }: {
   activeTab: DealerTab;
   t: (key: string) => string;
+  onOpenPublicProfile: () => void;
   onSelect: (tab: DealerTab | "add") => void;
 }) {
   const [, navigate] = useLocation();
@@ -6534,17 +6729,23 @@ function DealerMobileNav({
   const primary: Array<{ id: DealerTab | "add" | "messages"; label: string; Icon: typeof BarChart3 }> = [
     { id: "add", label: t("dealer.dashboard.addShort"), Icon: Plus },
     { id: "mylistings", label: t("dealer.myListings"), Icon: Car },
-    { id: "dashboard", label: t("dealer.dashboard.statsShort"), Icon: BarChart3 },
     { id: "messages", label: t("messages.heading"), Icon: unread > 0 ? BellRing : Inbox },
+    { id: "dashboard", label: t("dealer.dashboard.statsShort"), Icon: BarChart3 },
   ];
 
-  const overflow: Array<{ id: DealerTab; label: string; Icon: typeof BarChart3; hint: string }> = [
+  const overflow: Array<{
+    id: DealerTab | "publicProfile";
+    label: string;
+    Icon: typeof BarChart3;
+    hint: string;
+  }> = [
     { id: "promotion", label: t("dealer.promo.tab"), Icon: Rocket, hint: "TOP / VIP" },
     { id: "import", label: t("dealer.bulkImport"), Icon: Upload, hint: "CSV/XML" },
     { id: "microsite", label: t("dealer.microsite.tab"), Icon: MonitorSmartphone, hint: t("dealer.microsite.subtitle") },
     { id: "billing", label: t("dealer.billing.tab"), Icon: CreditCard, hint: t("dealer.billing.subtitle") },
     { id: "settings", label: t("dealer.settings"), Icon: Settings, hint: t("dealer.premium.settingsHint") },
     { id: "reviews", label: t("dealer.reviews.tab"), Icon: Star, hint: t("dealer.reviews.subtitle") },
+    { id: "publicProfile", label: t("dealer.dashboard.publicProfile"), Icon: Eye, hint: t("dealer.premium.previewPublicProfile") },
   ];
 
   return (
@@ -6569,9 +6770,9 @@ function DealerMobileNav({
                 item.id === "add"
                   ? "bg-amber-700 text-white shadow-md"
                   : messagesActive
-                    ? "bg-gradient-to-br from-amber-600 to-amber-800 text-white shadow-md"
+                    ? "bg-amber-50 text-amber-900 ring-1 ring-amber-300"
                     : active
-                      ? "bg-amber-700 text-white shadow-md"
+                      ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200"
                       : "text-muted-foreground hover:bg-amber-50 hover:text-amber-800"
               }`}
             >
@@ -6594,7 +6795,7 @@ function DealerMobileNav({
           onClick={() => setMoreOpen(true)}
           className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold transition active:scale-95 ${
             ["import", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab)
-              ? "bg-amber-700 text-white shadow-md"
+              ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200"
               : "text-muted-foreground hover:bg-amber-50 hover:text-amber-800"
           }`}
         >
@@ -6615,6 +6816,11 @@ function DealerMobileNav({
                 key={item.id}
                 type="button"
                 onClick={() => {
+                  if (item.id === "publicProfile") {
+                    onOpenPublicProfile();
+                    setMoreOpen(false);
+                    return;
+                  }
                   onSelect(item.id);
                   setMoreOpen(false);
                 }}
