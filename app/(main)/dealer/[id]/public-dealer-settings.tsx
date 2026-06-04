@@ -124,6 +124,46 @@ function googleMapsUrl(query: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
 }
 
+function getOsmTiles(latValue: string, lonValue: string, zoom = 15) {
+  const lat = Number(latValue);
+  const lon = Number(lonValue);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return [];
+
+  const latRad = (lat * Math.PI) / 180;
+  const scale = 2 ** zoom;
+  const x = Math.floor(((lon + 180) / 360) * scale);
+  const y = Math.floor(
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) *
+      scale,
+  );
+
+  return [
+    { x: x - 1, y },
+    { x, y },
+    { x: x + 1, y },
+    { x: x - 1, y: y + 1 },
+    { x, y: y + 1 },
+    { x: x + 1, y: y + 1 },
+  ].map((tile) => `https://tile.openstreetmap.org/${zoom}/${tile.x}/${tile.y}.png`);
+}
+
+function getCzechFallbackCoords(addressText: string) {
+  const normalized = addressText
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (normalized.includes("vaclavske namesti")) return { lat: "50.0810", lon: "14.4283" };
+  if (normalized.includes("praha") || normalized.includes("prague")) return { lat: "50.0755", lon: "14.4378" };
+  if (normalized.includes("brno")) return { lat: "49.1951", lon: "16.6068" };
+  if (normalized.includes("ostrava")) return { lat: "49.8209", lon: "18.2625" };
+  if (normalized.includes("plzen")) return { lat: "49.7384", lon: "13.3736" };
+  if (normalized.includes("olomouc")) return { lat: "49.5938", lon: "17.2509" };
+  if (normalized.includes("liberec")) return { lat: "50.7663", lon: "15.0543" };
+  if (normalized.includes("ceske budejovice")) return { lat: "48.9745", lon: "14.4743" };
+  return null;
+}
+
 type PhotonFeature = {
   geometry?: { coordinates?: [number, number] };
   properties?: { country?: string };
@@ -225,7 +265,25 @@ export function PublicDealerMap({
       setCoords({ lat: settings.addressDetails.lat, lon: settings.addressDetails.lon });
       return;
     }
+    const fallbackCoords = getCzechFallbackCoords(addressText);
+    if (fallbackCoords) setCoords(fallbackCoords);
     const controller = new AbortController();
+    const geocodeWithPhoton = async () => {
+      const fallbackParams = new URLSearchParams({ q: addressText, limit: "1", lang: "cs" });
+      const response = await fetch(`https://photon.komoot.io/api/?${fallbackParams.toString()}`, {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) return;
+      const data = (await response.json()) as { features?: PhotonFeature[] };
+      const feature =
+        (data.features || []).find((item) =>
+          ["Česko", "Czechia", "Czech Republic"].includes(item.properties?.country || ""),
+        ) ||
+        (data.features || [])[0];
+      const [lon, lat] = feature?.geometry?.coordinates || [];
+      if (lat && lon) setCoords({ lat: String(lat), lon: String(lon) });
+    };
     const params = new URLSearchParams({
       q: addressText,
       format: "jsonv2",
@@ -238,22 +296,15 @@ export function PublicDealerMap({
     })
       .then((response) => (response.ok ? response.json() : []))
       .then((data: Array<{ lat: string; lon: string }>) => {
-        if (data[0]) setCoords({ lat: data[0].lat, lon: data[0].lon });
+        if (data[0]) {
+          setCoords({ lat: data[0].lat, lon: data[0].lon });
+          return;
+        }
+        void geocodeWithPhoton();
       })
       .catch(async () => {
         try {
-          const fallbackParams = new URLSearchParams({ q: addressText, limit: "1", lang: "cs" });
-          const response = await fetch(`https://photon.komoot.io/api/?${fallbackParams.toString()}`, {
-            signal: controller.signal,
-            headers: { Accept: "application/json" },
-          });
-          if (!response.ok) return;
-          const data = (await response.json()) as { features?: PhotonFeature[] };
-          const feature = (data.features || []).find(
-            (item) => item.properties?.country === "Česko" || item.properties?.country === "Czechia",
-          );
-          const [lon, lat] = feature?.geometry?.coordinates || [];
-          if (lat && lon) setCoords({ lat: String(lat), lon: String(lon) });
+          await geocodeWithPhoton();
         } catch {
           // Keep empty map state.
         }
@@ -261,40 +312,45 @@ export function PublicDealerMap({
     return () => controller.abort();
   }, [addressText, settings.addressDetails?.lat, settings.addressDetails?.lon]);
 
-  if (!addressText.trim()) {
-    return (
-      <div className="rounded-3xl border border-dashed bg-white p-5 text-sm text-muted-foreground">
-        Dealer zatím nepřidal adresu pobočky.
-      </div>
-    );
-  }
+  if (!addressText.trim()) return null;
 
-  const mapSrc = coords
-    ? (() => {
-        const lat = Number(coords.lat);
-        const lon = Number(coords.lon);
-        const bbox = [
-          lon - 0.012,
-          lat - 0.007,
-          lon + 0.012,
-          lat + 0.007,
-        ].join("%2C");
-        return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${coords.lat}%2C${coords.lon}`;
-      })()
-    : `https://www.google.com/maps?q=${encodeURIComponent(addressText)}&output=embed`;
+  const tiles = coords ? getOsmTiles(coords.lat, coords.lon) : [];
 
   return (
-    <div className="rounded-3xl border bg-white p-5">
-      <h3 className="font-black">Mapa a pobočka</h3>
-      <div className="mt-3 overflow-hidden rounded-2xl border bg-muted">
-        <iframe
-          title="Mapa pobočky dealera"
-          src={mapSrc}
-          loading="lazy"
-          className="h-56 w-full border-0"
-        />
-      </div>
-      <div className="mt-3 flex gap-3 rounded-2xl bg-amber-50 p-3 text-sm">
+    <div className="rounded-3xl border border-amber-100 bg-white p-3 shadow-sm sm:p-4">
+      <h3 className="flex items-center gap-2 font-black text-[#5c3b10]">
+        <MapPin className="h-4 w-4 text-amber-700" />
+        Kde nás najdete
+      </h3>
+      {tiles.length > 0 ? (
+        <div className="relative mt-3 h-48 overflow-hidden rounded-2xl border border-amber-100 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_42%),linear-gradient(135deg,#fff8e8,#f7ead0)] sm:h-56">
+          <div className="absolute inset-0 grid grid-cols-3 grid-rows-2 opacity-95">
+            {tiles.map((src) => (
+              <img
+                key={src}
+                src={src}
+                alt=""
+                loading="lazy"
+                className="h-full w-full object-cover"
+              />
+            ))}
+          </div>
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,transparent_45%,rgba(255,248,232,0.42)_100%)]" />
+          <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-full flex-col items-center">
+            <MapPin className="h-10 w-10 fill-amber-700 text-white drop-shadow-[0_6px_14px_rgba(92,59,16,0.35)]" />
+            <span className="mt-1 rounded-full bg-white/95 px-3 py-1 text-xs font-black text-[#5c3b10] shadow-sm">
+              Pobočka
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-3 flex h-48 flex-col items-center justify-center rounded-2xl border border-amber-100 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.18),transparent_42%),linear-gradient(135deg,#fff8e8,#f7ead0)] p-4 text-center text-[#5c3b10] sm:h-56">
+          <MapPin className="mb-2 h-8 w-8 text-amber-700" />
+          <p className="text-sm font-black">Mapa se načítá</p>
+          <p className="mt-1 text-xs text-[#8a641f]">Adresu můžete rovnou otevřít v Google Maps.</p>
+        </div>
+      )}
+      <div className="mt-3 flex gap-2 rounded-2xl bg-amber-50 p-3 text-sm leading-relaxed text-[#5c3b10]">
         <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
         <span>{addressText}</span>
       </div>
@@ -304,7 +360,7 @@ export function PublicDealerMap({
         rel="noreferrer"
         className="mt-3 inline-flex w-full items-center justify-center rounded-2xl bg-amber-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-amber-800"
       >
-        Otevřít v Google Maps
+        Otevřít trasu v Google Maps
       </a>
     </div>
   );
@@ -325,8 +381,8 @@ export function PublicHeroPhoto({
   if (!photo && !fallback) return null;
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-amber-200 bg-amber-50/30 shadow-[0_20px_60px_rgba(120,72,12,0.12)]">
-      <div className="aspect-[16/6] w-full sm:aspect-[16/5]">
+    <div className="overflow-hidden rounded-3xl border border-amber-200 bg-amber-50/30 shadow-[0_16px_45px_rgba(120,72,12,0.10)]">
+      <div className="aspect-[16/8] w-full sm:aspect-[16/5]">
         <img
           src={photo || fallback}
           alt={alt}

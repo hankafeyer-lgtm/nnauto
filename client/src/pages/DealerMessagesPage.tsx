@@ -1172,7 +1172,7 @@ function MessageBubble({
             data-testid={`button-delete-message-${m.id}`}
             className={`absolute -top-2 ${
               isDealer ? "-left-2" : "-right-2"
-            } h-6 w-6 rounded-full bg-background border shadow-sm flex items-center justify-center text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-opacity disabled:opacity-50`}
+            } h-6 w-6 rounded-full bg-background border shadow-sm flex items-center justify-center text-destructive opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100 hover:bg-destructive hover:text-destructive-foreground transition-opacity disabled:opacity-50`}
           >
             <Trash2 className="h-3 w-3" />
           </button>

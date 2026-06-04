@@ -29,7 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import {
   BarChart3,
@@ -60,6 +60,7 @@ import {
   Zap,
   Sparkles,
   Wallet,
+  ChevronLeft,
   ChevronRight,
   Timer,
   Pause,
@@ -946,19 +947,19 @@ function DashboardTodayStrip({
 }) {
   const items = [
     {
-      label: t("dealer.dashboard.todayViews"),
+      label: t("dealer.dashboard.todayViewsShort"),
       value: todayViews,
       Icon: Eye,
       onClick: undefined,
     },
     {
-      label: t("dealer.dashboard.todayContacts"),
+      label: t("dealer.dashboard.todayContactsShort"),
       value: todayContacts,
       Icon: Phone,
       onClick: onOpenMessages,
     },
     {
-      label: t("dealer.dashboard.todayActiveCars"),
+      label: t("dealer.dashboard.todayActiveCarsShort"),
       value: vehicleCount,
       Icon: Car,
       onClick: onOpenListings,
@@ -987,7 +988,7 @@ function DashboardTodayStrip({
                   <span className="block text-lg font-black leading-none text-[#4b2d08]">
                     {value}
                   </span>
-                  <span className="block truncate text-[9px] font-bold uppercase tracking-wide text-[#8a641f]">
+                  <span className="block text-[9px] font-bold uppercase leading-tight tracking-wide text-[#8a641f]">
                     {label}
                   </span>
                 </span>
@@ -2582,7 +2583,7 @@ function MyListingsTab({
         </CardContent>
       </Card>
 
-      <div className="fixed bottom-4 right-4 z-30 sm:hidden">
+      <div className="fixed bottom-24 right-4 z-30 sm:hidden">
         <Button
           size="icon"
           className="h-14 w-14 rounded-full bg-amber-700 shadow-2xl hover:bg-amber-800"
@@ -6257,6 +6258,7 @@ export default function DealerPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<DealerTab>("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget | null>(null);
   const [addVehicleDialogOpen, setAddVehicleDialogOpen] = useState(false);
   const [addVehiclePreference, setAddVehiclePreference] =
@@ -6372,11 +6374,19 @@ export default function DealerPage() {
             </div>
 
           <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DealerTab)}>
-            <div className="grid gap-6 md:grid-cols-[280px_minmax(0,1fr)] md:items-start xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)] 2xl:gap-8">
+            <div
+              className={`grid gap-6 md:items-start 2xl:gap-8 ${
+                sidebarCollapsed
+                  ? "md:grid-cols-[96px_minmax(0,1fr)]"
+                  : "md:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]"
+              }`}
+            >
               <DealerCabinetSideNav
                 activeTab={activeTab}
+                collapsed={sidebarCollapsed}
                 t={t}
                 onAddVehicle={openAddVehicleDialog}
+                onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
                 onOpenPublicProfile={openPublicProfile}
                 onSelect={setActiveTab}
               />
@@ -6497,49 +6507,49 @@ export default function DealerPage() {
 
 function DealerCabinetSideNav({
   activeTab,
+  collapsed,
   t,
   onAddVehicle,
+  onToggleCollapsed,
   onOpenPublicProfile,
   onSelect,
 }: {
   activeTab: DealerTab;
+  collapsed: boolean;
   t: (key: string) => string;
   onAddVehicle: () => void;
+  onToggleCollapsed: () => void;
   onOpenPublicProfile: () => void;
   onSelect: (tab: DealerTab) => void;
 }) {
   const [, navigate] = useLocation();
-  const [moreOpen, setMoreOpen] = useState(false);
   const { data } = useDealerUnreadNotifier();
   const unread = data?.unread ?? 0;
-  const moreActive = ["import", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab);
 
-  const primaryItems: Array<{
-    value: "dashboard" | "mylistings";
+  const menuItems: Array<{
+    id: DealerTab | "messages" | "publicProfile";
     Icon: typeof BarChart3;
     label: string;
     hint: string;
   }> = [
     {
-      value: "dashboard",
+      id: "dashboard",
       Icon: BarChart3,
       label: t("dealer.dashboard.statsShort"),
       hint: t("dealer.dashboard.statsTitle"),
     },
     {
-      value: "mylistings",
+      id: "mylistings",
       Icon: Car,
       label: t("dealer.myListings"),
       hint: t("dealer.dashboard.manageInventory"),
     },
-  ];
-
-  const overflow: Array<{
-    id: DealerTab | "publicProfile";
-    Icon: typeof BarChart3;
-    label: string;
-    hint: string;
-  }> = [
+    {
+      id: "messages",
+      Icon: unread > 0 ? BellRing : Inbox,
+      label: t("messages.heading"),
+      hint: unread > 0 ? t("messages.shortcut.openInbox") : t("messages.shortcut.idle"),
+    },
     {
       id: "promotion",
       Icon: Rocket,
@@ -6584,128 +6594,102 @@ function DealerCabinetSideNav({
     },
   ];
 
+  const handleMenuClick = (id: DealerTab | "messages" | "publicProfile") => {
+    if (id === "messages") {
+      navigate("/dealer/messages");
+      return;
+    }
+    if (id === "publicProfile") {
+      onOpenPublicProfile();
+      return;
+    }
+    onSelect(id);
+  };
+
   return (
-    <aside className="sticky top-3 z-20 hidden rounded-[2rem] border border-amber-100 bg-white/92 p-4 shadow-[0_16px_42px_rgba(120,72,12,0.08)] backdrop-blur md:block xl:p-5">
+    <aside
+      className={`sticky top-3 z-20 hidden max-h-[calc(100dvh-1.5rem)] overflow-y-auto rounded-[2rem] border border-amber-100 bg-white/92 shadow-[0_16px_42px_rgba(120,72,12,0.08)] backdrop-blur transition-all md:block ${
+        collapsed ? "p-3" : "p-4 xl:p-5"
+      }`}
+    >
       <Button
-        className="mb-5 h-16 w-full justify-start rounded-3xl bg-[#6f4c17] px-6 text-base font-black shadow-[0_14px_30px_rgba(111,76,23,0.22)] transition hover:-translate-y-0.5 hover:bg-[#5a3a10] xl:h-[72px] xl:text-lg"
+        className={`mb-4 h-16 w-full rounded-3xl bg-[#6f4c17] text-base font-black shadow-[0_14px_30px_rgba(111,76,23,0.22)] transition hover:-translate-y-0.5 hover:bg-[#5a3a10] xl:h-[72px] xl:text-lg ${
+          collapsed ? "justify-center px-0" : "justify-start px-6"
+        }`}
         onClick={onAddVehicle}
+        title={t("dealer.dashboard.addCar")}
       >
-        <Plus className="mr-3 h-5 w-5 xl:h-6 xl:w-6" />
-        {t("dealer.dashboard.addCar")}
+        <Plus className={`${collapsed ? "" : "mr-3"} h-5 w-5 xl:h-6 xl:w-6`} />
+        {!collapsed && t("dealer.dashboard.addCar")}
       </Button>
 
-      <div className="mb-4 px-2">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#8a641f]">
-          NNAuto Pro
-        </p>
-        <p className="text-sm text-muted-foreground">{t("dealer.cabinet")}</p>
-      </div>
-
-      <TabsList className="grid h-auto w-full gap-2 bg-transparent p-0">
-        {primaryItems.map(({ value, Icon, label, hint }) => (
-          <TabsTrigger
-            key={value}
-            value={value}
-            className="group h-auto min-h-[64px] w-full justify-start gap-4 rounded-3xl border border-transparent px-4 py-3.5 text-left transition-all data-[state=active]:border-amber-200 data-[state=active]:bg-amber-50 data-[state=active]:text-[#5c3b10] data-[state=active]:shadow-none [&[data-state=active]_svg]:text-amber-800 xl:min-h-[72px]"
-          >
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8e8] text-[#7a5518] transition group-data-[state=active]:bg-white group-data-[state=active]:text-amber-800">
-              <Icon className="h-5 w-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-base font-black">{label}</span>
-              <span className="block truncate text-xs font-medium text-muted-foreground group-data-[state=active]:text-[#8a641f]">
-                {hint}
-              </span>
-            </span>
-            <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100 group-data-[state=active]:text-amber-700 group-data-[state=active]:opacity-100" />
-          </TabsTrigger>
-        ))}
-      </TabsList>
-
-      <div className="mt-2 grid gap-2">
-        <button
-          type="button"
-          onClick={() => navigate("/dealer/messages")}
-          className="group flex min-h-[64px] w-full items-center gap-4 rounded-3xl border border-transparent px-4 py-3.5 text-left text-muted-foreground transition hover:border-amber-100 hover:bg-amber-50 hover:text-[#5c3b10] xl:min-h-[72px]"
-        >
-          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8e8] text-[#7a5518]">
-            {unread > 0 ? (
-              <BellRing className="h-5 w-5 motion-safe:animate-wiggle" />
-            ) : (
-              <Inbox className="h-5 w-5" />
-            )}
-            {unread > 0 ? (
-              <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white ring-2 ring-white">
-                {unread > 9 ? "9+" : unread}
-              </span>
-            ) : null}
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-base font-black">{t("messages.heading")}</span>
-            <span className="block truncate text-xs font-medium">{t("messages.shortcut.openInbox")}</span>
-          </span>
-          <ChevronRight className="h-5 w-5 shrink-0 opacity-0 transition group-hover:opacity-100" />
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setMoreOpen(true)}
-          className={`group flex min-h-[64px] w-full items-center gap-4 rounded-3xl border px-4 py-3.5 text-left transition xl:min-h-[72px] ${
-            moreActive
-              ? "border-amber-200 bg-amber-50 text-[#5c3b10]"
-              : "border-transparent text-muted-foreground hover:border-amber-100 hover:bg-amber-50 hover:text-[#5c3b10]"
-          }`}
-        >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8e8] text-[#7a5518]">
-            <MoreHorizontal className="h-5 w-5" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-base font-black">{t("dealer.mobileNav.more")}</span>
-            <span className="block truncate text-xs font-medium text-muted-foreground">
-              {t("dealer.mobileNav.moreDescription")}
-            </span>
-          </span>
-          <ChevronRight className="h-5 w-5 shrink-0 opacity-0 transition group-hover:opacity-100" />
-        </button>
-      </div>
-
-      <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
-        <DialogContent className="rounded-3xl border-amber-100 p-4 sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("dealer.mobileNav.moreTitle")}</DialogTitle>
-            <DialogDescription>{t("dealer.mobileNav.moreDescription")}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2">
-            {overflow.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => {
-                  if (item.id === "publicProfile") {
-                    onOpenPublicProfile();
-                    setMoreOpen(false);
-                    return;
-                  }
-                  onSelect(item.id);
-                  setMoreOpen(false);
-                }}
-                className={`flex items-center gap-3 rounded-2xl bg-white p-3 text-left transition hover:bg-amber-50 active:scale-[0.99] ${
-                  activeTab === item.id ? "bg-amber-50 text-[#5c3b10]" : ""
-                }`}
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-800">
-                  <item.Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold">{item.label}</p>
-                  <p className="truncate text-xs text-muted-foreground">{item.hint}</p>
-                </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-            ))}
+      <div className={`mb-4 flex items-center gap-2 ${collapsed ? "justify-center" : "justify-between px-2"}`}>
+        {!collapsed && (
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#8a641f]">
+              NNAuto Pro
+            </p>
+            <p className="text-sm text-muted-foreground">{t("dealer.cabinet")}</p>
           </div>
-        </DialogContent>
-      </Dialog>
+        )}
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-amber-100 bg-white text-[#7a5518] shadow-sm transition hover:bg-amber-50"
+          aria-label={collapsed ? "Rozbalit menu" : "Skrýt menu"}
+          title={collapsed ? "Rozbalit menu" : "Skrýt menu"}
+        >
+          {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
+        </button>
+      </div>
+
+      <div className="grid gap-2">
+        {menuItems.map(({ id, Icon, label, hint }) => {
+          const isActive = activeTab === id;
+          const isMessages = id === "messages";
+          const isPublicProfile = id === "publicProfile";
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => handleMenuClick(id)}
+              className={`group flex min-h-[58px] w-full items-center rounded-3xl border text-left transition xl:min-h-[64px] ${
+                collapsed ? "justify-center px-0 py-2" : "gap-4 px-4 py-3"
+              } ${
+                isActive
+                  ? "border-amber-200 bg-amber-50 text-[#5c3b10]"
+                  : "border-transparent text-muted-foreground hover:border-amber-100 hover:bg-amber-50 hover:text-[#5c3b10]"
+              }`}
+              title={collapsed ? label : undefined}
+              aria-label={label}
+            >
+              <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8e8] text-[#7a5518] transition group-hover:bg-white group-hover:text-amber-800">
+                <Icon className={`h-5 w-5 ${isMessages && unread > 0 ? "motion-safe:animate-wiggle" : ""}`} />
+                {isMessages && unread > 0 ? (
+                  <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white ring-2 ring-white">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                ) : null}
+              </span>
+              {!collapsed && (
+                <>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-base font-black">{label}</span>
+                    <span className="block truncate text-xs font-medium text-muted-foreground group-hover:text-[#8a641f]">
+                      {hint}
+                    </span>
+                  </span>
+                  <ChevronRight
+                    className={`h-5 w-5 shrink-0 text-muted-foreground transition ${
+                      isActive || isMessages || isPublicProfile ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                    }`}
+                  />
+                </>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </aside>
   );
 }

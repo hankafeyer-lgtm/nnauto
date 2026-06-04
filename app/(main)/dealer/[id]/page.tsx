@@ -63,85 +63,79 @@ export default async function PublicDealerProfile({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-amber-50/60 via-background to-background">
-      <section className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:py-10">
+      <section className="mx-auto max-w-7xl space-y-4 px-3 pb-24 pt-4 sm:space-y-6 sm:px-4 sm:py-10">
         <PublicHeroPhoto dealerId={dealer.id} alt={dealer.companyName} />
-        <div className="overflow-hidden rounded-[2rem] border border-amber-200 bg-white shadow-[0_24px_90px_rgba(120,72,12,0.12)]">
-          <div className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(246,220,148,0.28),transparent_34%),linear-gradient(135deg,#171006_0%,#33220c_48%,#6f4c17_100%)] px-5 py-8 text-white sm:px-8 sm:py-10">
-            <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-amber-100/10 blur-3xl" />
-            <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-3xl border border-white/20 bg-white shadow-2xl sm:h-24 sm:w-24">
+        <div className="overflow-hidden rounded-[1.75rem] border border-amber-200 bg-white shadow-[0_18px_60px_rgba(120,72,12,0.12)] sm:rounded-[2rem] sm:shadow-[0_24px_90px_rgba(120,72,12,0.12)]">
+          <div className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(246,220,148,0.28),transparent_34%),linear-gradient(135deg,#171006_0%,#33220c_48%,#6f4c17_100%)] px-4 py-5 text-white sm:px-8 sm:py-10">
+            <div className="absolute -right-20 -top-20 h-44 w-44 rounded-full bg-amber-100/10 blur-3xl sm:h-56 sm:w-56" />
+            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border border-white/20 bg-white shadow-2xl sm:h-24 sm:w-24 sm:rounded-3xl">
                   <img src="/logo-icon-only.png" alt="NNAuto.cz" className="h-full w-full object-contain p-2" />
                 </div>
-                <div>
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    <span className="inline-flex items-center rounded-full border border-white/20 bg-white/15 px-3 py-1 text-sm font-semibold text-white">
-                      <Star className="mr-1 h-4 w-4 text-amber-200" />
-                      NNAuto Premium
-                    </span>
-                    <span className="inline-flex items-center rounded-full border border-white/20 bg-white/15 px-3 py-1 text-sm font-semibold text-white">
-                      Ověření prodejci
+                <div className="min-w-0">
+                  <div className="mb-2 flex flex-wrap gap-1.5 sm:gap-2">
+                    {dealer.isVerified && (
+                      <span className="inline-flex items-center rounded-full border border-white/20 bg-white/15 px-2.5 py-1 text-xs font-semibold text-white sm:px-3 sm:text-sm">
+                        <Star className="mr-1 h-3.5 w-3.5 text-amber-200 sm:h-4 sm:w-4" />
+                        Ověřený dealer
+                      </span>
+                    )}
+                    <span className="inline-flex items-center rounded-full border border-white/20 bg-white/15 px-2.5 py-1 text-xs font-semibold text-white sm:px-3 sm:text-sm">
+                      NNAuto.cz
                     </span>
                   </div>
-                  <h1 className="text-4xl font-black tracking-tight sm:text-5xl">NNAuto.cz</h1>
-                  <p className="mt-2 max-w-2xl text-sm leading-relaxed text-amber-50/80 sm:text-base">
-                    Prémiová síť ověřených autobazarů a profesionálních prodejců v České republice.
+                  <p className="text-3xl font-black tracking-tight sm:text-5xl">{dealer.companyName}</p>
+                  <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-amber-50/80 sm:mt-2 sm:text-base">
+                    Veřejný profil prodejce na NNAuto.cz s aktuální nabídkou vozů a přímým kontaktem.
                   </p>
                 </div>
               </div>
               <a
                 href="#inventory"
-                className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-black text-amber-900 shadow-xl transition hover:bg-amber-50"
+                className="inline-flex h-12 items-center justify-center rounded-2xl bg-white px-5 text-sm font-black text-amber-900 shadow-xl transition hover:bg-amber-50 sm:w-auto"
               >
                 Prohlédnout nabídku
               </a>
             </div>
           </div>
 
-          <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-[1fr_360px]">
+          <div className="grid gap-4 p-4 sm:gap-6 sm:p-6 lg:grid-cols-[1fr_380px]">
             <div className="min-w-0">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-3xl border-4 border-white bg-amber-100 text-3xl font-black text-amber-900 shadow-xl">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-3xl border-4 border-white bg-amber-100 text-2xl font-black text-amber-900 shadow-xl sm:h-28 sm:w-28 sm:text-3xl">
                   {dealer.logoUrl ? (
                     <img src={dealer.logoUrl} alt={dealer.companyName} className="h-full w-full object-cover" />
                   ) : (
                     initials || "NN"
                   )}
                 </div>
-                <div className="min-w-0 pb-1">
-                  <div className="mb-2 flex flex-wrap gap-2">
+                <div className="min-w-0 flex-1 pb-1">
+                  <div className="mb-2 flex flex-wrap gap-1.5 sm:gap-2">
                     {dealer.isVerified && (
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
-                        <CheckCircle2 className="mr-1 h-4 w-4" />
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700 sm:px-3 sm:text-sm">
+                        <CheckCircle2 className="mr-1 h-3.5 w-3.5 sm:h-4 sm:w-4" />
                         Ověřený autobazar
                       </span>
                     )}
-                    <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
-                      <Star className="mr-1 h-4 w-4" />
-                      4.9 hodnocení
-                    </span>
                   </div>
-                  <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{dealer.companyName}</h1>
-                  <p className="mt-3 max-w-3xl text-muted-foreground">
+                  <h1 className="text-3xl font-black leading-tight tracking-tight text-[#5c3b10] sm:text-5xl">{dealer.companyName}</h1>
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:mt-3 sm:text-base">
                     {dealer.description || "Prémiový dealer na NNAuto.cz. Prohlédněte si aktuální nabídku vozů a kontaktujte prodejce přímo."}
                   </p>
                 </div>
               </div>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl bg-amber-50 p-4">
-                  <p className="text-2xl font-black">{dealerListings.length}</p>
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:mt-6 sm:gap-3">
+                <div className="rounded-2xl bg-amber-50 p-3 sm:p-4">
+                  <p className="text-2xl font-black text-[#5c3b10]">{dealerListings.length}</p>
                   <p className="text-sm text-amber-800">Aktivních vozů</p>
-                </div>
-                <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-2xl font-black">~18 min</p>
-                  <p className="text-sm text-muted-foreground">Průměrná odpověď</p>
                 </div>
                 <PublicWorkingHoursSummary dealerId={dealer.id} />
               </div>
             </div>
 
-            <aside className="rounded-3xl border bg-amber-50/70 p-4">
+            <aside className="rounded-3xl border border-amber-100 bg-amber-50/70 p-4 shadow-sm">
               <h2 className="text-lg font-black">Kontakt na dealera</h2>
               <div className="mt-4 space-y-3 text-sm">
                 {dealer.phone && (
@@ -164,13 +158,29 @@ export default async function PublicDealerProfile({ params }: PageProps) {
                 )}
                 <PublicTodayHoursRow dealerId={dealer.id} />
               </div>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <a href={dealer.phone ? `tel:${dealer.phone}` : "#"} className="rounded-2xl bg-amber-700 px-4 py-3 text-center text-sm font-bold text-white hover:bg-amber-800">
-                  Zavolat
-                </a>
-                <a href={dealer.phone ? `https://wa.me/${dealer.phone.replace(/\D/g, "")}` : "#"} className="rounded-2xl border bg-white px-4 py-3 text-center text-sm font-bold hover:bg-amber-50">
-                  WhatsApp
-                </a>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                {dealer.phone && (
+                  <a href={`tel:${dealer.phone}`} className="rounded-2xl bg-amber-700 px-4 py-3 text-center text-sm font-bold text-white hover:bg-amber-800">
+                    Zavolat
+                  </a>
+                )}
+                {dealer.phone && (
+                  <a href={`https://wa.me/${dealer.phone.replace(/\D/g, "")}`} className="rounded-2xl border bg-white px-4 py-3 text-center text-sm font-bold hover:bg-amber-50">
+                    WhatsApp
+                  </a>
+                )}
+                {!dealer.phone && dealer.email && (
+                  <a href={`mailto:${dealer.email}`} className="rounded-2xl bg-amber-700 px-4 py-3 text-center text-sm font-bold text-white hover:bg-amber-800 sm:col-span-2">
+                    Napsat e-mail
+                  </a>
+                )}
+              </div>
+              <div className="mt-4">
+                <PublicDealerMap
+                  dealerId={dealer.id}
+                  address={dealer.address}
+                  region={dealer.region}
+                />
               </div>
             </aside>
           </div>
@@ -188,8 +198,8 @@ export default async function PublicDealerProfile({ params }: PageProps) {
 
         <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <section id="inventory">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-2xl font-black">Aktuální nabídka</h2>
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <h2 className="text-xl font-black text-[#5c3b10] sm:text-2xl">Aktuální nabídka</h2>
               <span className="text-sm text-muted-foreground">{dealerListings.length} vozů</span>
             </div>
             {dealerListings.length === 0 ? (
@@ -197,14 +207,14 @@ export default async function PublicDealerProfile({ params }: PageProps) {
                 Tento dealer zatím nemá aktivní nabídku.
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-3">
                 {dealerListings.map((listing) => {
                   const photo = listing.photos?.[0];
                   return (
                     <Link
                       key={listing.id}
                       href={buildListingUrl({ id: listing.id, brand: listing.brand, model: listing.model, year: listing.year })}
-                      className="group overflow-hidden rounded-3xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-xl"
+                      className="group overflow-hidden rounded-3xl border border-amber-100 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-xl"
                     >
                       <div className="aspect-[4/3] bg-muted">
                         {photo ? (
@@ -215,13 +225,13 @@ export default async function PublicDealerProfile({ params }: PageProps) {
                           </div>
                         )}
                       </div>
-                      <div className="p-4">
+                      <div className="p-3 sm:p-4">
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <h3 className="truncate font-black">{listing.brand} {listing.model}</h3>
                           {listing.isTopListing && <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-black text-white">TOP</span>}
                         </div>
                         <p className="text-sm text-muted-foreground">{listing.year} · {listing.mileage?.toLocaleString("cs-CZ")} km</p>
-                        <p className="mt-3 text-xl font-black text-amber-800">{Number(listing.price).toLocaleString("cs-CZ")} Kč</p>
+                        <p className="mt-2 text-xl font-black text-amber-800 sm:mt-3">{Number(listing.price).toLocaleString("cs-CZ")} Kč</p>
                       </div>
                     </Link>
                   );
@@ -231,11 +241,6 @@ export default async function PublicDealerProfile({ params }: PageProps) {
           </section>
 
           <aside className="space-y-4">
-            <PublicDealerMap
-              dealerId={dealer.id}
-              address={dealer.address}
-              region={dealer.region}
-            />
             <PublicSocialLinks dealerId={dealer.id} website={dealer.website} />
           </aside>
         </div>
