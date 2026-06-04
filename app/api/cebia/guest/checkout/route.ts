@@ -97,7 +97,9 @@ export async function POST(req: NextRequest) {
       model: listing.model,
       year: listing.year,
     });
-    const successPath = listingPath;
+    // Paid guests must land on the dedicated return page, which verifies the
+    // Stripe session before requesting/generating the PDF report.
+    const successPath = `/cebia/return`;
     const cancelPath = listingPath;
 
     const session = await stripe.checkout.sessions.create({
