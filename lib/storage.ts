@@ -660,6 +660,105 @@ export const storage = {
     return result?.rows?.[0]?.total ?? 0;
   },
 
+  /**
+   * Rich summary used by the dealer cabinet inbox shortcut + dashboard
+   * banner. Returns total unread, the number of conversations with
+   * unread, the count of unique clients waiting for a reply, and the
+   * top 5 most recent unread conversations including listing data so
+   * the popover can render rich previews without a second roundtrip.
+   */
+  async getDealerInboxSummary(dealerUserId: string): Promise<{
+    unread: number;
+    conversationsWithUnread: number;
+    uniqueClients: number;
+    recent: Array<{
+      id: string;
+      clientName: string | null;
+      clientEmail: string | null;
+      clientPhone: string | null;
+      source: string;
+      status: string;
+      unreadCount: number;
+      lastMessagePreview: string | null;
+      lastMessageAt: Date | null;
+      listingId: string;
+      listingTitle: string | null;
+      listingBrand: string | null;
+      listingModel: string | null;
+      listingPhoto: string | null;
+    }>;
+  }> {
+    const totalsResult = (await db.execute(sql`
+      SELECT
+        COALESCE(SUM(unread_dealer_count), 0)::int AS total,
+        COUNT(*) FILTER (WHERE unread_dealer_count > 0)::int AS convs,
+        COUNT(DISTINCT COALESCE(client_user_id::text, client_email, client_phone))
+          FILTER (WHERE unread_dealer_count > 0)::int AS clients
+      FROM conversations
+      WHERE dealer_user_id = ${dealerUserId}
+    `)) as {
+      rows?: Array<{ total: number; convs: number; clients: number }>;
+    };
+    const totals = totalsResult?.rows?.[0] ?? {
+      total: 0,
+      convs: 0,
+      clients: 0,
+    };
+
+    const recent = await db
+      .select({
+        id: conversations.id,
+        clientName: conversations.clientName,
+        clientEmail: conversations.clientEmail,
+        clientPhone: conversations.clientPhone,
+        source: conversations.source,
+        status: conversations.status,
+        unreadCount: conversations.unreadDealerCount,
+        lastMessagePreview: conversations.lastMessagePreview,
+        lastMessageAt: conversations.lastMessageAt,
+        listingId: conversations.listingId,
+        listingTitle: listings.title,
+        listingBrand: listings.brand,
+        listingModel: listings.model,
+        listingPhotos: listings.photos,
+      })
+      .from(conversations)
+      .leftJoin(listings, eq(conversations.listingId, listings.id))
+      .where(
+        and(
+          eq(conversations.dealerUserId, dealerUserId),
+          gt(conversations.unreadDealerCount, 0),
+        ),
+      )
+      .orderBy(desc(conversations.lastMessageAt))
+      .limit(5);
+
+    return {
+      unread: totals.total,
+      conversationsWithUnread: totals.convs,
+      uniqueClients: totals.clients,
+      recent: recent.map((row) => ({
+        id: row.id,
+        clientName: row.clientName,
+        clientEmail: row.clientEmail,
+        clientPhone: row.clientPhone,
+        source: row.source,
+        status: row.status,
+        unreadCount: row.unreadCount,
+        lastMessagePreview: row.lastMessagePreview,
+        lastMessageAt: row.lastMessageAt,
+        listingId: row.listingId,
+        listingTitle: row.listingTitle ?? null,
+        listingBrand: row.listingBrand ?? null,
+        listingModel: row.listingModel ?? null,
+        listingPhoto:
+          Array.isArray(row.listingPhotos) && row.listingPhotos.length > 0
+            ? row.listingPhotos[0] ?? null
+            : null,
+      })),
+    };
+  },
+
   // Quick replies ----------------------------------------------------------
 
   async listQuickReplies(dealerUserId: string): Promise<QuickReply[]> {

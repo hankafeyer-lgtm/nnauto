@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/translations";
 import { useLocation, Link } from "@/lib/navigation";
 import { apiRequest } from "@/lib/queryClient";
+import { buildListingPath } from "@/lib/listingUrl";
 import {
   requestBrowserNotificationPermission,
   useDealerUnreadNotifier,
@@ -165,27 +166,89 @@ export default function DealerMessagesPage() {
     <div className="min-h-screen flex flex-col">
       <SEO title={t("messages.pageTitle")} noindex />
       <Header />
-      <main className="flex-1 container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-7xl">
-        <div className="flex items-center justify-between gap-3 mb-4 sm:mb-6 px-2 sm:px-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <Inbox className="h-6 w-6 text-amber-700 shrink-0" />
-            <h1 className="text-xl sm:text-2xl font-bold truncate">
-              {t("messages.heading")}
-            </h1>
+      <main className="flex-1 bg-[radial-gradient(circle_at_top_left,rgba(245,205,116,0.16),transparent_34%),linear-gradient(180deg,#fffaf0_0%,#ffffff_36%)]">
+        <div className="container mx-auto max-w-7xl px-2 py-4 sm:px-4 sm:py-7">
+        <div className="mb-4 overflow-hidden rounded-3xl border border-amber-100 bg-white/90 p-4 shadow-[0_18px_55px_rgba(120,72,12,0.10)] backdrop-blur sm:mb-5 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#3d260c_0%,#8a641f_100%)] text-white shadow-lg">
+                <Inbox className="h-6 w-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8a641f]">
+                  NNAuto Pro
+                </p>
+                <h1 className="truncate text-2xl font-black tracking-tight text-[#5c3b10] sm:text-3xl">
+                  {t("messages.heading")}
+                </h1>
+                <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                  {t("messages.subtitle")}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/dealer"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-amber-200 bg-white px-4 text-sm font-bold text-[#6f4c17] shadow-sm transition hover:-translate-y-0.5 hover:bg-amber-50"
+              data-testid="link-back-to-cabinet"
+            >
+              <Building2 className="h-4 w-4" />
+              {t("messages.backToCabinet")}
+            </Link>
           </div>
-          <Link
-            href="/dealer"
-            className="text-sm text-muted-foreground hover:text-primary inline-flex items-center gap-1"
-            data-testid="link-back-to-cabinet"
-          >
-            <Building2 className="h-4 w-4" />
-            <span className="hidden sm:inline">{t("messages.backToCabinet")}</span>
-          </Link>
         </div>
 
         <MessagesShell />
+        </div>
       </main>
       <Footer />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Premium inbox overview
+// ─────────────────────────────────────────────────────────────────────────────
+
+function InboxSummaryBar({
+  conversations,
+  loading,
+}: {
+  conversations: ConversationWithListing[];
+  loading: boolean;
+}) {
+  const t = useTranslation();
+  const total = conversations.length;
+  const unread = conversations.reduce((sum, c) => sum + (c.unreadDealerCount || 0), 0);
+  const active = conversations.filter((c) => c.status !== "closed").length;
+  const emailLeads = conversations.filter((c) => c.clientEmail || c.source === "email").length;
+
+  const stats = [
+    { label: t("messages.summary.total"), value: total, Icon: Inbox },
+    { label: t("messages.summary.unread"), value: unread, Icon: Bell },
+    { label: t("messages.summary.active"), value: active, Icon: MessageCircle },
+    { label: t("messages.summary.email"), value: emailLeads, Icon: Mail },
+  ];
+
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+      {stats.map(({ label, value, Icon }) => (
+        <div
+          key={label}
+          className="rounded-3xl border border-amber-100 bg-white/90 p-3 shadow-[0_12px_34px_rgba(120,72,12,0.08)] sm:p-3.5"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#fff4d8] text-[#7a5518] sm:h-10 sm:w-10">
+              <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground">{label}</p>
+              <p className="text-xl font-black text-[#5c3b10] sm:text-2xl">
+                {loading ? "…" : value}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -276,33 +339,38 @@ function MessagesShell() {
 
   return (
     <>
+      <InboxSummaryBar conversations={conversations} loading={conversationsQuery.isLoading} />
       <BrowserNotificationsPrompt />
-      <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-0 lg:gap-4 border rounded-2xl overflow-hidden bg-card shadow-sm h-[calc(100vh-220px)] min-h-[520px]">
+      <div className="grid h-[calc(100vh-260px)] min-h-[590px] grid-cols-1 overflow-hidden rounded-[2rem] border border-amber-100 bg-white/95 shadow-[0_24px_70px_rgba(120,72,12,0.12)] lg:grid-cols-[390px_minmax(0,1fr)]">
       {/* List pane */}
       <aside
-        className={`border-r flex flex-col ${
+        className={`border-r border-amber-100 bg-[#fffaf0]/70 flex flex-col ${
           selected ? "hidden lg:flex" : "flex"
         }`}
         data-testid="conversation-list-pane"
       >
-        <div className="p-3 border-b space-y-3">
+        <div className="space-y-3 border-b border-amber-100 bg-white/80 p-3.5 backdrop-blur">
           <div className="relative">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a641f]" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("messages.searchPlaceholder")}
-              className="pl-9"
+              className="h-11 rounded-2xl border-amber-100 bg-white pl-10 shadow-sm focus-visible:ring-amber-300"
               data-testid="input-search-conversations"
             />
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {STATUS_TABS.map((tab) => (
               <Button
                 key={tab.value}
                 size="sm"
                 variant={statusFilter === tab.value ? "default" : "outline"}
-                className="h-7 text-xs px-2"
+                className={`h-8 rounded-full px-3 text-xs font-black ${
+                  statusFilter === tab.value
+                    ? "bg-[#6f4c17] text-white shadow-md hover:bg-[#5a3a10]"
+                    : "border-amber-100 bg-white text-[#6f4c17] hover:bg-amber-50"
+                }`}
                 onClick={() => setStatusFilter(tab.value)}
                 data-testid={`filter-${tab.value}`}
               >
@@ -312,17 +380,17 @@ function MessagesShell() {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto p-2">
           {conversationsQuery.isLoading ? (
             <ListSkeleton />
           ) : conversationsQuery.isError ? (
-            <div className="p-6 text-sm text-destructive">
+            <div className="m-2 rounded-2xl border border-destructive/20 bg-destructive/5 p-6 text-sm text-destructive">
               {t("messages.loadError")}
             </div>
           ) : conversations.length === 0 ? (
             <EmptyList />
           ) : (
-            <ul className="divide-y">
+            <ul className="space-y-2">
               {conversations.map((c) => (
                 <ConversationListItem
                   key={c.id}
@@ -340,7 +408,7 @@ function MessagesShell() {
 
       {/* Chat pane */}
       <section
-        className={`flex flex-col ${selected ? "flex" : "hidden lg:flex"}`}
+        className={`min-w-0 bg-white flex flex-col ${selected ? "flex" : "hidden lg:flex"}`}
         data-testid="chat-pane"
       >
         {selected ? (
@@ -423,11 +491,13 @@ function BrowserNotificationsPrompt() {
 
   return (
     <div
-      className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 flex items-center gap-3"
+      className="mb-4 flex items-center gap-3 rounded-3xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-3.5 shadow-[0_12px_32px_rgba(120,72,12,0.08)]"
       data-testid="browser-notifications-prompt"
     >
-      <Bell className="h-5 w-5 text-amber-700 shrink-0" />
-      <div className="flex-1 min-w-0">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+        <Bell className="h-5 w-5" />
+      </div>
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold text-amber-900">
           {t("messages.notification.enableTitle")}
         </p>
@@ -438,7 +508,7 @@ function BrowserNotificationsPrompt() {
       <Button
         size="sm"
         variant="outline"
-        className="gap-1.5"
+        className="gap-1.5 rounded-xl border-amber-200 bg-white font-bold text-amber-900 hover:bg-amber-50"
         onClick={async () => {
           const result = await requestBrowserNotificationPermission();
           setState("hide");
@@ -457,6 +527,7 @@ function BrowserNotificationsPrompt() {
       <Button
         size="icon"
         variant="ghost"
+        className="rounded-xl text-amber-900 hover:bg-amber-100"
         onClick={() => {
           sessionStorage.setItem("nnauto.notifPromptDismissed", "1");
           setState("hide");
@@ -495,45 +566,49 @@ function ConversationListItem({
 
   return (
     <li
-      className={`relative hover:bg-muted/50 transition ${
-        selected ? "bg-muted/70" : ""
+      className={`relative overflow-hidden rounded-3xl border transition ${
+        selected
+          ? "border-[#d7b46a] bg-[linear-gradient(135deg,#fff8e8_0%,#ffffff_100%)] shadow-[0_14px_34px_rgba(120,72,12,0.13)]"
+          : "border-transparent bg-white/80 hover:border-amber-100 hover:bg-white hover:shadow-sm"
       }`}
     >
       <button
         type="button"
         onClick={onClick}
-        className="w-full text-left p-3 pr-12 flex gap-3 items-start"
+        className="flex w-full items-start gap-3 p-3.5 pr-12 text-left"
         data-testid={`conversation-row-${c.id}`}
       >
         <div className="relative shrink-0">
-          <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center font-semibold">
+          <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-amber-100 text-base font-black text-amber-800 ring-1 ring-amber-200">
             {initials}
           </div>
-          <SourceIcon
-            source={c.source as ConversationSource}
-            className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-background border p-[2px] text-muted-foreground"
-          />
+          <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-white text-muted-foreground shadow-sm">
+            <SourceIcon
+              source={c.source as ConversationSource}
+              className="h-3.5 w-3.5"
+            />
+          </div>
+          {c.unreadDealerCount > 0 && (
+            <span className="absolute -left-1.5 -top-1.5 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white shadow-md ring-2 ring-white">
+              {c.unreadDealerCount}
+            </span>
+          )}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm truncate">
+            <span className="truncate text-sm font-black text-[#5c3b10]">
               {c.clientName || c.clientEmail || c.clientPhone || t("messages.anonymous")}
             </span>
-            {c.unreadDealerCount > 0 && (
-              <Badge className="ml-auto bg-amber-700 hover:bg-amber-800 text-[10px] px-1.5">
-                {c.unreadDealerCount}
-              </Badge>
-            )}
           </div>
-          <div className="text-xs text-muted-foreground truncate">
+          <div className="mt-0.5 truncate text-xs font-bold text-[#8a641f]">
             {c.listing
               ? `${c.listing.brand.toUpperCase()} ${c.listing.model}`
               : t("messages.unknownListing")}
           </div>
-          <div className="text-xs text-muted-foreground/90 line-clamp-1 mt-0.5">
+          <div className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
             {c.lastMessagePreview || t("messages.noMessages")}
           </div>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="mt-2 flex items-center gap-2">
             <StatusBadge status={c.status as ConversationStatus} />
             <span className="text-[10px] text-muted-foreground">
               {formatRelative(c.lastMessageAt || c.updatedAt)}
@@ -551,7 +626,7 @@ function ConversationListItem({
         aria-label="Smazat chat"
         title="Smazat chat"
         data-testid={`button-delete-conversation-${c.id}`}
-        className="absolute top-2 right-2 h-8 w-8 rounded-lg flex items-center justify-center text-destructive hover:bg-destructive/10 disabled:opacity-50"
+        className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-xl text-destructive opacity-70 hover:bg-destructive/10 hover:opacity-100 disabled:opacity-50"
       >
         <Trash2 className="h-4 w-4" />
       </button>
@@ -753,7 +828,7 @@ function ChatPane({
     conversation.source === "email" || (viaEmailToggle && canSendEmail);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex min-h-0 flex-1 flex-col">
       <ChatHeader
         conversation={conversation}
         onBack={onBack}
@@ -762,7 +837,10 @@ function ChatPane({
         deleteChatDisabled={deleteConversationMutation.isPending}
       />
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-3 bg-muted/30">
+      <div
+        ref={scrollRef}
+        className="flex-1 space-y-3 overflow-y-auto bg-[radial-gradient(circle_at_top_right,rgba(245,205,116,0.15),transparent_30%),linear-gradient(180deg,#fffaf0_0%,#ffffff_42%)] px-3 py-4 sm:px-6"
+      >
         {messages.length === 0 ? (
           <div className="text-center text-sm text-muted-foreground py-12">
             {t("messages.threadEmpty")}
@@ -780,8 +858,8 @@ function ChatPane({
         )}
       </div>
 
-      <div className="border-t p-3 sm:p-4 space-y-2 bg-background">
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="space-y-3 border-t border-amber-100 bg-white/95 p-3 shadow-[0_-10px_35px_rgba(120,72,12,0.06)] sm:p-4">
+        <div className="flex flex-wrap items-center gap-2">
           <QuickRepliesMenu
             onPick={(text) => setDraft((d) => (d ? `${d}\n${text}` : text))}
           />
@@ -790,7 +868,7 @@ function ChatPane({
             size="sm"
             onClick={() => aiReplyMutation.mutate()}
             disabled={aiReplyMutation.isPending}
-            className="gap-1.5"
+            className="gap-1.5 rounded-xl border-amber-200 bg-white font-bold text-[#6f4c17] hover:bg-amber-50"
             data-testid="button-ai-reply"
             title={t("messages.aiReplyTooltip")}
           >
@@ -800,7 +878,7 @@ function ChatPane({
               : t("messages.aiReply")}
           </Button>
           {canSendEmail && conversation.source !== "email" && (
-            <label className="text-xs flex items-center gap-1.5 cursor-pointer select-none">
+            <label className="flex cursor-pointer select-none items-center gap-1.5 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-1.5 text-xs text-[#6f4c17]">
               <input
                 type="checkbox"
                 className="h-3.5 w-3.5"
@@ -813,18 +891,18 @@ function ChatPane({
             </label>
           )}
           {willDeliverViaEmail && (
-            <Badge variant="outline" className="text-[10px] gap-1">
+            <Badge variant="outline" className="gap-1 border-amber-200 bg-amber-50 text-[10px] text-[#6f4c17]">
               <Mail className="h-3 w-3" />
               {t("messages.willSendEmail")}
             </Badge>
           )}
         </div>
-        <div className="flex gap-2 items-end">
+        <div className="flex items-end gap-2">
           <Textarea
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder={t("messages.replyPlaceholder")}
-            className="min-h-[56px] max-h-40 resize-none"
+            className="min-h-[62px] max-h-40 resize-none rounded-2xl border-amber-100 bg-white p-4 shadow-inner focus-visible:ring-amber-300"
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && draft.trim()) {
                 e.preventDefault();
@@ -836,7 +914,7 @@ function ChatPane({
           <Button
             onClick={() => draft.trim() && sendMutation.mutate()}
             disabled={!draft.trim() || sendMutation.isPending}
-            className="gap-2 h-[56px]"
+            className="h-[62px] gap-2 rounded-2xl bg-[#6f4c17] px-5 font-black text-white shadow-md hover:bg-[#5a3a10]"
             data-testid="button-send-reply"
           >
             <Send className="h-4 w-4" />
@@ -940,76 +1018,87 @@ function ChatHeader({
   const t = useTranslation();
   const listing = conversation.listing;
   return (
-    <div className="border-b p-3 sm:p-4 flex items-center gap-3">
+    <div className="flex flex-col gap-3 border-b border-amber-100 bg-white/95 p-3.5 sm:p-4 lg:flex-row lg:items-center">
       <Button
         variant="ghost"
         size="icon"
         onClick={onBack}
-        className="lg:hidden"
+        className="self-start rounded-xl lg:hidden"
         data-testid="button-back-to-list"
       >
         <ArrowLeft className="h-4 w-4" />
       </Button>
-      <SourceIcon
-        source={conversation.source as ConversationSource}
-        className="h-5 w-5 text-muted-foreground shrink-0"
-      />
-      <div className="flex-1 min-w-0">
-        <div className="font-semibold truncate text-sm sm:text-base">
-          {conversation.clientName ||
-            conversation.clientEmail ||
-            conversation.clientPhone ||
-            t("messages.anonymous")}
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff4d8] text-[#7a5518] ring-1 ring-amber-200">
+          <SourceIcon
+            source={conversation.source as ConversationSource}
+            className="h-5 w-5"
+          />
         </div>
-        <div className="text-xs text-muted-foreground truncate flex items-center gap-2">
-          {conversation.clientEmail && (
-            <span className="inline-flex items-center gap-1">
-              <Mail className="h-3 w-3" /> {conversation.clientEmail}
-            </span>
-          )}
-          {conversation.clientPhone && (
-            <span className="inline-flex items-center gap-1">
-              <Phone className="h-3 w-3" /> {conversation.clientPhone}
-            </span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-base font-black text-[#5c3b10] sm:text-lg">
+            {conversation.clientName ||
+              conversation.clientEmail ||
+              conversation.clientPhone ||
+              t("messages.anonymous")}
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            {conversation.clientEmail && (
+              <span className="inline-flex items-center gap-1">
+                <Mail className="h-3 w-3" /> {conversation.clientEmail}
+              </span>
+            )}
+            {conversation.clientPhone && (
+              <span className="inline-flex items-center gap-1">
+                <Phone className="h-3 w-3" /> {conversation.clientPhone}
+              </span>
+            )}
+          </div>
+          {listing && (
+            <Link
+              href={buildListingPath({
+                id: listing.id,
+                brand: listing.brand,
+                model: listing.model,
+                year: listing.year,
+              })}
+              className="mt-2 inline-flex items-center gap-2 rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-xs font-bold text-[#7a5518] hover:bg-amber-100"
+              data-testid="link-listing"
+            >
+              <Smartphone className="h-3 w-3" />
+              {listing.brand.toUpperCase()} {listing.model} ·{" "}
+              {Number(listing.price).toLocaleString("cs-CZ")} Kč
+            </Link>
           )}
         </div>
-        {listing && (
-          <Link
-            href={`/listing/${listing.id}`}
-            className="text-xs text-amber-700 hover:underline inline-flex items-center gap-1"
-            data-testid="link-listing"
-          >
-            <Smartphone className="h-3 w-3" />
-            {listing.brand.toUpperCase()} {listing.model} ·{" "}
-            {Number(listing.price).toLocaleString("cs-CZ")} Kč
-          </Link>
-        )}
       </div>
-      <Select
-        value={conversation.status}
-        onValueChange={(v) => onChangeStatus(v as ConversationStatus)}
-      >
-        <SelectTrigger className="w-[150px]" data-testid="select-status">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="new">{t("messages.filter.new")}</SelectItem>
-          <SelectItem value="in_progress">{t("messages.filter.inProgress")}</SelectItem>
-          <SelectItem value="closed">{t("messages.filter.closed")}</SelectItem>
-        </SelectContent>
-      </Select>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onDeleteChat}
-        disabled={deleteChatDisabled}
-        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-        aria-label="Smazat chat"
-        title="Smazat chat"
-        data-testid="button-delete-chat"
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      <div className="flex shrink-0 items-center gap-2">
+        <Select
+          value={conversation.status}
+          onValueChange={(v) => onChangeStatus(v as ConversationStatus)}
+        >
+          <SelectTrigger className="h-11 w-[155px] rounded-2xl border-amber-100 bg-white font-bold text-[#6f4c17]" data-testid="select-status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="new">{t("messages.filter.new")}</SelectItem>
+            <SelectItem value="in_progress">{t("messages.filter.inProgress")}</SelectItem>
+            <SelectItem value="closed">{t("messages.filter.closed")}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onDeleteChat}
+          disabled={deleteChatDisabled}
+          className="rounded-2xl text-destructive hover:bg-destructive/10 hover:text-destructive"
+          aria-label="Smazat chat"
+          title="Smazat chat"
+          data-testid="button-delete-chat"
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
@@ -1033,7 +1122,7 @@ function MessageBubble({
   if (m.sender === "system") {
     return (
       <div className="flex justify-center">
-        <div className="bg-amber-50 text-amber-900 border border-amber-200 text-xs rounded-full px-3 py-1 max-w-[80%]">
+        <div className="max-w-[86%] rounded-full border border-amber-200 bg-white/90 px-3 py-1.5 text-xs font-medium text-amber-900 shadow-sm">
           <Sparkles className="inline h-3 w-3 mr-1" />
           {m.content}
         </div>
@@ -1045,10 +1134,10 @@ function MessageBubble({
   return (
     <div className={`flex ${isDealer ? "justify-end" : "justify-start"}`}>
       <div
-        className={`group relative max-w-[85%] sm:max-w-[70%] rounded-2xl px-3.5 py-2 shadow-sm ${
+        className={`group relative max-w-[88%] rounded-3xl px-4 py-3 shadow-sm sm:max-w-[70%] ${
           isDealer
-            ? "bg-amber-700 text-white rounded-br-sm"
-            : "bg-card border rounded-bl-sm"
+            ? "rounded-br-md bg-[linear-gradient(135deg,#8a4b12_0%,#b86417_100%)] text-white shadow-[0_12px_28px_rgba(180,83,9,0.22)]"
+            : "rounded-bl-md border border-amber-100 bg-white text-[#3d260c] shadow-[0_8px_22px_rgba(120,72,12,0.06)]"
         }`}
         data-testid={`message-bubble-${m.id}`}
       >
@@ -1056,7 +1145,7 @@ function MessageBubble({
           {m.content}
         </div>
         <div
-          className={`flex items-center gap-1.5 mt-1 text-[10px] ${
+          className={`mt-2 flex items-center gap-1.5 text-[10px] ${
             isDealer ? "text-white/80 justify-end" : "text-muted-foreground"
           }`}
         >
@@ -1120,7 +1209,7 @@ function QuickRepliesMenu({ onPick }: { onPick: (text: string) => void }) {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="gap-1.5 rounded-xl border-amber-200 bg-white font-bold text-[#6f4c17] hover:bg-amber-50"
             data-testid="button-quick-replies"
           >
             <MessageCircle className="h-3.5 w-3.5" />
@@ -1128,7 +1217,7 @@ function QuickRepliesMenu({ onPick }: { onPick: (text: string) => void }) {
             <ChevronDown className="h-3 w-3 opacity-70" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-80 max-w-[90vw]">
+        <DropdownMenuContent align="start" className="w-80 max-w-[90vw] rounded-2xl border-amber-100">
           <DropdownMenuLabel>{t("messages.templates")}</DropdownMenuLabel>
           <DropdownMenuSeparator />
           {items.length === 0 ? (
@@ -1140,7 +1229,7 @@ function QuickRepliesMenu({ onPick }: { onPick: (text: string) => void }) {
               <DropdownMenuItem
                 key={it.id}
                 onClick={() => onPick(it.message)}
-                className="flex flex-col items-start gap-0.5"
+                className="flex flex-col items-start gap-0.5 rounded-xl"
                 data-testid={`quick-reply-${it.id}`}
               >
                 <span className="text-xs font-semibold">{it.title}</span>
@@ -1315,7 +1404,7 @@ function StatusBadge({ status }: { status: ConversationStatus }) {
   const map: Record<ConversationStatus, { label: string; className: string }> = {
     new: {
       label: t("messages.filter.new"),
-      className: "bg-blue-100 text-blue-800 border-blue-200",
+      className: "bg-sky-100 text-sky-800 border-sky-200",
     },
     in_progress: {
       label: t("messages.filter.inProgress"),
@@ -1329,7 +1418,7 @@ function StatusBadge({ status }: { status: ConversationStatus }) {
   const m = map[status];
   return (
     <span
-      className={`text-[10px] px-1.5 py-0 border rounded-full ${m.className}`}
+      className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${m.className}`}
     >
       {m.label}
     </span>
@@ -1339,12 +1428,12 @@ function StatusBadge({ status }: { status: ConversationStatus }) {
 function ChatEmptyState() {
   const t = useTranslation();
   return (
-    <div className="flex-1 flex items-center justify-center text-center p-8">
-      <div className="space-y-3 max-w-sm">
-        <div className="w-14 h-14 rounded-full bg-amber-100 mx-auto flex items-center justify-center">
+    <div className="flex flex-1 items-center justify-center p-8 text-center">
+      <div className="max-w-sm space-y-3 rounded-[2rem] border border-amber-100 bg-white/80 p-8 shadow-[0_18px_55px_rgba(120,72,12,0.08)]">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100">
           <Inbox className="h-7 w-7 text-amber-700" />
         </div>
-        <h2 className="font-semibold">{t("messages.empty.title")}</h2>
+        <h2 className="font-black text-[#5c3b10]">{t("messages.empty.title")}</h2>
         <p className="text-sm text-muted-foreground">
           {t("messages.empty.subtitle")}
         </p>
@@ -1356,8 +1445,8 @@ function ChatEmptyState() {
 function EmptyList() {
   const t = useTranslation();
   return (
-    <div className="p-8 text-center space-y-2">
-      <Inbox className="h-8 w-8 mx-auto text-muted-foreground/50" />
+    <div className="m-2 space-y-2 rounded-3xl border border-dashed border-amber-200 bg-white/70 p-8 text-center">
+      <Inbox className="mx-auto h-8 w-8 text-amber-600" />
       <p className="text-sm text-muted-foreground">{t("messages.listEmpty")}</p>
     </div>
   );
@@ -1365,14 +1454,14 @@ function EmptyList() {
 
 function ListSkeleton() {
   return (
-    <ul className="divide-y">
+    <ul className="space-y-2">
       {Array.from({ length: 6 }).map((_, i) => (
-        <li key={i} className="p-3 flex gap-3 animate-pulse">
-          <div className="w-10 h-10 rounded-full bg-muted" />
-          <div className="flex-1 space-y-1.5">
-            <div className="h-3 bg-muted rounded w-1/2" />
-            <div className="h-2.5 bg-muted rounded w-3/4" />
-            <div className="h-2.5 bg-muted rounded w-2/3" />
+        <li key={i} className="flex animate-pulse gap-3 rounded-3xl bg-white/80 p-3.5">
+          <div className="h-12 w-12 rounded-2xl bg-amber-100" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 rounded bg-amber-100 w-1/2" />
+            <div className="h-2.5 rounded bg-amber-100 w-3/4" />
+            <div className="h-2.5 rounded bg-amber-100 w-2/3" />
           </div>
         </li>
       ))}

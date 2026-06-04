@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock, MapPin } from "lucide-react";
+import { Clock, MapPin, Star, Quote } from "lucide-react";
 
 const dayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 type DayKey = (typeof dayKeys)[number];
@@ -25,6 +25,26 @@ type DealerLocalSettings = {
     instagram?: string;
     tiktok?: string;
     youtube?: string;
+  };
+  microsite?: {
+    heroPhoto?: string;
+    aboutTitle?: string;
+    aboutText?: string;
+    showAbout?: boolean;
+    showInventory?: boolean;
+    showReviews?: boolean;
+  };
+  reviews?: {
+    enabled?: boolean;
+    list?: Array<{
+      id: string;
+      author: string;
+      rating: number;
+      text: string;
+      dateISO: string;
+      response?: string;
+      hidden?: boolean;
+    }>;
   };
 };
 
@@ -286,6 +306,156 @@ export function PublicDealerMap({
       >
         Otevřít v Google Maps
       </a>
+    </div>
+  );
+}
+
+export function PublicHeroPhoto({
+  dealerId,
+  fallback,
+  alt,
+}: {
+  dealerId: string;
+  fallback?: string;
+  alt: string;
+}) {
+  const settings = useDealerLocalSettings(dealerId);
+  const photo = settings.microsite?.heroPhoto;
+
+  if (!photo && !fallback) return null;
+
+  return (
+    <div className="overflow-hidden rounded-3xl border border-amber-200 bg-amber-50/30 shadow-[0_20px_60px_rgba(120,72,12,0.12)]">
+      <div className="aspect-[16/6] w-full sm:aspect-[16/5]">
+        <img
+          src={photo || fallback}
+          alt={alt}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </div>
+    </div>
+  );
+}
+
+export function PublicAboutBlock({
+  dealerId,
+  fallbackTitle,
+  fallbackText,
+}: {
+  dealerId: string;
+  fallbackTitle: string;
+  fallbackText?: string | null;
+}) {
+  const settings = useDealerLocalSettings(dealerId);
+  const microsite = settings.microsite || {};
+  if (microsite.showAbout === false) return null;
+
+  const title = microsite.aboutTitle?.trim() || fallbackTitle;
+  const text = microsite.aboutText?.trim() || fallbackText || "";
+  if (!text) return null;
+
+  return (
+    <div className="rounded-3xl border bg-white p-5 sm:p-6">
+      <h3 className="text-lg font-black sm:text-xl">{title}</h3>
+      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground sm:text-base">
+        {text}
+      </p>
+    </div>
+  );
+}
+
+export function PublicReviewsBlock({
+  dealerId,
+  fallbackRating,
+}: {
+  dealerId: string;
+  fallbackRating?: number;
+}) {
+  const settings = useDealerLocalSettings(dealerId);
+  const reviews = settings.reviews;
+  const microsite = settings.microsite || {};
+
+  if (microsite.showReviews === false) return null;
+  if (reviews?.enabled === false) return null;
+
+  const visibleReviews = (reviews?.list || []).filter((review) => !review.hidden);
+  const averageRating = visibleReviews.length
+    ? visibleReviews.reduce((sum, review) => sum + review.rating, 0) / visibleReviews.length
+    : (fallbackRating ?? 0);
+  const totalReviews = visibleReviews.length;
+
+  return (
+    <div className="rounded-3xl border bg-white p-5 sm:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h3 className="text-lg font-black sm:text-xl">Hodnocení od zákazníků</h3>
+          <p className="text-sm text-muted-foreground">
+            {totalReviews > 0
+              ? `Průměrné hodnocení dealera od ${totalReviews} zákazníků`
+              : "Buďte první, kdo dealera ohodnotí."}
+          </p>
+        </div>
+        <div className="rounded-2xl bg-amber-50 px-4 py-3 text-right">
+          <p className="text-3xl font-black text-amber-900">
+            {averageRating > 0 ? averageRating.toFixed(1) : "—"}
+            <span className="text-sm font-bold text-amber-700"> / 5</span>
+          </p>
+          <div className="flex justify-end">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <Star
+                key={idx}
+                className={`h-3.5 w-3.5 ${
+                  idx < Math.round(averageRating) ? "fill-amber-500 text-amber-500" : "text-amber-300"
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {visibleReviews.length > 0 ? (
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {visibleReviews.slice(0, 4).map((review) => (
+            <div key={review.id} className="rounded-2xl border bg-amber-50/40 p-4">
+              <Quote className="h-4 w-4 text-amber-700" />
+              <div className="mt-2 flex items-center gap-2">
+                <p className="font-bold">{review.author}</p>
+                <div className="flex">
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <Star
+                      key={idx}
+                      className={`h-3 w-3 ${
+                        idx < review.rating ? "fill-amber-500 text-amber-500" : "text-amber-300/50"
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {new Date(review.dateISO).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-relaxed">{review.text}</p>
+              {review.response ? (
+                <div className="mt-3 rounded-xl border-l-4 border-amber-500 bg-white p-3">
+                  <p className="text-xs font-bold uppercase tracking-wider text-amber-800">
+                    Odpověď dealera
+                  </p>
+                  <p className="mt-1 text-sm">{review.response}</p>
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-5 rounded-2xl border border-dashed bg-amber-50/30 p-6 text-center">
+          <Star className="mx-auto mb-2 h-8 w-8 text-amber-400" />
+          <p className="font-bold">Zatím žádná hodnocení</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Dealer prozatím neobdržel žádná hodnocení od zákazníků.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

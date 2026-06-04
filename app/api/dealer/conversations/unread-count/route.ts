@@ -5,17 +5,31 @@ import { storage } from "@lib/storage";
 import { ensureMessagingSchema } from "@lib/ensureMessagingSchema";
 
 /**
- * Unread badge for the dealer cabinet "Messages" tab.
- * Sums unread_dealer_count across all conversations owned by this dealer.
+ * Inbox summary used by the dealer cabinet header/footer/dashboard.
  *
- * The client polls this every ~30s when in the cabinet (cheap).
+ * Default response is the rich shape used by the new inbox shortcut
+ * (totals + recent conversations). Older callers that only read
+ * `data.unread` keep working because that field is still at the top
+ * level. Callers that explicitly want the lightest possible response
+ * can pass `?summary=0` to get just the count.
+ *
+ * The client polls this every ~60s while a dealer page is open
+ * (cheap; one indexed SUM + a 5-row LIMIT).
  */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
     const user = await requireDealer();
     await ensureMessagingSchema();
-    const count = await storage.getDealerUnreadCount(user.id);
-    return json({ unread: count });
+    const summaryRequested =
+      new URL(req.url).searchParams.get("summary") !== "0";
+
+    if (!summaryRequested) {
+      const count = await storage.getDealerUnreadCount(user.id);
+      return json({ unread: count });
+    }
+
+    const summary = await storage.getDealerInboxSummary(user.id);
+    return json(summary);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     if (msg === "Unauthorized") return error("Unauthorized", 401);

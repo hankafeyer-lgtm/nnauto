@@ -26,6 +26,30 @@ import { ToastAction } from "@/components/ui/toast";
  */
 const QUERY_KEY = ["/api/dealer/conversations/unread-count"];
 
+export type DealerInboxRecent = {
+  id: string;
+  clientName: string | null;
+  clientEmail: string | null;
+  clientPhone: string | null;
+  source: string;
+  status: string;
+  unreadCount: number;
+  lastMessagePreview: string | null;
+  lastMessageAt: string | null;
+  listingId: string;
+  listingTitle: string | null;
+  listingBrand: string | null;
+  listingModel: string | null;
+  listingPhoto: string | null;
+};
+
+export type DealerInboxSummary = {
+  unread: number;
+  conversationsWithUnread?: number;
+  uniqueClients?: number;
+  recent?: DealerInboxRecent[];
+};
+
 export function useDealerUnreadNotifier(opts?: {
   /** When false, the hook still polls but suppresses toasts/Notifications.
    *  Use this on /dealer/messages itself to avoid double-buzzing the
@@ -47,7 +71,7 @@ export function useDealerUnreadNotifier(opts?: {
         "GET",
         "/api/dealer/conversations/unread-count",
       );
-      return res.json() as Promise<{ unread: number }>;
+      return res.json() as Promise<DealerInboxSummary>;
     },
     enabled: isDealer,
     // Notifier compares prev/next strictly, so 60s polling still catches every
@@ -67,12 +91,19 @@ export function useDealerUnreadNotifier(opts?: {
     if (next <= prev) return;
 
     const delta = next - prev;
+    const clients = query.data?.uniqueClients ?? 0;
+    const description =
+      clients > 1
+        ? t("messages.notification.newDescriptionMulti")
+            .replace("{count}", String(delta))
+            .replace("{clients}", String(clients))
+        : t("messages.notification.newDescription").replace(
+            "{count}",
+            String(delta),
+          );
     toast({
       title: t("messages.notification.newTitle"),
-      description: t("messages.notification.newDescription").replace(
-        "{count}",
-        String(delta),
-      ),
+      description,
       action: (
         <ToastAction
           altText={t("messages.notification.openInbox")}
@@ -84,6 +115,38 @@ export function useDealerUnreadNotifier(opts?: {
       duration: 6000,
     });
 
+    // Audible ping. The browser will silence this if the tab doesn't
+    // have an active user gesture history; that's the correct policy
+    // and we never throw on failure.
+    try {
+      if (typeof window !== "undefined") {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext })
+            .webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = "sine";
+          o.frequency.setValueAtTime(880, ctx.currentTime);
+          o.frequency.exponentialRampToValueAtTime(
+            1320,
+            ctx.currentTime + 0.18,
+          );
+          g.gain.setValueAtTime(0.0001, ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.18, ctx.currentTime + 0.04);
+          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.45);
+          o.connect(g).connect(ctx.destination);
+          o.start();
+          o.stop(ctx.currentTime + 0.5);
+          o.onended = () => ctx.close().catch(() => {});
+        }
+      }
+    } catch {
+      /* audio is best-effort */
+    }
+
     // Browser notification — silent if permission isn't granted.
     if (
       typeof window !== "undefined" &&
@@ -92,10 +155,7 @@ export function useDealerUnreadNotifier(opts?: {
     ) {
       try {
         const n = new Notification(t("messages.notification.newTitle"), {
-          body: t("messages.notification.newDescription").replace(
-            "{count}",
-            String(delta),
-          ),
+          body: description,
           icon: "/logo.png",
           tag: "nnauto-dealer-inbox",
           // Re-using the same tag means a fresh notification replaces
@@ -111,7 +171,15 @@ export function useDealerUnreadNotifier(opts?: {
         /* notifications can throw on iOS Safari without HTTPS, ignore */
       }
     }
-  }, [enabled, isDealer, navigate, query.data?.unread, t, toast]);
+  }, [
+    enabled,
+    isDealer,
+    navigate,
+    query.data?.unread,
+    query.data?.uniqueClients,
+    t,
+    toast,
+  ]);
 
   return query;
 }

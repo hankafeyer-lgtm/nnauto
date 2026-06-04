@@ -8,7 +8,10 @@ import { db } from "@lib/db";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { dealers, listings } from "@shared/schema";
 import {
+  PublicAboutBlock,
   PublicDealerMap,
+  PublicHeroPhoto,
+  PublicReviewsBlock,
   PublicSocialLinks,
   PublicTodayHoursRow,
   PublicWorkingHoursSummary,
@@ -60,7 +63,8 @@ export default async function PublicDealerProfile({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-amber-50/60 via-background to-background">
-      <section className="mx-auto max-w-7xl px-4 py-6 sm:py-10">
+      <section className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:py-10">
+        <PublicHeroPhoto dealerId={dealer.id} alt={dealer.companyName} />
         <div className="overflow-hidden rounded-[2rem] border border-amber-200 bg-white shadow-[0_24px_90px_rgba(120,72,12,0.12)]">
           <div className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(246,220,148,0.28),transparent_34%),linear-gradient(135deg,#171006_0%,#33220c_48%,#6f4c17_100%)] px-5 py-8 text-white sm:px-8 sm:py-10">
             <div className="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-amber-100/10 blur-3xl" />
@@ -172,7 +176,17 @@ export default async function PublicDealerProfile({ params }: PageProps) {
           </div>
         </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
+        <PublicAboutBlock
+          dealerId={dealer.id}
+          fallbackTitle={`O autobazaru ${dealer.companyName}`}
+          fallbackText={dealer.description}
+        />
+
+        <div id="reviews">
+          <PublicReviewsBlock dealerId={dealer.id} fallbackRating={4.9} />
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
           <section id="inventory">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-2xl font-black">Aktuální nabídka</h2>
@@ -217,10 +231,6 @@ export default async function PublicDealerProfile({ params }: PageProps) {
           </section>
 
           <aside className="space-y-4">
-            <div className="rounded-3xl border bg-white p-5">
-              <h3 className="font-black">Recenze dealerů</h3>
-              <p className="mt-2 text-sm text-muted-foreground">Recenze a hodnocení připravujeme. Profil je připravený pro plnou CRM reputaci.</p>
-            </div>
             <PublicDealerMap
               dealerId={dealer.id}
               address={dealer.address}

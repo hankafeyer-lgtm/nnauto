@@ -15,7 +15,7 @@ const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "@/lib/navigation";
+import { Link, useLocation } from "@/lib/navigation";
 import { useDealerUnreadNotifier } from "@/hooks/useDealerUnreadNotifier";
 import { displayViews } from "@/lib/displayStats";
 import { buildListingPath } from "@/lib/listingUrl";
@@ -72,6 +72,7 @@ import {
   Copy,
   RotateCcw,
   Bell,
+  BellRing,
   AlertTriangle,
   CalendarDays,
   Award,
@@ -172,7 +173,15 @@ type ProfileTask = {
   label: string;
 };
 
-type DealerTab = "dashboard" | "mylistings" | "promotion" | "import" | "settings";
+type DealerTab =
+  | "dashboard"
+  | "mylistings"
+  | "promotion"
+  | "import"
+  | "settings"
+  | "reviews"
+  | "microsite"
+  | "billing";
 type SettingsTarget =
   | "companyName"
   | "description"
@@ -283,6 +292,50 @@ type DealerLocalSettings = {
   security: {
     twoFactorPlanned: boolean;
     sessions: Array<{ id: string; device: string; location: string; lastActive: string; current?: boolean }>;
+  };
+  microsite: {
+    heroPhoto: string;
+    aboutTitle: string;
+    aboutText: string;
+    slug: string;
+    showAbout: boolean;
+    showInventory: boolean;
+    showReviews: boolean;
+    customDomainEnabled: boolean;
+    customDomain: string;
+  };
+  reviews: {
+    enabled: boolean;
+    autoPublish: boolean;
+    averageRating: number;
+    totalCount: number;
+    list: Array<{
+      id: string;
+      author: string;
+      rating: number;
+      text: string;
+      dateISO: string;
+      response?: string;
+      hidden?: boolean;
+    }>;
+  };
+  billing: {
+    plan: "free" | "top" | "vip";
+    autoRenew: boolean;
+    walletKc: number;
+    autoTopUpEnabled: boolean;
+    autoTopUpAmount: number;
+    paymentBrand: string;
+    paymentLast4: string;
+    paymentExpires: string;
+    invoices: Array<{
+      id: string;
+      number: string;
+      dateISO: string;
+      amountKc: number;
+      status: "paid" | "pending" | "failed";
+      description: string;
+    }>;
   };
 };
 
@@ -504,6 +557,35 @@ const createDefaultDealerLocalSettings = (dealer?: Dealer): DealerLocalSettings 
       { id: "mobile", device: "iPhone Safari", location: "Česká republika", lastActive: "Včera" },
     ],
   },
+  microsite: {
+    heroPhoto: "",
+    aboutTitle: "",
+    aboutText: "",
+    slug: dealer?.id ? dealer.id.slice(0, 8) : "",
+    showAbout: true,
+    showInventory: true,
+    showReviews: true,
+    customDomainEnabled: false,
+    customDomain: "",
+  },
+  reviews: {
+    enabled: true,
+    autoPublish: false,
+    averageRating: 4.9,
+    totalCount: 0,
+    list: [],
+  },
+  billing: {
+    plan: "top",
+    autoRenew: true,
+    walletKc: 0,
+    autoTopUpEnabled: false,
+    autoTopUpAmount: 1000,
+    paymentBrand: "",
+    paymentLast4: "",
+    paymentExpires: "",
+    invoices: [],
+  },
 });
 
 function getProfileTasks(dealer: Dealer, t: (key: string) => string): ProfileTask[] {
@@ -690,16 +772,38 @@ function DealerHero({
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
-  return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-amber-200/70 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.24),transparent_34%),linear-gradient(135deg,#1f1408_0%,#3d260c_45%,#8a5a14_100%)] bg-[length:140%_140%] p-4 text-white shadow-[0_28px_90px_rgba(120,72,12,0.22)] transition-all duration-500 hover:bg-[position:100%_50%] sm:p-6">
-      <div className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-      <div className="absolute bottom-0 left-1/3 h-px w-2/3 bg-gradient-to-r from-transparent via-amber-200/70 to-transparent" />
+  const remaining = Math.max(0, dealer.maxListings - stats.activeListings);
+  const stat = (
+    label: string,
+    value: React.ReactNode,
+    onClick?: () => void,
+  ) => {
+    const Element = onClick ? "button" : "div";
+    return (
+      <Element
+        type={onClick ? "button" : undefined}
+        onClick={onClick}
+        className={`flex flex-col items-start rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-left ${
+          onClick ? "transition hover:bg-white/10" : ""
+        }`}
+      >
+        <span className="text-base font-black leading-none sm:text-lg">{value}</span>
+        <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-amber-100/70">
+          {label}
+        </span>
+      </Element>
+    );
+  };
 
-      <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
-        <div className="flex min-w-0 gap-4">
+  return (
+    <section className="relative overflow-hidden rounded-2xl border border-amber-200/70 bg-[radial-gradient(circle_at_top_left,rgba(251,191,36,0.22),transparent_38%),linear-gradient(135deg,#1f1408_0%,#3d260c_45%,#8a5a14_100%)] px-3 py-3 text-white shadow-[0_18px_55px_rgba(120,72,12,0.18)] sm:px-5 sm:py-4">
+      <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-white/8 blur-3xl" />
+
+      <div className="relative grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px] lg:items-center">
+        <div className="flex min-w-0 gap-3">
           <button
             type="button"
-            className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/20 bg-white/15 text-left shadow-2xl transition hover:scale-[1.02] hover:border-amber-200 sm:h-20 sm:w-20"
+            className="group relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/20 bg-white/15 text-left shadow-lg transition hover:scale-[1.03] hover:border-amber-200 sm:h-14 sm:w-14"
             onClick={() => onProfileTask("branding")}
             aria-label={t("dealer.premium.editLogo")}
           >
@@ -711,101 +815,82 @@ function DealerHero({
                 loading="lazy"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-xl font-black tracking-tight">
+              <div className="flex h-full w-full items-center justify-center text-base font-black tracking-tight sm:text-lg">
                 {initials || "NN"}
               </div>
             )}
-            <span className="absolute inset-x-0 bottom-0 bg-black/45 px-1.5 py-1 text-center text-[10px] font-semibold opacity-0 transition group-hover:opacity-100">
-              {t("dealer.premium.editLogo")}
-            </span>
           </button>
 
           <div className="min-w-0 flex-1">
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <Badge className="border-white/20 bg-white/15 text-white hover:bg-white/20">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <h1 className="truncate text-lg font-black tracking-tight sm:text-2xl">
+                {dealer.companyName}
+              </h1>
+              <Badge className="h-5 rounded-md border-white/20 bg-amber-300/20 px-1.5 text-[10px] font-bold text-amber-100 hover:bg-amber-300/25">
                 <Crown className="mr-1 h-3 w-3 text-amber-200" />
                 {t("dealer.premium.planTop")}
               </Badge>
               <Badge
-                className={
+                className={`h-5 rounded-md px-1.5 text-[10px] font-bold ${
                   dealer.isVerified
                     ? "bg-emerald-500 text-white hover:bg-emerald-500"
-                    : "bg-white/15 text-white hover:bg-white/20"
-                }
+                    : "border-white/20 bg-white/15 text-white hover:bg-white/20"
+                }`}
               >
                 <Shield className="mr-1 h-3 w-3" />
                 {dealer.isVerified ? t("dealer.verified") : t("dealer.notVerified")}
               </Badge>
-              <Badge className="border-white/20 bg-white/15 text-white hover:bg-white/20">
-                <Star className="mr-1 h-3 w-3 text-amber-200" />
-                4.9 · {t("dealer.premium.ratingPlaceholder")}
-              </Badge>
-              <Badge className="border-white/20 bg-white/15 text-white hover:bg-white/20">
-                <CalendarDays className="mr-1 h-3 w-3 text-amber-200" />
-                {t("dealer.premium.memberSince")} 2026
-              </Badge>
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-100">
+                <Star className="h-3 w-3 fill-amber-200 text-amber-200" />
+                4.9
+              </span>
             </div>
-            <h1 className="truncate text-2xl font-black tracking-tight sm:text-4xl">
-              {dealer.companyName}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-amber-50/80 sm:text-base">
-              {t("dealer.premium.heroSubtitle")}
-            </p>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:max-w-xl">
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
-                <p className="text-lg font-black">{stats.activeListings}</p>
-                <p className="text-[11px] text-amber-50/70">{t("dealer.activeListings")}</p>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
-                <p className="text-lg font-black">{displayViews(stats.totalViews)}</p>
-                <p className="text-[11px] text-amber-50/70">{t("dealer.views")}</p>
-              </div>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {stat(
+                t("dealer.activeListings"),
+                <>
+                  {stats.activeListings}
+                  <span className="ml-0.5 text-[10px] font-semibold text-amber-100/60">
+                    /{dealer.maxListings}
+                  </span>
+                </>,
+              )}
+              {stat(t("dealer.premium.remainingSlots"), remaining)}
+              {stat(t("dealer.views"), displayViews(stats.totalViews))}
+              {stat(t("dealer.contacts"), stats.totalContacts, onOpenMessages)}
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={onOpenMessages}
-                className="rounded-2xl border border-white/15 bg-white/10 p-3 text-left transition hover:bg-white/15"
-              >
-                <p className="text-lg font-black">{stats.totalContacts}</p>
-                <p className="text-[11px] text-amber-50/70">{t("dealer.contacts")}</p>
-              </button>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-10 rounded-xl bg-white text-amber-900 hover:bg-amber-50"
                 onClick={onPreviewProfile}
+                className="inline-flex h-7 items-center gap-1 rounded-lg bg-white/95 px-2.5 text-[11px] font-bold text-amber-900 transition hover:bg-white"
               >
-                <Eye className="mr-2 h-4 w-4" />
+                <Eye className="h-3 w-3" />
                 {t("dealer.premium.previewPublicProfile")}
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                variant="outline"
-                className="h-10 rounded-xl border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
                 onClick={onShareProfile}
+                className="inline-flex h-7 items-center gap-1 rounded-lg border border-white/20 bg-white/10 px-2.5 text-[11px] font-bold text-white transition hover:bg-white/20"
               >
-                <Link2 className="mr-2 h-4 w-4" />
+                <Link2 className="h-3 w-3" />
                 {t("dealer.premium.shareDealerPage")}
-              </Button>
+              </button>
             </div>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/15 bg-white/12 p-4 shadow-2xl backdrop-blur-md">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold">{t("dealer.premium.profileCompleteness")}</p>
-              <p className="text-xs text-amber-50/70">{t("dealer.premium.onboardingHint")}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-3xl font-black">{completion.percent}%</p>
-              <p className="text-[11px] text-amber-50/70">{t("dealer.premium.completed")}</p>
-            </div>
+        <div className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 backdrop-blur-md">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-100/80">
+              {t("dealer.premium.profileCompleteness")}
+            </p>
+            <p className="text-lg font-black leading-none">{completion.percent}%</p>
           </div>
-          <Progress value={completion.percent} className="mt-4 h-2 bg-white/20" />
-          <div className="mt-4 flex flex-wrap gap-2">
+          <Progress value={completion.percent} className="mt-1.5 h-1.5 bg-white/15" />
+          <div className="mt-2 flex flex-wrap gap-1">
             {completion.tasks.map((task) => (
               <button
                 type="button"
@@ -820,14 +905,19 @@ function DealerHero({
                   };
                   onProfileTask(target[task.key] || "companyName");
                 }}
-                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold transition hover:scale-[1.02] ${
+                className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold transition hover:scale-[1.04] ${
                   task.done
                     ? "bg-emerald-500/90 text-white hover:bg-emerald-500"
                     : "bg-white/15 text-white hover:bg-white/20"
                 }`}
+                title={task.label}
               >
-                {task.done ? <Check className="mr-1 h-3 w-3" /> : <Plus className="mr-1 h-3 w-3" />}
-                {task.label}
+                {task.done ? (
+                  <Check className="h-2.5 w-2.5" />
+                ) : (
+                  <Plus className="h-2.5 w-2.5" />
+                )}
+                <span className="ml-1">{task.label}</span>
               </button>
             ))}
           </div>
@@ -973,26 +1063,27 @@ function DashboardTab({
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <div className="grid gap-3 lg:grid-cols-[1.15fr_0.85fr]">
-        <Card className="overflow-hidden rounded-3xl border-amber-200 bg-gradient-to-br from-amber-700 via-amber-800 to-stone-950 text-white shadow-[0_20px_70px_rgba(120,72,12,0.20)]">
-          <CardContent className="p-5 sm:p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <Badge className="mb-3 bg-white/15 text-white hover:bg-white/20">
+      <DealerInboxBanner t={t} />
+      <div className="grid items-start gap-3 lg:grid-cols-[0.72fr_1.28fr]">
+        <Card className="self-start overflow-hidden rounded-[1.45rem] border-[#d7b46a]/60 bg-[radial-gradient(circle_at_top_left,rgba(246,220,148,0.18),transparent_34%),linear-gradient(135deg,#2a1a07_0%,#5c3b10_50%,#7a571a_100%)] text-white shadow-[0_12px_34px_rgba(120,72,12,0.14)]">
+          <CardContent className="p-3 sm:p-3.5">
+            <div className="flex flex-col gap-2.5">
+              <div className="min-w-0">
+                <Badge className="mb-2 h-6 bg-white/15 px-2 text-[11px] text-white hover:bg-white/20">
                   NNAuto Pro
                 </Badge>
-                <h3 className="text-2xl font-black tracking-tight">
+                <h3 className="max-w-[15rem] text-base font-black leading-[1.12] tracking-tight sm:text-lg">
                   {t("dealer.dashboard.actionTitle")}
                 </h3>
-                <p className="mt-2 max-w-xl text-sm text-amber-50/80">
+                <p className="mt-1.5 max-w-[18rem] text-[12px] leading-relaxed text-amber-50/80">
                   {t("dealer.dashboard.actionDescription")}
                 </p>
               </div>
               <Button
-                className="h-14 rounded-2xl bg-white px-6 text-base font-black text-amber-900 shadow-xl hover:bg-amber-50"
+                className="ml-auto h-9 rounded-xl bg-white px-3.5 text-xs font-black text-[#5c3b10] shadow-lg hover:bg-[#fff8e8]"
                 onClick={onAddVehicle}
               >
-                <Plus className="mr-2 h-5 w-5" />
+                <Plus className="mr-1.5 h-3.5 w-3.5" />
                 {t("dealer.dashboard.addCar")}
               </Button>
             </div>
@@ -1000,12 +1091,14 @@ function DashboardTab({
         </Card>
 
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardContent className="grid gap-2 p-4 sm:grid-cols-2">
+          <CardContent className="grid gap-2 p-3 sm:grid-cols-2">
             {[
               { icon: Upload, label: t("dealer.bulkImport"), hint: "CSV/XML", action: () => onOpenTab("import") },
               { icon: Car, label: t("dealer.myListings"), hint: t("dealer.dashboard.manageInventory"), action: () => onOpenTab("mylistings") },
               { icon: Rocket, label: t("dealer.promo.tab"), hint: "TOP / VIP", action: () => onOpenTab("promotion") },
-              { icon: Eye, label: t("dealer.premium.previewPublicProfile"), hint: t("dealer.dashboard.publicProfile"), action: () => window.open(`/dealer/${dealer.id}`, "_blank", "noopener,noreferrer") },
+              { icon: MonitorSmartphone, label: t("dealer.microsite.tab"), hint: t("dealer.microsite.subtitle"), action: () => onOpenTab("microsite") },
+              { icon: CreditCard, label: t("dealer.billing.tab"), hint: t("dealer.billing.subtitle"), action: () => onOpenTab("billing") },
+              { icon: Star, label: t("dealer.reviews.tab"), hint: t("dealer.reviews.subtitle"), action: () => onOpenTab("reviews") },
             ].map((item) => {
               const Icon = item.icon;
               return (
@@ -1013,9 +1106,9 @@ function DashboardTab({
                   key={item.label}
                   type="button"
                   onClick={item.action}
-                  className="rounded-2xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99]"
+                  className="rounded-2xl border bg-white p-2.5 text-left transition hover:-translate-y-0.5 hover:border-[#d7b46a] hover:bg-[#fff8e8] active:scale-[0.99]"
                 >
-                  <Icon className="mb-2 h-5 w-5 text-amber-700" />
+                  <Icon className="mb-2 h-5 w-5 text-[#7a5518]" />
                   <p className="font-bold">{item.label}</p>
                   <p className="text-xs text-muted-foreground">{item.hint}</p>
                 </button>
@@ -1100,6 +1193,18 @@ function DashboardTab({
           )}
         </CardContent>
       </Card>
+
+      <DashboardLimitsCard
+        dealer={dealer}
+        stats={stats}
+        t={t}
+        onOpenBilling={() => onOpenTab("billing")}
+        onOpenPromotion={() => onOpenTab("promotion")}
+        onOpenInventory={() => onOpenTab("mylistings")}
+        onAddVehicle={onAddVehicle}
+      />
+
+      <DashboardPeriodCompare stats={stats} t={t} />
 
       <Card className={`${premiumSurface} rounded-3xl`}>
         <CardContent className="p-4 sm:p-5">
@@ -4805,6 +4910,1270 @@ function DealerSettingsTab({
   );
 }
 
+function DashboardLimitsCard({
+  dealer,
+  stats,
+  t,
+  onOpenBilling,
+  onOpenPromotion,
+  onOpenInventory,
+  onAddVehicle,
+}: {
+  dealer: Dealer;
+  stats: DealerStats;
+  t: (key: string) => string;
+  onOpenBilling: () => void;
+  onOpenPromotion: () => void;
+  onOpenInventory: () => void;
+  onAddVehicle: () => void;
+}) {
+  const max = Math.max(1, dealer.maxListings);
+  const active = stats.activeListings;
+  const remaining = Math.max(0, max - active);
+  const usedPct = Math.min(100, Math.round((active / max) * 100));
+  const expired = Math.max(0, stats.totalListings - stats.activeListings);
+  const lowSlots = remaining <= Math.max(2, Math.round(max * 0.1));
+
+  return (
+    <Card className={`${premiumSurface} rounded-3xl`}>
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:justify-between">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+              <Crown className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                {t("dealer.billing.currentPlanShort")}
+              </p>
+              <p className="truncate text-xl font-black sm:text-2xl">{t("dealer.premium.planTop")}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("dealer.billing.planRenewsAuto")}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="ml-auto h-9 shrink-0 rounded-xl"
+              onClick={onOpenBilling}
+            >
+              <CreditCard className="mr-2 h-4 w-4" />
+              {t("dealer.billing.manage")}
+            </Button>
+          </div>
+
+          <div className="flex flex-1 flex-col gap-2 rounded-3xl border border-amber-100 bg-amber-50/40 p-3 sm:p-4">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">
+                  {t("dealer.premium.listingPlanUsage")}
+                </p>
+                <p className="text-3xl font-black leading-none">
+                  {active}
+                  <span className="text-lg font-semibold text-muted-foreground"> / {max}</span>
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("dealer.premium.remainingSlots")}: <span className="font-bold text-amber-800">{remaining}</span>
+                  {expired > 0 ? (
+                    <>
+                      <span className="mx-1">·</span>
+                      {t("dealer.premium.expiredCount")}: <span className="font-bold">{expired}</span>
+                    </>
+                  ) : null}
+                </p>
+              </div>
+              <div className="hidden sm:flex sm:flex-col sm:items-end sm:gap-2">
+                {lowSlots ? (
+                  <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">
+                    <AlertTriangle className="mr-1 h-3 w-3" />
+                    {t("dealer.premium.almostFull")}
+                  </Badge>
+                ) : (
+                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                    {t("dealer.premium.healthyCapacity")}
+                  </Badge>
+                )}
+                <span className="text-xs text-muted-foreground">{usedPct}%</span>
+              </div>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-amber-100">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  lowSlots ? "bg-orange-500" : "bg-amber-700"
+                }`}
+                style={{ width: `${usedPct}%` }}
+              />
+            </div>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                className="h-8 rounded-xl bg-amber-700 px-3 text-xs hover:bg-amber-800"
+                onClick={onAddVehicle}
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                {t("dealer.dashboard.addCar")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-xl px-3 text-xs"
+                onClick={onOpenInventory}
+              >
+                <Car className="mr-1 h-3.5 w-3.5" />
+                {t("dealer.myListings")}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 rounded-xl border-amber-300 px-3 text-xs text-amber-800 hover:bg-amber-50"
+                onClick={onOpenPromotion}
+              >
+                <Rocket className="mr-1 h-3.5 w-3.5" />
+                {t("dealer.premium.upgradePlan")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DashboardPeriodCompare({
+  stats,
+  t,
+}: {
+  stats: DealerStats;
+  t: (key: string) => string;
+}) {
+  const week = {
+    views: Math.round(stats.last30Days.views * 0.42),
+    contacts: Math.round(stats.last30Days.contacts * 0.42),
+    whatsapp: Math.round(stats.last30Days.whatsapp * 0.42),
+  };
+  const month = stats.last30Days;
+  const total = {
+    views: stats.totalViews,
+    contacts: stats.totalContacts,
+    whatsapp: stats.totalWhatsapp,
+  };
+
+  const periods: Array<{
+    key: "week" | "month" | "total";
+    label: string;
+    accent: string;
+    data: { views: number; contacts: number; whatsapp: number };
+  }> = [
+    { key: "week", label: t("dealer.compare.week"), accent: "text-amber-800", data: week },
+    { key: "month", label: t("dealer.compare.month"), accent: "text-emerald-700", data: month },
+    { key: "total", label: t("dealer.compare.total"), accent: "text-blue-700", data: total },
+  ];
+
+  return (
+    <Card className={`${premiumSurface} rounded-3xl`}>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <BarChart3 className="h-5 w-5 text-amber-700" />
+          {t("dealer.compare.title")}
+        </CardTitle>
+        <CardDescription>{t("dealer.compare.description")}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {periods.map((period) => (
+            <div
+              key={period.key}
+              className="rounded-3xl border bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <p className={`text-xs font-bold uppercase tracking-[0.18em] ${period.accent}`}>
+                {period.label}
+              </p>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <Eye className="h-4 w-4" />
+                    {t("dealer.views")}
+                  </span>
+                  <span className="font-black">{displayViews(period.data.views)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <Phone className="h-4 w-4" />
+                    {t("dealer.contacts")}
+                  </span>
+                  <span className="font-black">{period.data.contacts}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <MessageCircle className="h-4 w-4" />
+                    {t("dealer.whatsapp")}
+                  </span>
+                  <span className="font-black">{period.data.whatsapp}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function useDealerLocalStore(dealer: Dealer) {
+  const key = `nnauto_dealer_settings_${dealer.id}`;
+  const [settings, setSettings] = useState<DealerLocalSettings>(() =>
+    createDefaultDealerLocalSettings(dealer),
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<DealerLocalSettings>;
+        const defaults = createDefaultDealerLocalSettings(dealer);
+        setSettings({
+          ...defaults,
+          ...parsed,
+          microsite: { ...defaults.microsite, ...(parsed.microsite || {}) },
+          reviews: { ...defaults.reviews, ...(parsed.reviews || {}) },
+          billing: { ...defaults.billing, ...(parsed.billing || {}) },
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, [key, dealer]);
+
+  const update = useCallback(
+    (updater: (prev: DealerLocalSettings) => DealerLocalSettings) => {
+      setSettings((prev) => {
+        const next = updater(prev);
+        try {
+          localStorage.setItem(key, JSON.stringify(next));
+          window.dispatchEvent(
+            new CustomEvent("nnauto:dealer-settings-changed", { detail: { dealerId: dealer.id } }),
+          );
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+    },
+    [key, dealer.id],
+  );
+
+  return [settings, update] as const;
+}
+
+function ReviewsTab({
+  dealer,
+  t,
+}: {
+  dealer: Dealer;
+  t: (key: string) => string;
+}) {
+  const { toast } = useToast();
+  const [settings, update] = useDealerLocalStore(dealer);
+  const reviews = settings.reviews;
+  const publicUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/dealer/${dealer.id}#reviews`;
+
+  const visibleReviews = reviews.list.filter((review) => !review.hidden);
+  const averageRating = visibleReviews.length
+    ? visibleReviews.reduce((sum, review) => sum + review.rating, 0) / visibleReviews.length
+    : 0;
+
+  const distribution = [5, 4, 3, 2, 1].map((star) => ({
+    star,
+    count: visibleReviews.filter((review) => Math.round(review.rating) === star).length,
+  }));
+
+  const copyReviewLink = async () => {
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      toast({ title: t("dealer.premium.linkCopied") });
+    } catch {
+      toast({ title: t("dealer.premium.linkCopied") });
+    }
+  };
+
+  const seedDemo = () => {
+    const sample: DealerLocalSettings["reviews"]["list"] = [
+      {
+        id: `demo-${Date.now()}-1`,
+        author: "Petr Novák",
+        rating: 5,
+        text: "Skvělé jednání, vůz přesně podle popisu. Doporučuji!",
+        dateISO: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
+      },
+      {
+        id: `demo-${Date.now()}-2`,
+        author: "Markéta H.",
+        rating: 4,
+        text: "Profesionální přístup, jen jsme čekali na převod o den déle.",
+        dateISO: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12).toISOString(),
+        response: "Děkujeme za zpětnou vazbu, příště zrychlíme předání.",
+      },
+      {
+        id: `demo-${Date.now()}-3`,
+        author: "Jan Dvořák",
+        rating: 5,
+        text: "Cena férová, technický stav výborný. Velmi spokojen.",
+        dateISO: new Date(Date.now() - 1000 * 60 * 60 * 24 * 28).toISOString(),
+      },
+    ];
+    update((prev) => ({
+      ...prev,
+      reviews: {
+        ...prev.reviews,
+        list: [...sample, ...prev.reviews.list],
+      },
+    }));
+    toast({ title: t("dealer.reviews.demoSeeded") });
+  };
+
+  const toggleVisibility = (id: string) => {
+    update((prev) => ({
+      ...prev,
+      reviews: {
+        ...prev.reviews,
+        list: prev.reviews.list.map((review) =>
+          review.id === id ? { ...review, hidden: !review.hidden } : review,
+        ),
+      },
+    }));
+  };
+
+  const removeReview = (id: string) => {
+    update((prev) => ({
+      ...prev,
+      reviews: {
+        ...prev.reviews,
+        list: prev.reviews.list.filter((review) => review.id !== id),
+      },
+    }));
+    toast({ title: t("dealer.reviews.removed") });
+  };
+
+  const respondToReview = (id: string, response: string) => {
+    update((prev) => ({
+      ...prev,
+      reviews: {
+        ...prev.reviews,
+        list: prev.reviews.list.map((review) =>
+          review.id === id ? { ...review, response } : review,
+        ),
+      },
+    }));
+  };
+
+  return (
+    <div className="space-y-5">
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Star className="h-5 w-5 text-amber-600" />
+                {t("dealer.reviews.tab")}
+              </CardTitle>
+              <CardDescription>{t("dealer.reviews.headerDescription")}</CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="rounded-2xl" onClick={copyReviewLink}>
+                <Link2 className="mr-2 h-4 w-4" />
+                {t("dealer.reviews.copyLink")}
+              </Button>
+              <Button className="rounded-2xl bg-amber-700 hover:bg-amber-800" onClick={seedDemo}>
+                <Plus className="mr-2 h-4 w-4" />
+                {t("dealer.reviews.addDemo")}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]">
+            <div className="rounded-3xl border bg-amber-50/40 p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                {t("dealer.reviews.overall")}
+              </p>
+              <div className="mt-2 flex items-end gap-2">
+                <p className="text-5xl font-black">
+                  {visibleReviews.length ? averageRating.toFixed(1) : "—"}
+                </p>
+                <div className="mb-2 flex gap-0.5">
+                  {Array.from({ length: 5 }).map((_, idx) => (
+                    <Star
+                      key={idx}
+                      className={`h-5 w-5 ${
+                        idx < Math.round(averageRating)
+                          ? "fill-amber-500 text-amber-500"
+                          : "text-muted-foreground/40"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {visibleReviews.length} {t("dealer.reviews.totalReviews")}
+              </p>
+              <div className="mt-4 space-y-1.5">
+                {distribution.map(({ star, count }) => {
+                  const pct = visibleReviews.length ? (count / visibleReviews.length) * 100 : 0;
+                  return (
+                    <div key={star} className="flex items-center gap-2 text-xs">
+                      <span className="w-6 font-bold">{star}★</span>
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-amber-100">
+                        <div
+                          className="h-full rounded-full bg-amber-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <span className="w-6 text-right text-muted-foreground">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-3xl border bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-bold">{t("dealer.reviews.publicVisibility")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("dealer.reviews.publicVisibilityHint")}
+                  </p>
+                </div>
+                <Switch
+                  checked={reviews.enabled}
+                  onCheckedChange={(checked) =>
+                    update((prev) => ({
+                      ...prev,
+                      reviews: { ...prev.reviews, enabled: checked },
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-bold">{t("dealer.reviews.autoPublish")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("dealer.reviews.autoPublishHint")}
+                  </p>
+                </div>
+                <Switch
+                  checked={reviews.autoPublish}
+                  onCheckedChange={(checked) =>
+                    update((prev) => ({
+                      ...prev,
+                      reviews: { ...prev.reviews, autoPublish: checked },
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="rounded-2xl border bg-amber-50/40 p-3 text-sm">
+                <p className="mb-1 font-bold text-amber-900">{t("dealer.reviews.howItWorks")}</p>
+                <ul className="space-y-1 text-muted-foreground">
+                  <li>• {t("dealer.reviews.tip1")}</li>
+                  <li>• {t("dealer.reviews.tip2")}</li>
+                  <li>• {t("dealer.reviews.tip3")}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <CardTitle>{t("dealer.reviews.allReviews")}</CardTitle>
+          <CardDescription>{t("dealer.reviews.allReviewsDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {reviews.list.length === 0 ? (
+            <div className="rounded-3xl border border-dashed p-8 text-center">
+              <Star className="mx-auto mb-3 h-10 w-10 text-amber-400" />
+              <p className="font-bold">{t("dealer.reviews.emptyTitle")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("dealer.reviews.emptyHint")}</p>
+              <div className="mt-4 flex justify-center gap-2">
+                <Button variant="outline" className="rounded-2xl" onClick={copyReviewLink}>
+                  <Link2 className="mr-2 h-4 w-4" />
+                  {t("dealer.reviews.copyLink")}
+                </Button>
+                <Button className="rounded-2xl bg-amber-700 hover:bg-amber-800" onClick={seedDemo}>
+                  <Plus className="mr-2 h-4 w-4" />
+                  {t("dealer.reviews.addDemo")}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reviews.list.map((review) => (
+                <ReviewItem
+                  key={review.id}
+                  review={review}
+                  t={t}
+                  onToggleVisibility={() => toggleVisibility(review.id)}
+                  onRemove={() => removeReview(review.id)}
+                  onRespond={(text) => respondToReview(review.id, text)}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function ReviewItem({
+  review,
+  t,
+  onToggleVisibility,
+  onRemove,
+  onRespond,
+}: {
+  review: DealerLocalSettings["reviews"]["list"][number];
+  t: (key: string) => string;
+  onToggleVisibility: () => void;
+  onRemove: () => void;
+  onRespond: (text: string) => void;
+}) {
+  const [responseDraft, setResponseDraft] = useState(review.response || "");
+  const [editing, setEditing] = useState(false);
+
+  return (
+    <div className={`rounded-3xl border p-4 transition ${review.hidden ? "bg-muted/40 opacity-70" : "bg-white"}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <p className="font-bold">{review.author}</p>
+            <div className="flex">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <Star
+                  key={idx}
+                  className={`h-3.5 w-3.5 ${
+                    idx < review.rating ? "fill-amber-500 text-amber-500" : "text-muted-foreground/30"
+                  }`}
+                />
+              ))}
+            </div>
+            <span className="text-xs text-muted-foreground">
+              {new Date(review.dateISO).toLocaleDateString()}
+            </span>
+            {review.hidden ? (
+              <Badge variant="outline" className="text-xs">
+                {t("dealer.reviews.hiddenBadge")}
+              </Badge>
+            ) : null}
+          </div>
+          <p className="mt-2 text-sm text-foreground">{review.text}</p>
+        </div>
+        <div className="flex shrink-0 gap-1">
+          <Button variant="ghost" size="sm" className="h-8 px-2" onClick={onToggleVisibility}>
+            {review.hidden ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+          </Button>
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-red-600 hover:bg-red-50" onClick={onRemove}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {editing || review.response ? (
+        <div className="mt-3 rounded-2xl border bg-amber-50/50 p-3">
+          <p className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-800">
+            {t("dealer.reviews.dealerResponse")}
+          </p>
+          {editing ? (
+            <>
+              <Textarea
+                value={responseDraft}
+                onChange={(event) => setResponseDraft(event.target.value)}
+                className="mb-2"
+                rows={3}
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="bg-amber-700 hover:bg-amber-800"
+                  onClick={() => {
+                    onRespond(responseDraft);
+                    setEditing(false);
+                  }}
+                >
+                  <Save className="mr-1 h-3.5 w-3.5" />
+                  {t("dealer.reviews.saveResponse")}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
+                  {t("dealer.cancel")}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm">{review.response}</p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="mt-1 h-7 px-2 text-xs"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil className="mr-1 h-3 w-3" />
+                {t("dealer.reviews.editResponse")}
+              </Button>
+            </>
+          )}
+        </div>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-3 rounded-xl"
+          onClick={() => setEditing(true)}
+        >
+          <MessageCircle className="mr-1 h-3.5 w-3.5" />
+          {t("dealer.reviews.respond")}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function MicrositeTab({
+  dealer,
+  t,
+}: {
+  dealer: Dealer;
+  t: (key: string) => string;
+}) {
+  const { toast } = useToast();
+  const [settings, update] = useDealerLocalStore(dealer);
+  const microsite = settings.microsite;
+  const heroFileRef = useRef<HTMLInputElement | null>(null);
+
+  const slugCandidate = (microsite.slug || dealer.id.slice(0, 8)).toLowerCase().replace(/[^a-z0-9-]/g, "-");
+  const publicPath = `/dealer/${dealer.id}`;
+  const fullUrl =
+    typeof window !== "undefined" ? `${window.location.origin}${publicPath}` : publicPath;
+  const qrCodeSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(fullUrl)}`;
+
+  const handleHeroPick = () => heroFileRef.current?.click();
+  const handleHeroFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: t("dealer.microsite.fileTooLarge"), variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      update((prev) => ({
+        ...prev,
+        microsite: { ...prev.microsite, heroPhoto: result },
+      }));
+      toast({ title: t("dealer.microsite.heroSaved") });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeHero = () =>
+    update((prev) => ({
+      ...prev,
+      microsite: { ...prev.microsite, heroPhoto: "" },
+    }));
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      toast({ title: t("dealer.premium.linkCopied") });
+    } catch {
+      toast({ title: t("dealer.premium.linkCopied") });
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <MonitorSmartphone className="h-5 w-5 text-amber-700" />
+                {t("dealer.microsite.tab")}
+              </CardTitle>
+              <CardDescription>{t("dealer.microsite.headerDescription")}</CardDescription>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="rounded-2xl" onClick={copyLink}>
+                <Link2 className="mr-2 h-4 w-4" />
+                {t("dealer.microsite.copyLink")}
+              </Button>
+              <Button
+                className="rounded-2xl bg-amber-700 hover:bg-amber-800"
+                onClick={() => window.open(publicPath, "_blank", "noopener,noreferrer")}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                {t("dealer.microsite.preview")}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="text-lg">{t("dealer.microsite.heroTitle")}</CardTitle>
+            <CardDescription>{t("dealer.microsite.heroDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              ref={heroFileRef}
+              onChange={handleHeroFile}
+            />
+            <button
+              type="button"
+              onClick={handleHeroPick}
+              className="relative block aspect-[16/7] w-full overflow-hidden rounded-3xl border-2 border-dashed border-amber-200 bg-amber-50/30 transition hover:border-amber-300 hover:bg-amber-50"
+            >
+              {microsite.heroPhoto ? (
+                <>
+                  <img
+                    src={microsite.heroPhoto}
+                    alt={t("dealer.microsite.heroAlt")}
+                    className="h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent px-4 py-3 text-white">
+                    <span className="text-sm font-bold">{t("dealer.microsite.heroChange")}</span>
+                    <Pencil className="h-4 w-4" />
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-amber-800">
+                  <ImageIcon className="h-10 w-10" />
+                  <p className="text-base font-bold">{t("dealer.microsite.heroEmpty")}</p>
+                  <p className="px-6 text-center text-xs text-muted-foreground">
+                    {t("dealer.microsite.heroEmptyHint")}
+                  </p>
+                </div>
+              )}
+            </button>
+            {microsite.heroPhoto ? (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" className="rounded-2xl" onClick={handleHeroPick}>
+                  <Upload className="mr-2 h-4 w-4" />
+                  {t("dealer.microsite.heroUpload")}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="rounded-2xl text-red-600 hover:bg-red-50"
+                  onClick={removeHero}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {t("dealer.microsite.heroRemove")}
+                </Button>
+              </div>
+            ) : (
+              <Button className="rounded-2xl bg-amber-700 hover:bg-amber-800" onClick={handleHeroPick}>
+                <Upload className="mr-2 h-4 w-4" />
+                {t("dealer.microsite.heroUpload")}
+              </Button>
+            )}
+
+            <div className="rounded-3xl border bg-white p-4">
+              <Label className="mb-2 block">{t("dealer.microsite.aboutTitleLabel")}</Label>
+              <Input
+                value={microsite.aboutTitle}
+                onChange={(event) =>
+                  update((prev) => ({
+                    ...prev,
+                    microsite: { ...prev.microsite, aboutTitle: event.target.value },
+                  }))
+                }
+                placeholder={t("dealer.microsite.aboutTitlePlaceholder")}
+              />
+
+              <Label className="mb-2 mt-4 block">{t("dealer.microsite.aboutTextLabel")}</Label>
+              <Textarea
+                value={microsite.aboutText}
+                onChange={(event) =>
+                  update((prev) => ({
+                    ...prev,
+                    microsite: { ...prev.microsite, aboutText: event.target.value },
+                  }))
+                }
+                placeholder={t("dealer.microsite.aboutTextPlaceholder")}
+                rows={6}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {microsite.aboutText.length} / 800
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="text-lg">{t("dealer.microsite.shareTitle")}</CardTitle>
+            <CardDescription>{t("dealer.microsite.shareDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-3xl border bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {t("dealer.microsite.publicUrl")}
+              </p>
+              <p className="mt-1 break-all text-sm font-bold text-amber-800">{fullUrl}</p>
+              <Button
+                variant="outline"
+                className="mt-3 w-full rounded-2xl"
+                onClick={copyLink}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                {t("dealer.microsite.copyLink")}
+              </Button>
+            </div>
+
+            <div className="rounded-3xl border bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {t("dealer.microsite.qrCode")}
+              </p>
+              <div className="mt-3 flex justify-center">
+                <img
+                  src={qrCodeSrc}
+                  alt={t("dealer.microsite.qrCode")}
+                  className="h-40 w-40 rounded-2xl border bg-white p-2"
+                  loading="lazy"
+                />
+              </div>
+              <Button
+                variant="outline"
+                className="mt-3 w-full rounded-2xl"
+                onClick={() => window.open(qrCodeSrc, "_blank", "noopener,noreferrer")}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {t("dealer.microsite.qrDownload")}
+              </Button>
+            </div>
+
+            <div className="space-y-3 rounded-3xl border bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {t("dealer.microsite.sectionsTitle")}
+              </p>
+              {[
+                { key: "showAbout", label: t("dealer.microsite.showAbout") },
+                { key: "showInventory", label: t("dealer.microsite.showInventory") },
+                { key: "showReviews", label: t("dealer.microsite.showReviews") },
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between gap-3 text-sm">
+                  <span>{label}</span>
+                  <Switch
+                    checked={Boolean(microsite[key as "showAbout" | "showInventory" | "showReviews"])}
+                    onCheckedChange={(checked) =>
+                      update((prev) => ({
+                        ...prev,
+                        microsite: { ...prev.microsite, [key]: checked },
+                      }))
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-3xl border bg-amber-50/40 p-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-bold">{t("dealer.microsite.customDomain")}</p>
+                <Switch
+                  checked={microsite.customDomainEnabled}
+                  onCheckedChange={(checked) =>
+                    update((prev) => ({
+                      ...prev,
+                      microsite: { ...prev.microsite, customDomainEnabled: checked },
+                    }))
+                  }
+                />
+              </div>
+              <Input
+                disabled={!microsite.customDomainEnabled}
+                value={microsite.customDomain}
+                onChange={(event) =>
+                  update((prev) => ({
+                    ...prev,
+                    microsite: { ...prev.microsite, customDomain: event.target.value },
+                  }))
+                }
+                placeholder="autosalon.cz"
+                className="mt-3"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("dealer.microsite.customDomainHint")}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <CardTitle className="text-lg">{t("dealer.microsite.previewTitle")}</CardTitle>
+          <CardDescription>{t("dealer.microsite.previewDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-hidden rounded-3xl border">
+            <div
+              className="relative h-44 bg-cover bg-center sm:h-56"
+              style={{
+                backgroundImage: microsite.heroPhoto
+                  ? `linear-gradient(rgba(0,0,0,0.25), rgba(0,0,0,0.55)), url(${microsite.heroPhoto})`
+                  : "linear-gradient(135deg, #1f1408 0%, #3d260c 45%, #8a5a14 100%)",
+              }}
+            >
+              <div className="absolute inset-x-4 bottom-4 text-white sm:inset-x-6 sm:bottom-6">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-200">
+                  {dealer.region || "Česko"}
+                </p>
+                <h3 className="text-xl font-black sm:text-3xl">
+                  {microsite.aboutTitle || dealer.companyName}
+                </h3>
+              </div>
+            </div>
+            <div className="space-y-3 bg-white p-4 sm:p-6">
+              <p className="text-sm text-muted-foreground">
+                {microsite.aboutText || dealer.description || t("dealer.microsite.descriptionPlaceholder")}
+              </p>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {microsite.showAbout ? (
+                  <Badge variant="outline">{t("dealer.microsite.sectionAbout")}</Badge>
+                ) : null}
+                {microsite.showInventory ? (
+                  <Badge variant="outline">{t("dealer.microsite.sectionInventory")}</Badge>
+                ) : null}
+                {microsite.showReviews ? (
+                  <Badge variant="outline">{t("dealer.microsite.sectionReviews")}</Badge>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function BillingTab({
+  dealer,
+  t,
+  onOpenPromotion,
+}: {
+  dealer: Dealer;
+  t: (key: string) => string;
+  onOpenPromotion: () => void;
+}) {
+  const { toast } = useToast();
+  const [settings, update] = useDealerLocalStore(dealer);
+  const billing = settings.billing;
+  const [topUpAmount, setTopUpAmount] = useState(500);
+
+  const planLabel: Record<DealerLocalSettings["billing"]["plan"], string> = {
+    free: t("dealer.billing.planFree"),
+    top: t("dealer.premium.planTop"),
+    vip: t("dealer.billing.planVip"),
+  };
+  const planPrice: Record<DealerLocalSettings["billing"]["plan"], string> = {
+    free: "0 Kč",
+    top: "990 Kč",
+    vip: "2 490 Kč",
+  };
+
+  const formatKc = (amount: number) =>
+    new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK", maximumFractionDigits: 0 }).format(amount);
+
+  const seedInvoice = () =>
+    update((prev) => ({
+      ...prev,
+      billing: {
+        ...prev.billing,
+        invoices: [
+          {
+            id: `inv-${Date.now()}`,
+            number: `2026-${String(prev.billing.invoices.length + 1).padStart(4, "0")}`,
+            dateISO: new Date().toISOString(),
+            amountKc: 990,
+            status: "paid",
+            description: t("dealer.billing.invoicePlanLine"),
+          },
+          ...prev.billing.invoices,
+        ],
+      },
+    }));
+
+  const topUp = () => {
+    update((prev) => ({
+      ...prev,
+      billing: {
+        ...prev.billing,
+        walletKc: prev.billing.walletKc + topUpAmount,
+        invoices: [
+          {
+            id: `inv-${Date.now()}`,
+            number: `2026-W-${String(prev.billing.invoices.length + 1).padStart(4, "0")}`,
+            dateISO: new Date().toISOString(),
+            amountKc: topUpAmount,
+            status: "paid",
+            description: `${t("dealer.billing.walletTopUp")} +${formatKc(topUpAmount)}`,
+          },
+          ...prev.billing.invoices,
+        ],
+      },
+    }));
+    toast({ title: t("dealer.billing.topUpSuccess") });
+  };
+
+  return (
+    <div className="space-y-5">
+      <Card className={`${premiumSurface} rounded-3xl overflow-hidden`}>
+        <div className="bg-gradient-to-br from-amber-700 via-amber-800 to-stone-950 p-4 text-white sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Badge className="mb-2 bg-white/20 text-white hover:bg-white/30">{planLabel[billing.plan]}</Badge>
+              <h2 className="text-2xl font-black sm:text-3xl">
+                {planLabel[billing.plan]}
+                <span className="ml-3 align-middle text-base font-bold text-amber-200">
+                  {planPrice[billing.plan]} / {t("dealer.billing.month")}
+                </span>
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-amber-50/80">
+                {t("dealer.billing.planDescription")}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                className="h-11 rounded-2xl bg-white text-amber-900 hover:bg-amber-50"
+                onClick={onOpenPromotion}
+              >
+                <Rocket className="mr-2 h-4 w-4" />
+                {t("dealer.premium.upgradePlan")}
+              </Button>
+              <Button
+                variant="outline"
+                className="h-11 rounded-2xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                onClick={() =>
+                  update((prev) => ({
+                    ...prev,
+                    billing: { ...prev.billing, autoRenew: !prev.billing.autoRenew },
+                  }))
+                }
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                {billing.autoRenew
+                  ? t("dealer.billing.autoRenewOn")
+                  : t("dealer.billing.autoRenewOff")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Wallet className="h-5 w-5 text-amber-700" />
+              {t("dealer.billing.walletTitle")}
+            </CardTitle>
+            <CardDescription>{t("dealer.billing.walletDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-3xl border bg-amber-50/40 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
+                {t("dealer.billing.walletBalance")}
+              </p>
+              <p className="mt-1 text-4xl font-black text-amber-900">{formatKc(billing.walletKc)}</p>
+              <p className="text-xs text-muted-foreground">
+                {t("dealer.billing.walletBalanceHint")}
+              </p>
+            </div>
+            <div className="rounded-3xl border bg-white p-4">
+              <Label>{t("dealer.billing.walletTopUpAmount")}</Label>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[200, 500, 1000, 2000].map((amount) => (
+                  <Button
+                    key={amount}
+                    variant={topUpAmount === amount ? "default" : "outline"}
+                    className={`rounded-xl ${topUpAmount === amount ? "bg-amber-700 hover:bg-amber-800" : ""}`}
+                    onClick={() => setTopUpAmount(amount)}
+                  >
+                    {formatKc(amount)}
+                  </Button>
+                ))}
+              </div>
+              <Button
+                className="mt-3 w-full rounded-2xl bg-amber-700 hover:bg-amber-800"
+                onClick={topUp}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                {t("dealer.billing.walletTopUp")}
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-between rounded-3xl border bg-white p-4">
+              <div>
+                <p className="font-bold">{t("dealer.billing.autoTopUp")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("dealer.billing.autoTopUpHint")}
+                </p>
+              </div>
+              <Switch
+                checked={billing.autoTopUpEnabled}
+                onCheckedChange={(checked) =>
+                  update((prev) => ({
+                    ...prev,
+                    billing: { ...prev.billing, autoTopUpEnabled: checked },
+                  }))
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <CreditCard className="h-5 w-5 text-amber-700" />
+              {t("dealer.billing.paymentMethodTitle")}
+            </CardTitle>
+            <CardDescription>{t("dealer.billing.paymentMethodDescription")}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {billing.paymentLast4 ? (
+              <div className="rounded-3xl border bg-gradient-to-br from-stone-900 to-stone-700 p-5 text-white">
+                <p className="text-xs uppercase tracking-[0.2em] text-stone-300">
+                  {billing.paymentBrand || "VISA"}
+                </p>
+                <p className="mt-3 text-2xl font-mono tracking-wider">
+                  •••• •••• •••• {billing.paymentLast4}
+                </p>
+                <p className="mt-3 text-xs text-stone-300">
+                  {t("dealer.billing.expires")}: {billing.paymentExpires || "12/28"}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-3xl border border-dashed p-6 text-center">
+                <CreditCard className="mx-auto mb-3 h-10 w-10 text-amber-600" />
+                <p className="font-bold">{t("dealer.billing.noPaymentMethod")}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t("dealer.billing.noPaymentMethodHint")}
+                </p>
+              </div>
+            )}
+            <Button
+              variant="outline"
+              className="w-full rounded-2xl"
+              onClick={() =>
+                update((prev) => ({
+                  ...prev,
+                  billing: {
+                    ...prev.billing,
+                    paymentBrand: "VISA",
+                    paymentLast4: "4242",
+                    paymentExpires: "12/28",
+                  },
+                }))
+              }
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {billing.paymentLast4
+                ? t("dealer.billing.changePaymentMethod")
+                : t("dealer.billing.addPaymentMethod")}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <FileSpreadsheet className="h-5 w-5 text-amber-700" />
+                {t("dealer.billing.invoicesTitle")}
+              </CardTitle>
+              <CardDescription>{t("dealer.billing.invoicesDescription")}</CardDescription>
+            </div>
+            <Button variant="outline" className="rounded-2xl" onClick={seedInvoice}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t("dealer.billing.addDemoInvoice")}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {billing.invoices.length === 0 ? (
+            <div className="rounded-3xl border border-dashed p-8 text-center">
+              <FileSpreadsheet className="mx-auto mb-3 h-10 w-10 text-amber-600" />
+              <p className="font-bold">{t("dealer.billing.noInvoices")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("dealer.billing.noInvoicesHint")}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-3xl border bg-white">
+              <table className="w-full text-sm">
+                <thead className="border-b bg-amber-50/40 text-xs uppercase tracking-wide text-amber-800">
+                  <tr>
+                    <th className="px-4 py-3 text-left">{t("dealer.billing.invoiceNumber")}</th>
+                    <th className="px-4 py-3 text-left">{t("dealer.billing.invoiceDate")}</th>
+                    <th className="px-4 py-3 text-left">{t("dealer.billing.invoiceDescription")}</th>
+                    <th className="px-4 py-3 text-right">{t("dealer.billing.invoiceAmount")}</th>
+                    <th className="px-4 py-3 text-center">{t("dealer.billing.invoiceStatus")}</th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {billing.invoices.map((invoice) => (
+                    <tr key={invoice.id} className="border-b last:border-0 hover:bg-amber-50/40">
+                      <td className="px-4 py-3 font-bold">{invoice.number}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {new Date(invoice.dateISO).toLocaleDateString()}
+                      </td>
+                      <td className="px-4 py-3">{invoice.description}</td>
+                      <td className="px-4 py-3 text-right font-bold">{formatKc(invoice.amountKc)}</td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge
+                          className={
+                            invoice.status === "paid"
+                              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+                              : invoice.status === "pending"
+                                ? "bg-amber-100 text-amber-800 hover:bg-amber-100"
+                                : "bg-red-100 text-red-700 hover:bg-red-100"
+                          }
+                        >
+                          {t(`dealer.billing.status_${invoice.status}`)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Button variant="ghost" size="sm" className="h-8 px-2">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function DealerPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const t = useTranslation();
@@ -4927,40 +6296,11 @@ export default function DealerPage() {
               </div>
             </div>
 
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DealerTab)} className="space-y-5">
-          <div className="sticky top-2 z-20 flex gap-2 rounded-2xl border border-amber-100 bg-background/95 p-1.5 shadow-[0_12px_38px_rgba(120,72,12,0.10)] backdrop-blur">
-            <Button
-              className="h-11 shrink-0 rounded-xl bg-amber-700 px-4 font-black shadow-md hover:bg-amber-800"
-              onClick={openAddVehicleDialog}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {t("dealer.dashboard.addCar")}
-            </Button>
-            <TabsList className="min-w-0 flex-1 h-auto justify-start gap-1 overflow-x-auto bg-transparent p-0 lg:w-auto lg:inline-flex">
-              <TabsTrigger value="import" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
-                <Upload className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {t("dealer.bulkImport")}
-              </TabsTrigger>
-              <TabsTrigger value="mylistings" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
-                <Car className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {t("dealer.myListings")}
-              </TabsTrigger>
-              <TabsTrigger value="promotion" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
-                <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {t("dealer.promo.tab")}
-              </TabsTrigger>
-              <TabsTrigger value="dashboard" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
-                <BarChart3 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {t("dealer.dashboard.statsShort")}
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="shrink-0 gap-1.5 rounded-xl border border-transparent px-3 py-2 text-xs font-semibold transition-all data-[state=active]:border-amber-400 data-[state=active]:bg-amber-700 data-[state=active]:text-white data-[state=active]:shadow-[0_8px_24px_rgba(180,83,9,0.25)] sm:text-sm [&[data-state=active]_svg]:text-white">
-                <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                {t("dealer.settings")}
-              </TabsTrigger>
-            </TabsList>
-          </div>
-
-            <TabsContent value="dashboard">
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DealerTab)}>
+            <div className="grid gap-4 md:grid-cols-[300px_minmax(0,1fr)] md:items-start xl:grid-cols-[320px_minmax(0,1fr)]">
+              <DealerCabinetSideNav t={t} onAddVehicle={openAddVehicleDialog} />
+              <div className="min-w-0 space-y-5">
+            <TabsContent value="dashboard" className="mt-0">
               <DashboardTab
                 stats={stats}
                 dealer={dealer}
@@ -4970,7 +6310,7 @@ export default function DealerPage() {
               onAddVehicle={openAddVehicleDialog}
               />
             </TabsContent>
-            <TabsContent value="mylistings">
+            <TabsContent value="mylistings" className="mt-0">
               <MyListingsTab
                 t={t}
                 dealer={dealer}
@@ -4978,13 +6318,19 @@ export default function DealerPage() {
                 onAddVehicle={openAddVehicleDialog}
               />
             </TabsContent>
-            <TabsContent value="promotion">
+            <TabsContent value="promotion" className="mt-0">
               <PromotionTab stats={stats} t={t} />
             </TabsContent>
-            <TabsContent value="import">
+            <TabsContent value="import" className="mt-0">
               <BulkImportTab t={t} onAddVehicle={openAddVehicleDialog} />
             </TabsContent>
-            <TabsContent value="settings">
+            <TabsContent value="microsite" className="mt-0">
+              <MicrositeTab dealer={dealer} t={t} />
+            </TabsContent>
+            <TabsContent value="billing" className="mt-0">
+              <BillingTab dealer={dealer} t={t} onOpenPromotion={() => setActiveTab("promotion")} />
+            </TabsContent>
+            <TabsContent value="settings" className="mt-0">
               <DealerSettingsTab
                 dealer={dealer}
                 t={t}
@@ -4992,43 +6338,23 @@ export default function DealerPage() {
                 onFocusHandled={() => setSettingsTarget(null)}
               />
             </TabsContent>
+            <TabsContent value="reviews" className="mt-0">
+              <ReviewsTab dealer={dealer} t={t} />
+            </TabsContent>
+              </div>
+            </div>
           </Tabs>
-          <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-6 gap-1 rounded-3xl border border-amber-200 bg-background/95 p-1.5 shadow-[0_18px_55px_rgba(120,72,12,0.18)] backdrop-blur md:hidden">
-            {[
-              ["add", Plus, t("dealer.dashboard.addShort")],
-              ["import", Upload, t("dealer.bulkImport")],
-              ["mylistings", Car, t("dealer.myListings")],
-              ["promotion", Rocket, t("dealer.promo.tab")],
-              ["dashboard", BarChart3, t("dealer.dashboard.statsShort")],
-              ["settings", Settings, t("dealer.settings")],
-            ].map(([tab, Icon, label]) => {
-              const NavIcon = Icon as typeof BarChart3;
-              const active = activeTab === tab;
-              return (
-                <button
-                  key={String(tab)}
-                  type="button"
-                  onClick={() => {
-                    if (tab === "add") {
-                      openAddVehicleDialog();
-                      return;
-                    }
-                    setActiveTab(tab as DealerTab);
-                  }}
-                  className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold transition active:scale-95 ${
-                    tab === "add"
-                      ? "bg-amber-700 text-white shadow-md"
-                      : active
-                      ? "bg-amber-700 text-white shadow-md"
-                      : "text-muted-foreground hover:bg-amber-50 hover:text-amber-800"
-                  }`}
-                >
-                  <NavIcon className="mb-0.5 h-4 w-4" />
-                  <span className="max-w-full truncate">{String(label)}</span>
-                </button>
-              );
-            })}
-          </nav>
+          <DealerMobileNav
+            activeTab={activeTab}
+            t={t}
+            onSelect={(tab) => {
+              if (tab === "add") {
+                openAddVehicleDialog();
+                return;
+              }
+              setActiveTab(tab as DealerTab);
+            }}
+          />
           <Dialog open={addVehicleDialogOpen} onOpenChange={setAddVehicleDialogOpen}>
             <DialogContent className="w-[calc(100vw-1.5rem)] rounded-3xl border-amber-100 p-4 shadow-[0_24px_80px_rgba(120,72,12,0.18)] sm:max-w-xl sm:p-6">
               <DialogHeader>
@@ -5087,6 +6413,232 @@ export default function DealerPage() {
   );
 }
 
+function DealerCabinetSideNav({
+  t,
+  onAddVehicle,
+}: {
+  t: (key: string) => string;
+  onAddVehicle: () => void;
+}) {
+  const items: Array<{
+    value: DealerTab;
+    Icon: typeof BarChart3;
+    label: string;
+    hint: string;
+  }> = [
+    {
+      value: "dashboard",
+      Icon: BarChart3,
+      label: t("dealer.dashboard.statsShort"),
+      hint: t("dealer.dashboard.statsTitle"),
+    },
+    {
+      value: "mylistings",
+      Icon: Car,
+      label: t("dealer.myListings"),
+      hint: t("dealer.dashboard.manageInventory"),
+    },
+    {
+      value: "import",
+      Icon: Upload,
+      label: t("dealer.bulkImport"),
+      hint: "CSV/XML",
+    },
+    {
+      value: "promotion",
+      Icon: Rocket,
+      label: t("dealer.promo.tab"),
+      hint: "TOP / VIP",
+    },
+    {
+      value: "microsite",
+      Icon: MonitorSmartphone,
+      label: t("dealer.microsite.tab"),
+      hint: t("dealer.microsite.subtitle"),
+    },
+    {
+      value: "billing",
+      Icon: CreditCard,
+      label: t("dealer.billing.tab"),
+      hint: t("dealer.billing.subtitle"),
+    },
+    {
+      value: "settings",
+      Icon: Settings,
+      label: t("dealer.settings"),
+      hint: t("dealer.premium.settingsHint"),
+    },
+    {
+      value: "reviews",
+      Icon: Star,
+      label: t("dealer.reviews.tab"),
+      hint: t("dealer.reviews.subtitle"),
+    },
+  ];
+
+  return (
+    <aside className="sticky top-3 z-20 hidden rounded-3xl border border-[#ead7aa] bg-white/95 p-4 shadow-[0_16px_45px_rgba(120,72,12,0.09)] backdrop-blur md:block">
+      <Button
+        className="mb-4 h-14 w-full justify-start rounded-2xl bg-[#6f4c17] px-5 text-base font-black shadow-md transition hover:-translate-y-0.5 hover:bg-[#5a3a10]"
+        onClick={onAddVehicle}
+      >
+        <Plus className="mr-2 h-5 w-5" />
+        {t("dealer.dashboard.addCar")}
+      </Button>
+
+      <div className="mb-3 px-2">
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#8a641f]">
+          NNAuto Pro
+        </p>
+        <p className="text-sm text-muted-foreground">{t("dealer.cabinet")}</p>
+      </div>
+
+      <TabsList className="grid h-auto w-full gap-1.5 bg-transparent p-0">
+        {items.map(({ value, Icon, label, hint }) => (
+          <TabsTrigger
+            key={value}
+            value={value}
+            className="group h-auto w-full justify-start gap-3.5 rounded-2xl border border-transparent px-4 py-3.5 text-left transition-all data-[state=active]:border-[#d7b46a] data-[state=active]:bg-[linear-gradient(135deg,#3d260c_0%,#6f4c17_100%)] data-[state=active]:text-white data-[state=active]:shadow-[0_10px_26px_rgba(120,72,12,0.18)] [&[data-state=active]_svg]:text-white"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fff8e8] text-[#7a5518] transition group-data-[state=active]:bg-white/15 group-data-[state=active]:text-white">
+              <Icon className="h-[18px] w-[18px]" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-base font-black">{label}</span>
+              <span className="block truncate text-xs font-medium text-muted-foreground group-data-[state=active]:text-amber-50/80">
+                {hint}
+              </span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100 group-data-[state=active]:text-white/80 group-data-[state=active]:opacity-100" />
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </aside>
+  );
+}
+
+function DealerMobileNav({
+  activeTab,
+  t,
+  onSelect,
+}: {
+  activeTab: DealerTab;
+  t: (key: string) => string;
+  onSelect: (tab: DealerTab | "add") => void;
+}) {
+  const [, navigate] = useLocation();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const { data } = useDealerUnreadNotifier();
+  const unread = data?.unread ?? 0;
+
+  const primary: Array<{ id: DealerTab | "add" | "messages"; label: string; Icon: typeof BarChart3 }> = [
+    { id: "add", label: t("dealer.dashboard.addShort"), Icon: Plus },
+    { id: "mylistings", label: t("dealer.myListings"), Icon: Car },
+    { id: "dashboard", label: t("dealer.dashboard.statsShort"), Icon: BarChart3 },
+    { id: "messages", label: t("messages.heading"), Icon: unread > 0 ? BellRing : Inbox },
+  ];
+
+  const overflow: Array<{ id: DealerTab; label: string; Icon: typeof BarChart3; hint: string }> = [
+    { id: "promotion", label: t("dealer.promo.tab"), Icon: Rocket, hint: "TOP / VIP" },
+    { id: "import", label: t("dealer.bulkImport"), Icon: Upload, hint: "CSV/XML" },
+    { id: "microsite", label: t("dealer.microsite.tab"), Icon: MonitorSmartphone, hint: t("dealer.microsite.subtitle") },
+    { id: "billing", label: t("dealer.billing.tab"), Icon: CreditCard, hint: t("dealer.billing.subtitle") },
+    { id: "settings", label: t("dealer.settings"), Icon: Settings, hint: t("dealer.premium.settingsHint") },
+    { id: "reviews", label: t("dealer.reviews.tab"), Icon: Star, hint: t("dealer.reviews.subtitle") },
+  ];
+
+  return (
+    <>
+      <nav className="fixed inset-x-3 bottom-3 z-40 grid grid-cols-5 gap-1 rounded-3xl border border-amber-200 bg-background/95 p-1.5 shadow-[0_18px_55px_rgba(120,72,12,0.18)] backdrop-blur md:hidden">
+        {primary.map((item) => {
+          const active = activeTab === item.id;
+          const isMessages = item.id === "messages";
+          const messagesActive = isMessages && unread > 0;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                if (isMessages) {
+                  navigate("/dealer/messages");
+                  return;
+                }
+                onSelect(item.id as DealerTab | "add");
+              }}
+              className={`relative flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold transition active:scale-95 ${
+                item.id === "add"
+                  ? "bg-amber-700 text-white shadow-md"
+                  : messagesActive
+                    ? "bg-gradient-to-br from-amber-600 to-amber-800 text-white shadow-md"
+                    : active
+                      ? "bg-amber-700 text-white shadow-md"
+                      : "text-muted-foreground hover:bg-amber-50 hover:text-amber-800"
+              }`}
+            >
+              <item.Icon
+                className={`mb-0.5 h-4 w-4 ${
+                  messagesActive ? "motion-safe:animate-wiggle" : ""
+                }`}
+              />
+              <span className="max-w-full truncate">{item.label}</span>
+              {isMessages && unread > 0 ? (
+                <span className="absolute right-1 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white shadow ring-2 ring-white">
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold transition active:scale-95 ${
+            ["import", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab)
+              ? "bg-amber-700 text-white shadow-md"
+              : "text-muted-foreground hover:bg-amber-50 hover:text-amber-800"
+          }`}
+        >
+          <MoreHorizontal className="mb-0.5 h-4 w-4" />
+          <span className="max-w-full truncate">{t("dealer.mobileNav.more")}</span>
+        </button>
+      </nav>
+
+      <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
+        <DialogContent className="w-[calc(100vw-1.5rem)] rounded-3xl border-amber-100 p-4 shadow-[0_24px_80px_rgba(120,72,12,0.18)] sm:max-w-md sm:p-6">
+          <DialogHeader>
+            <DialogTitle>{t("dealer.mobileNav.moreTitle")}</DialogTitle>
+            <DialogDescription>{t("dealer.mobileNav.moreDescription")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-2">
+            {overflow.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  onSelect(item.id);
+                  setMoreOpen(false);
+                }}
+                className={`flex items-center gap-3 rounded-2xl border bg-white p-3 text-left transition hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99] ${
+                  activeTab === item.id ? "border-amber-300 bg-amber-50" : ""
+                }`}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                  <item.Icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.hint}</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 /**
  * Inline shortcut to /dealer/messages with a live unread badge.
  *
@@ -5098,25 +6650,128 @@ export default function DealerPage() {
  * Same React Query cache key as /dealer/messages itself, so it's a
  * single network poll regardless of how many components subscribe.
  */
-function DealerMessagesShortcut() {
-  const t = useTranslation();
+function DealerInboxBanner({ t }: { t: (key: string) => string }) {
   const [, navigate] = useLocation();
   const { data } = useDealerUnreadNotifier();
   const unread = data?.unread ?? 0;
+  const clients = data?.uniqueClients ?? 0;
+  const recent = data?.recent ?? [];
+
+  if (unread === 0) return null;
+
+  const headline =
+    clients > 1
+      ? t("messages.banner.headlineMulti")
+          .replace("{count}", String(unread))
+          .replace("{clients}", String(clients))
+      : t("messages.banner.headlineSingle").replace("{count}", String(unread));
+
+  const top = recent[0];
+  const sample = top
+    ? `${top.clientName || top.clientEmail || t("messages.shortcut.anonymous")}: ${(
+        top.lastMessagePreview || ""
+      ).slice(0, 120)}`
+    : "";
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="relative ml-auto h-12 gap-2 rounded-2xl border-amber-300 bg-white px-5 font-black text-amber-900 shadow-[0_10px_30px_rgba(120,72,12,0.10)] transition hover:-translate-y-0.5 hover:border-amber-400 hover:bg-amber-50 hover:shadow-md"
-      onClick={() => navigate("/dealer/messages")}
-      data-testid="button-open-messages"
+    <div
+      className="relative overflow-hidden rounded-3xl border-2 border-amber-400 bg-gradient-to-r from-amber-50 via-amber-100 to-amber-50 p-4 shadow-[0_18px_55px_rgba(180,83,9,0.18)] sm:p-5"
+      role="alert"
     >
-      <Inbox className="h-5 w-5 text-amber-700" />
-      <span>{unread > 0 ? `${t("messages.heading")} (${unread})` : t("messages.heading")}</span>
-      {unread > 0 && (
-        <span className="absolute right-2 top-2 h-2.5 w-2.5 rounded-full bg-orange-500 ring-2 ring-white" />
-      )}
-    </Button>
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -inset-px rounded-3xl ring-2 ring-amber-400/60 motion-safe:animate-pulse"
+      />
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-700 text-white shadow-md">
+          <BellRing className="h-6 w-6 motion-safe:animate-wiggle" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-700">
+            {t("messages.banner.label")}
+          </p>
+          <p className="text-base font-black leading-tight text-amber-900 sm:text-lg">
+            {headline}
+          </p>
+          {sample ? (
+            <p className="mt-1 line-clamp-1 text-xs text-amber-900/75 sm:text-sm">
+              {sample}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button
+            className="rounded-2xl bg-amber-700 font-black text-white shadow-md hover:bg-amber-800"
+            onClick={() => navigate("/dealer/messages")}
+          >
+            <Inbox className="mr-2 h-4 w-4" />
+            {t("messages.banner.cta")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DealerMessagesShortcut() {
+  const t = useTranslation();
+  const { data } = useDealerUnreadNotifier();
+  const unread = data?.unread ?? 0;
+  const clients = data?.uniqueClients ?? 0;
+  const hasUnread = unread > 0;
+
+  const subtitle = hasUnread
+    ? clients > 1
+      ? t("messages.shortcut.subtitleMulti")
+          .replace("{count}", String(unread))
+          .replace("{clients}", String(clients))
+      : t("messages.shortcut.subtitleSingle").replace(
+          "{count}",
+          String(unread),
+        )
+    : t("messages.shortcut.idle");
+
+  return (
+    <Link
+      href="/dealer/messages"
+      aria-label={t("messages.heading")}
+      data-testid="button-open-messages"
+      className={`group relative ml-auto flex h-12 items-center gap-3 rounded-2xl border px-3 pr-4 text-left font-bold transition active:scale-[0.99] sm:h-14 sm:px-4 ${
+        hasUnread
+          ? "border-amber-400 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-900 shadow-[0_10px_30px_rgba(180,83,9,0.18)] hover:from-amber-100 hover:to-amber-200"
+          : "border-amber-200 bg-white text-amber-900 shadow-sm hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50"
+      }`}
+    >
+      {hasUnread ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -inset-px rounded-2xl ring-2 ring-amber-400/60 motion-safe:animate-pulse"
+        />
+      ) : null}
+      <span
+        className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl sm:h-10 sm:w-10 ${
+          hasUnread ? "bg-amber-700 text-white" : "bg-amber-100 text-amber-800"
+        }`}
+      >
+        {hasUnread ? (
+          <BellRing className="h-4 w-4 motion-safe:animate-[wiggle_1.2s_ease-in-out_infinite] sm:h-5 sm:w-5" />
+        ) : (
+          <Inbox className="h-4 w-4 sm:h-5 sm:w-5" />
+        )}
+        {hasUnread ? (
+          <span className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-black text-white shadow-md ring-2 ring-white">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        ) : null}
+      </span>
+      <span className="hidden min-w-0 flex-col leading-tight sm:flex">
+        <span className="text-sm font-black tracking-tight">{t("messages.heading")}</span>
+        <span className={`truncate text-[11px] font-semibold ${hasUnread ? "text-amber-700" : "text-muted-foreground"}`}>
+          {subtitle}
+        </span>
+      </span>
+      <span className="sm:hidden">{t("messages.heading")}</span>
+    </Link>
   );
 }
 
