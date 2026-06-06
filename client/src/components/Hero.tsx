@@ -2823,7 +2823,7 @@ function Hero() {
 
   return (
     <div
-      className={`relative flex items-center justify-center transition-all duration-300 pt-16 sm:pt-20 lg:pt-24 pb-6 sm:pb-8 lg:pb-10 ${
+      className={`relative flex items-center justify-center transition-all duration-300 pt-6 sm:pt-8 lg:pt-10 pb-6 sm:pb-8 lg:pb-10 ${
         showMoreFilters
           ? "min-h-[500px] sm:min-h-[550px] lg:min-h-[600px]"
           : "min-h-[400px] sm:min-h-[480px] lg:min-h-[550px]"
@@ -2849,12 +2849,12 @@ function Hero() {
       <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/50 to-black/70 -z-10" />
 
       <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto text-center mb-4 sm:mb-6 lg:mb-8">
-          <div className="bg-background/70 rounded-xl px-4 py-5 sm:px-6 sm:py-6 lg:px-10 lg:py-10 border border-white/10">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-primary mb-2 sm:mb-3 lg:mb-5 tracking-tight leading-tight">
+        <div className="max-w-4xl mx-auto text-center mb-4 sm:mb-6 lg:mb-8">
+          <div className="bg-background/70 rounded-xl px-4 py-0.5 sm:px-6 sm:py-1 lg:px-10 lg:py-1 border border-white/10">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-4xl font-semibold text-primary mb-0.5 tracking-tight leading-tight">
               {t("hero.title")}
             </h1>
-            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-white/95 font-light leading-relaxed">
+            <p className="text-sm sm:text-base md:text-lg lg:text-lg text-white/95 font-light leading-snug">
               {t("hero.subtitle")}
             </p>
           </div>
