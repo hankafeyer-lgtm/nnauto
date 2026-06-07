@@ -5726,10 +5726,6 @@ export default function ListingDetailPage({
                             >
                               Cebia Autotracer (PDF) – koupit report
                             </Button>
-                            <p className="text-xs text-muted-foreground">
-                              Dočasně uzamčeno. Aktivujeme platbu přes Stripe a
-                              potom půjde report koupit přímo na této stránce.
-                            </p>
                           </div>
                         </div>
                       </div>
@@ -6173,61 +6169,6 @@ export default function ListingDetailPage({
                       />
                     ) : null}
 
-                    {/* Cebia widget is available only when seller provided a valid VIN */}
-                    {listingVinValid ? (
-                    <div
-                      className="rounded-2xl border border-[#B8860B]/30 bg-[#B8860B]/5 p-4 space-y-3"
-                      data-testid="cebia-widget"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-white/70 dark:bg-black/20 border border-[#B8860B]/20">
-                          <Shield className="w-5 h-5 text-[#B8860B]" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-black dark:text-white">
-                            Cebia Autotracer
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Prověření historie vozidla podle VIN (PDF report)
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">VIN</p>
-                        <div className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono uppercase break-all min-h-10 flex items-center">
-                          {listingVinValid ? listingVin : "—"}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">Cena</span>
-                        <span className="font-semibold text-black dark:text-white">
-                          {new Intl.NumberFormat("cs-CZ").format(549)} Kč
-                        </span>
-                      </div>
-
-                      <Button
-                        className="w-full"
-                        onClick={() => {
-                          cebiaCheckoutMutation.reset();
-                          handleCebiaClick();
-                        }}
-                        data-testid="button-cebia-open"
-                        disabled={cebiaPaymentsFrozen || !listingVinValid}
-                      >
-                        {cebiaPaymentsFrozen ? "Platby dočasně vypnuté" : t("cebia.orderCheck")}
-                      </Button>
-
-                      <p className="text-xs text-muted-foreground">
-                        {!listingVinValid
-                          ? t("cebia.requiresListingVin")
-                          : cebiaPaymentsFrozen
-                          ? "Platby jsou dočasně vypnuté."
-                          : "Nejprve proběhne platba přes Stripe. Přístup k VIN reportu se zpřístupní až po úspěšné platbě."}
-                      </p>
-                    </div>
-                    ) : null}
                   </div>
 
                   <Separator />
