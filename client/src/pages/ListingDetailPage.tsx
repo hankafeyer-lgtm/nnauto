@@ -5717,14 +5717,22 @@ export default function ListingDetailPage({
                             <Button
                               variant="outline"
                               size="sm"
-                              className="w-auto max-w-full justify-start px-3"
+                              className="h-auto w-auto max-w-full justify-start gap-2 rounded-xl border-[#B8860B]/35 bg-gradient-to-r from-amber-50 via-white to-amber-50 px-3 py-2 text-[#5c3b10] shadow-sm hover:border-[#B8860B]/60 hover:bg-amber-50 hover:text-[#4b2d08]"
                               onClick={() => {
                                 cebiaCheckoutMutation.reset();
                                 handleCebiaClick();
                               }}
                               data-testid="button-cebia-placeholder"
                             >
-                              Cebia zobrazit historii vozu
+                              <span className="inline-flex items-center gap-1.5">
+                                <span className="inline-flex items-center rounded-[50%] border-2 border-[#173B7A] bg-white px-2.5 py-0.5 text-[11px] font-black tracking-tight text-[#173B7A] shadow-[0_1px_0_rgba(23,59,122,0.16)]">
+                                  cebia
+                                </span>
+                                <span className="h-5 w-px rounded-full bg-[#78BE20]" />
+                              </span>
+                              <span className="text-xs font-bold sm:text-sm">
+                                Zobrazit historii vozu
+                              </span>
                             </Button>
                           </div>
                         </div>
