@@ -440,7 +440,7 @@ function HeaderContent({
 
   return (
     <header
-      className="sticky top-0 z-50 border-b bg-background/95 shadow-lg"
+      className="sticky top-0 z-50 border-b bg-background shadow-lg transform-gpu [backface-visibility:hidden]"
     >
       <div
         className={`container mx-auto ${

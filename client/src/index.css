@@ -262,7 +262,10 @@
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
-    overflow-x: clip;
+    /* NOTE: do not set overflow-x here. Horizontal rubber-band is already
+       clipped on <html>. Clipping on <body> turns it into a sticky
+       containing block and makes position: sticky elements (header,
+       sidebar) jitter/shake on every scroll frame in Safari/Chrome. */
     overscroll-behavior-x: none;
     /* Safari iOS: avoid content being hidden behind bottom bar */
     min-height: 100vh;
@@ -274,9 +277,10 @@
     touch-action: manipulation;
   }
 
-  /* Older Safari fallback: support clip via hidden */
+  /* Older Safari fallback: support clip via hidden (html only, so body does
+     not become a sticky containing block that causes scroll jitter). */
   @supports not (overflow: clip) {
-    html, body { overflow-x: hidden; }
+    html { overflow-x: hidden; }
   }
 }
 
