@@ -5713,18 +5713,18 @@ export default function ListingDetailPage({
                           >
                             {listing.vin}
                           </p>
-                          <div className="pt-2 space-y-2">
+                          <div className="pt-1">
                             <Button
                               variant="outline"
                               size="sm"
-                              className="w-full sm:w-auto"
+                              className="w-auto max-w-full justify-start px-3"
                               onClick={() => {
                                 cebiaCheckoutMutation.reset();
                                 handleCebiaClick();
                               }}
                               data-testid="button-cebia-placeholder"
                             >
-                              Cebia Autotracer (PDF) – koupit report
+                              Cebia zobrazit historii vozu
                             </Button>
                           </div>
                         </div>
