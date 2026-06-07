@@ -34,7 +34,6 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
-import { useHideOnScroll } from "@/hooks/useHideOnScroll";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "@/lib/translations";
 import { useAuth } from "@/hooks/useAuth";
@@ -148,10 +147,6 @@ function HeaderContent({
   const [isSearchVisible, setIsSearchVisible] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Hide-on-scroll-down / show-on-scroll-up behaviour. Implementation lives
-  // in a reusable hook so we can apply the same pattern to other floating
-  // bars without duplicating scroll listeners.
-  const headerHidden = useHideOnScroll();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const searchMobileInputRef = useRef<HTMLInputElement>(null);
   const lastScrollYRef = useRef(0);
@@ -445,9 +440,7 @@ function HeaderContent({
 
   return (
     <header
-      className={`sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl shadow-lg transition-transform duration-300 ease-out will-change-transform ${
-        headerHidden ? "-translate-y-full" : "translate-y-0"
-      } ${compactMobile ? "md:backdrop-blur-2xl" : ""}`}
+      className="sticky top-0 z-50 border-b bg-background/95 shadow-lg"
     >
       <div
         className={`container mx-auto ${
