@@ -5216,22 +5216,6 @@ export default function ListingDetailPage({
                         {t("listing.soldBadge")}
                       </Badge>
                     ) : null}
-                    <div className="ml-auto w-auto text-right lg:hidden">
-                      <p
-                        className="text-2xl font-bold leading-tight text-primary md:text-3xl"
-                        data-testid="text-price-top"
-                      >
-                        {new Intl.NumberFormat("cs-CZ").format(
-                          Number(listing.price),
-                        )}{" "}
-                        Kč
-                      </p>
-                      {listing.vatDeductible ? (
-                        <p className="text-xs text-muted-foreground">
-                          {t("detail.vatIncluded")}
-                        </p>
-                      ) : null}
-                    </div>
                   </div>
                   {listing.title ? (
                     <p className="text-sm text-muted-foreground">
@@ -5325,6 +5309,22 @@ export default function ListingDetailPage({
                     <span className="font-medium">
                       {getLocalizedRegion(listing.region)}
                     </span>
+                  </div>
+                  <div className="ml-auto text-right lg:hidden">
+                    <p
+                      className="text-2xl font-bold leading-tight text-primary"
+                      data-testid="text-price-top"
+                    >
+                      {new Intl.NumberFormat("cs-CZ").format(
+                        Number(listing.price),
+                      )}{" "}
+                      Kč
+                    </p>
+                    {listing.vatDeductible ? (
+                      <p className="text-xs text-muted-foreground">
+                        {t("detail.vatIncluded")}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               </div>
