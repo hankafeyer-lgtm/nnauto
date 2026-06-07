@@ -52,7 +52,7 @@ import { useModelGenerations } from "@/hooks/useModelGenerations";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoginModal from "@/components/LoginModal";
-import { Sparkles, Car, Package, Wrench, CircleDot, Zap, Bot, Activity, ArrowUp, ArrowDown, Grid3x3, Compass, Key, MapPin } from "lucide-react";
+import { Sparkles, Car, Package, Wrench, CircleDot, Zap, Bot, Activity, ArrowUp, ArrowDown, Grid3x3, Compass, Key, MapPin, Building2, ShieldCheck } from "lucide-react";
 import newCarIcon from "@assets/3AAF8DD0-3B6D-4DA3-8A1E-2858FCC004A1_1763451350424.png";
 import partsIcon from "@assets/62A9ABBD-0474-469C-8089-FA93C3E7C2B4_1763450942216.png";
 import usedCarIcon from "@assets/ABAF6CAB-50AC-450D-8FE8-342C0DF354D6_1763451176037.png";
@@ -711,8 +711,65 @@ export default function AddListingPage() {
   const selectedVehicleType = form.watch("vehicleType");
   const isTopListing = form.watch("isTopListing");
   const isImported = form.watch("isImported");
+  const selectedSellerType = form.watch("sellerType");
   const bodyTypes = localizedOptions.getBodyTypes(selectedVehicleType ?? undefined);
   const availableModels = selectedBrand ? getModelsForVehicleType(selectedBrand, selectedVehicleType ?? undefined) : [];
+  const dealerSellerChecklist =
+    language === "uk"
+      ? [
+          "VIN і можливість перевірки",
+          "STK, екологічний клас і сервісна книжка",
+          "Кількість власників, походження і стан авто",
+          "Комплектація, додаткові опції, DPH і фінансування",
+        ]
+      : language === "de"
+        ? [
+            "VIN und Fahrzeugprüfung",
+            "TÜV/STK, Emissionsklasse und Serviceheft",
+            "Anzahl Besitzer, Herkunft und Zustand",
+            "Ausstattung, Extras, MwSt. und Finanzierung",
+          ]
+        : language === "en"
+          ? [
+              "VIN and vehicle check option",
+              "STK, emission class and service book",
+              "Owners, origin and vehicle condition",
+              "Equipment, extras, VAT and financing",
+            ]
+          : [
+              "VIN a možnost prověření",
+              "STK, emisní třída a servisní knížka",
+              "Počet majitelů, původ a stav vozu",
+              "Výbava, extras, DPH a financování",
+            ];
+  const privateSellerChecklist =
+    language === "uk"
+      ? [
+          "Фото з усіх сторін",
+          "Реальний стан і короткий опис",
+          "Телефон і регіон для швидкого контакту",
+          "VIN добровільно для більшої довіри",
+        ]
+      : language === "de"
+        ? [
+            "Fotos von allen Seiten",
+            "Ehrlicher Zustand und kurze Beschreibung",
+            "Telefon und Region für schnellen Kontakt",
+            "VIN optional für mehr Vertrauen",
+          ]
+        : language === "en"
+          ? [
+              "Photos from all sides",
+              "Real condition and short description",
+              "Phone and region for quick contact",
+              "VIN optional for higher trust",
+            ]
+          : [
+              "Fotografie ze všech stran",
+              "Reálný stav a stručný popis",
+              "Telefon a region pro rychlý kontakt",
+              "VIN dobrovolně pro vyšší důvěru",
+            ];
   const { generations: availableGenerations } = useModelGenerations(
     selectedBrand,
     selectedModel,
@@ -2274,6 +2331,67 @@ export default function AddListingPage() {
                         )}
                       />
 
+                      {selectedSellerType && (
+                        <div className="md:col-span-2 rounded-3xl border border-amber-200 bg-gradient-to-br from-white via-amber-50/60 to-white p-4 shadow-sm sm:p-5">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+                              {selectedSellerType === "dealer" ? (
+                                <Building2 className="h-6 w-6" />
+                              ) : (
+                                <Car className="h-6 w-6" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-black uppercase tracking-[0.18em] text-amber-700">
+                                {selectedSellerType === "dealer"
+                                  ? language === "uk"
+                                    ? "Оголошення автобазару"
+                                    : language === "de"
+                                      ? "Autohaus-Anzeige"
+                                      : language === "en"
+                                        ? "Dealer listing"
+                                        : "Oznámení pro autobazar"
+                                  : language === "uk"
+                                    ? "Приватне оголошення"
+                                    : language === "de"
+                                      ? "Private Anzeige"
+                                      : language === "en"
+                                        ? "Private listing"
+                                        : "Soukromý prodej"}
+                              </p>
+                              <h4 className="mt-1 text-lg font-black text-[#4b2d08]">
+                                {selectedSellerType === "dealer"
+                                  ? language === "uk"
+                                    ? "Заповніть максимум даних, щоб оголошення виглядало як професійний автобазар."
+                                    : language === "de"
+                                      ? "Füllen Sie möglichst viele Angaben aus, damit die Anzeige professionell wirkt."
+                                      : language === "en"
+                                        ? "Fill in the full vehicle profile so the ad feels like a professional dealership offer."
+                                        : "Vyplňte kompletní profil vozu, aby inzerát působil jako profesionální nabídka autobazaru."
+                                  : language === "uk"
+                                    ? "Для приватного продажу достатньо чітких фото, стану, ціни та контакту."
+                                    : language === "de"
+                                      ? "Für privaten Verkauf reichen klare Fotos, Zustand, Preis und Kontakt."
+                                      : language === "en"
+                                        ? "For a private sale, clear photos, condition, price and contact are the key fields."
+                                        : "U soukromého prodeje jsou nejdůležitější jasné fotky, stav, cena a kontakt."}
+                              </h4>
+                              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                                {(selectedSellerType === "dealer"
+                                  ? dealerSellerChecklist
+                                  : privateSellerChecklist
+                                ).map((item) => (
+                                  <div key={item} className="flex items-center gap-2 rounded-2xl bg-white/80 px-3 py-2 text-sm font-semibold text-[#5c3b10]">
+                                    <ShieldCheck className="h-4 w-4 shrink-0 text-amber-700" />
+                                    {item}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <FormField
                         control={form.control}
                         name="region"
@@ -2437,6 +2555,69 @@ export default function AddListingPage() {
                     </div>
                   </div>
 
+                  <div className={`space-y-4 rounded-3xl border p-4 sm:p-5 ${
+                    selectedSellerType === "dealer"
+                      ? "border-amber-200 bg-amber-50/45"
+                      : "border-border bg-muted/20"
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-amber-800 shadow-sm">
+                        <ShieldCheck className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-black text-[#4b2d08]">
+                          {selectedSellerType === "dealer"
+                            ? language === "uk"
+                              ? "Професійні дані для автобазару"
+                              : language === "de"
+                                ? "Professionelle Angaben für Autohaus"
+                                : language === "en"
+                                  ? "Professional dealer information"
+                                  : "Profesionální údaje pro autobazar"
+                            : selectedSellerType === "private"
+                              ? language === "uk"
+                                ? "Довіра до оголошення"
+                                : language === "de"
+                                  ? "Vertrauen zur Anzeige"
+                                  : language === "en"
+                                    ? "Listing trust details"
+                                    : "Důvěryhodnost inzerátu"
+                              : language === "uk"
+                                ? "Додаткові дані оголошення"
+                                : language === "de"
+                                  ? "Zusätzliche Angaben"
+                                  : language === "en"
+                                    ? "Additional listing details"
+                                    : "Doplňující údaje inzerátu"}
+                        </h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {selectedSellerType === "dealer"
+                            ? language === "uk"
+                              ? "Ці дані будуть показані в оголошенні як структурована інформація для покупця."
+                              : language === "de"
+                                ? "Diese Daten erscheinen in der Anzeige als strukturierte Käuferinformationen."
+                                : language === "en"
+                                  ? "These details are shown in the listing as structured buyer information."
+                                  : "Tyto údaje se v inzerátu zobrazí jako přehledné informace pro kupujícího."
+                            : selectedSellerType === "private"
+                              ? language === "uk"
+                                ? "Заповніть, якщо хочете підвищити довіру покупця."
+                                : language === "de"
+                                  ? "Ausfüllen, wenn Sie das Vertrauen des Käufers erhöhen möchten."
+                                  : language === "en"
+                                    ? "Fill these in to increase buyer trust."
+                                    : "Vyplňte je, pokud chcete zvýšit důvěru kupujícího."
+                              : language === "uk"
+                                ? "Після вибору типу продавця покажемо, які дані важливі для цього оголошення."
+                                : language === "de"
+                                  ? "Nach Auswahl des Verkäufertyps zeigen wir die wichtigsten Daten."
+                                  : language === "en"
+                                    ? "After choosing seller type, we will show the most important details."
+                                    : "Po výběru typu prodejce ukážeme nejdůležitější údaje pro tento inzerát."}
+                        </p>
+                      </div>
+                    </div>
+
                   {/* Euro Emission, STK Validity, and Service Book */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     <FormField
@@ -2556,6 +2737,7 @@ export default function AddListingPage() {
                       )}
                     />
                   )}
+                  </div>
 
                   <div className="space-y-4">
                     <h3 className="text-lg font-medium">{t("listing.equipment")}</h3>

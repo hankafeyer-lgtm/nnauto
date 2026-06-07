@@ -3417,6 +3417,7 @@ export default function ListingDetailPage({
   const [cebiaGuestStatus, setCebiaGuestStatus] = useState<string | null>(null);
   const [cebiaGuestHasPdf, setCebiaGuestHasPdf] = useState(false);
   const [listingEditOpen, setListingEditOpen] = useState(false);
+  const [dealerHoursOpen, setDealerHoursOpen] = useState(false);
 
   const redirectToCheckout = useCallback((url: string) => {
     try {
@@ -4782,6 +4783,21 @@ export default function ListingDetailPage({
   const dealerPublicUrl = initialDealerProfile
     ? `/dealer/${initialDealerProfile.id}`
     : "";
+  const dealerMapQuery =
+    initialDealerProfile?.address ||
+    initialDealerProfile?.region ||
+    getLocalizedRegion(listing.region) ||
+    "";
+  const dealerMapHref = dealerMapQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+        dealerMapQuery,
+      )}`
+    : "";
+  const dealerMapEmbedSrc = dealerMapQuery
+    ? `https://www.google.com/maps?q=${encodeURIComponent(
+        dealerMapQuery,
+      )}&output=embed`
+    : "";
   const dealerInitials = initialDealerProfile?.companyName
     ?.split(/\s+/)
     .filter(Boolean)
@@ -5200,6 +5216,22 @@ export default function ListingDetailPage({
                         {t("listing.soldBadge")}
                       </Badge>
                     ) : null}
+                    <div className="w-full sm:ml-auto sm:w-auto sm:text-right">
+                      <p
+                        className="text-2xl font-bold leading-tight text-primary md:text-3xl"
+                        data-testid="text-price-top"
+                      >
+                        {new Intl.NumberFormat("cs-CZ").format(
+                          Number(listing.price),
+                        )}{" "}
+                        Kč
+                      </p>
+                      {listing.vatDeductible ? (
+                        <p className="text-xs text-muted-foreground">
+                          {t("detail.vatIncluded")}
+                        </p>
+                      ) : null}
+                    </div>
                   </div>
                   {listing.title ? (
                     <p className="text-sm text-muted-foreground">
@@ -5327,130 +5359,6 @@ export default function ListingDetailPage({
                   </CardContent>
                 </Card>
               )}
-
-              {isDealerListing && initialDealerProfile ? (
-                <Card className="overflow-hidden rounded-2xl border-amber-100 bg-gradient-to-br from-white via-white to-amber-50/50">
-                  <CardContent className="p-6 md:p-8">
-                    <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_280px]">
-                      <div className="min-w-0">
-                        <div className="flex items-start gap-4">
-                          <a
-                            href={dealerPublicUrl}
-                            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-amber-100 text-xl font-black text-amber-900 ring-4 ring-white shadow"
-                          >
-                            {initialDealerProfile.logoUrl ? (
-                              <img
-                                src={initialDealerProfile.logoUrl}
-                                alt={initialDealerProfile.companyName}
-                                className="h-full w-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              dealerInitials
-                            )}
-                          </a>
-                          <div className="min-w-0">
-                            <div className="mb-2 flex flex-wrap gap-2">
-                              {initialDealerProfile.isVerified ? (
-                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                                  <Shield className="mr-1 h-3.5 w-3.5" />
-                                  Ověřený dealer
-                                </Badge>
-                              ) : null}
-                              <Badge variant="secondary" className="rounded-full">
-                                Dealer Premium
-                              </Badge>
-                              <Badge variant="secondary" className="rounded-full">
-                                Na NNAuto od {dealerActiveSince}
-                              </Badge>
-                            </div>
-                            <a href={dealerPublicUrl} className="text-2xl font-black hover:text-amber-800">
-                              {initialDealerProfile.companyName}
-                            </a>
-                            <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
-                              {initialDealerProfile.description ||
-                                "Prémiový prodejce s ověřenou nabídkou vozů na NNAuto.cz."}
-                            </p>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              {dealerSocialLinks.map(([label, value]) => (
-                                <a
-                                  key={label}
-                                  href={normalizeDealerUrl(value)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="rounded-full border bg-white px-3 py-1 text-xs font-semibold hover:border-amber-300 hover:bg-amber-50"
-                                >
-                                  {label}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                          <div className="rounded-2xl bg-white p-3">
-                            <p className="text-xs text-muted-foreground">Odpověď</p>
-                            <p className="font-black">~18 min</p>
-                          </div>
-                          <div className="rounded-2xl bg-white p-3">
-                            <p className="text-xs text-muted-foreground">Doporučuje</p>
-                            <p className="font-black">98 % zákazníků</p>
-                          </div>
-                          <div className="rounded-2xl bg-white p-3">
-                            <p className="text-xs text-muted-foreground">Pracovní doba</p>
-                            <p className="font-black">{dealerHours.short}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {(initialDealerProfile.address || initialDealerProfile.region) ? (
-                        <div className="rounded-3xl border bg-white p-4">
-                          <div className="flex h-32 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-stone-100 text-center text-sm font-semibold text-amber-900">
-                            <MapPin className="mr-2 h-5 w-5" />
-                            {initialDealerProfile.address || initialDealerProfile.region}
-                          </div>
-                          <div className="mt-3 grid grid-cols-2 gap-2">
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                initialDealerProfile.address || initialDealerProfile.region || "",
-                              )}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="rounded-xl bg-amber-700 px-3 py-2 text-center text-sm font-bold text-white hover:bg-amber-800"
-                            >
-                              Navigovat
-                            </a>
-                            <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                                initialDealerProfile.address || initialDealerProfile.region || "",
-                              )}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="rounded-xl border bg-white px-3 py-2 text-center text-sm font-bold hover:bg-amber-50"
-                            >
-                              Google Maps
-                            </a>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      <a
-                        href={dealerPublicUrl}
-                        className="inline-flex items-center rounded-2xl bg-amber-700 px-4 py-3 text-sm font-bold text-white hover:bg-amber-800"
-                      >
-                        Zobrazit profil dealera
-                        <ExternalLink className="ml-2 h-4 w-4" />
-                      </a>
-                      <a
-                        href={`${dealerPublicUrl}#inventory`}
-                        className="inline-flex items-center rounded-2xl border bg-white px-4 py-3 text-sm font-bold hover:bg-amber-50"
-                      >
-                        Zobrazit všechny vozy
-                      </a>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : null}
 
               {/* Technical Specifications */}
               <Card className="rounded-2xl">
@@ -5889,10 +5797,241 @@ export default function ListingDetailPage({
                   </CardContent>
                 </Card>
               )}
+
+              {isDealerListing && initialDealerProfile ? (
+                <section className="rounded-3xl border border-amber-100 bg-white p-4 shadow-sm sm:p-5">
+                  <div className="mb-4 flex flex-col gap-3 border-b border-zinc-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#B8860B]">
+                        Prodejce vozidla
+                      </p>
+                      <h2 className="mt-1 text-xl font-black text-zinc-950">
+                        {initialDealerProfile.companyName}
+                      </h2>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void trackListingAnalyticsEvent("contact_click");
+                          setShowContactDialog(true);
+                        }}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#B8860B] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-amber-700"
+                      >
+                        <Mail className="h-4 w-4" />
+                        Napsat prodejci
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void trackListingAnalyticsEvent("contact_click");
+                          setShowContactDialog(true);
+                        }}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-bold text-amber-900 transition hover:bg-amber-100"
+                      >
+                        <Phone className="h-4 w-4" />
+                        Zobrazit kontakt
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+                      <div className="space-y-4">
+                        <div className="flex gap-4">
+                          <a
+                            href={dealerPublicUrl}
+                            className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-amber-50 text-lg font-black text-amber-900 ring-1 ring-amber-100"
+                          >
+                            {initialDealerProfile.logoUrl ? (
+                              <img
+                                src={initialDealerProfile.logoUrl}
+                                alt={initialDealerProfile.companyName}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              dealerInitials
+                            )}
+                          </a>
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-bold uppercase tracking-wide text-[#B8860B]">
+                                Autobazar
+                              </span>
+                              {initialDealerProfile.isVerified ? (
+                                <Badge className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] text-emerald-700 hover:bg-emerald-50">
+                                  <Shield className="mr-1 h-3 w-3" />
+                                  Ověřený
+                                </Badge>
+                              ) : null}
+                            </div>
+                            <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                              {initialDealerProfile.description ||
+                                "Ověřený autobazar s nabídkou vozů na NNAuto."}
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              <a
+                                href={dealerPublicUrl}
+                                className="inline-flex items-center rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 hover:bg-zinc-50"
+                              >
+                                Profil prodejce
+                              </a>
+                              <a
+                                href={`${dealerPublicUrl}#inventory`}
+                                className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100"
+                              >
+                                {initialDealerInventory.length + 1} vozů v nabídce
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-2xl bg-zinc-50 p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-zinc-400">
+                              Adresa
+                            </p>
+                            <div className="mt-2 flex gap-2 text-sm text-zinc-700">
+                              <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#B8860B]" />
+                              <span>
+                                {initialDealerProfile.address ||
+                                  initialDealerProfile.region ||
+                                  getLocalizedRegion(listing.region)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="rounded-2xl bg-zinc-50 p-4">
+                            <p className="text-xs font-bold uppercase tracking-wide text-zinc-400">
+                              Kontakt
+                            </p>
+                            <div className="mt-2 space-y-2 text-sm">
+                              {dealerPhone ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void trackListingAnalyticsEvent("contact_click");
+                                    setShowContactDialog(true);
+                                  }}
+                                  className="flex items-center gap-2 font-semibold text-zinc-800 hover:text-[#B8860B]"
+                                >
+                                  <Phone className="h-4 w-4 text-[#B8860B]" />
+                                  Zobrazit telefon
+                                </button>
+                              ) : null}
+                              {(initialDealerProfile.email || seller?.email) ? (
+                                <a
+                                  href={`mailto:${initialDealerProfile.email || seller?.email}`}
+                                  className="flex items-center gap-2 text-zinc-700 hover:text-[#B8860B]"
+                                >
+                                  <Mail className="h-4 w-4 text-[#B8860B]" />
+                                  {initialDealerProfile.email || seller?.email}
+                                </a>
+                              ) : null}
+                              {initialDealerProfile.website ? (
+                                <a
+                                  href={normalizeDealerUrl(initialDealerProfile.website)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="flex items-center gap-2 text-zinc-700 hover:text-[#B8860B]"
+                                >
+                                  <Globe className="h-4 w-4 text-[#B8860B]" />
+                                  Web prodejce
+                                </a>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-4 lg:p-3">
+                        <div className="flex items-start justify-between gap-3 lg:mb-2">
+                          <div>
+                            <p className="text-xs font-bold uppercase tracking-wide text-[#B8860B]">
+                              Otevírací doba
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setDealerHoursOpen((open) => !open)}
+                            className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#B8860B] bg-[#B8860B] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm transition hover:bg-amber-700 lg:hidden"
+                            aria-expanded={dealerHoursOpen}
+                          >
+                            {dealerHoursOpen ? "Skrýt" : "Zobrazit"}
+                            <ChevronRight
+                              className={`h-3.5 w-3.5 transition-transform ${
+                                dealerHoursOpen ? "rotate-90" : ""
+                              }`}
+                            />
+                          </button>
+                        </div>
+                        <div
+                          className={`${
+                            dealerHoursOpen ? "block" : "hidden"
+                          } mt-3 space-y-1.5 lg:mt-0 lg:block lg:space-y-1`}
+                        >
+                          {detailDayKeys.map((day) => {
+                            const dayHours = dealerLocalSettings.workingHours?.[day];
+                            const isClosed = !!dayHours?.closed;
+                            return (
+                              <div
+                                key={day}
+                                className="flex items-center justify-between gap-4 rounded-xl bg-white px-3 py-2 text-sm ring-1 ring-amber-100/70 lg:rounded-lg lg:px-2.5 lg:py-1.5 lg:text-xs"
+                              >
+                                <span className="font-bold text-zinc-800">
+                                  {detailDayShort[day]}
+                                </span>
+                                <span
+                                  className={
+                                    isClosed
+                                      ? "font-semibold text-zinc-400"
+                                      : "font-semibold text-zinc-950"
+                                  }
+                                >
+                                  {isClosed
+                                    ? "Zavřeno"
+                                    : `${dayHours?.open || "09:00"} - ${dayHours?.close || "17:00"}`}
+                                </span>
+                              </div>
+                            );
+                          })}
+                          <p className="mt-3 text-xs text-zinc-500 lg:mt-2 lg:text-[11px]">
+                            Na NNAuto od {dealerActiveSince}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {dealerMapEmbedSrc ? (
+                      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100">
+                        <iframe
+                          title={`Mapa - ${initialDealerProfile.companyName}`}
+                          src={dealerMapEmbedSrc}
+                          loading="lazy"
+                          className="h-48 w-full border-0 xl:h-full xl:min-h-[260px]"
+                        />
+                        <div className="flex items-center justify-between gap-2 border-t border-zinc-200 bg-white px-3 py-2">
+                          <span className="truncate text-xs font-medium text-zinc-500">
+                            {dealerMapQuery}
+                          </span>
+                          <a
+                            href={dealerMapHref}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="shrink-0 text-xs font-bold text-[#B8860B] hover:underline"
+                          >
+                            Otevřít mapu
+                          </a>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </section>
+              ) : null}
             </div>
 
             {/* Sidebar */}
-            <div className="space-y-6 lg:self-start lg:sticky lg:top-[calc(var(--header-height,96px)+24px)] lg:z-10 lg:transform-gpu lg:will-change-transform lg:[backface-visibility:hidden] lg:[contain:layout_paint]">
+            <div className="space-y-6 lg:sticky lg:top-[calc(var(--header-height,96px)+24px)] lg:self-start lg:z-10">
               <Card className="min-h-[26rem] rounded-2xl shadow-xl sm:min-h-[28rem]">
                 <CardContent className="p-6 md:p-8 space-y-6">
                   <div>
@@ -5930,19 +6069,6 @@ export default function ListingDetailPage({
                         </p>
                       </div>
                     )}
-                    {isDealerListing ? (
-                      <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-amber-900">Možnost financování</p>
-                            <p className="text-xs text-amber-800">Orientační nabídka bez závazku</p>
-                          </div>
-                          <p className="text-right text-lg font-black text-amber-950">
-                            od {monthlyFinance.toLocaleString("cs-CZ")} Kč / měsíc
-                          </p>
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
 
                   <Separator />
@@ -6195,116 +6321,6 @@ export default function ListingDetailPage({
                 </CardContent>
               </Card>
 
-              {isDealerListing && initialDealerProfile ? (
-                <Card className="overflow-hidden rounded-2xl border-amber-100 bg-gradient-to-br from-white to-amber-50/60 shadow-lg">
-                  <CardContent className="space-y-4 p-5">
-                    <div className="flex items-start gap-3">
-                      <a
-                        href={dealerPublicUrl}
-                        className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-amber-100 text-lg font-black text-amber-900 shadow-sm"
-                      >
-                        {initialDealerProfile.logoUrl ? (
-                          <img
-                            src={initialDealerProfile.logoUrl}
-                            alt={initialDealerProfile.companyName}
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                        ) : (
-                          dealerInitials
-                        )}
-                      </a>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap gap-1.5">
-                          {initialDealerProfile.isVerified ? (
-                            <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                              Ověřený dealer
-                            </Badge>
-                          ) : null}
-                          <Badge variant="secondary">Dealer Premium</Badge>
-                        </div>
-                        <a href={dealerPublicUrl} className="mt-2 block truncate text-lg font-black hover:text-amber-800">
-                          {initialDealerProfile.companyName}
-                        </a>
-                        <p className="text-xs text-muted-foreground">
-                          Odpovídá obvykle za ~18 minut · Aktivní dnes
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="rounded-2xl bg-white p-3">
-                        <p className="text-muted-foreground text-xs">Inventory</p>
-                        <p className="font-black">{initialDealerInventory.length + 1} vozů</p>
-                      </div>
-                      <div className="rounded-2xl bg-white p-3">
-                        <p className="text-muted-foreground text-xs">Doporučuje</p>
-                        <p className="font-black">98 %</p>
-                      </div>
-                      <div className="rounded-2xl bg-white p-3">
-                        <p className="text-muted-foreground text-xs">Pracovní doba</p>
-                        <p className="font-black">{dealerHours.short}</p>
-                      </div>
-                      <div className="rounded-2xl bg-white p-3">
-                        <p className="text-muted-foreground text-xs">Na NNAuto</p>
-                        <p className="font-black">od {dealerActiveSince}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Button
-                        className="w-full bg-amber-700 hover:bg-amber-800"
-                        size="lg"
-                        onClick={() => {
-                          void trackListingAnalyticsEvent("contact_click");
-                          setShowContactDialog(true);
-                        }}
-                      >
-                        Kontaktovat prodejce
-                      </Button>
-                      <div className="grid grid-cols-2 gap-2">
-                        {dealerWhatsappEnabled ? (
-                          <a
-                            href={`https://wa.me/${dealerPhone.replace(/\D/g, "")}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={() => void trackListingAnalyticsEvent("whatsapp_click")}
-                            className="rounded-xl border bg-white px-3 py-3 text-center text-sm font-bold hover:bg-amber-50"
-                          >
-                            WhatsApp
-                          </a>
-                        ) : null}
-                        {dealerTelegramEnabled ? (
-                          <a
-                            href={`https://t.me/+${dealerPhone.replace(/\D/g, "")}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={() => void trackListingAnalyticsEvent("telegram_click")}
-                            className="rounded-xl border bg-white px-3 py-3 text-center text-sm font-bold hover:bg-amber-50"
-                          >
-                            Telegram
-                          </a>
-                        ) : null}
-                        {dealerPhone ? (
-                          <a
-                            href={`tel:${dealerPhone}`}
-                            className="rounded-xl border bg-white px-3 py-3 text-center text-sm font-bold hover:bg-amber-50"
-                          >
-                            Zavolat
-                          </a>
-                        ) : null}
-                        <button
-                          type="button"
-                          onClick={handleShare}
-                          className="rounded-xl border bg-white px-3 py-3 text-center text-sm font-bold hover:bg-amber-50"
-                        >
-                          Sdílet
-                        </button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : null}
             </div>
           </div>
 
