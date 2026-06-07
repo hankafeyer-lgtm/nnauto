@@ -5216,7 +5216,7 @@ export default function ListingDetailPage({
                         {t("listing.soldBadge")}
                       </Badge>
                     ) : null}
-                    <div className="w-full sm:ml-auto sm:w-auto sm:text-right">
+                    <div className="ml-auto w-auto text-right lg:hidden">
                       <p
                         className="text-2xl font-bold leading-tight text-primary md:text-3xl"
                         data-testid="text-price-top"
