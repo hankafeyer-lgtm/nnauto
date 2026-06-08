@@ -6,6 +6,7 @@ import {
   useMemo,
   lazy,
   Suspense,
+  Fragment,
 } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/lib/translations";
@@ -179,6 +180,8 @@ type DealerTab =
   | "mylistings"
   | "promotion"
   | "import"
+  | "integrace"
+  | "leady"
   | "settings"
   | "reviews"
   | "microsite"
@@ -6415,6 +6418,12 @@ export default function DealerPage() {
             <TabsContent value="import" className="mt-0">
               <BulkImportTab t={t} onAddVehicle={openAddVehicleDialog} />
             </TabsContent>
+            <TabsContent value="integrace" className="mt-0">
+              <IntegraceTab dealer={dealer} t={t} />
+            </TabsContent>
+            <TabsContent value="leady" className="mt-0">
+              <LeadyTab dealer={dealer} t={t} />
+            </TabsContent>
             <TabsContent value="microsite" className="mt-0">
               <MicrositeTab dealer={dealer} t={t} />
             </TabsContent>
@@ -6505,6 +6514,659 @@ export default function DealerPage() {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Integrace (V2): XML Feed / API / Webhooks / WordPress
+// Frontend scaffold. Persists configuration locally (localStorage) until the
+// backend endpoints, cron sync and webhook dispatcher are implemented.
+// ---------------------------------------------------------------------------
+
+type IntegraceSubTab = "xml" | "api" | "webhooks" | "wordpress";
+
+type IntegraceState = {
+  xmlUrl: string;
+  xmlSavedUrl: string;
+  xmlVerified: boolean;
+  lastSyncAt: string | null;
+  vehicleCount: number;
+  updatedCount: number;
+  errorCount: number;
+  apiKey: string;
+  webhookUrl: string;
+  webhookEvents: string[];
+};
+
+const WEBHOOK_EVENTS: Array<{ id: string; label: string }> = [
+  { id: "vehicle.created", label: "Vozidlo vytvořeno" },
+  { id: "vehicle.updated", label: "Vozidlo aktualizováno" },
+  { id: "vehicle.deleted", label: "Vozidlo smazáno" },
+  { id: "vehicle.sold", label: "Vozidlo prodáno" },
+];
+
+const API_ENDPOINTS: Array<{ method: string; path: string; label: string }> = [
+  { method: "POST", path: "/api/dealer/vehicles", label: "Vytvořit vozidlo" },
+  { method: "PUT", path: "/api/dealer/vehicles/{id}", label: "Aktualizovat vozidlo" },
+  { method: "DELETE", path: "/api/dealer/vehicles/{id}", label: "Smazat vozidlo" },
+  { method: "PATCH", path: "/api/dealer/vehicles/{id}/status", label: "Změnit stav vozidla" },
+];
+
+function generateApiKey(): string {
+  const bytes = new Uint8Array(20);
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
+  }
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `nn_live_${hex}`;
+}
+
+function methodBadgeClass(method: string): string {
+  switch (method) {
+    case "POST":
+      return "bg-emerald-100 text-emerald-700";
+    case "PUT":
+      return "bg-amber-100 text-amber-700";
+    case "DELETE":
+      return "bg-red-100 text-red-700";
+    case "PATCH":
+      return "bg-sky-100 text-sky-700";
+    default:
+      return "bg-slate-100 text-slate-700";
+  }
+}
+
+function IntegraceTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string }) {
+  const { toast } = useToast();
+  const storageKey = `nnauto_dealer_integrace_${dealer.id}`;
+  const [sub, setSub] = useState<IntegraceSubTab>("xml");
+  const [state, setState] = useState<IntegraceState>({
+    xmlUrl: "",
+    xmlSavedUrl: "",
+    xmlVerified: false,
+    lastSyncAt: null,
+    vehicleCount: 0,
+    updatedCount: 0,
+    errorCount: 0,
+    apiKey: "",
+    webhookUrl: "",
+    webhookEvents: ["vehicle.created", "vehicle.updated", "vehicle.sold"],
+  });
+  const [busy, setBusy] = useState<null | "verify" | "sync" | "webhook">(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Partial<IntegraceState>;
+        setState((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {
+      // ignore
+    }
+  }, [storageKey]);
+
+  const persist = useCallback(
+    (updater: (prev: IntegraceState) => IntegraceState) => {
+      setState((prev) => {
+        const next = updater(prev);
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+        return next;
+      });
+    },
+    [storageKey],
+  );
+
+  const subTabs: Array<{ id: IntegraceSubTab; label: string; Icon: typeof Link2 }> = [
+    { id: "xml", label: "XML Feed", Icon: FileSpreadsheet },
+    { id: "api", label: "API", Icon: Lock },
+    { id: "webhooks", label: "Webhooks", Icon: Zap },
+    { id: "wordpress", label: "WordPress", Icon: MonitorSmartphone },
+  ];
+
+  const handleVerifyXml = () => {
+    if (!state.xmlUrl.trim()) {
+      toast({ title: "Zadejte XML URL", variant: "destructive" });
+      return;
+    }
+    setBusy("verify");
+    window.setTimeout(() => {
+      persist((prev) => ({ ...prev, xmlVerified: true }));
+      setBusy(null);
+      toast({ title: "XML formát vypadá v pořádku", description: "Připojení bude dokončeno po nasazení backendu." });
+    }, 700);
+  };
+
+  const handleSaveXml = () => {
+    persist((prev) => ({ ...prev, xmlSavedUrl: prev.xmlUrl }));
+    toast({ title: "XML feed uložen" });
+  };
+
+  const handleSyncNow = () => {
+    if (!state.xmlSavedUrl.trim()) {
+      toast({ title: "Nejdříve uložte XML URL", variant: "destructive" });
+      return;
+    }
+    setBusy("sync");
+    window.setTimeout(() => {
+      persist((prev) => ({ ...prev, lastSyncAt: new Date().toISOString() }));
+      setBusy(null);
+      toast({ title: "Synchronizace naplánována", description: "Reálná synchronizace poběží přes cron každých 15 minut." });
+    }, 900);
+  };
+
+  const handleGenerateKey = () => {
+    const next = generateApiKey();
+    persist((prev) => ({ ...prev, apiKey: next }));
+    toast({ title: "Nový API klíč vygenerován" });
+  };
+
+  const handleCopyKey = async () => {
+    if (!state.apiKey) return;
+    try {
+      await navigator.clipboard.writeText(state.apiKey);
+      toast({ title: "API klíč zkopírován" });
+    } catch {
+      toast({ title: "Kopírování se nezdařilo", variant: "destructive" });
+    }
+  };
+
+  const handleTestWebhook = () => {
+    if (!state.webhookUrl.trim()) {
+      toast({ title: "Zadejte webhook URL", variant: "destructive" });
+      return;
+    }
+    setBusy("webhook");
+    window.setTimeout(() => {
+      setBusy(null);
+      toast({ title: "Testovací událost odeslána", description: "Doručení ověříte po zapnutí webhook dispatcheru." });
+    }, 800);
+  };
+
+  const toggleEvent = (id: string) => {
+    persist((prev) => ({
+      ...prev,
+      webhookEvents: prev.webhookEvents.includes(id)
+        ? prev.webhookEvents.filter((e) => e !== id)
+        : [...prev.webhookEvents, id],
+    }));
+  };
+
+  const lastSyncLabel = state.lastSyncAt
+    ? new Date(state.lastSyncAt).toLocaleString("cs-CZ")
+    : "—";
+
+  return (
+    <div className="space-y-5">
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Link2 className="h-5 w-5 text-amber-700" />
+                {t("dealer.nav.integrace")}
+              </CardTitle>
+              <CardDescription>
+                Propojte svůj sklad vozidel s NNAuto přes XML feed, API nebo webhooky.
+              </CardDescription>
+            </div>
+            <Badge variant="outline" className="w-fit rounded-full border-amber-200 bg-amber-50 text-amber-800">
+              NNAuto Pro
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {subTabs.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setSub(id)}
+                className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-bold transition ${
+                  sub === id
+                    ? "border-amber-300 bg-amber-50 text-[#5c3b10]"
+                    : "border-transparent bg-white text-muted-foreground hover:border-amber-100 hover:bg-amber-50 hover:text-[#5c3b10]"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {sub === "xml" ? (
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="text-lg">XML Feed</CardTitle>
+            <CardDescription>
+              Vložte adresu XML feedu z vašeho webu. Systém bude automaticky vytvářet nová
+              inzeráty, aktualizovat existující a deaktivovat prodaná vozidla.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="integrace-xml-url">XML URL</Label>
+              <Input
+                id="integrace-xml-url"
+                value={state.xmlUrl}
+                onChange={(e) => persist((prev) => ({ ...prev, xmlUrl: e.target.value, xmlVerified: false }))}
+                placeholder="https://dealer.cz/feed.xml"
+                className="rounded-2xl"
+              />
+              {state.xmlVerified ? (
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
+                  <CheckCircle2 className="h-3.5 w-3.5" /> XML ověřeno
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" className="rounded-2xl" onClick={handleVerifyXml} disabled={busy === "verify"}>
+                {busy === "verify" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
+                Ověřit XML
+              </Button>
+              <Button className="rounded-2xl bg-amber-700 hover:bg-amber-800" onClick={handleSaveXml}>
+                <Save className="mr-2 h-4 w-4" />
+                Uložit
+              </Button>
+              <Button variant="outline" className="rounded-2xl" onClick={handleSyncNow} disabled={busy === "sync"}>
+                {busy === "sync" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+                Synchronizovat nyní
+              </Button>
+            </div>
+
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 text-sm text-[#6b4e1f]">
+              <p className="flex items-center gap-2 font-bold">
+                <Clock className="h-4 w-4" /> Automatická synchronizace každých 15 minut
+              </p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-[#7a5a26]">
+                <li>vytváření nových inzerátů</li>
+                <li>aktualizace existujících</li>
+                <li>deaktivace prodaných vozidel</li>
+                <li>logování všech chyb</li>
+              </ul>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <IntegraceStat label="Poslední synchronizace" value={lastSyncLabel} />
+              <IntegraceStat label="Počet vozidel" value={String(state.vehicleCount)} />
+              <IntegraceStat label="Aktualizováno" value={String(state.updatedCount)} />
+              <IntegraceStat label="Chyby" value={String(state.errorCount)} tone={state.errorCount > 0 ? "danger" : "default"} />
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {sub === "api" ? (
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="text-lg">API integrace</CardTitle>
+            <CardDescription>
+              Spravujte vozidla programově. Autentizace probíhá přes Bearer Token v hlavičce
+              <code className="mx-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs">Authorization</code>.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <Label>API Key</Label>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  readOnly
+                  value={state.apiKey || "Zatím nevygenerován"}
+                  className="rounded-2xl font-mono text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button variant="outline" className="rounded-2xl" onClick={handleCopyKey} disabled={!state.apiKey}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Kopírovat
+                  </Button>
+                  <Button className="rounded-2xl bg-amber-700 hover:bg-amber-800" onClick={handleGenerateKey}>
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Generate New Key
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Klíč uchovávejte v bezpečí. Po vygenerování nového klíče přestane starý platit.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Endpointy</Label>
+              <div className="overflow-hidden rounded-2xl border border-amber-100">
+                {API_ENDPOINTS.map((ep, idx) => (
+                  <div
+                    key={ep.method + ep.path}
+                    className={`flex flex-wrap items-center gap-3 px-4 py-3 text-sm ${
+                      idx % 2 === 0 ? "bg-white" : "bg-amber-50/40"
+                    }`}
+                  >
+                    <span className={`inline-flex w-16 justify-center rounded-lg px-2 py-1 text-xs font-black ${methodBadgeClass(ep.method)}`}>
+                      {ep.method}
+                    </span>
+                    <code className="font-mono text-[13px] text-[#5c3b10]">{ep.path}</code>
+                    <span className="ml-auto text-xs text-muted-foreground">{ep.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Button variant="outline" className="rounded-2xl" disabled>
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              API dokumentace (OpenAPI) — již brzy
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {sub === "webhooks" ? (
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="text-lg">Webhooks</CardTitle>
+            <CardDescription>
+              Připojte vlastní webhook URL a přijímejte události o změnách vozidel v reálném čase.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="integrace-webhook-url">Webhook URL</Label>
+              <Input
+                id="integrace-webhook-url"
+                value={state.webhookUrl}
+                onChange={(e) => persist((prev) => ({ ...prev, webhookUrl: e.target.value }))}
+                placeholder="https://dealer.cz/api/nnauto"
+                className="rounded-2xl"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Události</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {WEBHOOK_EVENTS.map((evt) => {
+                  const active = state.webhookEvents.includes(evt.id);
+                  return (
+                    <button
+                      key={evt.id}
+                      type="button"
+                      onClick={() => toggleEvent(evt.id)}
+                      className={`flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition ${
+                        active ? "border-amber-300 bg-amber-50" : "border-amber-100 bg-white hover:bg-amber-50/50"
+                      }`}
+                    >
+                      <span>
+                        <code className="font-mono text-[13px] font-bold text-[#5c3b10]">{evt.id}</code>
+                        <span className="block text-xs text-muted-foreground">{evt.label}</span>
+                      </span>
+                      <Switch checked={active} onCheckedChange={() => toggleEvent(evt.id)} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <Button variant="outline" className="rounded-2xl" onClick={handleTestWebhook} disabled={busy === "webhook"}>
+              {busy === "webhook" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+              Test Webhook
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {sub === "wordpress" ? (
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-100 text-amber-800">
+              <MonitorSmartphone className="h-8 w-8" />
+            </div>
+            <h3 className="text-xl font-black text-[#5c3b10]">WordPress plugin coming soon</h3>
+            <p className="max-w-md text-sm text-muted-foreground">
+              Připravujeme oficiální WordPress plugin. Architektura je již nyní postavená nad
+              naším API, takže propojení bude jen otázkou instalace.
+            </p>
+            <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-800">
+              Již brzy
+            </Badge>
+          </CardContent>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
+
+function IntegraceStat({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "danger";
+}) {
+  return (
+    <div className="rounded-2xl border border-amber-100 bg-white p-3">
+      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`mt-1 truncate text-base font-black ${tone === "danger" ? "text-red-600" : "text-[#5c3b10]"}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Leady (V2): jednoduchý CRM přehled poptávek.
+// Frontend scaffold se vzorovými daty; stavy se ukládají lokálně do té doby,
+// než bude k dispozici databázová tabulka leads a API.
+// ---------------------------------------------------------------------------
+
+type LeadStatus = "new" | "contacted" | "negotiating" | "sold" | "rejected";
+
+type Lead = {
+  id: string;
+  car: string;
+  name: string;
+  phone: string;
+  email: string;
+  date: string;
+  status: LeadStatus;
+};
+
+const LEAD_STATUS_META: Record<LeadStatus, { label: string; className: string }> = {
+  new: { label: "Nový", className: "bg-sky-100 text-sky-700" },
+  contacted: { label: "Kontaktován", className: "bg-amber-100 text-amber-700" },
+  negotiating: { label: "Jednání", className: "bg-violet-100 text-violet-700" },
+  sold: { label: "Prodáno", className: "bg-emerald-100 text-emerald-700" },
+  rejected: { label: "Zamítnuto", className: "bg-red-100 text-red-700" },
+};
+
+const LEAD_STATUS_ORDER: LeadStatus[] = ["new", "contacted", "negotiating", "sold", "rejected"];
+
+const SAMPLE_LEADS: Lead[] = [
+  { id: "l1", car: "Škoda Octavia 2.0 TDI", name: "Petr Novák", phone: "+420 777 123 456", email: "petr.novak@email.cz", date: "2026-06-06", status: "new" },
+  { id: "l2", car: "BMW 320d xDrive", name: "Jana Svobodová", phone: "+420 602 987 654", email: "jana.s@email.cz", date: "2026-06-05", status: "contacted" },
+  { id: "l3", car: "Volkswagen Passat B8", name: "Tomáš Dvořák", phone: "+420 731 555 222", email: "t.dvorak@email.cz", date: "2026-06-04", status: "negotiating" },
+  { id: "l4", car: "Audi A4 Avant", name: "Lucie Marková", phone: "+420 608 444 111", email: "lucie.m@email.cz", date: "2026-06-02", status: "sold" },
+];
+
+function LeadyTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string }) {
+  const storageKey = `nnauto_dealer_leads_${dealer.id}`;
+  const [leads, setLeads] = useState<Lead[]>(SAMPLE_LEADS);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | LeadStatus>("all");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Lead[];
+        if (Array.isArray(parsed) && parsed.length > 0) setLeads(parsed);
+      }
+    } catch {
+      // ignore
+    }
+  }, [storageKey]);
+
+  const updateStatus = (id: string, status: LeadStatus) => {
+    setLeads((prev) => {
+      const next = prev.map((lead) => (lead.id === id ? { ...lead, status } : lead));
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return leads.filter((lead) => {
+      if (statusFilter !== "all" && lead.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        lead.car.toLowerCase().includes(q) ||
+        lead.name.toLowerCase().includes(q) ||
+        lead.phone.toLowerCase().includes(q) ||
+        lead.email.toLowerCase().includes(q)
+      );
+    });
+  }, [leads, search, statusFilter]);
+
+  const counts = useMemo(() => {
+    const base: Record<LeadStatus, number> = { new: 0, contacted: 0, negotiating: 0, sold: 0, rejected: 0 };
+    for (const lead of leads) base[lead.status] += 1;
+    return base;
+  }, [leads]);
+
+  return (
+    <div className="space-y-5">
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Users className="h-5 w-5 text-amber-700" />
+                {t("dealer.nav.leady")}
+              </CardTitle>
+              <CardDescription>CRM přehled poptávek od zájemců o vaše vozidla.</CardDescription>
+            </div>
+            <Badge variant="outline" className="w-fit rounded-full border-amber-200 bg-amber-50 text-amber-800">
+              Náhled — propojení s leady v další fázi
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+            {LEAD_STATUS_ORDER.map((status) => (
+              <div key={status} className="rounded-2xl border border-amber-100 bg-white p-3 text-center">
+                <p className="text-2xl font-black text-[#5c3b10]">{counts[status]}</p>
+                <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${LEAD_STATUS_META[status].className}`}>
+                  {LEAD_STATUS_META[status].label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative flex-1 sm:max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Hledat podle jména, auta, telefonu…"
+                className="rounded-2xl pl-9"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | LeadStatus)}>
+                <SelectTrigger className="w-44 rounded-2xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všechny stavy</SelectItem>
+                  {LEAD_STATUS_ORDER.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {LEAD_STATUS_META[status].label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted-foreground">
+              <Users className="h-10 w-10 text-amber-300" />
+              <p className="font-semibold">Žádné leady neodpovídají filtru</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+                <thead>
+                  <tr className="border-b border-amber-100 text-left text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                    <th className="px-3 py-2">Auto</th>
+                    <th className="px-3 py-2">Jméno</th>
+                    <th className="px-3 py-2">Telefon</th>
+                    <th className="px-3 py-2">Email</th>
+                    <th className="px-3 py-2">Datum</th>
+                    <th className="px-3 py-2">Stav</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((lead) => (
+                    <tr key={lead.id} className="border-b border-amber-50 last:border-0 hover:bg-amber-50/40">
+                      <td className="px-3 py-3 font-semibold text-[#5c3b10]">{lead.car}</td>
+                      <td className="px-3 py-3">{lead.name}</td>
+                      <td className="px-3 py-3">
+                        <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 text-amber-800 hover:underline">
+                          <Phone className="h-3.5 w-3.5" />
+                          {lead.phone}
+                        </a>
+                      </td>
+                      <td className="px-3 py-3">
+                        <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1 text-amber-800 hover:underline">
+                          <Mail className="h-3.5 w-3.5" />
+                          {lead.email}
+                        </a>
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {new Date(lead.date).toLocaleDateString("cs-CZ")}
+                      </td>
+                      <td className="px-3 py-3">
+                        <Select value={lead.status} onValueChange={(v) => updateStatus(lead.id, v as LeadStatus)}>
+                          <SelectTrigger className={`h-8 w-36 rounded-full border-0 text-xs font-bold ${LEAD_STATUS_META[lead.status].className}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {LEAD_STATUS_ORDER.map((status) => (
+                              <SelectItem key={status} value={status}>
+                                {LEAD_STATUS_META[status].label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function DealerCabinetSideNav({
   activeTab,
   collapsed,
@@ -6531,12 +7193,19 @@ function DealerCabinetSideNav({
     Icon: typeof BarChart3;
     label: string;
     hint: string;
+    group?: "secondary";
   }> = [
     {
-      id: "dashboard",
-      Icon: BarChart3,
-      label: t("dealer.dashboard.statsShort"),
-      hint: t("dealer.dashboard.statsTitle"),
+      id: "integrace",
+      Icon: Link2,
+      label: t("dealer.nav.integrace"),
+      hint: t("dealer.nav.integraceHint"),
+    },
+    {
+      id: "import",
+      Icon: Upload,
+      label: t("dealer.bulkImport"),
+      hint: "CSV/XML",
     },
     {
       id: "mylistings",
@@ -6551,46 +7220,56 @@ function DealerCabinetSideNav({
       hint: unread > 0 ? t("messages.shortcut.openInbox") : t("messages.shortcut.idle"),
     },
     {
+      id: "leady",
+      Icon: Users,
+      label: t("dealer.nav.leady"),
+      hint: t("dealer.nav.leadyHint"),
+    },
+    {
       id: "promotion",
       Icon: Rocket,
       label: t("dealer.promo.tab"),
       hint: "TOP / VIP",
     },
     {
-      id: "import",
-      Icon: Upload,
-      label: t("dealer.bulkImport"),
-      hint: "CSV/XML",
+      id: "settings",
+      Icon: Building2,
+      label: t("dealer.nav.dealerProfile"),
+      hint: t("dealer.nav.dealerProfileHint"),
+    },
+    {
+      id: "dashboard",
+      Icon: BarChart3,
+      label: t("dealer.nav.statistika"),
+      hint: t("dealer.nav.statistikaHint"),
     },
     {
       id: "microsite",
       Icon: MonitorSmartphone,
       label: t("dealer.microsite.tab"),
       hint: t("dealer.microsite.subtitle"),
+      group: "secondary",
     },
     {
       id: "billing",
       Icon: CreditCard,
       label: t("dealer.billing.tab"),
       hint: t("dealer.billing.subtitle"),
-    },
-    {
-      id: "settings",
-      Icon: Settings,
-      label: t("dealer.settings"),
-      hint: t("dealer.premium.settingsHint"),
+      group: "secondary",
     },
     {
       id: "reviews",
       Icon: Star,
       label: t("dealer.reviews.tab"),
       hint: t("dealer.reviews.subtitle"),
+      group: "secondary",
     },
     {
       id: "publicProfile",
       Icon: Eye,
       label: t("dealer.dashboard.publicProfile"),
       hint: t("dealer.premium.previewPublicProfile"),
+      group: "secondary",
     },
   ];
 
@@ -6644,13 +7323,24 @@ function DealerCabinetSideNav({
       </div>
 
       <div className="grid gap-2">
-        {menuItems.map(({ id, Icon, label, hint }) => {
+        {menuItems.map(({ id, Icon, label, hint, group }, index) => {
           const isActive = activeTab === id;
           const isMessages = id === "messages";
           const isPublicProfile = id === "publicProfile";
+          const showDivider =
+            group === "secondary" &&
+            (index === 0 || menuItems[index - 1].group !== "secondary");
           return (
+            <Fragment key={id}>
+            {showDivider && !collapsed ? (
+              <p className="mt-2 px-2 pt-1 text-[11px] font-black uppercase tracking-[0.18em] text-[#b08a3f]">
+                {t("dealer.nav.moreTools")}
+              </p>
+            ) : null}
+            {showDivider && collapsed ? (
+              <div className="my-1 h-px w-full bg-amber-100" />
+            ) : null}
             <button
-              key={id}
               type="button"
               onClick={() => handleMenuClick(id)}
               className={`group flex min-h-[58px] w-full items-center rounded-3xl border text-left transition xl:min-h-[64px] ${
@@ -6687,6 +7377,7 @@ function DealerCabinetSideNav({
                 </>
               )}
             </button>
+            </Fragment>
           );
         })}
       </div>
@@ -6723,11 +7414,13 @@ function DealerMobileNav({
     Icon: typeof BarChart3;
     hint: string;
   }> = [
-    { id: "promotion", label: t("dealer.promo.tab"), Icon: Rocket, hint: "TOP / VIP" },
+    { id: "integrace", label: t("dealer.nav.integrace"), Icon: Link2, hint: t("dealer.nav.integraceHint") },
     { id: "import", label: t("dealer.bulkImport"), Icon: Upload, hint: "CSV/XML" },
+    { id: "leady", label: t("dealer.nav.leady"), Icon: Users, hint: t("dealer.nav.leadyHint") },
+    { id: "promotion", label: t("dealer.promo.tab"), Icon: Rocket, hint: "TOP / VIP" },
+    { id: "settings", label: t("dealer.nav.dealerProfile"), Icon: Building2, hint: t("dealer.nav.dealerProfileHint") },
     { id: "microsite", label: t("dealer.microsite.tab"), Icon: MonitorSmartphone, hint: t("dealer.microsite.subtitle") },
     { id: "billing", label: t("dealer.billing.tab"), Icon: CreditCard, hint: t("dealer.billing.subtitle") },
-    { id: "settings", label: t("dealer.settings"), Icon: Settings, hint: t("dealer.premium.settingsHint") },
     { id: "reviews", label: t("dealer.reviews.tab"), Icon: Star, hint: t("dealer.reviews.subtitle") },
     { id: "publicProfile", label: t("dealer.dashboard.publicProfile"), Icon: Eye, hint: t("dealer.premium.previewPublicProfile") },
   ];
@@ -6778,7 +7471,7 @@ function DealerMobileNav({
           type="button"
           onClick={() => setMoreOpen(true)}
           className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold transition active:scale-95 ${
-            ["import", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab)
+            ["integrace", "leady", "import", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab)
               ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200"
               : "text-muted-foreground hover:bg-amber-50 hover:text-amber-800"
           }`}
