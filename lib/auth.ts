@@ -55,6 +55,34 @@ export async function requireAdmin() {
   return user;
 }
 
+/**
+ * The single "super admin" who is allowed to access the Dealer Management
+ * admin sections. Configurable via SUPER_ADMIN_EMAIL, defaults to the
+ * project owner. Compared case-insensitively.
+ */
+export function getSuperAdminEmail(): string {
+  return (process.env.SUPER_ADMIN_EMAIL || "admin@zlateauto.cz")
+    .trim()
+    .toLowerCase();
+}
+
+export function isSuperAdminUser(
+  user: { email?: string | null } | null | undefined,
+): boolean {
+  if (!user?.email) return false;
+  return user.email.trim().toLowerCase() === getSuperAdminEmail();
+}
+
+/**
+ * Gate for the Admin Dealer Management routes. Requires an authenticated user
+ * whose email matches SUPER_ADMIN_EMAIL. Throws "Forbidden" (→ 403) otherwise.
+ */
+export async function requireSuperAdmin() {
+  const user = await requireAuth();
+  if (!isSuperAdminUser(user)) throw new Error("Forbidden");
+  return user;
+}
+
 export async function requireDealer() {
   const user = await requireAuth();
   if (!user.isDealer) throw new Error("Forbidden");

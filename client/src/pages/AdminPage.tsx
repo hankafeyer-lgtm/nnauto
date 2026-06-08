@@ -164,7 +164,7 @@
 //             </TabsTrigger>
 //           </TabsList>
 
-//           <TabsContent value="users" className="mt-6">
+//           <TabsContent value="users" className="mt-0">
 //             <Card>
 //               <CardHeader>
 //                 <CardTitle>{t("admin.usersManagement")}</CardTitle>
@@ -237,7 +237,7 @@
 //             </Card>
 //           </TabsContent>
 
-//           <TabsContent value="listings" className="mt-6">
+//           <TabsContent value="listings" className="mt-0">
 //             <Card>
 //               <CardHeader>
 //                 <CardTitle>{t("admin.listingsManagement")}</CardTitle>
@@ -328,7 +328,7 @@
 //             </Card>
 //           </TabsContent>
 
-//           <TabsContent value="payments" className="mt-6">
+//           <TabsContent value="payments" className="mt-0">
 //             <Card>
 //               <CardHeader>
 //                 <CardTitle>{t("admin.paymentsManagement")}</CardTitle>
@@ -413,7 +413,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -427,18 +427,20 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "@/lib/navigation";
 import {
   Shield,
-  Users,
   Car,
   Trash2,
-  CreditCard,
   Star,
-  FileSpreadsheet,
-  Building2,
-  History,
+  Link2,
+  BarChart3,
+  Settings,
 } from "lucide-react";
 import { format } from "date-fns";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { isSuperAdmin } from "@/lib/permissions";
+import AdminNav from "@/components/admin/AdminNav";
+import AdminDashboardTab from "@/components/admin/AdminDashboardTab";
+import AdminDealerManagement from "@/components/admin/AdminDealerManagement";
 import type { User, Listing, EnrichedPayment, Dealer } from "@shared/schema";
 
 type AdminCebiaReport = {
@@ -498,7 +500,11 @@ export default function AdminPage() {
   const t = useTranslation();
   const { toast } = useToast();
   const [, navigate] = useLocation();
-  const [activeTab, setActiveTab] = useState("users");
+  const superAdmin = isSuperAdmin(user);
+  const [activeTab, setActiveTab] = useState<string>(() =>
+    isSuperAdmin(user) ? "dashboard" : "users",
+  );
+  const [navCollapsed, setNavCollapsed] = useState(false);
   const adminRealtimeQueryOptions = {
     enabled: isAuthenticated && user?.isAdmin,
     refetchInterval: 15000,
@@ -805,13 +811,13 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">{t("admin.title")}</h1>
+      <main className="flex-1 container mx-auto px-3 py-4 sm:px-4 sm:py-6">
+        <div className="mb-4">
+          <div className="flex items-center gap-2">
+            <Shield className="h-6 w-6 text-primary sm:h-7 sm:w-7" />
+            <h1 className="text-xl font-bold sm:text-2xl">{t("admin.title")}</h1>
           </div>
-          <p className="text-muted-foreground">{t("admin.subtitle")}</p>
+          <p className="text-sm text-muted-foreground">{t("admin.subtitle")}</p>
         </div>
 
         {hasAnyAdminDataError ? (
@@ -838,34 +844,37 @@ export default function AdminPage() {
         ) : null}
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 max-w-5xl gap-1 h-auto py-1">
-            <TabsTrigger value="users" data-testid="tab-admin-users">
-              <Users className="h-4 w-4 mr-2 shrink-0" />
-              {t("admin.users")} {users && `(${users.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="listings" data-testid="tab-admin-listings">
-              <Car className="h-4 w-4 mr-2 shrink-0" />
-              {t("admin.listings")} {listings && `(${listings.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="payments" data-testid="tab-admin-payments">
-              <CreditCard className="h-4 w-4 mr-2 shrink-0" />
-              {t("admin.payments")} {payments && `(${payments.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="cebia" data-testid="tab-admin-cebia">
-              <FileSpreadsheet className="h-4 w-4 mr-2 shrink-0" />
-              Cebia {cebiaReports && `(${cebiaReports.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="dealers" data-testid="tab-admin-dealers">
-              <Building2 className="h-4 w-4 mr-2 shrink-0" />
-              {t("admin.dealers")} {dealers && `(${dealers.length})`}
-            </TabsTrigger>
-            <TabsTrigger value="deleted" data-testid="tab-admin-deleted">
-              <History className="h-4 w-4 mr-2 shrink-0" />
-              Smazané {deletedListings.length > 0 && `(${deletedListings.length})`}
-            </TabsTrigger>
-          </TabsList>
+          <div
+            className={`md:grid md:gap-6 md:items-start ${
+              navCollapsed
+                ? "md:grid-cols-[56px_minmax(0,1fr)]"
+                : "md:grid-cols-[232px_minmax(0,1fr)]"
+            }`}
+          >
+            <AdminNav
+              activeTab={activeTab}
+              onSelect={setActiveTab}
+              superAdmin={superAdmin}
+              collapsed={navCollapsed}
+              onToggleCollapsed={() => setNavCollapsed((v) => !v)}
+              counts={{
+                listings: listings.length,
+                users: users.length,
+                dealers: dealers.length,
+                payments: payments.length,
+                cebia: cebiaReports.length,
+                deleted: deletedListings.length,
+              }}
+            />
+            <div className="mt-4 min-w-0 md:mt-0">
 
-          <TabsContent value="users" className="mt-6">
+          {superAdmin ? (
+            <TabsContent value="dashboard" className="mt-0">
+              <AdminDashboardTab />
+            </TabsContent>
+          ) : null}
+
+          <TabsContent value="users" className="mt-0">
             <Card>
               <CardHeader>
                 <CardTitle>{t("admin.usersManagement")}</CardTitle>
@@ -962,7 +971,7 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="listings" className="mt-6">
+          <TabsContent value="listings" className="mt-0">
             <Card>
               <CardHeader>
                 <CardTitle>{t("admin.listingsManagement")}</CardTitle>
@@ -1133,7 +1142,7 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="payments" className="mt-6">
+          <TabsContent value="payments" className="mt-0">
             <Card>
               <CardHeader>
                 <CardTitle>{t("admin.paymentsManagement")}</CardTitle>
@@ -1232,7 +1241,7 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="cebia" className="mt-6">
+          <TabsContent value="cebia" className="mt-0">
             <Card>
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1334,7 +1343,10 @@ export default function AdminPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="dealers" className="mt-6">
+          <TabsContent value="dealers" className="mt-0">
+            {superAdmin ? (
+              <AdminDealerManagement />
+            ) : (
             <Card>
               <CardHeader>
                 <CardTitle>{t("admin.dealersManagement")}</CardTitle>
@@ -1469,9 +1481,103 @@ export default function AdminPage() {
                 )}
               </CardContent>
             </Card>
+            )}
           </TabsContent>
 
-          <TabsContent value="deleted" className="mt-6">
+          {superAdmin ? (
+            <TabsContent value="integrace" className="mt-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Link2 className="h-5 w-5" />
+                    Integrace
+                  </CardTitle>
+                  <CardDescription>
+                    Monitoring XML feedů, API klíčů a webhooků napříč všemi dealery.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="py-8 text-center text-muted-foreground">
+                    XML Feeds, API a Webhooks monitoring se připravuje (další fáze).
+                    Konfigurace se ukládá do PostgreSQL na úrovni dealera.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ) : null}
+
+          {superAdmin ? (
+            <TabsContent value="statistiky" className="mt-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Statistiky
+                  </CardTitle>
+                  <CardDescription>
+                    Dealer Analytics — top dealeři podle vozidel.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {dealers.length > 0 ? (
+                    <div className="rounded-md border overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Dealer</TableHead>
+                            <TableHead className="text-right">Vozidel</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dealers.slice(0, 10).map((d) => (
+                            <TableRow key={d.id}>
+                              <TableCell className="font-medium">{d.companyName}</TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {d.maxListings}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <p className="py-8 text-center text-muted-foreground">
+                      Rozšířené grafy a trendy dorazí v další fázi.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ) : null}
+
+          {superAdmin ? (
+            <TabsContent value="nastaveni" className="mt-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Settings className="h-5 w-5" />
+                    Nastavení
+                  </CardTitle>
+                  <CardDescription>
+                    Konfigurace administrace a tarifních limitů.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <p>
+                    <span className="font-semibold">Super-admin:</span> {user?.email}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Tarify: Free (5), Basic (20), Pro (100), Premium (500), Enterprise (∞).
+                  </p>
+                  <p className="text-muted-foreground">
+                    Všechny akce dealer managementu se zaznamenávají do audit logu.
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ) : null}
+
+          <TabsContent value="deleted" className="mt-0">
             <Card>
               <CardHeader>
                 <CardTitle>Smazané inzeráty</CardTitle>
@@ -1549,6 +1655,8 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           </TabsContent>
+            </div>
+          </div>
         </Tabs>
       </main>
       <Footer />

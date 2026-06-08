@@ -150,14 +150,55 @@ export const dealers = pgTable(
     region: text("region"),
     isVerified: boolean("is_verified").default(false).notNull(),
     maxListings: integer("max_listings").default(50).notNull(),
+    // ── Admin Dealer Management (V1) ──────────────────────────────────────
+    /** free | basic | pro | premium | enterprise */
+    plan: varchar("plan", { length: 20 }).default("free").notNull(),
+    /** active | blocked */
+    status: varchar("status", { length: 20 }).default("active").notNull(),
+    /** none | pending | verified | rejected */
+    verificationStatus: varchar("verification_status", { length: 20 })
+      .default("none")
+      .notNull(),
+    xmlFeedUrl: text("xml_feed_url"),
+    /** none | active | pending | error */
+    xmlFeedStatus: varchar("xml_feed_status", { length: 20 })
+      .default("none")
+      .notNull(),
+    apiKey: varchar("api_key", { length: 80 }),
+    apiEnabled: boolean("api_enabled").default(false).notNull(),
+    lastSyncAt: timestamp("last_sync_at"),
     createdAt: timestamp("created_at").default(sql`now()`).notNull(),
     updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   },
   (t) => [
     index("dealers_owner_id_idx").on(t.ownerId),
     index("dealers_region_idx").on(t.region),
+    index("dealers_status_idx").on(t.status),
+    index("dealers_plan_idx").on(t.plan),
   ],
 );
+
+// ── Admin audit logs ─────────────────────────────────────────────────────────
+
+export const adminAuditLogs = pgTable(
+  "admin_audit_logs",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    actorUserId: varchar("actor_user_id").notNull(),
+    actorEmail: varchar("actor_email"),
+    action: varchar("action", { length: 64 }).notNull(),
+    targetType: varchar("target_type", { length: 32 }),
+    targetId: varchar("target_id"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    index("admin_audit_logs_created_at_idx").on(t.createdAt),
+    index("admin_audit_logs_target_idx").on(t.targetType, t.targetId),
+  ],
+);
+
+export type AdminAuditLog = typeof adminAuditLogs.$inferSelect;
 
 export const insertDealerSchema = createInsertSchema(dealers).omit({
   id: true,
