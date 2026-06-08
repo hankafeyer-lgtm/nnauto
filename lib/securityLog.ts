@@ -1,8 +1,10 @@
 type SecurityEvent =
   | "login_success"
   | "login_failure"
+  | "login_turnstile_bypass"
   | "register_success"
   | "register_failure"
+  | "register_turnstile_bypass"
   | "rate_limit_hit"
   | "listing_delete"
   | "upload_presign"

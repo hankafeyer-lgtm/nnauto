@@ -43,6 +43,12 @@ export async function POST(req: NextRequest) {
       });
       return error("Security verification failed. Please try again.", 400);
     }
+    if (turnstile.reason === "client_fallback" || turnstile.reason === "turnstile_api_unreachable") {
+      securityLog("login_turnstile_bypass", {
+        reason: turnstile.reason,
+        ipHash: ipHash(ip),
+      });
+    }
 
     const { email, password } = loginSchema.parse(body);
     const emailTrim = String(email).trim();

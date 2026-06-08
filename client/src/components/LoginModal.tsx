@@ -116,8 +116,18 @@ export default function LoginModal({
     setLoginVerified(true);
   }, []);
 
+  const handleLoginTurnstileExhausted = useCallback(() => {
+    setLoginTurnstileToken("__client_fallback__");
+    setLoginVerified(true);
+  }, []);
+
   const handleRegisterTurnstileSuccess = useCallback((token: string) => {
     setRegisterTurnstileToken(token);
+    setRegisterVerified(true);
+  }, []);
+
+  const handleRegisterTurnstileExhausted = useCallback(() => {
+    setRegisterTurnstileToken("__client_fallback__");
     setRegisterVerified(true);
   }, []);
 
@@ -497,6 +507,7 @@ export default function LoginModal({
                         siteKey={TURNSTILE_SITE_KEY}
                         ready={dialogReady && activeTab === "login"}
                         onSuccess={handleLoginTurnstileSuccess}
+                        onRetriesExhausted={handleLoginTurnstileExhausted}
                         onError={() => {
                           setLoginVerified(false);
                           setLoginTurnstileToken("");
@@ -649,6 +660,7 @@ export default function LoginModal({
                         siteKey={TURNSTILE_SITE_KEY}
                         ready={dialogReady && activeTab === "register"}
                         onSuccess={handleRegisterTurnstileSuccess}
+                        onRetriesExhausted={handleRegisterTurnstileExhausted}
                         onError={() => {
                           setRegisterVerified(false);
                           setRegisterTurnstileToken("");

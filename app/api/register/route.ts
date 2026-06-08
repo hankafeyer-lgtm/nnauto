@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createHash } from "crypto";
 import { json, error } from "@lib/api-helpers";
 import { getJwtSecret } from "@lib/jwtSecret";
+import { isRegisterBlocked, recordRegistration } from "@lib/registerThrottle";
 import { securityLog } from "@lib/securityLog";
 import { storage } from "@lib/storage";
 import { verifyTurnstileToken } from "@lib/turnstile";
@@ -31,6 +32,10 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const turnstile = await verifyTurnstileToken(body.turnstileToken);
+    const isFallback =
+      turnstile.reason === "client_fallback" ||
+      turnstile.reason === "turnstile_api_unreachable";
+
     if (!turnstile.ok) {
       securityLog("register_failure", {
         reason: "turnstile",
@@ -38,6 +43,25 @@ export async function POST(req: NextRequest) {
         ipHash: ipHash(ip),
       });
       return error("Security verification failed. Please try again.", 400);
+    }
+
+    if (isRegisterBlocked(ip, isFallback)) {
+      securityLog("register_failure", {
+        reason: "rate_limit",
+        fallback: isFallback,
+        ipHash: ipHash(ip),
+      });
+      return error(
+        "Too many registration attempts. Please try again later.",
+        429,
+      );
+    }
+
+    if (isFallback) {
+      securityLog("register_turnstile_bypass", {
+        reason: turnstile.reason!,
+        ipHash: ipHash(ip),
+      });
     }
 
     const { turnstileToken: _turnstile, ...userPayload } = body as Record<
@@ -105,6 +129,7 @@ export async function POST(req: NextRequest) {
     });
 
     const token = signToken({ userId: user.id, email: user.email });
+    recordRegistration(ip);
     securityLog("register_success", { userId: user.id, ipHash: ipHash(ip) });
 
     const { password: _, ...userWithoutPassword } = user;
