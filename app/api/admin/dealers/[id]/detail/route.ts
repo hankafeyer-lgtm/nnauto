@@ -53,7 +53,7 @@ export async function GET(
     let leads = 0;
     try {
       const { rows: leadRows } = await pool.query(
-        `SELECT COUNT(*)::int AS c FROM conversations WHERE dealer_user_id = $1`,
+        `SELECT COUNT(*)::int AS c FROM conversations WHERE dealer_user_id = $1 AND deleted_at IS NULL`,
         [ownerId],
       );
       leads = leadRows[0]?.c ?? 0;

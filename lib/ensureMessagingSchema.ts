@@ -34,8 +34,12 @@ const DDL = `
   );
   ALTER TABLE conversations ADD COLUMN IF NOT EXISTS client_user_id varchar;
   ALTER TABLE conversations ADD COLUMN IF NOT EXISTS unread_client_count integer NOT NULL DEFAULT 0;
+  ALTER TABLE conversations ADD COLUMN IF NOT EXISTS deleted_at timestamp;
+  ALTER TABLE conversations ADD COLUMN IF NOT EXISTS deleted_by varchar;
   CREATE INDEX IF NOT EXISTS conversations_dealer_user_id_idx
     ON conversations (dealer_user_id);
+  CREATE INDEX IF NOT EXISTS conversations_deleted_at_idx
+    ON conversations (deleted_at);
   CREATE INDEX IF NOT EXISTS conversations_client_user_id_idx
     ON conversations (client_user_id);
   CREATE INDEX IF NOT EXISTS conversations_listing_id_idx
@@ -58,6 +62,8 @@ const DDL = `
     external_id varchar(128),
     created_at timestamp NOT NULL DEFAULT now()
   );
+  ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_at timestamp;
+  ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_by varchar;
   CREATE INDEX IF NOT EXISTS messages_conversation_id_created_at_idx
     ON messages (conversation_id, created_at);
   CREATE INDEX IF NOT EXISTS messages_external_id_idx

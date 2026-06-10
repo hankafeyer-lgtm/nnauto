@@ -441,6 +441,7 @@ import { isSuperAdmin } from "@/lib/permissions";
 import AdminNav from "@/components/admin/AdminNav";
 import AdminDashboardTab from "@/components/admin/AdminDashboardTab";
 import AdminDealerManagement from "@/components/admin/AdminDealerManagement";
+import AdminDeletedMessages from "@/components/admin/AdminDeletedMessages";
 import type { User, Listing, EnrichedPayment, Dealer } from "@shared/schema";
 
 type AdminCebiaReport = {
@@ -1547,6 +1548,12 @@ export default function AdminPage() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+          ) : null}
+
+          {superAdmin ? (
+            <TabsContent value="deleted-messages" className="mt-0">
+              <AdminDeletedMessages />
             </TabsContent>
           ) : null}
 

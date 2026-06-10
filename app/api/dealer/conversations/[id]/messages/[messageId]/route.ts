@@ -21,7 +21,7 @@ export async function DELETE(
     const { id, messageId } = await params;
 
     const conv = await storage.getConversation(id);
-    if (!conv) return error("Conversation not found", 404);
+    if (!conv || conv.deletedAt) return error("Conversation not found", 404);
     if (conv.dealerUserId !== user.id) return error("Forbidden", 403);
 
     const ok = await storage.deleteMessage({

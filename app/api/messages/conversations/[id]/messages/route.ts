@@ -30,7 +30,7 @@ export async function GET(
     const { id } = await params;
 
     const conv = await storage.getConversation(id);
-    if (!conv) return error("Conversation not found", 404);
+    if (!conv || conv.deletedAt) return error("Conversation not found", 404);
     const role = getUserRole(conv, user.id);
     if (!role) return error("Forbidden", 403);
 
@@ -61,7 +61,7 @@ export async function POST(
     const { id } = await params;
 
     const conv = await storage.getConversation(id);
-    if (!conv) return error("Conversation not found", 404);
+    if (!conv || conv.deletedAt) return error("Conversation not found", 404);
     const role = getUserRole(conv, user.id);
     if (!role) return error("Forbidden", 403);
 

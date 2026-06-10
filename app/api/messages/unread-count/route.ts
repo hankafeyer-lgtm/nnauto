@@ -15,9 +15,9 @@ export async function GET(_req: NextRequest) {
     await ensureMessagingSchema();
     const [row] = await db.execute(sql`
       SELECT coalesce(
-        (SELECT sum(coalesce(unread_client_count, 0))::int FROM conversations WHERE client_user_id = ${user.id}), 0
+        (SELECT sum(coalesce(unread_client_count, 0))::int FROM conversations WHERE client_user_id = ${user.id} AND deleted_at IS NULL), 0
       ) + coalesce(
-        (SELECT sum(unread_dealer_count)::int FROM conversations WHERE dealer_user_id = ${user.id}), 0
+        (SELECT sum(unread_dealer_count)::int FROM conversations WHERE dealer_user_id = ${user.id} AND deleted_at IS NULL), 0
       ) AS total
     `) as unknown as [{ total: number }];
     return json({ unread: Number((row as any)?.total ?? 0) });

@@ -28,7 +28,7 @@ export async function GET(_req: NextRequest) {
     let newLeads = 0;
     try {
       const { rows: lr } = await pool.query(
-        `SELECT COUNT(*)::int AS c FROM conversations WHERE created_at > now() - interval '7 days'`,
+        `SELECT COUNT(*)::int AS c FROM conversations WHERE created_at > now() - interval '7 days' AND deleted_at IS NULL`,
       );
       newLeads = lr[0]?.c ?? 0;
     } catch {

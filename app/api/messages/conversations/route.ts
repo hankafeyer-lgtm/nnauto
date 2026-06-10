@@ -3,7 +3,7 @@ import { error, json } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { db } from "@lib/db";
 import { conversations, listings } from "@shared/schema";
-import { desc, or, eq, sql } from "drizzle-orm";
+import { desc, or, eq, and, isNull, sql } from "drizzle-orm";
 import { ensureMessagingSchema } from "@lib/ensureMessagingSchema";
 
 /**
@@ -41,9 +41,12 @@ export async function GET(_req: NextRequest) {
       })
       .from(conversations)
       .where(
-        or(
-          eq(conversations.clientUserId, user.id),
-          eq(conversations.dealerUserId, user.id),
+        and(
+          or(
+            eq(conversations.clientUserId, user.id),
+            eq(conversations.dealerUserId, user.id),
+          ),
+          isNull(conversations.deletedAt),
         ),
       )
       .orderBy(desc(conversations.lastMessageAt));

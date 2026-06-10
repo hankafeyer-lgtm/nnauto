@@ -357,6 +357,7 @@ export const storage = {
         and(
           eq(conversations.clientUserId, args.clientUserId),
           eq(conversations.listingId, args.listingId),
+          isNull(conversations.deletedAt),
         ),
       )
       .orderBy(desc(conversations.updatedAt))
@@ -376,6 +377,7 @@ export const storage = {
     const conditions = [
       eq(conversations.dealerUserId, dealerUserId),
       eq(conversations.listingId, listingId),
+      isNull(conversations.deletedAt),
     ];
     const identityClauses = [];
     if (clientEmail) identityClauses.push(eq(conversations.clientEmail, clientEmail));
@@ -434,7 +436,12 @@ export const storage = {
     const [row] = await db
       .select()
       .from(conversations)
-      .where(eq(conversations.threadKey, threadKey));
+      .where(
+        and(
+          eq(conversations.threadKey, threadKey),
+          isNull(conversations.deletedAt),
+        ),
+      );
     return row || undefined;
   },
 
@@ -443,7 +450,10 @@ export const storage = {
     status?: ConversationStatus;
     search?: string;
   }): Promise<Conversation[]> {
-    const conds = [eq(conversations.dealerUserId, args.dealerUserId)];
+    const conds = [
+      eq(conversations.dealerUserId, args.dealerUserId),
+      isNull(conversations.deletedAt),
+    ];
     if (args.status) conds.push(eq(conversations.status, args.status));
     if (args.search && args.search.trim().length > 0) {
       const like = `%${args.search.trim()}%`;
@@ -467,7 +477,12 @@ export const storage = {
     return await db
       .select()
       .from(messages)
-      .where(eq(messages.conversationId, conversationId))
+      .where(
+        and(
+          eq(messages.conversationId, conversationId),
+          isNull(messages.deletedAt),
+        ),
+      )
       .orderBy(messages.createdAt);
   },
 
@@ -594,12 +609,21 @@ export const storage = {
     if (msg.sender === "client" && conv.clientUserId !== args.userId) return false;
     if (msg.sender === "dealer" && conv.dealerUserId !== args.userId) return false;
 
-    await db.delete(messages).where(eq(messages.id, args.messageId));
+    // Soft delete: keep the row for admin recovery/audit.
+    await db
+      .update(messages)
+      .set({ deletedAt: new Date(), deletedBy: args.userId })
+      .where(eq(messages.id, args.messageId));
 
     const remaining = await db
       .select()
       .from(messages)
-      .where(eq(messages.conversationId, args.conversationId))
+      .where(
+        and(
+          eq(messages.conversationId, args.conversationId),
+          isNull(messages.deletedAt),
+        ),
+      )
       .orderBy(desc(messages.createdAt))
       .limit(1);
     const tail = remaining[0] ?? null;
@@ -627,8 +651,13 @@ export const storage = {
   },
 
   /**
-   * Delete an entire conversation owned by `userId` (either side).
-   * Cascades all messages first. Returns true on success.
+   * Soft-delete an entire conversation owned by `userId` (either side).
+   *
+   * The conversation and all its messages are flagged with deleted_at/deleted_by
+   * (retained in the DB for admin recovery/audit) rather than physically removed.
+   * thread_key is freed (NULLed) so a future contact from the same buyer starts
+   * a fresh thread instead of colliding on the unique index, and unread counters
+   * are zeroed so they don't linger in any aggregate. Returns true on success.
    */
   async deleteConversation(args: {
     conversationId: string;
@@ -642,13 +671,99 @@ export const storage = {
     ) {
       return false;
     }
+    const now = new Date();
     await db
-      .delete(messages)
-      .where(eq(messages.conversationId, args.conversationId));
+      .update(messages)
+      .set({ deletedAt: now, deletedBy: args.userId })
+      .where(
+        and(
+          eq(messages.conversationId, args.conversationId),
+          isNull(messages.deletedAt),
+        ),
+      );
     await db
-      .delete(conversations)
+      .update(conversations)
+      .set({
+        deletedAt: now,
+        deletedBy: args.userId,
+        threadKey: null,
+        unreadDealerCount: 0,
+        unreadClientCount: 0,
+        updatedAt: now,
+      })
       .where(eq(conversations.id, args.conversationId));
     return true;
+  },
+
+  /**
+   * Restore a soft-deleted conversation and its messages. Admin recovery only.
+   * Returns true when a deleted conversation was found and restored.
+   */
+  async restoreConversation(conversationId: string): Promise<boolean> {
+    const conv = await this.getConversation(conversationId);
+    if (!conv || !conv.deletedAt) return false;
+    const now = new Date();
+    await db
+      .update(messages)
+      .set({ deletedAt: null, deletedBy: null })
+      .where(eq(messages.conversationId, conversationId));
+    await db
+      .update(conversations)
+      .set({ deletedAt: null, deletedBy: null, updatedAt: now })
+      .where(eq(conversations.id, conversationId));
+    return true;
+  },
+
+  /**
+   * List soft-deleted conversations across all dealers for the admin recovery
+   * view, enriched with listing + dealer info and a live message count.
+   */
+  async listDeletedConversations(limit = 300): Promise<Array<{
+    id: string;
+    dealerUserId: string;
+    dealerEmail: string | null;
+    clientName: string | null;
+    clientEmail: string | null;
+    clientPhone: string | null;
+    source: string;
+    status: string;
+    listingId: string;
+    listingTitle: string | null;
+    listingBrand: string | null;
+    listingModel: string | null;
+    lastMessagePreview: string | null;
+    messageCount: number;
+    deletedAt: Date | null;
+    deletedBy: string | null;
+    createdAt: Date | null;
+  }>> {
+    const result = (await db.execute(sql`
+      SELECT
+        c.id,
+        c.dealer_user_id AS "dealerUserId",
+        du.email AS "dealerEmail",
+        c.client_name AS "clientName",
+        c.client_email AS "clientEmail",
+        c.client_phone AS "clientPhone",
+        c.source,
+        c.status,
+        c.listing_id AS "listingId",
+        l.title AS "listingTitle",
+        l.brand AS "listingBrand",
+        l.model AS "listingModel",
+        c.last_message_preview AS "lastMessagePreview",
+        (SELECT COUNT(*)::int FROM messages m WHERE m.conversation_id = c.id) AS "messageCount",
+        c.deleted_at AS "deletedAt",
+        c.deleted_by AS "deletedBy",
+        c.created_at AS "createdAt"
+      FROM conversations c
+      LEFT JOIN listings l ON l.id = c.listing_id
+      LEFT JOIN users du ON du.id = c.dealer_user_id
+      WHERE c.deleted_at IS NOT NULL
+      ORDER BY c.deleted_at DESC
+      LIMIT ${limit}
+    `)) as { rows?: any[] };
+    return result?.rows ?? [];
   },
 
   async getDealerUnreadCount(dealerUserId: string): Promise<number> {
@@ -656,6 +771,7 @@ export const storage = {
       SELECT COALESCE(SUM(unread_dealer_count), 0)::int AS total
       FROM conversations
       WHERE dealer_user_id = ${dealerUserId}
+        AND deleted_at IS NULL
     `)) as { rows?: Array<{ total: number }> };
     return result?.rows?.[0]?.total ?? 0;
   },
@@ -696,6 +812,7 @@ export const storage = {
           FILTER (WHERE unread_dealer_count > 0)::int AS clients
       FROM conversations
       WHERE dealer_user_id = ${dealerUserId}
+        AND deleted_at IS NULL
     `)) as {
       rows?: Array<{ total: number; convs: number; clients: number }>;
     };
@@ -728,6 +845,7 @@ export const storage = {
         and(
           eq(conversations.dealerUserId, dealerUserId),
           gt(conversations.unreadDealerCount, 0),
+          isNull(conversations.deletedAt),
         ),
       )
       .orderBy(desc(conversations.lastMessageAt))
