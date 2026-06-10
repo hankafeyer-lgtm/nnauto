@@ -585,6 +585,11 @@ export const conversations = pgTable(
     lastMessageAt: timestamp("last_message_at"),
     /** External identifiers used for inbound thread matching. */
     threadKey: varchar("thread_key", { length: 64 }),
+    /** Soft delete: when set, the conversation is hidden from dealer/buyer
+     *  inboxes but retained in the DB for admin recovery/audit. */
+    deletedAt: timestamp("deleted_at"),
+    /** User id (dealer or buyer) who soft-deleted the conversation. */
+    deletedBy: varchar("deleted_by"),
     createdAt: timestamp("created_at").default(sql`now()`).notNull(),
     updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   },
@@ -594,6 +599,7 @@ export const conversations = pgTable(
     index("conversations_listing_id_idx").on(table.listingId),
     index("conversations_status_idx").on(table.status),
     index("conversations_last_message_at_idx").on(table.lastMessageAt),
+    index("conversations_deleted_at_idx").on(table.deletedAt),
     uniqueIndex("conversations_thread_key_idx").on(table.threadKey),
   ],
 );
@@ -617,6 +623,9 @@ export const messages = pgTable(
     /** Provider-side message id (mailersend / whatsapp / telegram) for
      *  webhook reconciliation. */
     externalId: varchar("external_id", { length: 128 }),
+    /** Soft delete: retained in the DB for admin recovery/audit. */
+    deletedAt: timestamp("deleted_at"),
+    deletedBy: varchar("deleted_by"),
     createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   },
   (table) => [
@@ -643,6 +652,36 @@ export const quickReplies = pgTable(
   },
   (table) => [index("quick_replies_dealer_user_id_idx").on(table.dealerUserId)],
 );
+
+// ── Leady (CRM pipeline) ────────────────────────────────────────────────────
+// Each conversation (contact form / chat / inbound e-mail) is surfaced as a
+// "lead" in the dealer cabinet. The CRM status the dealer assigns lives here,
+// keyed by conversation id, so it stays decoupled from the messaging status.
+export const leadStates = pgTable(
+  "lead_states",
+  {
+    /** conversations.id — one CRM state per contact thread. */
+    conversationId: varchar("conversation_id").primaryKey(),
+    /** Listing owner user id — every dealer-side query filters on this. */
+    dealerUserId: varchar("dealer_user_id").notNull(),
+    /** "new" | "contacted" | "negotiating" | "sold" | "rejected" */
+    status: varchar("status", { length: 16 }).notNull().default("new"),
+    note: text("note"),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (table) => [index("lead_states_dealer_user_id_idx").on(table.dealerUserId)],
+);
+
+export const leadStatusValues = [
+  "new",
+  "contacted",
+  "negotiating",
+  "sold",
+  "rejected",
+] as const;
+
+export type LeadStatusValue = (typeof leadStatusValues)[number];
+export type LeadState = typeof leadStates.$inferSelect;
 
 // Public buyer → dealer contact form (creates a Conversation + first Message).
 export const contactDealerSchema = z.object({

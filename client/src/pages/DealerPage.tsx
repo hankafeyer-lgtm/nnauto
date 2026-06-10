@@ -6983,42 +6983,46 @@ const LEAD_STATUS_META: Record<LeadStatus, { label: string; className: string }>
 
 const LEAD_STATUS_ORDER: LeadStatus[] = ["new", "contacted", "negotiating", "sold", "rejected"];
 
-const SAMPLE_LEADS: Lead[] = [
-  { id: "l1", car: "Škoda Octavia 2.0 TDI", name: "Petr Novák", phone: "+420 777 123 456", email: "petr.novak@email.cz", date: "2026-06-06", status: "new" },
-  { id: "l2", car: "BMW 320d xDrive", name: "Jana Svobodová", phone: "+420 602 987 654", email: "jana.s@email.cz", date: "2026-06-05", status: "contacted" },
-  { id: "l3", car: "Volkswagen Passat B8", name: "Tomáš Dvořák", phone: "+420 731 555 222", email: "t.dvorak@email.cz", date: "2026-06-04", status: "negotiating" },
-  { id: "l4", car: "Audi A4 Avant", name: "Lucie Marková", phone: "+420 608 444 111", email: "lucie.m@email.cz", date: "2026-06-02", status: "sold" },
-];
-
 function LeadyTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string }) {
-  const storageKey = `nnauto_dealer_leads_${dealer.id}`;
-  const [leads, setLeads] = useState<Lead[]>(SAMPLE_LEADS);
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | LeadStatus>("all");
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Lead[];
-        if (Array.isArray(parsed) && parsed.length > 0) setLeads(parsed);
-      }
-    } catch {
-      // ignore
-    }
-  }, [storageKey]);
+  const { data, isLoading } = useQuery<{ leads: Lead[] }>({
+    queryKey: ["/api/dealer/leads"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/dealer/leads");
+      return res.json();
+    },
+  });
+  const leads = useMemo<Lead[]>(() => data?.leads ?? [], [data]);
+
+  const statusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: LeadStatus }) => {
+      const res = await apiRequest("PATCH", `/api/dealer/leads/${id}`, { status });
+      return res.json();
+    },
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/dealer/leads"] });
+      const prev = queryClient.getQueryData<{ leads: Lead[] }>(["/api/dealer/leads"]);
+      queryClient.setQueryData<{ leads: Lead[] }>(["/api/dealer/leads"], (old) =>
+        old
+          ? { leads: old.leads.map((l) => (l.id === id ? { ...l, status } : l)) }
+          : old,
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["/api/dealer/leads"], ctx.prev);
+      toast({ title: "Nepodařilo se uložit stav", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/leads"] });
+    },
+  });
 
   const updateStatus = (id: string, status: LeadStatus) => {
-    setLeads((prev) => {
-      const next = prev.map((lead) => (lead.id === id ? { ...lead, status } : lead));
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(next));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
+    statusMutation.mutate({ id, status });
   };
 
   const filtered = useMemo(() => {
@@ -7053,8 +7057,8 @@ function LeadyTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string })
               </CardTitle>
               <CardDescription>CRM přehled poptávek od zájemců o vaše vozidla.</CardDescription>
             </div>
-            <Badge variant="outline" className="w-fit rounded-full border-amber-200 bg-amber-50 text-amber-800">
-              Náhled — propojení s leady v další fázi
+            <Badge variant="outline" className="w-fit rounded-full border-emerald-200 bg-emerald-50 text-emerald-700">
+              Živé — z kontaktních formulářů a zpráv
             </Badge>
           </div>
         </CardHeader>
@@ -7103,10 +7107,19 @@ function LeadyTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string })
           </div>
         </CardHeader>
         <CardContent>
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+              <p className="font-semibold">Načítám leady…</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted-foreground">
               <Users className="h-10 w-10 text-amber-300" />
-              <p className="font-semibold">Žádné leady neodpovídají filtru</p>
+              <p className="font-semibold">
+                {leads.length === 0
+                  ? "Zatím žádné leady — objeví se zde po prvním kontaktu zájemce"
+                  : "Žádné leady neodpovídají filtru"}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
