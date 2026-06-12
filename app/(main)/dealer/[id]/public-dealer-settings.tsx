@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock, MapPin, Star, Quote } from "lucide-react";
+import { Clock, MapPin, Star, Quote, ChevronDown } from "lucide-react";
 
 const dayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
 type DayKey = (typeof dayKeys)[number];
@@ -189,6 +189,18 @@ export function PublicTodayHoursRow({ dealerId }: { dealerId: string }) {
     <div className="flex items-center gap-3 rounded-2xl bg-white p-3">
       <Clock className="h-4 w-4 text-amber-700" />
       {todayStatus(hours)}
+    </div>
+  );
+}
+
+export function PublicTodayHoursChip({ dealerId }: { dealerId: string }) {
+  const settings = useDealerLocalSettings(dealerId);
+  const hours = { ...defaultWorkingHours, ...(settings.workingHours || {}) };
+
+  return (
+    <div className="rounded-2xl bg-white/12 px-3 py-2 ring-1 ring-white/15">
+      <p className="truncate text-sm font-black leading-tight sm:text-base">{formatShort(hours)}</p>
+      <p className="mt-0.5 truncate text-[11px] font-semibold text-amber-50/75">{todayStatus(hours)}</p>
     </div>
   );
 }
@@ -411,12 +423,45 @@ export function PublicAboutBlock({
   const text = microsite.aboutText?.trim() || fallbackText || "";
   if (!text) return null;
 
+  return <CollapsibleAbout title={title} text={text} />;
+}
+
+function CollapsibleAbout({ title, text }: { title: string; text: string }) {
+  const isLong = text.length > 220;
+  const [open, setOpen] = useState(!isLong);
+
   return (
-    <div className="rounded-3xl border bg-white p-5 sm:p-6">
-      <h3 className="text-lg font-black sm:text-xl">{title}</h3>
-      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground sm:text-base">
+    <div className="rounded-3xl border bg-white p-4 sm:p-5">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-3 text-left"
+        aria-expanded={open}
+        disabled={!isLong}
+      >
+        <h3 className="text-base font-black sm:text-lg">{title}</h3>
+        {isLong && (
+          <ChevronDown
+            className={`h-5 w-5 shrink-0 text-amber-700 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        )}
+      </button>
+      <p
+        className={`mt-2 whitespace-pre-line text-sm leading-relaxed text-muted-foreground ${
+          open ? "" : "line-clamp-2"
+        }`}
+      >
         {text}
       </p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="mt-2 text-sm font-bold text-amber-700 hover:text-amber-800"
+        >
+          {open ? "Skrýt" : "Zobrazit více"}
+        </button>
+      )}
     </div>
   );
 }
@@ -442,22 +487,22 @@ export function PublicReviewsBlock({
   const totalReviews = visibleReviews.length;
 
   return (
-    <div className="rounded-3xl border bg-white p-5 sm:p-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-black sm:text-xl">Hodnocení od zákazníků</h3>
-          <p className="text-sm text-muted-foreground">
+    <div className="rounded-3xl border bg-white p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="text-base font-black sm:text-lg">Hodnocení od zákazníků</h3>
+          <p className="text-xs text-muted-foreground sm:text-sm">
             {totalReviews > 0
-              ? `Průměrné hodnocení dealera od ${totalReviews} zákazníků`
+              ? `Průměr od ${totalReviews} zákazníků`
               : "Buďte první, kdo dealera ohodnotí."}
           </p>
         </div>
-        <div className="rounded-2xl bg-amber-50 px-4 py-3 text-right">
-          <p className="text-3xl font-black text-amber-900">
+        <div className="flex items-center gap-2 rounded-2xl bg-amber-50 px-3 py-2">
+          <p className="text-2xl font-black leading-none text-amber-900">
             {averageRating > 0 ? averageRating.toFixed(1) : "—"}
-            <span className="text-sm font-bold text-amber-700"> / 5</span>
+            <span className="text-xs font-bold text-amber-700"> / 5</span>
           </p>
-          <div className="flex justify-end">
+          <div className="flex">
             {Array.from({ length: 5 }).map((_, idx) => (
               <Star
                 key={idx}
@@ -471,13 +516,13 @@ export function PublicReviewsBlock({
       </div>
 
       {visibleReviews.length > 0 ? (
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
           {visibleReviews.slice(0, 4).map((review) => (
-            <div key={review.id} className="rounded-2xl border bg-amber-50/40 p-4">
-              <Quote className="h-4 w-4 text-amber-700" />
-              <div className="mt-2 flex items-center gap-2">
-                <p className="font-bold">{review.author}</p>
-                <div className="flex">
+            <div key={review.id} className="rounded-2xl border bg-amber-50/40 p-3.5">
+              <div className="flex items-center gap-2">
+                <Quote className="h-3.5 w-3.5 shrink-0 text-amber-700" />
+                <p className="truncate text-sm font-bold">{review.author}</p>
+                <div className="flex shrink-0">
                   {Array.from({ length: 5 }).map((_, idx) => (
                     <Star
                       key={idx}
@@ -487,14 +532,14 @@ export function PublicReviewsBlock({
                     />
                   ))}
                 </div>
-                <span className="ml-auto text-xs text-muted-foreground">
+                <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
                   {new Date(review.dateISO).toLocaleDateString()}
                 </span>
               </div>
               <p className="mt-2 text-sm leading-relaxed">{review.text}</p>
               {review.response ? (
-                <div className="mt-3 rounded-xl border-l-4 border-amber-500 bg-white p-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-amber-800">
+                <div className="mt-2.5 rounded-xl border-l-4 border-amber-500 bg-white p-2.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
                     Odpověď dealera
                   </p>
                   <p className="mt-1 text-sm">{review.response}</p>
@@ -504,12 +549,14 @@ export function PublicReviewsBlock({
           ))}
         </div>
       ) : (
-        <div className="mt-5 rounded-2xl border border-dashed bg-amber-50/30 p-6 text-center">
-          <Star className="mx-auto mb-2 h-8 w-8 text-amber-400" />
-          <p className="font-bold">Zatím žádná hodnocení</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Dealer prozatím neobdržel žádná hodnocení od zákazníků.
-          </p>
+        <div className="mt-4 flex items-center gap-3 rounded-2xl border border-dashed bg-amber-50/30 p-4 text-left">
+          <Star className="h-7 w-7 shrink-0 text-amber-400" />
+          <div>
+            <p className="text-sm font-bold">Zatím žádná hodnocení</p>
+            <p className="text-xs text-muted-foreground">
+              Dealer prozatím neobdržel žádná hodnocení od zákazníků.
+            </p>
+          </div>
         </div>
       )}
     </div>
