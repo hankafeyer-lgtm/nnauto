@@ -676,8 +676,9 @@ export const leadStatusValues = [
   "new",
   "contacted",
   "negotiating",
+  "reserved",
   "sold",
-  "rejected",
+  "lost",
 ] as const;
 
 export type LeadStatusValue = (typeof leadStatusValues)[number];

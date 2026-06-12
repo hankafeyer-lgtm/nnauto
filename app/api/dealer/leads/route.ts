@@ -29,12 +29,19 @@ export async function GET(_req: NextRequest) {
           'Vozidlo'
         ) AS car,
         c.listing_id AS "listingId",
+        (l.photos)[1] AS "listingPhoto",
+        l.price AS "listingPrice",
+        l.is_sold AS "listingSold",
+        l.brand AS "listingBrand",
+        l.model AS "listingModel",
+        l.year AS "listingYear",
         COALESCE(NULLIF(TRIM(c.client_name), ''), 'Zájemce') AS name,
         COALESCE(c.client_phone, '') AS phone,
         COALESCE(c.client_email, '') AS email,
         c.source AS source,
         c.created_at AS date,
-        COALESCE(ls.status, 'new') AS status,
+        -- Map legacy "rejected" onto the new "lost" pipeline stage.
+        CASE WHEN ls.status = 'rejected' THEN 'lost' ELSE COALESCE(ls.status, 'new') END AS status,
         ls.note AS note
       FROM conversations c
       LEFT JOIN listings l ON l.id = c.listing_id

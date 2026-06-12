@@ -63,6 +63,8 @@ import {
   Wallet,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Timer,
   Pause,
   CircleDot,
@@ -86,6 +88,7 @@ import {
   Link2,
   Lock,
   Mail,
+  ExternalLink,
   Smartphone,
   Bot,
   Wand2,
@@ -6961,32 +6964,111 @@ function IntegraceStat({
 // než bude k dispozici databázová tabulka leads a API.
 // ---------------------------------------------------------------------------
 
-type LeadStatus = "new" | "contacted" | "negotiating" | "sold" | "rejected";
+type LeadStatus =
+  | "new"
+  | "contacted"
+  | "negotiating"
+  | "reserved"
+  | "sold"
+  | "lost";
 
 type Lead = {
   id: string;
   car: string;
+  listingId: string;
+  listingPhoto?: string | null;
+  listingPrice?: string | null;
+  listingSold?: boolean | null;
+  listingBrand?: string | null;
+  listingModel?: string | null;
+  listingYear?: number | null;
   name: string;
   phone: string;
   email: string;
   date: string;
   status: LeadStatus;
+  note?: string | null;
 };
 
-const LEAD_STATUS_META: Record<LeadStatus, { label: string; className: string }> = {
-  new: { label: "Nový", className: "bg-sky-100 text-sky-700" },
-  contacted: { label: "Kontaktován", className: "bg-amber-100 text-amber-700" },
-  negotiating: { label: "Jednání", className: "bg-violet-100 text-violet-700" },
-  sold: { label: "Prodáno", className: "bg-emerald-100 text-emerald-700" },
-  rejected: { label: "Zamítnuto", className: "bg-red-100 text-red-700" },
+const LEAD_STATUS_META: Record<
+  LeadStatus,
+  { label: string; className: string; column: string; dot: string }
+> = {
+  new: { label: "Nový", className: "bg-sky-100 text-sky-700", column: "border-sky-200", dot: "bg-sky-500" },
+  contacted: { label: "Kontaktován", className: "bg-amber-100 text-amber-700", column: "border-amber-200", dot: "bg-amber-500" },
+  negotiating: { label: "Jednání", className: "bg-violet-100 text-violet-700", column: "border-violet-200", dot: "bg-violet-500" },
+  reserved: { label: "Rezervace", className: "bg-blue-100 text-blue-700", column: "border-blue-200", dot: "bg-blue-500" },
+  sold: { label: "Prodáno", className: "bg-emerald-100 text-emerald-700", column: "border-emerald-200", dot: "bg-emerald-500" },
+  lost: { label: "Ztraceno", className: "bg-rose-100 text-rose-700", column: "border-rose-200", dot: "bg-rose-500" },
 };
 
-const LEAD_STATUS_ORDER: LeadStatus[] = ["new", "contacted", "negotiating", "sold", "rejected"];
+const LEAD_STATUS_ORDER: LeadStatus[] = [
+  "new",
+  "contacted",
+  "negotiating",
+  "reserved",
+  "sold",
+  "lost",
+];
 
-function LeadyTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string }) {
+// How many cards to render per column before the "show more" button.
+const LEADS_PER_COLUMN = 12;
+
+// Legacy rows may still carry "rejected"; normalise to the new "lost" stage.
+function normalizeLeadStatus(s: string | null | undefined): LeadStatus {
+  if (s === "rejected") return "lost";
+  return (LEAD_STATUS_ORDER as string[]).includes(s ?? "")
+    ? (s as LeadStatus)
+    : "new";
+}
+
+function formatLeadPrice(price?: string | null): string | null {
+  if (!price) return null;
+  const n = Number(price);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return `${n.toLocaleString("cs-CZ")} Kč`;
+}
+
+function LeadyTab({ t }: { dealer: Dealer; t: (key: string) => string }) {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | LeadStatus>("all");
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverCol, setDragOverCol] = useState<LeadStatus | null>(null);
+  const [collapsedCols, setCollapsedCols] = useState<Set<LeadStatus>>(new Set());
+  const [visibleCount, setVisibleCount] = useState<Record<LeadStatus, number>>({
+    new: LEADS_PER_COLUMN,
+    contacted: LEADS_PER_COLUMN,
+    negotiating: LEADS_PER_COLUMN,
+    reserved: LEADS_PER_COLUMN,
+    sold: LEADS_PER_COLUMN,
+    lost: LEADS_PER_COLUMN,
+  });
+  const [colSearch, setColSearch] = useState<Record<LeadStatus, string>>({
+    new: "",
+    contacted: "",
+    negotiating: "",
+    reserved: "",
+    sold: "",
+    lost: "",
+  });
+  const setColumnSearch = (status: LeadStatus, value: string) =>
+    setColSearch((prev) => ({ ...prev, [status]: value }));
+
+  const toggleCollapse = (status: LeadStatus) =>
+    setCollapsedCols((prev) => {
+      const next = new Set(prev);
+      next.has(status) ? next.delete(status) : next.add(status);
+      return next;
+    });
+  const showMore = (status: LeadStatus) =>
+    setVisibleCount((prev) => ({
+      ...prev,
+      [status]: prev[status] + LEADS_PER_COLUMN,
+    }));
+  const allCollapsed = collapsedCols.size === LEAD_STATUS_ORDER.length;
+  const toggleAll = () =>
+    setCollapsedCols(allCollapsed ? new Set() : new Set(LEAD_STATUS_ORDER));
 
   const { data, isLoading } = useQuery<{ leads: Lead[] }>({
     queryKey: ["/api/dealer/leads"],
@@ -6995,7 +7077,14 @@ function LeadyTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string })
       return res.json();
     },
   });
-  const leads = useMemo<Lead[]>(() => data?.leads ?? [], [data]);
+  const leads = useMemo<Lead[]>(
+    () =>
+      (data?.leads ?? []).map((l) => ({
+        ...l,
+        status: normalizeLeadStatus(l.status),
+      })),
+    [data],
+  );
 
   const statusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: LeadStatus }) => {
@@ -7018,164 +7107,372 @@ function LeadyTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string })
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/dealer/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/leads/stats"] });
     },
   });
 
   const updateStatus = (id: string, status: LeadStatus) => {
+    const lead = leads.find((l) => l.id === id);
+    if (lead && lead.status === status) return;
     statusMutation.mutate({ id, status });
   };
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return leads.filter((lead) => {
-      if (statusFilter !== "all" && lead.status !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        lead.car.toLowerCase().includes(q) ||
-        lead.name.toLowerCase().includes(q) ||
-        lead.phone.toLowerCase().includes(q) ||
-        lead.email.toLowerCase().includes(q)
-      );
-    });
-  }, [leads, search, statusFilter]);
+    if (!q) return leads;
+    return leads.filter((lead) =>
+      [lead.car, lead.name, lead.phone, lead.email].some((v) =>
+        (v ?? "").toLowerCase().includes(q),
+      ),
+    );
+  }, [leads, search]);
 
-  const counts = useMemo(() => {
-    const base: Record<LeadStatus, number> = { new: 0, contacted: 0, negotiating: 0, sold: 0, rejected: 0 };
-    for (const lead of leads) base[lead.status] += 1;
-    return base;
+  const byStatus = useMemo(() => {
+    const map: Record<LeadStatus, Lead[]> = {
+      new: [],
+      contacted: [],
+      negotiating: [],
+      reserved: [],
+      sold: [],
+      lost: [],
+    };
+    for (const lead of filtered) map[lead.status].push(lead);
+    return map;
+  }, [filtered]);
+
+  const stats = useMemo(() => {
+    const total = leads.length;
+    const sold = leads.filter((l) => l.status === "sold").length;
+    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const newThisWeek = leads.filter((l) => {
+      const d = new Date(l.date).getTime();
+      return Number.isFinite(d) && d >= weekAgo;
+    }).length;
+    const newCount = leads.filter((l) => l.status === "new").length;
+    const conversion = total > 0 ? Math.round((sold / total) * 1000) / 10 : 0;
+    return { total, sold, newThisWeek, newCount, conversion };
   }, [leads]);
 
   return (
     <div className="space-y-5">
-      <Card className={`${premiumSurface} rounded-3xl`}>
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                <Users className="h-5 w-5 text-amber-700" />
-                {t("dealer.nav.leady")}
-              </CardTitle>
-              <CardDescription>CRM přehled poptávek od zájemců o vaše vozidla.</CardDescription>
-            </div>
-            <Badge variant="outline" className="w-fit rounded-full border-emerald-200 bg-emerald-50 text-emerald-700">
-              Živé — z kontaktních formulářů a zpráv
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-            {LEAD_STATUS_ORDER.map((status) => (
-              <div key={status} className="rounded-2xl border border-amber-100 bg-white p-3 text-center">
-                <p className="text-2xl font-black text-[#5c3b10]">{counts[status]}</p>
-                <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] font-bold ${LEAD_STATUS_META[status].className}`}>
-                  {LEAD_STATUS_META[status].label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col gap-1">
+        <h2 className="flex items-center gap-2 text-2xl font-black text-[#5c3b10]">
+          <Users className="h-6 w-6 text-amber-700" />
+          {t("dealer.nav.leady")}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          CRM pipeline poptávek — přetáhněte lead mezi stavy.
+        </p>
+      </div>
 
-      <Card className={`${premiumSurface} rounded-3xl`}>
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative flex-1 sm:max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Hledat podle jména, auta, telefonu…"
-                className="rounded-2xl pl-9"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | LeadStatus)}>
-                <SelectTrigger className="w-44 rounded-2xl">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Všechny stavy</SelectItem>
-                  {LEAD_STATUS_ORDER.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {LEAD_STATUS_META[status].label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted-foreground">
-              <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
-              <p className="font-semibold">Načítám leady…</p>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted-foreground">
-              <Users className="h-10 w-10 text-amber-300" />
-              <p className="font-semibold">
-                {leads.length === 0
-                  ? "Zatím žádné leady — objeví se zde po prvním kontaktu zájemce"
-                  : "Žádné leady neodpovídají filtru"}
-              </p>
-            </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <LeadStat label="Celkem leadů" value={stats.total} />
+        <LeadStat label="Nové" value={stats.newCount} accent="text-sky-600" />
+        <LeadStat label="Tento týden" value={stats.newThisWeek} accent="text-amber-600" />
+        <LeadStat label="Konverze" value={`${stats.conversion}%`} accent="text-emerald-600" />
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Hledat podle jména, auta, telefonu…"
+            className="rounded-2xl pl-9"
+          />
+        </div>
+        {leads.length > 0 && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={toggleAll}
+            className="w-fit rounded-2xl border-amber-200 text-[#6f4c17]"
+          >
+            {allCollapsed ? (
+              <>
+                <ChevronDown className="mr-1.5 h-4 w-4" />
+                Rozbalit vše
+              </>
+            ) : (
+              <>
+                <ChevronUp className="mr-1.5 h-4 w-4" />
+                Sbalit vše
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
+          <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+          <p className="font-semibold">Načítám leady…</p>
+        </div>
+      ) : leads.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 rounded-3xl border border-dashed border-amber-200 bg-amber-50/40 py-16 text-center text-muted-foreground">
+          <Users className="h-10 w-10 text-amber-300" />
+          <p className="font-semibold text-[#5c3b10]">Zatím žádné leady</p>
+          <p className="text-sm">Objeví se zde automaticky po prvním kontaktu zájemce.</p>
+        </div>
+      ) : (
+        <div className="grid items-start gap-3 lg:grid-cols-3 xl:grid-cols-6">
+          {LEAD_STATUS_ORDER.map((status) => {
+            const meta = LEAD_STATUS_META[status];
+            const items = byStatus[status];
+            const isOver = dragOverCol === status;
+            // While the global search is active, auto-expand columns that have
+            // matches so results show immediately without opening columns by
+            // hand; empty stages stay collapsed to keep the board compact.
+            const isGlobalSearching = search.trim().length > 0;
+            const isCollapsed = isGlobalSearching
+              ? items.length === 0
+              : collapsedCols.has(status);
+            const shown = visibleCount[status];
+            const colQuery = colSearch[status].trim().toLowerCase();
+            const colItems = colQuery
+              ? items.filter((l) =>
+                  [l.car, l.name, l.phone, l.email].some((v) =>
+                    (v ?? "").toLowerCase().includes(colQuery),
+                  ),
+                )
+              : items;
+            const visibleItems = colItems.slice(0, shown);
+            const remaining = colItems.length - shown;
+            return (
+              <div
+                key={status}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (dragOverCol !== status) setDragOverCol(status);
+                }}
+                onDragLeave={() =>
+                  setDragOverCol((c) => (c === status ? null : c))
+                }
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const id = e.dataTransfer.getData("text/plain") || dragId;
+                  if (id) updateStatus(id, status);
+                  setDragId(null);
+                  setDragOverCol(null);
+                }}
+                className={`flex flex-col rounded-2xl border bg-white/70 p-1.5 transition ${meta.column} ${
+                  isOver ? "bg-amber-50/70 ring-2 ring-amber-400" : ""
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleCollapse(status)}
+                  aria-expanded={!isCollapsed}
+                  className="flex w-full items-center justify-between rounded-xl px-1.5 py-1 text-left transition hover:bg-amber-50/60"
+                >
+                  <span className="flex items-center gap-1.5 text-[13px] font-bold text-[#5c3b10]">
+                    <ChevronRight
+                      className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${
+                        isCollapsed ? "" : "rotate-90"
+                      }`}
+                    />
+                    <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                    {meta.label}
+                  </span>
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-muted-foreground">
+                    {items.length}
+                  </span>
+                </button>
+
+                {!isCollapsed && items.length > 3 && (
+                  <div className="relative mt-1.5">
+                    <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      value={colSearch[status]}
+                      onChange={(e) => setColumnSearch(status, e.target.value)}
+                      placeholder="Hledat auto v této fázi…"
+                      className="h-7 w-full rounded-lg border border-amber-100 bg-white pl-7 pr-2 text-[11px] outline-none focus:border-amber-300"
+                    />
+                  </div>
+                )}
+
+                {!isCollapsed && (
+                  <div className="mt-1.5 flex max-h-[58vh] flex-col gap-1.5 overflow-y-auto pr-0.5">
+                    {items.length === 0 ? (
+                      <p className="px-1.5 py-4 text-center text-xs text-muted-foreground/50">
+                        —
+                      </p>
+                    ) : colItems.length === 0 ? (
+                      <p className="px-1.5 py-4 text-center text-xs text-muted-foreground/60">
+                        Žádné auto neodpovídá hledání
+                      </p>
+                    ) : (
+                      <>
+                        {visibleItems.map((lead) => (
+                          <LeadCard
+                            key={lead.id}
+                            lead={lead}
+                            onDragStart={() => setDragId(lead.id)}
+                            onDragEnd={() => {
+                              setDragId(null);
+                              setDragOverCol(null);
+                            }}
+                            onChangeStatus={(s) => updateStatus(lead.id, s)}
+                            onOpenVehicle={() => {
+                              if (!lead.listingId) return;
+                              navigate(
+                                buildListingPath({
+                                  id: lead.listingId,
+                                  brand: lead.listingBrand,
+                                  model: lead.listingModel,
+                                  year: lead.listingYear ?? null,
+                                }),
+                              );
+                            }}
+                          />
+                        ))}
+                        {remaining > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => showMore(status)}
+                            className="mt-0.5 rounded-lg border border-dashed border-amber-200 py-1.5 text-[11px] font-semibold text-[#6f4c17] transition hover:bg-amber-50"
+                          >
+                            Zobrazit dalších {Math.min(LEADS_PER_COLUMN, remaining)}
+                            {" "}({remaining})
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LeadStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  accent?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-amber-100 bg-white p-4">
+      <p className={`text-2xl font-black ${accent ?? "text-[#5c3b10]"}`}>{value}</p>
+      <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+    </div>
+  );
+}
+
+function LeadCard({
+  lead,
+  onDragStart,
+  onDragEnd,
+  onChangeStatus,
+  onOpenVehicle,
+}: {
+  lead: Lead;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  onChangeStatus: (s: LeadStatus) => void;
+  onOpenVehicle: () => void;
+}) {
+  const price = formatLeadPrice(lead.listingPrice);
+  const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      draggable
+      onClick={onOpenVehicle}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpenVehicle();
+        }
+      }}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", lead.id);
+        e.dataTransfer.effectAllowed = "move";
+        onDragStart();
+      }}
+      onDragEnd={onDragEnd}
+      title="Otevřít vozidlo"
+      className="group relative cursor-pointer rounded-xl border border-amber-100 bg-white p-2 shadow-sm transition hover:border-amber-300 hover:shadow-md active:cursor-grabbing"
+    >
+      <div className="flex gap-2">
+        <div className="relative h-12 w-16 shrink-0 overflow-hidden rounded-lg bg-amber-50">
+          {lead.listingPhoto ? (
+            <img
+              src={`/img/${lead.listingPhoto}?w=160&h=120&fit=cover`}
+              alt={lead.car}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-amber-100 text-left text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                    <th className="px-3 py-2">Auto</th>
-                    <th className="px-3 py-2">Jméno</th>
-                    <th className="px-3 py-2">Telefon</th>
-                    <th className="px-3 py-2">Email</th>
-                    <th className="px-3 py-2">Datum</th>
-                    <th className="px-3 py-2">Stav</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((lead) => (
-                    <tr key={lead.id} className="border-b border-amber-50 last:border-0 hover:bg-amber-50/40">
-                      <td className="px-3 py-3 font-semibold text-[#5c3b10]">{lead.car}</td>
-                      <td className="px-3 py-3">{lead.name}</td>
-                      <td className="px-3 py-3">
-                        <a href={`tel:${lead.phone}`} className="inline-flex items-center gap-1 text-amber-800 hover:underline">
-                          <Phone className="h-3.5 w-3.5" />
-                          {lead.phone}
-                        </a>
-                      </td>
-                      <td className="px-3 py-3">
-                        <a href={`mailto:${lead.email}`} className="inline-flex items-center gap-1 text-amber-800 hover:underline">
-                          <Mail className="h-3.5 w-3.5" />
-                          {lead.email}
-                        </a>
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">
-                        {new Date(lead.date).toLocaleDateString("cs-CZ")}
-                      </td>
-                      <td className="px-3 py-3">
-                        <Select value={lead.status} onValueChange={(v) => updateStatus(lead.id, v as LeadStatus)}>
-                          <SelectTrigger className={`h-8 w-36 rounded-full border-0 text-xs font-bold ${LEAD_STATUS_META[lead.status].className}`}>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {LEAD_STATUS_ORDER.map((status) => (
-                              <SelectItem key={status} value={status}>
-                                {LEAD_STATUS_META[status].label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex h-full w-full items-center justify-center">
+              <Car className="h-4 w-4 text-amber-300" />
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+        <div className="min-w-0 flex-1 pr-4">
+          <p className="truncate text-xs font-bold leading-tight text-[#5c3b10]">{lead.car}</p>
+          {price && <p className="text-[11px] font-bold text-amber-700">{price}</p>}
+          <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{lead.name}</p>
+        </div>
+        <ExternalLink className="absolute right-1.5 top-1.5 h-3.5 w-3.5 text-muted-foreground/40 transition group-hover:text-amber-700" />
+      </div>
+
+      <div className="mt-1.5 flex flex-col gap-0.5">
+        {lead.phone && (
+          <a
+            href={`tel:${lead.phone}`}
+            onClick={stop}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 hover:underline"
+            title={`Zavolat ${lead.phone}`}
+          >
+            <Phone className="h-3 w-3 shrink-0" />
+            {lead.phone}
+          </a>
+        )}
+        {lead.email && (
+          <a
+            href={`mailto:${lead.email}`}
+            onClick={stop}
+            className="inline-flex min-w-0 items-center gap-1 text-[11px] text-amber-800 hover:underline"
+            title={`Napsat na ${lead.email}`}
+          >
+            <Mail className="h-3 w-3 shrink-0" />
+            <span className="truncate">{lead.email}</span>
+          </a>
+        )}
+      </div>
+
+      <div onClick={stop} className="mt-1.5 flex items-center gap-2">
+        <span className="shrink-0 text-[10px] text-muted-foreground">
+          {new Date(lead.date).toLocaleDateString("cs-CZ")}
+        </span>
+        <Select value={lead.status} onValueChange={(v) => onChangeStatus(v as LeadStatus)}>
+          <SelectTrigger
+            className={`h-6 min-w-0 flex-1 rounded-full border-0 px-2 text-[11px] font-bold ${LEAD_STATUS_META[lead.status].className}`}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {LEAD_STATUS_ORDER.map((s) => (
+              <SelectItem key={s} value={s}>
+                {LEAD_STATUS_META[s].label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }
@@ -7200,6 +7497,16 @@ function DealerCabinetSideNav({
   const [, navigate] = useLocation();
   const { data } = useDealerUnreadNotifier();
   const unread = data?.unread ?? 0;
+  const { data: leadStats } = useQuery<{ byStatus?: { new?: number } }>({
+    queryKey: ["/api/dealer/leads/stats"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/dealer/leads/stats");
+      return res.json();
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+  });
+  const newLeads = leadStats?.byStatus?.new ?? 0;
 
   const menuItems: Array<{
     id: DealerTab | "messages" | "publicProfile";
@@ -7339,6 +7646,7 @@ function DealerCabinetSideNav({
         {menuItems.map(({ id, Icon, label, hint, group }, index) => {
           const isActive = activeTab === id;
           const isMessages = id === "messages";
+          const isLeady = id === "leady";
           const isPublicProfile = id === "publicProfile";
           const showDivider =
             group === "secondary" &&
@@ -7367,10 +7675,15 @@ function DealerCabinetSideNav({
               aria-label={label}
             >
               <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#fff8e8] text-[#7a5518] transition group-hover:bg-white group-hover:text-amber-800">
-                <Icon className={`h-5 w-5 ${isMessages && unread > 0 ? "motion-safe:animate-wiggle" : ""}`} />
+                <Icon className={`h-5 w-5 ${(isMessages && unread > 0) || (isLeady && newLeads > 0) ? "motion-safe:animate-wiggle" : ""}`} />
                 {isMessages && unread > 0 ? (
                   <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white ring-2 ring-white">
                     {unread > 9 ? "9+" : unread}
+                  </span>
+                ) : null}
+                {isLeady && newLeads > 0 ? (
+                  <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-sky-500 px-1 text-[9px] font-black text-white ring-2 ring-white">
+                    {newLeads > 9 ? "9+" : newLeads}
                   </span>
                 ) : null}
               </span>
