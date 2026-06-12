@@ -1347,6 +1347,24 @@ function DashboardTab({
       <DashboardPeriodCompare stats={stats} t={t} />
       <DashboardProfileCompletion dealer={dealer} t={t} onProfileTask={onFocusSettings} />
 
+      <div className="flex justify-center">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowStats((v) => !v)}
+          className="rounded-2xl border-amber-200 text-[#6f4c17]"
+          aria-expanded={showStats}
+        >
+          <BarChart3 className="mr-1.5 h-4 w-4" />
+          {showStats ? "Skrýt detailní statistiku" : "Zobrazit detailní statistiku"}
+          {showStats ? (
+            <ChevronUp className="ml-1.5 h-4 w-4" />
+          ) : (
+            <ChevronDown className="ml-1.5 h-4 w-4" />
+          )}
+        </Button>
+      </div>
+
       {showStats ? (
         <div className="space-y-5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
@@ -2561,7 +2579,7 @@ function MyListingsTab({
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {(["all", "active", "top", "promoted", "pending", "sold", "expired"] as const).map((s) => (
+            {(["all", "active", "top", "sold"] as const).map((s) => (
               <Button
                 key={s}
                 size="sm"
@@ -2571,15 +2589,7 @@ function MyListingsTab({
                 }`}
                 onClick={() => setStatusFilter(s)}
               >
-                {s === "all"
-                  ? t("dealer.listings.all")
-                  : s === "promoted"
-                    ? t("dealer.premium.statusPromoted")
-                    : s === "pending"
-                      ? t("dealer.premium.statusPending")
-                      : s === "expired"
-                        ? t("dealer.premium.statusExpired")
-                        : STATUS_CONFIG[s].label}
+                {s === "all" ? t("dealer.listings.all") : STATUS_CONFIG[s].label}
                 <Badge variant="secondary" className="ml-1.5 text-[10px] px-1.5">
                   {statusCounts[s]}
                 </Badge>
@@ -3754,7 +3764,15 @@ function PromotionTab({
                 <p className="text-xs text-muted-foreground">{t("dealer.promo.estimatedContacts")}</p>
               </div>
             </div>
-            <Button className="w-full bg-amber-700 hover:bg-amber-800">
+            <Button
+              className="w-full bg-amber-700 hover:bg-amber-800"
+              onClick={() =>
+                toast({
+                  title: t("dealer.promo.saveBudget"),
+                  description: `Měsíční limit ${autoBudget} Kč byl nastaven.`,
+                })
+              }
+            >
               <Wallet className="h-4 w-4 mr-2" />
               {t("dealer.promo.saveBudget")}
             </Button>
@@ -4087,17 +4105,17 @@ function DealerSettingsTab({
   }, []);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-      <div className="space-y-5">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="space-y-4">
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Building2 className="h-5 w-5 text-amber-700" />
               {t("dealer.premium.companySection")}
             </CardTitle>
-            <CardDescription>{t("dealer.premium.companySectionDescription")}</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">{t("dealer.premium.companySectionDescription")}</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="grid gap-3 p-4 pt-0 sm:grid-cols-2 sm:p-5 sm:pt-0">
             <div className="space-y-2 sm:col-span-2">
               <Label>{t("dealer.companyName")} *</Label>
               <Input
@@ -4129,13 +4147,13 @@ function DealerSettingsTab({
         </Card>
 
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+          <CardHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Phone className="h-5 w-5 text-amber-700" />
               {t("dealer.premium.contactsSection")}
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent className="grid gap-3 p-4 pt-0 sm:grid-cols-2 sm:p-5 sm:pt-0">
             <div className="space-y-2">
               <Label>{t("dealer.phone")}</Label>
               <Input ref={phoneRef} value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} className={inputClass("phone")} />
@@ -4168,7 +4186,7 @@ function DealerSettingsTab({
               <Label>{t("dealer.address")}</Label>
               <Input ref={addressRef} value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} className={inputClass("address")} />
             </div>
-            <div className="space-y-3 rounded-3xl border bg-amber-50/40 p-4 sm:col-span-2">
+            <div className="space-y-3 rounded-2xl border bg-amber-50/40 p-3 sm:col-span-2 sm:p-4">
               <div className="space-y-2">
                 <Label>{t("dealer.address.autocomplete")}</Label>
                 <div className="relative">
@@ -4250,7 +4268,7 @@ function DealerSettingsTab({
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {[
             { icon: ImageIcon, title: t("dealer.premium.brandingSection"), description: t("dealer.premium.brandingDescription"), modal: "branding" as const, ref: brandingRef },
             { icon: Clock, title: t("dealer.hours.sectionTitle"), description: t("dealer.hours.sectionDescription"), modal: "workingHours" as const },
@@ -4278,17 +4296,17 @@ function DealerSettingsTab({
                     openSettingsModal(item.modal);
                   }
                 }}
-                className="rounded-3xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-lg active:scale-[0.99]"
+                className="rounded-2xl border bg-white p-3.5 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-lg active:scale-[0.99]"
               >
-                  <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
-                    <SectionIcon className="h-5 w-5" />
-                  </div>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{item.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
+                      <SectionIcon className="h-[18px] w-[18px]" />
                     </div>
-                    <ChevronRight className="mt-1 h-4 w-4 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold leading-tight">{item.title}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{item.description}</p>
+                    </div>
+                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                   </div>
                   {item.modal === "branding" && (
                     <div className="mt-4 space-y-3">
@@ -4349,28 +4367,28 @@ function DealerSettingsTab({
         </div>
       </div>
 
-      <aside className="space-y-5">
+      <aside className="space-y-4">
         <Card ref={verificationRef} className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
-            <CardTitle>{t("dealer.premium.livePreview")}</CardTitle>
-            <CardDescription>{t("dealer.premium.livePreviewDescription")}</CardDescription>
+          <CardHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+            <CardTitle className="text-base sm:text-lg">{t("dealer.premium.livePreview")}</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">{t("dealer.premium.livePreviewDescription")}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 pt-0 sm:p-5 sm:pt-0">
             <div className="overflow-hidden rounded-3xl border bg-gradient-to-br from-white to-amber-50">
-              <div className="h-24 bg-gradient-to-r from-stone-900 to-amber-700" />
-              <div className="-mt-8 p-4">
-                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-amber-100 text-xl font-black text-amber-900 shadow">
+              <div className="h-16 bg-gradient-to-r from-stone-900 to-amber-700" />
+              <div className="-mt-7 p-3.5">
+                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border-4 border-white bg-amber-100 text-lg font-black text-amber-900 shadow">
                   {form.logoUrl ? (
                     <img src={form.logoUrl} alt={form.companyName || dealer.companyName} className="h-full w-full object-cover" />
                   ) : (
                     form.companyName.slice(0, 2).toUpperCase() || "NN"
                   )}
                 </div>
-                <h3 className="mt-3 text-lg font-black">{form.companyName || dealer.companyName}</h3>
-                <p className="mt-1 line-clamp-3 text-sm text-muted-foreground">
+                <h3 className="mt-2.5 text-base font-black">{form.companyName || dealer.companyName}</h3>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                   {form.description || t("dealer.premium.previewDescriptionFallback")}
                 </p>
-                <div className="mt-4 space-y-2 text-sm">
+                <div className="mt-3 space-y-1.5 text-xs">
                   <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-amber-700" />{form.phone || "—"}</p>
                   <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-amber-700" />{form.email || "—"}</p>
                   <p className="flex items-center gap-2"><MapPin className="h-4 w-4 text-amber-700" />{form.address || form.region || "—"}</p>
@@ -4393,10 +4411,10 @@ function DealerSettingsTab({
         </Card>
 
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
-            <CardTitle>{t("dealer.premium.verificationFlow")}</CardTitle>
+          <CardHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+            <CardTitle className="text-base sm:text-lg">{t("dealer.premium.verificationFlow")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2.5 p-4 pt-0 sm:p-5 sm:pt-0">
             <Progress value={completion.percent} className="h-2" />
             {completion.tasks.map((task) => (
               <div key={task.key} className="flex items-center gap-2 text-sm">
@@ -4412,10 +4430,10 @@ function DealerSettingsTab({
         </Card>
 
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
-            <CardTitle>{t("dealer.premium.integrationsQuick")}</CardTitle>
+          <CardHeader className="p-4 pb-2 sm:p-5 sm:pb-3">
+            <CardTitle className="text-base sm:text-lg">{t("dealer.premium.integrationsQuick")}</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-2">
+          <CardContent className="grid gap-2 p-4 pt-0 sm:p-5 sm:pt-0">
             {[Smartphone, MessageCircle, Bot].map((Icon, index) => {
               const isConnected =
                 index === 0
@@ -5019,136 +5037,6 @@ function DealerSettingsTab({
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function DashboardLimitsCard({
-  dealer,
-  stats,
-  t,
-  onOpenBilling,
-  onOpenPromotion,
-  onOpenInventory,
-  onAddVehicle,
-}: {
-  dealer: Dealer;
-  stats: DealerStats;
-  t: (key: string) => string;
-  onOpenBilling: () => void;
-  onOpenPromotion: () => void;
-  onOpenInventory: () => void;
-  onAddVehicle: () => void;
-}) {
-  const max = Math.max(1, dealer.maxListings);
-  const active = stats.activeListings;
-  const remaining = Math.max(0, max - active);
-  const usedPct = Math.min(100, Math.round((active / max) * 100));
-  const expired = Math.max(0, stats.totalListings - stats.activeListings);
-  const lowSlots = remaining <= Math.max(2, Math.round(max * 0.1));
-
-  return (
-    <Card className={`${premiumSurface} rounded-3xl`}>
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:justify-between">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
-              <Crown className="h-6 w-6" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {t("dealer.billing.currentPlanShort")}
-              </p>
-              <p className="truncate text-xl font-black sm:text-2xl">{t("dealer.premium.planTop")}</p>
-              <p className="text-xs text-muted-foreground">
-                {t("dealer.billing.planRenewsAuto")}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="ml-auto h-9 shrink-0 rounded-xl"
-              onClick={onOpenBilling}
-            >
-              <CreditCard className="mr-2 h-4 w-4" />
-              {t("dealer.billing.manage")}
-            </Button>
-          </div>
-
-          <div className="flex flex-1 flex-col gap-2 rounded-3xl border border-amber-100 bg-amber-50/40 p-3 sm:p-4">
-            <div className="flex items-end justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-800">
-                  {t("dealer.premium.listingPlanUsage")}
-                </p>
-                <p className="text-3xl font-black leading-none">
-                  {active}
-                  <span className="text-lg font-semibold text-muted-foreground"> / {max}</span>
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t("dealer.premium.remainingSlots")}: <span className="font-bold text-amber-800">{remaining}</span>
-                  {expired > 0 ? (
-                    <>
-                      <span className="mx-1">·</span>
-                      {t("dealer.premium.expiredCount")}: <span className="font-bold">{expired}</span>
-                    </>
-                  ) : null}
-                </p>
-              </div>
-              <div className="hidden sm:flex sm:flex-col sm:items-end sm:gap-2">
-                {lowSlots ? (
-                  <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">
-                    <AlertTriangle className="mr-1 h-3 w-3" />
-                    {t("dealer.premium.almostFull")}
-                  </Badge>
-                ) : (
-                  <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                    <CheckCircle2 className="mr-1 h-3 w-3" />
-                    {t("dealer.premium.healthyCapacity")}
-                  </Badge>
-                )}
-                <span className="text-xs text-muted-foreground">{usedPct}%</span>
-              </div>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-amber-100">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  lowSlots ? "bg-orange-500" : "bg-amber-700"
-                }`}
-                style={{ width: `${usedPct}%` }}
-              />
-            </div>
-            <div className="mt-1 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                className="h-8 rounded-xl bg-amber-700 px-3 text-xs hover:bg-amber-800"
-                onClick={onAddVehicle}
-              >
-                <Plus className="mr-1 h-3.5 w-3.5" />
-                {t("dealer.dashboard.addCar")}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 rounded-xl px-3 text-xs"
-                onClick={onOpenInventory}
-              >
-                <Car className="mr-1 h-3.5 w-3.5" />
-                {t("dealer.myListings")}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 rounded-xl border-amber-300 px-3 text-xs text-amber-800 hover:bg-amber-50"
-                onClick={onOpenPromotion}
-              >
-                <Rocket className="mr-1 h-3.5 w-3.5" />
-                {t("dealer.premium.upgradePlan")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -6242,7 +6130,30 @@ function BillingTab({
                         </Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <Button variant="ghost" size="sm" className="h-8 px-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2"
+                          title={t("dealer.billing.download") || "Stáhnout"}
+                          onClick={() => {
+                            const lines = [
+                              `Faktura: ${invoice.number}`,
+                              `Datum: ${new Date(invoice.dateISO).toLocaleDateString()}`,
+                              `Popis: ${invoice.description}`,
+                              `Částka: ${formatKc(invoice.amountKc)}`,
+                              `Stav: ${t(`dealer.billing.status_${invoice.status}`)}`,
+                            ].join("\n");
+                            const blob = new Blob([lines], {
+                              type: "text/plain;charset=utf-8",
+                            });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `${invoice.number}.txt`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                        >
                           <Download className="h-4 w-4" />
                         </Button>
                       </td>
@@ -6369,10 +6280,10 @@ export default function DealerPage() {
             />
             <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-sm font-medium uppercase tracking-[0.2em] text-amber-700">
+                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-amber-700 sm:text-sm">
                   NNAuto Pro
                 </p>
-                <h2 className="text-2xl font-black tracking-tight">{t("dealer.cabinet")}</h2>
+                <h2 className="text-xl font-black tracking-tight sm:text-2xl">{t("dealer.cabinet")}</h2>
               </div>
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 <DealerMessagesShortcut />
@@ -7513,83 +7424,95 @@ function DealerCabinetSideNav({
     Icon: typeof BarChart3;
     label: string;
     hint: string;
-    group?: "secondary";
+    section: string;
   }> = [
-    {
-      id: "integrace",
-      Icon: Link2,
-      label: t("dealer.nav.integrace"),
-      hint: t("dealer.nav.integraceHint"),
-    },
-    {
-      id: "import",
-      Icon: Upload,
-      label: t("dealer.bulkImport"),
-      hint: "CSV/XML",
-    },
+    // — Inzeráty —
     {
       id: "mylistings",
       Icon: Car,
       label: t("dealer.myListings"),
       hint: t("dealer.dashboard.manageInventory"),
+      section: "Inzeráty",
     },
+    {
+      id: "import",
+      Icon: Upload,
+      label: t("dealer.bulkImport"),
+      hint: "CSV / XML",
+      section: "Inzeráty",
+    },
+    {
+      id: "integrace",
+      Icon: Link2,
+      label: t("dealer.nav.integrace"),
+      hint: t("dealer.nav.integraceHint"),
+      section: "Inzeráty",
+    },
+    // — Komunikace —
     {
       id: "messages",
       Icon: unread > 0 ? BellRing : Inbox,
       label: t("messages.heading"),
       hint: unread > 0 ? t("messages.shortcut.openInbox") : t("messages.shortcut.idle"),
+      section: "Komunikace",
     },
     {
       id: "leady",
       Icon: Users,
       label: t("dealer.nav.leady"),
       hint: t("dealer.nav.leadyHint"),
+      section: "Komunikace",
     },
+    // — Marketing & prezentace —
     {
       id: "promotion",
       Icon: Rocket,
       label: t("dealer.promo.tab"),
       hint: "TOP / VIP",
-    },
-    {
-      id: "settings",
-      Icon: Building2,
-      label: t("dealer.nav.dealerProfile"),
-      hint: t("dealer.nav.dealerProfileHint"),
-    },
-    {
-      id: "dashboard",
-      Icon: BarChart3,
-      label: t("dealer.nav.statistika"),
-      hint: t("dealer.nav.statistikaHint"),
+      section: "Marketing & prezentace",
     },
     {
       id: "microsite",
       Icon: MonitorSmartphone,
       label: t("dealer.microsite.tab"),
       hint: t("dealer.microsite.subtitle"),
-      group: "secondary",
-    },
-    {
-      id: "billing",
-      Icon: CreditCard,
-      label: t("dealer.billing.tab"),
-      hint: t("dealer.billing.subtitle"),
-      group: "secondary",
-    },
-    {
-      id: "reviews",
-      Icon: Star,
-      label: t("dealer.reviews.tab"),
-      hint: t("dealer.reviews.subtitle"),
-      group: "secondary",
+      section: "Marketing & prezentace",
     },
     {
       id: "publicProfile",
       Icon: Eye,
       label: t("dealer.dashboard.publicProfile"),
       hint: t("dealer.premium.previewPublicProfile"),
-      group: "secondary",
+      section: "Marketing & prezentace",
+    },
+    // — Účet —
+    {
+      id: "settings",
+      Icon: Building2,
+      label: t("dealer.nav.dealerProfile"),
+      hint: t("dealer.nav.dealerProfileHint"),
+      section: "Účet",
+    },
+    {
+      id: "dashboard",
+      Icon: BarChart3,
+      label: t("dealer.nav.statistika"),
+      hint: t("dealer.nav.statistikaHint"),
+      section: "Účet",
+    },
+    {
+      id: "billing",
+      Icon: CreditCard,
+      label: t("dealer.billing.tab"),
+      hint: t("dealer.billing.subtitle"),
+      section: "Účet",
+    },
+    {
+      id: "reviews",
+      Icon: Star,
+      label: t("dealer.reviews.tab"),
+      hint: t("dealer.reviews.subtitle"),
+      section: "Účet",
     },
   ];
 
@@ -7643,22 +7566,21 @@ function DealerCabinetSideNav({
       </div>
 
       <div className="grid gap-2">
-        {menuItems.map(({ id, Icon, label, hint, group }, index) => {
+        {menuItems.map(({ id, Icon, label, hint, section }, index) => {
           const isActive = activeTab === id;
           const isMessages = id === "messages";
           const isLeady = id === "leady";
           const isPublicProfile = id === "publicProfile";
-          const showDivider =
-            group === "secondary" &&
-            (index === 0 || menuItems[index - 1].group !== "secondary");
+          const showSectionHeader =
+            index === 0 || menuItems[index - 1].section !== section;
           return (
             <Fragment key={id}>
-            {showDivider && !collapsed ? (
-              <p className="mt-2 px-2 pt-1 text-[11px] font-black uppercase tracking-[0.18em] text-[#b08a3f]">
-                {t("dealer.nav.moreTools")}
+            {showSectionHeader && !collapsed ? (
+              <p className={`px-2 pt-1 text-[11px] font-black uppercase tracking-[0.18em] text-[#b08a3f] ${index === 0 ? "" : "mt-3"}`}>
+                {section}
               </p>
             ) : null}
-            {showDivider && collapsed ? (
+            {showSectionHeader && index > 0 && collapsed ? (
               <div className="my-1 h-px w-full bg-amber-100" />
             ) : null}
             <button
@@ -7739,16 +7661,17 @@ function DealerMobileNav({
     label: string;
     Icon: typeof BarChart3;
     hint: string;
+    section: string;
   }> = [
-    { id: "integrace", label: t("dealer.nav.integrace"), Icon: Link2, hint: t("dealer.nav.integraceHint") },
-    { id: "import", label: t("dealer.bulkImport"), Icon: Upload, hint: "CSV/XML" },
-    { id: "leady", label: t("dealer.nav.leady"), Icon: Users, hint: t("dealer.nav.leadyHint") },
-    { id: "promotion", label: t("dealer.promo.tab"), Icon: Rocket, hint: "TOP / VIP" },
-    { id: "settings", label: t("dealer.nav.dealerProfile"), Icon: Building2, hint: t("dealer.nav.dealerProfileHint") },
-    { id: "microsite", label: t("dealer.microsite.tab"), Icon: MonitorSmartphone, hint: t("dealer.microsite.subtitle") },
-    { id: "billing", label: t("dealer.billing.tab"), Icon: CreditCard, hint: t("dealer.billing.subtitle") },
-    { id: "reviews", label: t("dealer.reviews.tab"), Icon: Star, hint: t("dealer.reviews.subtitle") },
-    { id: "publicProfile", label: t("dealer.dashboard.publicProfile"), Icon: Eye, hint: t("dealer.premium.previewPublicProfile") },
+    { id: "import", label: t("dealer.bulkImport"), Icon: Upload, hint: "CSV/XML", section: "Inzeráty" },
+    { id: "integrace", label: t("dealer.nav.integrace"), Icon: Link2, hint: t("dealer.nav.integraceHint"), section: "Inzeráty" },
+    { id: "leady", label: t("dealer.nav.leady"), Icon: Users, hint: t("dealer.nav.leadyHint"), section: "Komunikace" },
+    { id: "promotion", label: t("dealer.promo.tab"), Icon: Rocket, hint: "TOP / VIP", section: "Marketing & prezentace" },
+    { id: "microsite", label: t("dealer.microsite.tab"), Icon: MonitorSmartphone, hint: t("dealer.microsite.subtitle"), section: "Marketing & prezentace" },
+    { id: "publicProfile", label: t("dealer.dashboard.publicProfile"), Icon: Eye, hint: t("dealer.premium.previewPublicProfile"), section: "Marketing & prezentace" },
+    { id: "settings", label: t("dealer.nav.dealerProfile"), Icon: Building2, hint: t("dealer.nav.dealerProfileHint"), section: "Účet" },
+    { id: "billing", label: t("dealer.billing.tab"), Icon: CreditCard, hint: t("dealer.billing.subtitle"), section: "Účet" },
+    { id: "reviews", label: t("dealer.reviews.tab"), Icon: Star, hint: t("dealer.reviews.subtitle"), section: "Účet" },
   ];
 
   return (
@@ -7813,10 +7736,17 @@ function DealerMobileNav({
             <DialogTitle>{t("dealer.mobileNav.moreTitle")}</DialogTitle>
             <DialogDescription>{t("dealer.mobileNav.moreDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-2">
-            {overflow.map((item) => (
+          <div className="grid max-h-[70vh] gap-1.5 overflow-y-auto pr-1">
+            {overflow.map((item, idx) => {
+              const showHeader = idx === 0 || overflow[idx - 1].section !== item.section;
+              return (
+              <Fragment key={item.id}>
+                {showHeader && (
+                  <p className="px-1 pb-0.5 pt-2 text-[10px] font-black uppercase tracking-wider text-amber-700/70 first:pt-0">
+                    {item.section}
+                  </p>
+                )}
               <button
-                key={item.id}
                 type="button"
                 onClick={() => {
                   if (item.id === "publicProfile") {
@@ -7827,20 +7757,22 @@ function DealerMobileNav({
                   onSelect(item.id);
                   setMoreOpen(false);
                 }}
-                className={`flex items-center gap-3 rounded-2xl border bg-white p-3 text-left transition hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99] ${
+                className={`flex items-center gap-3 rounded-2xl border bg-white p-2.5 text-left transition hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99] ${
                   activeTab === item.id ? "border-amber-300 bg-amber-50" : ""
                 }`}
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
-                  <item.Icon className="h-5 w-5" />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                  <item.Icon className="h-[18px] w-[18px]" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.hint}</p>
+                  <p className="text-sm font-bold leading-tight">{item.label}</p>
+                  <p className="truncate text-xs text-muted-foreground">{item.hint}</p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </button>
-            ))}
+              </Fragment>
+              );
+            })}
           </div>
         </DialogContent>
       </Dialog>

@@ -895,6 +895,7 @@ export default function AddListingPage() {
     power: { cs: "Výkon", uk: "Потужність", en: "Power" },
     sellerType: { cs: "Typ prodejce", uk: "Тип продавця", en: "Seller type" },
     region: { cs: "Region", uk: "Регіон", en: "Region" },
+    phone: { cs: "Telefon", uk: "Телефон", en: "Phone" },
   };
 
   const getFieldLabel = (field: string) => {
@@ -924,6 +925,7 @@ export default function AddListingPage() {
     if (!values.power || values.power <= 0) missingFields.push('power');
     if (!values.sellerType) missingFields.push('sellerType');
     if (!values.region?.trim()) missingFields.push('region');
+    if (!values.phone?.trim()) missingFields.push('phone');
     
     return missingFields;
   };
