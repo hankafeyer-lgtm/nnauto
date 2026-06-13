@@ -193,14 +193,68 @@ export function PublicTodayHoursRow({ dealerId }: { dealerId: string }) {
   );
 }
 
+const fullDayLabels: Record<DayKey, string> = {
+  mon: "Pondělí",
+  tue: "Úterý",
+  wed: "Středa",
+  thu: "Čtvrtek",
+  fri: "Pátek",
+  sat: "Sobota",
+  sun: "Neděle",
+};
+
+export function PublicWorkingHoursAccordion({ dealerId }: { dealerId: string }) {
+  const settings = useDealerLocalSettings(dealerId);
+  const hours = { ...defaultWorkingHours, ...(settings.workingHours || {}) };
+  const [open, setOpen] = useState(false);
+  const jsDay = new Date().getDay();
+  const todayKey = dayKeys[jsDay === 0 ? 6 : jsDay - 1];
+
+  return (
+    <div className="overflow-hidden rounded-2xl bg-white">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-3 p-3 text-left font-medium transition hover:text-amber-700"
+        aria-expanded={open}
+      >
+        <Clock className="h-4 w-4 shrink-0 text-amber-700" />
+        <span className="flex-1">{todayStatus(hours)}</span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-amber-700 transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="border-t border-amber-100 px-3 pb-2.5 pt-1.5">
+          {dayKeys.map((day) => {
+            const value = hours[day];
+            const isToday = day === todayKey;
+            return (
+              <div
+                key={day}
+                className={`flex items-center justify-between py-1 text-sm ${
+                  isToday ? "font-bold text-amber-800" : "text-muted-foreground"
+                }`}
+              >
+                <span>{fullDayLabels[day]}</span>
+                <span>{value.closed ? "Zavřeno" : `${value.open}–${value.close}`}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function PublicTodayHoursChip({ dealerId }: { dealerId: string }) {
   const settings = useDealerLocalSettings(dealerId);
   const hours = { ...defaultWorkingHours, ...(settings.workingHours || {}) };
 
   return (
-    <div className="rounded-2xl bg-white/12 px-3 py-2 ring-1 ring-white/15">
+    <div className="rounded-xl bg-white/12 px-3 py-1.5 ring-1 ring-white/15 sm:rounded-2xl sm:py-2">
       <p className="truncate text-sm font-black leading-tight sm:text-base">{formatShort(hours)}</p>
-      <p className="mt-0.5 truncate text-[11px] font-semibold text-amber-50/75">{todayStatus(hours)}</p>
+      <p className="mt-0.5 truncate text-[10px] font-semibold text-amber-50/75 sm:text-[11px]">{todayStatus(hours)}</p>
     </div>
   );
 }
@@ -226,15 +280,11 @@ export function PublicSocialLinks({
   );
 
   if (links.length === 0) {
-    return (
-      <div className="rounded-3xl border border-dashed bg-white p-5 text-sm text-muted-foreground">
-        Dealer zatím nepřidal sociální odkazy.
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className="rounded-3xl border bg-white p-5">
+    <div className="rounded-3xl border bg-white p-4 sm:p-5">
       <h3 className="font-black">Sociální sítě</h3>
       <div className="mt-3 flex flex-wrap gap-2">
         {links.map(([label, value]) => (

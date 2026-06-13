@@ -7,10 +7,10 @@ export default function PublicHeader() {
   return (
     <NoSSR
       fallback={
-        <div className="h-16 border-b border-amber-100 bg-background/95 sm:h-20" />
+        <div className="h-14 border-b border-amber-100 bg-background/95 sm:h-20" />
       }
     >
-      <Header />
+      <Header compactMobile showMobileSearch={false} />
     </NoSSR>
   );
 }
