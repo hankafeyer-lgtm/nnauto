@@ -6269,14 +6269,16 @@ export default function DealerPage() {
           <DealerLoadingSkeleton />
         ) : (
           <div className="space-y-5 sm:space-y-6">
-            <DealerHero
-              dealer={dealer}
-              stats={stats}
-              t={t}
-              onOpenMessages={() => navigate("/dealer/messages")}
-              onProfileTask={openSettingsTarget}
-              onAddVehicle={openAddVehicleDialog}
-            />
+            <div className={activeTab === "dashboard" ? "" : "hidden lg:block"}>
+              <DealerHero
+                dealer={dealer}
+                stats={stats}
+                t={t}
+                onOpenMessages={() => navigate("/dealer/messages")}
+                onProfileTask={openSettingsTarget}
+                onAddVehicle={openAddVehicleDialog}
+              />
+            </div>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-amber-700 sm:text-sm">
