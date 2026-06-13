@@ -4273,7 +4273,6 @@ function DealerSettingsTab({
             { icon: ImageIcon, title: t("dealer.premium.brandingSection"), description: t("dealer.premium.brandingDescription"), modal: "branding" as const, ref: brandingRef },
             { icon: Clock, title: t("dealer.hours.sectionTitle"), description: t("dealer.hours.sectionDescription"), modal: "workingHours" as const },
             { icon: Link2, title: t("dealer.social.sectionTitle"), description: t("dealer.social.sectionDescription"), modal: "socialLinks" as const },
-            { icon: CreditCard, title: t("dealer.premium.billingSection"), description: t("dealer.premium.billingDescription"), modal: "billing" as const },
             { icon: Bell, title: t("dealer.premium.notificationsSection"), description: t("dealer.premium.notificationsDescription"), modal: "notifications" as const },
             { icon: Link2, title: t("dealer.premium.integrationsSection"), description: t("dealer.premium.integrationsDescription"), modal: "integrations" as const, ref: integrationsRef },
             { icon: Lock, title: t("dealer.premium.securitySection"), description: t("dealer.premium.securityDescription"), modal: "security" as const },
