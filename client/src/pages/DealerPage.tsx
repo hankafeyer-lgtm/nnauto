@@ -75,6 +75,8 @@ import {
   Download,
   Copy,
   RotateCcw,
+  HelpCircle,
+  MousePointerClick,
   Bell,
   BellRing,
   AlertTriangle,
@@ -761,6 +763,8 @@ function DealerHero({
   onOpenMessages,
   onProfileTask,
   onAddVehicle,
+  onOpenImport,
+  onOpenBilling,
 }: {
   dealer: Dealer;
   stats: DealerStats;
@@ -768,6 +772,8 @@ function DealerHero({
   onOpenMessages: () => void;
   onProfileTask: (target: SettingsTarget) => void;
   onAddVehicle: () => void;
+  onOpenImport: (sub: ImportSyncSubTab) => void;
+  onOpenBilling: () => void;
 }) {
   const visibleInventoryCount = Math.max(
     stats.activeListings,
@@ -852,18 +858,27 @@ function DealerHero({
               )}
               {stat(t("dealer.views"), displayViews(stats.totalViews))}
               {stat(t("dealer.contacts"), stats.totalContacts, onOpenMessages)}
-              {stat(t("dealer.billing.currentPlanShort"), t("dealer.premium.planTop"))}
+              {stat(t("dealer.billing.currentPlanShort"), t("dealer.premium.planTop"), onOpenBilling)}
             </div>
           </div>
         </div>
 
-        <Button
-          className="h-11 shrink-0 rounded-2xl bg-[#6f4c17] px-5 font-black text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5c3b10] lg:h-12"
-          onClick={onAddVehicle}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          {t("dealer.dashboard.addCar")}
-        </Button>
+        <div className="shrink-0">
+          <Button
+            className="h-11 w-full rounded-2xl bg-[#6f4c17] px-5 font-black text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5c3b10] lg:hidden"
+            onClick={onAddVehicle}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {t("dealer.dashboard.addCar")}
+          </Button>
+          <Button
+            className="hidden h-12 rounded-2xl bg-[#6f4c17] px-5 font-black text-white shadow-md transition hover:-translate-y-0.5 hover:bg-[#5c3b10] lg:inline-flex"
+            onClick={() => onOpenImport("csv")}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            {t("dealer.nav.importSync")}
+          </Button>
+        </div>
       </div>
     </section>
   );
@@ -930,77 +945,6 @@ function DashboardProfileCompletion({
               ))}
             </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function DashboardTodayStrip({
-  t,
-  todayViews,
-  todayContacts,
-  vehicleCount,
-  onOpenMessages,
-  onOpenListings,
-}: {
-  t: (key: string) => string;
-  todayViews: number;
-  todayContacts: number;
-  vehicleCount: number;
-  onOpenMessages: () => void;
-  onOpenListings: () => void;
-}) {
-  const items = [
-    {
-      label: t("dealer.dashboard.todayViewsShort"),
-      value: todayViews,
-      Icon: Eye,
-      onClick: undefined,
-    },
-    {
-      label: t("dealer.dashboard.todayContactsShort"),
-      value: todayContacts,
-      Icon: Phone,
-      onClick: onOpenMessages,
-    },
-    {
-      label: t("dealer.dashboard.todayActiveCarsShort"),
-      value: vehicleCount,
-      Icon: Car,
-      onClick: onOpenListings,
-    },
-  ];
-
-  return (
-    <Card className="rounded-3xl border-amber-100 bg-white/85 shadow-[0_10px_30px_rgba(120,72,12,0.06)]">
-      <CardContent className="p-2.5">
-        <div className="mb-2 flex items-center gap-2 px-1">
-          <CalendarDays className="h-4 w-4 text-amber-700" />
-          <p className="text-sm font-black text-[#5c3b10]">{t("dealer.dashboard.today")}</p>
-        </div>
-        <div className="grid grid-cols-3 gap-1.5">
-          {items.map(({ label, value, Icon, onClick }) => {
-            const Element = onClick ? "button" : "div";
-            return (
-              <Element
-                key={label}
-                type={onClick ? "button" : undefined}
-                onClick={onClick}
-                className="flex min-w-0 items-center gap-2 rounded-2xl bg-amber-50 px-2 py-2 text-left transition hover:bg-amber-100"
-              >
-                <Icon className="h-4 w-4 shrink-0 text-amber-800" />
-                <span className="min-w-0">
-                  <span className="block text-lg font-black leading-none text-[#4b2d08]">
-                    {value}
-                  </span>
-                  <span className="block text-[9px] font-bold uppercase leading-tight tracking-wide text-[#8a641f]">
-                    {label}
-                  </span>
-                </span>
-              </Element>
-            );
-          })}
         </div>
       </CardContent>
     </Card>
@@ -1210,31 +1154,13 @@ function DashboardTab({
     },
   ].filter((item) => !dismissedNotifications.has(item.id));
   const todayViews = Math.round(stats.last30Days.views / 30);
-  const todayContacts = Math.round(stats.last30Days.contacts / 30);
+  const profileCompletionPercent = getProfileCompletion(dealer, t).percent;
   const vehicleCount = Math.max(
     stats.activeListings,
     stats.perListing.length,
     stats.totalListings,
   );
   const attentionItems = [
-    ...(!dealer.isVerified
-      ? [
-          {
-            id: "dealer-verification",
-            label: t("dealer.dashboard.attentionDealerUnverified"),
-            onClick: () => onFocusSettings("verification"),
-          },
-        ]
-      : []),
-    ...(!dealer.logoUrl
-      ? [
-          {
-            id: "dealer-logo",
-            label: t("dealer.dashboard.attentionLogoMissing"),
-            onClick: () => onFocusSettings("branding"),
-          },
-        ]
-      : []),
     ...stats.perListing
       .filter((item) => !item.photo)
       .slice(0, 2)
@@ -1258,14 +1184,6 @@ function DashboardTab({
   return (
     <div className="space-y-3 sm:space-y-4">
       <DealerInboxBanner t={t} />
-      <DashboardTodayStrip
-        t={t}
-        todayViews={todayViews}
-        todayContacts={todayContacts}
-        vehicleCount={vehicleCount}
-        onOpenMessages={() => navigate("/dealer/messages")}
-        onOpenListings={() => onOpenTab("mylistings")}
-      />
 
       <Card className="rounded-3xl border-amber-100 bg-white/85 shadow-[0_10px_30px_rgba(120,72,12,0.06)]">
         <CardHeader className="pb-2">
@@ -1343,9 +1261,11 @@ function DashboardTab({
         </CardContent>
       </Card>
 
+      {profileCompletionPercent < 100 ? (
+        <DashboardProfileCompletion dealer={dealer} t={t} onProfileTask={onFocusSettings} />
+      ) : null}
+      <DashboardPeriodCompare stats={stats} todayViews={todayViews} t={t} />
       <DashboardAttentionPanel items={attentionItems} t={t} />
-      <DashboardPeriodCompare stats={stats} t={t} />
-      <DashboardProfileCompletion dealer={dealer} t={t} onProfileTask={onFocusSettings} />
 
       <div className="flex justify-center">
         <Button
@@ -1868,9 +1788,11 @@ function DashboardTab({
 function BulkImportTab({
   t,
   onAddVehicle,
+  embedded = false,
 }: {
   t: (key: string) => string;
   onAddVehicle: () => void;
+  embedded?: boolean;
 }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2013,16 +1935,16 @@ function BulkImportTab({
   }, []);
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className={embedded ? "" : "space-y-5 sm:space-y-6"}>
       <Card className={`${premiumSurface} rounded-3xl`}>
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-xl">
-                <Upload className="h-5 w-5 text-amber-700" />
-                {t("dealer.importTitle")}
+                <FileSpreadsheet className="h-5 w-5 text-amber-700" />
+                {t("dealer.importSync.csvTitle")}
               </CardTitle>
-              <CardDescription>{t("dealer.importDescription")}</CardDescription>
+              <CardDescription>{t("dealer.importSync.csvSubtitle")}</CardDescription>
             </div>
             <Button variant="outline" className="gap-2" onClick={downloadTemplate}>
               <Download className="h-4 w-4" />
@@ -2055,6 +1977,7 @@ function BulkImportTab({
           </div>
 
           <div
+            id="dealer-bulk-import-upload"
             className={`group border-2 border-dashed rounded-3xl p-8 text-center cursor-pointer transition-colors ${
               dragActive
                 ? "border-amber-500 bg-amber-50 shadow-inner"
@@ -5041,9 +4964,11 @@ function DealerSettingsTab({
 
 function DashboardPeriodCompare({
   stats,
+  todayViews,
   t,
 }: {
   stats: DealerStats;
+  todayViews: number;
   t: (key: string) => string;
 }) {
   const items: Array<{
@@ -5051,26 +4976,30 @@ function DashboardPeriodCompare({
     value: string | number;
   }> = [
     {
-      label: t("dealer.dashboard.totalViews"),
-      value: displayViews(stats.totalViews),
+      label: t("dealer.dashboard.today"),
+      value: displayViews(todayViews),
     },
     {
-      label: t("dealer.dashboard.monthViews"),
-      value: displayViews(stats.last30Days.views),
-    },
-    {
-      label: t("dealer.dashboard.weekViews"),
+      label: t("dealer.dashboard.weekShort"),
       value: displayViews(Math.round(stats.last30Days.views * 0.42)),
     },
     {
-      label: t("dealer.contacts"),
-      value: stats.totalContacts,
+      label: t("dealer.dashboard.monthShort"),
+      value: displayViews(stats.last30Days.views),
+    },
+    {
+      label: t("dealer.dashboard.totalShort"),
+      value: displayViews(stats.totalViews),
     },
   ];
 
   return (
     <Card className="rounded-3xl border-amber-100 bg-white/80 shadow-[0_10px_30px_rgba(120,72,12,0.06)]">
       <CardContent className="p-2">
+        <div className="mb-1.5 flex items-center gap-2 px-1">
+          <Eye className="h-4 w-4 text-amber-700" />
+          <p className="text-sm font-black text-[#5c3b10]">{t("dealer.totalViews")}</p>
+        </div>
         <div className="grid grid-cols-4 overflow-hidden rounded-2xl bg-[#fffaf0]">
           {items.map(({ label, value }) => (
             <div
@@ -6174,7 +6103,12 @@ export default function DealerPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<DealerTab>("dashboard");
+  const [importSub, setImportSub] = useState<ImportSyncSubTab>("csv");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const openImportSync = useCallback((next: ImportSyncSubTab) => {
+    setImportSub(next);
+    setActiveTab("import");
+  }, []);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget | null>(null);
   const [addVehicleDialogOpen, setAddVehicleDialogOpen] = useState(false);
   const [addVehiclePreference, setAddVehiclePreference] =
@@ -6227,6 +6161,7 @@ export default function DealerPage() {
     localStorage.setItem("nnauto_dealer_add_vehicle_preference", mode);
     setAddVehicleDialogOpen(false);
     if (mode === "bulk") {
+      setImportSub("csv");
       setActiveTab("import");
       window.setTimeout(() => {
         document
@@ -6277,15 +6212,28 @@ export default function DealerPage() {
                 onOpenMessages={() => navigate("/dealer/messages")}
                 onProfileTask={openSettingsTarget}
                 onAddVehicle={openAddVehicleDialog}
+                onOpenImport={openImportSync}
+                onOpenBilling={() => setActiveTab("billing")}
               />
             </div>
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-amber-700 sm:text-sm">
-                  NNAuto Pro
-                </p>
-                <h2 className="text-xl font-black tracking-tight sm:text-2xl">{t("dealer.cabinet")}</h2>
-              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab("dashboard")}
+                className="group flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50/70 px-3 py-1.5 text-left shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 motion-safe:animate-attention"
+                aria-label={t("dealer.cabinet")}
+              >
+                <span className="min-w-0">
+                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-amber-700 sm:text-sm">
+                    NNAuto Pro
+                  </p>
+                  <h2 className="text-xl font-black tracking-tight sm:text-2xl">{t("dealer.cabinet")}</h2>
+                </span>
+                <span className="hidden shrink-0 items-center gap-1 rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 sm:inline-flex">
+                  <MousePointerClick className="h-3 w-3" />
+                  {t("dealer.cabinetHome")}
+                </span>
+              </button>
               <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
                 <DealerMessagesShortcut />
               </div>
@@ -6296,7 +6244,7 @@ export default function DealerPage() {
               className={`grid gap-6 md:items-start 2xl:gap-8 ${
                 sidebarCollapsed
                   ? "md:grid-cols-[96px_minmax(0,1fr)]"
-                  : "md:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]"
+                  : "md:grid-cols-[320px_minmax(0,1fr)] 2xl:grid-cols-[360px_minmax(0,1fr)]"
               }`}
             >
               <DealerCabinetSideNav
@@ -6331,10 +6279,22 @@ export default function DealerPage() {
               <PromotionTab stats={stats} t={t} />
             </TabsContent>
             <TabsContent value="import" className="mt-0">
-              <BulkImportTab t={t} onAddVehicle={openAddVehicleDialog} />
+              <ImportSyncTab
+                dealer={dealer}
+                t={t}
+                onAddVehicle={openAddVehicleDialog}
+                sub={importSub}
+                onSubChange={setImportSub}
+              />
             </TabsContent>
             <TabsContent value="integrace" className="mt-0">
-              <IntegraceTab dealer={dealer} t={t} />
+              <ImportSyncTab
+                dealer={dealer}
+                t={t}
+                onAddVehicle={openAddVehicleDialog}
+                sub={importSub === "csv" ? "xml" : importSub}
+                onSubChange={setImportSub}
+              />
             </TabsContent>
             <TabsContent value="leady" className="mt-0">
               <LeadyTab dealer={dealer} t={t} />
@@ -6435,7 +6395,7 @@ export default function DealerPage() {
 // backend endpoints, cron sync and webhook dispatcher are implemented.
 // ---------------------------------------------------------------------------
 
-type IntegraceSubTab = "xml" | "api" | "webhooks" | "wordpress";
+type ImportSyncSubTab = "csv" | "xml" | "api" | "wordpress" | "webhooks";
 
 type IntegraceState = {
   xmlUrl: string;
@@ -6490,10 +6450,34 @@ function methodBadgeClass(method: string): string {
   }
 }
 
-function IntegraceTab({ dealer, t }: { dealer: Dealer; t: (key: string) => string }) {
+function ImportSyncInfoBlock({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
+      <p className="flex items-center gap-2 text-sm font-bold text-sky-900">
+        <HelpCircle className="h-4 w-4 text-sky-600" />
+        {title}
+      </p>
+      <p className="mt-1 text-sm text-sky-800/90">{text}</p>
+    </div>
+  );
+}
+
+function ImportSyncTab({
+  dealer,
+  t,
+  onAddVehicle,
+  sub,
+  onSubChange,
+}: {
+  dealer: Dealer;
+  t: (key: string) => string;
+  onAddVehicle: () => void;
+  sub: ImportSyncSubTab;
+  onSubChange: (next: ImportSyncSubTab) => void;
+}) {
   const { toast } = useToast();
   const storageKey = `nnauto_dealer_integrace_${dealer.id}`;
-  const [sub, setSub] = useState<IntegraceSubTab>("xml");
+  const setSub = onSubChange;
   const [state, setState] = useState<IntegraceState>({
     xmlUrl: "",
     xmlSavedUrl: "",
@@ -6536,11 +6520,12 @@ function IntegraceTab({ dealer, t }: { dealer: Dealer; t: (key: string) => strin
     [storageKey],
   );
 
-  const subTabs: Array<{ id: IntegraceSubTab; label: string; Icon: typeof Link2 }> = [
-    { id: "xml", label: "XML Feed", Icon: FileSpreadsheet },
+  const subTabs: Array<{ id: ImportSyncSubTab; label: string; Icon: typeof Link2 }> = [
+    { id: "csv", label: "CSV Import", Icon: FileSpreadsheet },
+    { id: "xml", label: "XML Feed", Icon: RotateCcw },
     { id: "api", label: "API", Icon: Lock },
-    { id: "webhooks", label: "Webhooks", Icon: Zap },
     { id: "wordpress", label: "WordPress", Icon: MonitorSmartphone },
+    { id: "webhooks", label: "Webhooks", Icon: Zap },
   ];
 
   const handleVerifyXml = () => {
@@ -6622,12 +6607,10 @@ function IntegraceTab({ dealer, t }: { dealer: Dealer; t: (key: string) => strin
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-2xl">
-                <Link2 className="h-5 w-5 text-amber-700" />
-                {t("dealer.nav.integrace")}
+                <RotateCcw className="h-5 w-5 text-amber-700" />
+                {t("dealer.importSync.title")}
               </CardTitle>
-              <CardDescription>
-                Propojte svůj sklad vozidel s NNAuto přes XML feed, API nebo webhooky.
-              </CardDescription>
+              <CardDescription>{t("dealer.importSync.description")}</CardDescription>
             </div>
             <Badge variant="outline" className="w-fit rounded-full border-amber-200 bg-amber-50 text-amber-800">
               NNAuto Pro
@@ -6635,16 +6618,16 @@ function IntegraceTab({ dealer, t }: { dealer: Dealer; t: (key: string) => strin
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex w-full gap-1 overflow-x-auto rounded-2xl bg-amber-50/70 p-1">
             {subTabs.map(({ id, label, Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setSub(id)}
-                className={`inline-flex items-center gap-2 rounded-2xl border px-4 py-2 text-sm font-bold transition ${
+                className={`inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-bold transition ${
                   sub === id
-                    ? "border-amber-300 bg-amber-50 text-[#5c3b10]"
-                    : "border-transparent bg-white text-muted-foreground hover:border-amber-100 hover:bg-amber-50 hover:text-[#5c3b10]"
+                    ? "bg-[#6f4c17] text-white shadow-sm"
+                    : "text-[#8a641f] hover:bg-white/70 hover:text-[#5c3b10]"
                 }`}
               >
                 <Icon className="h-4 w-4" />
@@ -6655,16 +6638,21 @@ function IntegraceTab({ dealer, t }: { dealer: Dealer; t: (key: string) => strin
         </CardContent>
       </Card>
 
+      {sub === "csv" ? <BulkImportTab t={t} onAddVehicle={onAddVehicle} embedded /> : null}
+
       {sub === "xml" ? (
         <Card className={`${premiumSurface} rounded-3xl`}>
           <CardHeader>
             <CardTitle className="text-lg">XML Feed</CardTitle>
             <CardDescription>
-              Vložte adresu XML feedu z vašeho webu. Systém bude automaticky vytvářet nová
-              inzeráty, aktualizovat existující a deaktivovat prodaná vozidla.
+              {t("dealer.importSync.xmlSubtitle")}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            <ImportSyncInfoBlock
+              title={t("dealer.importSync.fitTitle")}
+              text={t("dealer.importSync.xmlFit")}
+            />
             <div className="space-y-2">
               <Label htmlFor="integrace-xml-url">XML URL</Label>
               <Input
@@ -6720,13 +6708,14 @@ function IntegraceTab({ dealer, t }: { dealer: Dealer; t: (key: string) => strin
       {sub === "api" ? (
         <Card className={`${premiumSurface} rounded-3xl`}>
           <CardHeader>
-            <CardTitle className="text-lg">API integrace</CardTitle>
-            <CardDescription>
-              Spravujte vozidla programově. Autentizace probíhá přes Bearer Token v hlavičce
-              <code className="mx-1 rounded bg-amber-50 px-1.5 py-0.5 text-xs">Authorization</code>.
-            </CardDescription>
+            <CardTitle className="text-lg">API</CardTitle>
+            <CardDescription>{t("dealer.importSync.apiSubtitle")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
+            <ImportSyncInfoBlock
+              title={t("dealer.importSync.fitTitle")}
+              text={t("dealer.importSync.apiFit")}
+            />
             <div className="space-y-2">
               <Label>API Key</Label>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -7437,17 +7426,39 @@ function DealerCabinetSideNav({
     },
     {
       id: "import",
-      Icon: Upload,
-      label: t("dealer.bulkImport"),
-      hint: "CSV / XML",
+      Icon: RotateCcw,
+      label: t("dealer.nav.importSync"),
+      hint: t("dealer.nav.importSyncHint"),
       section: "Inzeráty",
     },
+    // — Účet —
     {
-      id: "integrace",
-      Icon: Link2,
-      label: t("dealer.nav.integrace"),
-      hint: t("dealer.nav.integraceHint"),
-      section: "Inzeráty",
+      id: "settings",
+      Icon: Building2,
+      label: t("dealer.nav.dealerProfile"),
+      hint: t("dealer.nav.dealerProfileHint"),
+      section: "Účet",
+    },
+    {
+      id: "billing",
+      Icon: CreditCard,
+      label: t("dealer.billing.tab"),
+      hint: t("dealer.billing.subtitle"),
+      section: "Účet",
+    },
+    {
+      id: "dashboard",
+      Icon: BarChart3,
+      label: t("dealer.nav.statistika"),
+      hint: t("dealer.nav.statistikaHint"),
+      section: "Účet",
+    },
+    {
+      id: "reviews",
+      Icon: Star,
+      label: t("dealer.reviews.tab"),
+      hint: t("dealer.reviews.subtitle"),
+      section: "Účet",
     },
     // — Komunikace —
     {
@@ -7486,35 +7497,6 @@ function DealerCabinetSideNav({
       hint: t("dealer.premium.previewPublicProfile"),
       section: "Marketing & prezentace",
     },
-    // — Účet —
-    {
-      id: "settings",
-      Icon: Building2,
-      label: t("dealer.nav.dealerProfile"),
-      hint: t("dealer.nav.dealerProfileHint"),
-      section: "Účet",
-    },
-    {
-      id: "dashboard",
-      Icon: BarChart3,
-      label: t("dealer.nav.statistika"),
-      hint: t("dealer.nav.statistikaHint"),
-      section: "Účet",
-    },
-    {
-      id: "billing",
-      Icon: CreditCard,
-      label: t("dealer.billing.tab"),
-      hint: t("dealer.billing.subtitle"),
-      section: "Účet",
-    },
-    {
-      id: "reviews",
-      Icon: Star,
-      label: t("dealer.reviews.tab"),
-      hint: t("dealer.reviews.subtitle"),
-      section: "Účet",
-    },
   ];
 
   const handleMenuClick = (id: DealerTab | "messages" | "publicProfile") => {
@@ -7548,12 +7530,17 @@ function DealerCabinetSideNav({
 
       <div className={`mb-4 flex items-center gap-2 ${collapsed ? "justify-center" : "justify-between px-2"}`}>
         {!collapsed && (
-          <div>
+          <button
+            type="button"
+            onClick={() => onSelect("dashboard")}
+            className="-mx-2 rounded-2xl px-2 py-1 text-left transition hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+            aria-label={t("dealer.cabinet")}
+          >
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#8a641f]">
               NNAuto Pro
             </p>
             <p className="text-sm text-muted-foreground">{t("dealer.cabinet")}</p>
-          </div>
+          </button>
         )}
         <button
           type="button"
@@ -7664,8 +7651,7 @@ function DealerMobileNav({
     hint: string;
     section: string;
   }> = [
-    { id: "import", label: t("dealer.bulkImport"), Icon: Upload, hint: "CSV/XML", section: "Inzeráty" },
-    { id: "integrace", label: t("dealer.nav.integrace"), Icon: Link2, hint: t("dealer.nav.integraceHint"), section: "Inzeráty" },
+    { id: "import", label: t("dealer.nav.importSync"), Icon: RotateCcw, hint: t("dealer.nav.importSyncHint"), section: "Inzeráty" },
     { id: "leady", label: t("dealer.nav.leady"), Icon: Users, hint: t("dealer.nav.leadyHint"), section: "Komunikace" },
     { id: "promotion", label: t("dealer.promo.tab"), Icon: Rocket, hint: "TOP / VIP", section: "Marketing & prezentace" },
     { id: "microsite", label: t("dealer.microsite.tab"), Icon: MonitorSmartphone, hint: t("dealer.microsite.subtitle"), section: "Marketing & prezentace" },

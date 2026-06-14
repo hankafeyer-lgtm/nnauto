@@ -105,11 +105,22 @@ export default {
           "0%, 100%": { transform: "rotate(-6deg)" },
           "50%": { transform: "rotate(8deg)" },
         },
+        "attention-glow": {
+          "0%, 100%": {
+            boxShadow: "0 0 0 0 rgba(245,158,11,0)",
+            borderColor: "rgba(245,158,11,0.35)",
+          },
+          "50%": {
+            boxShadow: "0 0 0 5px rgba(245,158,11,0.28)",
+            borderColor: "rgba(245,158,11,0.9)",
+          },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         wiggle: "wiggle 1.2s ease-in-out infinite",
+        attention: "attention-glow 1.8s ease-in-out infinite",
       },
     },
   },
