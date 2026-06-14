@@ -14,7 +14,6 @@ import {
   PublicHeroPhoto,
   PublicReviewsBlock,
   PublicSocialLinks,
-  PublicTodayHoursChip,
   PublicWorkingHoursAccordion,
 } from "./public-dealer-settings";
 import PublicHeader from "./public-header";
@@ -99,20 +98,6 @@ export default async function PublicDealerProfile({ params }: PageProps) {
                   </p>
                 </div>
               </div>
-              <a
-                href="#inventory"
-                className="inline-flex h-9 shrink-0 items-center justify-center rounded-xl bg-white px-5 text-xs font-black text-amber-900 shadow-xl transition hover:bg-amber-50 sm:h-9 sm:rounded-xl sm:text-[13px]"
-              >
-                Prohlédnout nabídku
-              </a>
-            </div>
-
-            <div className="relative mt-2.5 grid grid-cols-2 gap-2 sm:mt-2 sm:max-w-sm">
-              <div className="rounded-xl bg-white/12 px-3 py-1.5 ring-1 ring-white/15 sm:py-1">
-                <p className="text-lg font-black leading-none sm:text-base">{dealerListings.length}</p>
-                <p className="mt-0.5 text-[10px] font-semibold text-amber-50/75">Aktivních vozů</p>
-              </div>
-              <PublicTodayHoursChip dealerId={dealer.id} />
             </div>
           </div>
 
