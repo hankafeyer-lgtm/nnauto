@@ -1939,22 +1939,22 @@ function BulkImportTab({
   return (
     <div className={embedded ? "" : "space-y-5 sm:space-y-6"}>
       <Card className={`${premiumSurface} rounded-3xl`}>
-        <CardHeader>
+        <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2 text-xl">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
                 <FileSpreadsheet className="h-5 w-5 text-amber-700" />
                 {t("dealer.importSync.csvTitle")}
               </CardTitle>
               <CardDescription>{t("dealer.importSync.csvSubtitle")}</CardDescription>
             </div>
-            <Button variant="outline" className="gap-2" onClick={downloadTemplate}>
+            <Button variant="outline" className="w-full gap-2 sm:w-auto" onClick={downloadTemplate}>
               <Download className="h-4 w-4" />
               {t("dealer.premium.downloadTemplate")}
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-4 p-4 pt-0 sm:space-y-5 sm:p-6 sm:pt-0">
           <div className="grid gap-2 sm:grid-cols-4">
             {[
               [1, t("dealer.premium.importStepUpload")],
@@ -7337,13 +7337,13 @@ function ImportSyncTab({
 
       {sub === "xml" ? (
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
+          <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
             <CardTitle className="text-lg">XML Feed</CardTitle>
             <CardDescription>
               {t("dealer.importSync.xmlSubtitle")}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-4 p-4 pt-0 sm:space-y-5 sm:p-6 sm:pt-0">
             <ImportSyncInfoBlock
               title={t("dealer.importSync.fitTitle")}
               text={t("dealer.importSync.xmlFit")}
@@ -7402,11 +7402,11 @@ function ImportSyncTab({
 
       {sub === "api" ? (
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
+          <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
             <CardTitle className="text-lg">API</CardTitle>
             <CardDescription>{t("dealer.importSync.apiSubtitle")}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-4 p-4 pt-0 sm:space-y-5 sm:p-6 sm:pt-0">
             <ImportSyncInfoBlock
               title={t("dealer.importSync.fitTitle")}
               text={t("dealer.importSync.apiFit")}
@@ -7465,13 +7465,13 @@ function ImportSyncTab({
 
       {sub === "webhooks" ? (
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
+          <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
             <CardTitle className="text-lg">Webhooks</CardTitle>
             <CardDescription>
               Připojte vlastní webhook URL a přijímejte události o změnách vozidel v reálném čase.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-4 p-4 pt-0 sm:space-y-5 sm:p-6 sm:pt-0">
             <div className="space-y-2">
               <Label htmlFor="integrace-webhook-url">Webhook URL</Label>
               <Input
@@ -7516,7 +7516,7 @@ function ImportSyncTab({
 
       {sub === "wordpress" ? (
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardContent className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+          <CardContent className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center sm:py-14">
             <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-100 text-amber-800">
               <MonitorSmartphone className="h-8 w-8" />
             </div>
