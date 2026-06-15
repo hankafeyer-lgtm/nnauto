@@ -347,6 +347,11 @@ type DealerLocalSettings = {
       status: "paid" | "pending" | "failed";
       description: string;
     }>;
+    activePackage: {
+      id: string;
+      activatedISO: string;
+      expiresISO: string;
+    } | null;
   };
 };
 
@@ -596,6 +601,7 @@ const createDefaultDealerLocalSettings = (dealer?: Dealer): DealerLocalSettings 
     paymentLast4: "",
     paymentExpires: "",
     invoices: [],
+    activePackage: null,
   },
 });
 
@@ -6444,6 +6450,49 @@ function BillingTab({
     toast({ title: t("dealer.billing.topUpSuccess") });
   };
 
+  // Annual vehicle packages: higher volume -> lower price per vehicle.
+  const vehiclePackages: Array<{
+    id: string;
+    nameKey: string;
+    cars: number;
+    pricePerCar: number;
+    popular?: boolean;
+  }> = [
+    { id: "start", nameKey: "dealer.billing.packageStart", cars: 250, pricePerCar: 25 },
+    { id: "business", nameKey: "dealer.billing.packageBusiness", cars: 500, pricePerCar: 20, popular: true },
+    { id: "pro", nameKey: "dealer.billing.packagePro", cars: 1000, pricePerCar: 15 },
+  ];
+
+  const activatePackage = (pkg: (typeof vehiclePackages)[number]) => {
+    const total = pkg.cars * pkg.pricePerCar;
+    const activatedISO = new Date().toISOString();
+    const expires = new Date();
+    expires.setFullYear(expires.getFullYear() + 1);
+    const expiresISO = expires.toISOString();
+    update((prev) => ({
+      ...prev,
+      billing: {
+        ...prev.billing,
+        activePackage: { id: pkg.id, activatedISO, expiresISO },
+        invoices: [
+          {
+            id: `inv-${Date.now()}`,
+            number: `2026-P-${String(prev.billing.invoices.length + 1).padStart(4, "0")}`,
+            dateISO: activatedISO,
+            amountKc: total,
+            status: "paid",
+            description: `${t("dealer.billing.packageInvoiceLine")}: ${t(pkg.nameKey)} (${pkg.cars} ${t("dealer.billing.carsUnit")})`,
+          },
+          ...prev.billing.invoices,
+        ],
+      },
+    }));
+    toast({
+      title: t("dealer.billing.packageActivated"),
+      description: `${t(pkg.nameKey)} · ${t("dealer.billing.activeUntil")} ${expires.toLocaleDateString("cs-CZ")}`,
+    });
+  };
+
   return (
     <div className="space-y-5">
       <Card className={`${premiumSurface} rounded-3xl overflow-hidden`}>
@@ -6605,6 +6654,84 @@ function BillingTab({
           </CardContent>
         </Card>
       </div>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Crown className="h-5 w-5 text-amber-700" />
+            {t("dealer.billing.packagesTitle")}
+          </CardTitle>
+          <CardDescription>{t("dealer.billing.packagesDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
+            {vehiclePackages.map((pkg) => {
+              const total = pkg.cars * pkg.pricePerCar;
+              const isActive = billing.activePackage?.id === pkg.id;
+              return (
+                <div
+                  key={pkg.id}
+                  className={`relative flex flex-col rounded-3xl border p-5 transition-all duration-200 ${
+                    pkg.popular
+                      ? "border-amber-300 bg-amber-50/50 shadow-[0_18px_55px_rgba(120,72,12,0.12)]"
+                      : "border-amber-100 bg-white"
+                  } ${isActive ? "ring-2 ring-amber-500 ring-offset-2" : "hover:-translate-y-0.5 hover:shadow-[0_22px_70px_rgba(120,72,12,0.12)]"}`}
+                >
+                  {pkg.popular && !isActive && (
+                    <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-amber-700 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white shadow-sm">
+                      <Sparkles className="h-3 w-3" />
+                      {t("dealer.billing.mostPopular")}
+                    </span>
+                  )}
+                  {isActive && (
+                    <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white shadow-sm">
+                      <CheckCircle2 className="h-3 w-3" />
+                      {t("dealer.billing.packageActive")}
+                    </span>
+                  )}
+
+                  <p className="text-sm font-black uppercase tracking-wide text-amber-800">{t(pkg.nameKey)}</p>
+
+                  <div className="mt-3 flex items-end gap-1">
+                    <span className="text-3xl font-black text-[#5c3b10]">{formatKc(total)}</span>
+                    <span className="mb-1 text-xs font-semibold text-muted-foreground">/ {t("dealer.billing.perYear")}</span>
+                  </div>
+
+                  <div className="mt-3 space-y-2 text-sm">
+                    <p className="flex items-center gap-2 text-[#5c3b10]">
+                      <Car className="h-4 w-4 text-amber-700" />
+                      <span><span className="font-black">{pkg.cars}</span> {t("dealer.billing.carsUnit")}</span>
+                    </p>
+                    <p className="flex items-center gap-2 text-[#5c3b10]">
+                      <Wallet className="h-4 w-4 text-amber-700" />
+                      <span><span className="font-black">{formatKc(pkg.pricePerCar)}</span> / {t("dealer.billing.perCar")}</span>
+                    </p>
+                    <p className="flex items-center gap-2 text-emerald-700">
+                      <CalendarDays className="h-4 w-4" />
+                      {t("dealer.billing.activeOneYear")}
+                    </p>
+                  </div>
+
+                  {isActive && billing.activePackage ? (
+                    <Button disabled className="mt-5 w-full rounded-2xl bg-emerald-600 text-white hover:bg-emerald-600">
+                      <Check className="mr-2 h-4 w-4" />
+                      {t("dealer.billing.activeUntil")} {new Date(billing.activePackage.expiresISO).toLocaleDateString("cs-CZ")}
+                    </Button>
+                  ) : (
+                    <Button
+                      className={`mt-5 w-full rounded-2xl ${pkg.popular ? "bg-amber-700 hover:bg-amber-800" : "bg-[#6f4c17] hover:bg-[#5c3b10]"}`}
+                      onClick={() => activatePackage(pkg)}
+                    >
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      {t("dealer.billing.choosePackage")}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card className={`${premiumSurface} rounded-3xl`}>
         <CardHeader>
