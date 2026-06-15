@@ -14,7 +14,7 @@ import type { Listing } from "@shared/schema";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, parseApiError } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link, useLocation } from "@/lib/navigation";
 import { useDealerUnreadNotifier } from "@/hooks/useDealerUnreadNotifier";
@@ -192,7 +192,7 @@ type DealerTab =
   | "reviews"
   | "microsite"
   | "billing";
-type DealerProfileSubTab = "info" | "web";
+type DealerProfileSubTab = "info" | "web" | "account";
 type SettingsTarget =
   | "companyName"
   | "description"
@@ -4045,27 +4045,38 @@ function DealerProfileTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusTarget]);
 
-  const tabs: Array<{ id: DealerProfileSubTab; label: string }> = [
-    { id: "info", label: t("dealer.profileTab.info") },
-    { id: "web", label: t("dealer.profileTab.web") },
+  const tabs: Array<{
+    id: DealerProfileSubTab;
+    label: string;
+    shortLabel: string;
+    Icon: typeof Building2;
+  }> = [
+    { id: "info", label: t("dealer.profileTab.info"), shortLabel: t("dealer.profileTab.infoShort"), Icon: Building2 },
+    { id: "web", label: t("dealer.profileTab.web"), shortLabel: t("dealer.profileTab.webShort"), Icon: MonitorSmartphone },
+    { id: "account", label: t("dealer.profileTab.account"), shortLabel: t("dealer.profileTab.accountShort"), Icon: Shield },
   ];
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 overflow-x-auto rounded-2xl bg-amber-50/70 p-1">
+      {/* Segmented tab switcher. Mobile: equal-width pills with short labels
+          stacked under the icon so it's obviously a tappable switcher.
+          Desktop (sm+): full labels next to the icon. */}
+      <div className="grid grid-cols-3 gap-1 rounded-2xl bg-amber-50/70 p-1 sm:flex sm:gap-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => onSubTabChange(tab.id)}
-            className={`inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-bold transition sm:flex-none sm:px-6 ${
+            aria-pressed={subTab === tab.id}
+            className={`inline-flex flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition sm:flex-none sm:flex-row sm:gap-2 sm:px-6 sm:text-sm ${
               subTab === tab.id
                 ? "bg-[#6f4c17] text-white shadow-sm"
                 : "text-[#8a641f] hover:bg-white/70 hover:text-[#5c3b10]"
             }`}
           >
-            {tab.id === "info" ? <Building2 className="h-4 w-4" /> : <MonitorSmartphone className="h-4 w-4" />}
-            {tab.label}
+            <tab.Icon className="h-4 w-4 shrink-0" />
+            <span className="sm:hidden">{tab.shortLabel}</span>
+            <span className="hidden sm:inline">{tab.label}</span>
           </button>
         ))}
       </div>
@@ -4077,9 +4088,246 @@ function DealerProfileTab({
           focusTarget={focusTarget}
           onFocusHandled={onFocusHandled}
         />
-      ) : (
+      ) : subTab === "web" ? (
         <MicrositeTab dealer={dealer} t={t} />
+      ) : (
+        <DealerAccountTab t={t} />
       )}
+    </div>
+  );
+}
+
+function DealerAccountTab({ t }: { t: (key: string) => string }) {
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  const [pwd, setPwd] = useState({ current: "", next: "", confirm: "", show: false });
+  const [email, setEmail] = useState({ next: "", code: "", stage: "idle" as "idle" | "code" });
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error("Unauthorized");
+      const res = await apiRequest("POST", `/api/users/${user.id}/change-password`, {
+        currentPassword: pwd.current,
+        newPassword: pwd.next,
+        confirmNewPassword: pwd.confirm,
+      });
+      return res.json();
+    },
+    onSuccess: async () => {
+      setPwd({ current: "", next: "", confirm: "", show: false });
+      toast({ title: t("dealer.account.passwordChanged"), description: t("dealer.account.passwordChangedHint") });
+      await logout();
+      navigate("/");
+    },
+    onError: (err: unknown) => {
+      toast({ variant: "destructive", title: t("dealer.account.passwordError"), description: parseApiError(err).message });
+    },
+  });
+
+  const requestEmailMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/request-email-change", { newEmail: email.next.trim() });
+      return res.json();
+    },
+    onSuccess: () => {
+      setEmail((prev) => ({ ...prev, stage: "code" }));
+      toast({ title: t("dealer.account.codeSent"), description: t("dealer.account.codeSentHint") });
+    },
+    onError: (err: unknown) => {
+      toast({ variant: "destructive", title: t("dealer.account.emailError"), description: parseApiError(err).message });
+    },
+  });
+
+  const confirmEmailMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/confirm-email-change", { code: email.code.trim() });
+      return res.json();
+    },
+    onSuccess: (data: { user?: { id: string } }) => {
+      try {
+        if (data?.user) {
+          localStorage.setItem("nnauto_user", JSON.stringify(data.user));
+        }
+      } catch {}
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      setEmail({ next: "", code: "", stage: "idle" });
+      toast({ title: t("dealer.account.emailChanged"), description: t("dealer.account.emailChangedHint") });
+    },
+    onError: (err: unknown) => {
+      toast({ variant: "destructive", title: t("dealer.account.emailError"), description: parseApiError(err).message });
+    },
+  });
+
+  const forgotPasswordMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/forgot-password", {
+        email: user?.email,
+        turnstileToken: "__client_fallback__",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: t("dealer.account.resetLinkSent"), description: t("dealer.account.resetLinkSentHint") });
+    },
+    onError: () => {
+      toast({ title: t("dealer.account.resetLinkSent"), description: t("dealer.account.resetLinkSentHint") });
+    },
+  });
+
+  const pwdValid =
+    pwd.current.length > 0 && pwd.next.length >= 6 && pwd.next === pwd.confirm;
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card className="rounded-3xl border-amber-100/80 shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Lock className="h-5 w-5 text-amber-700" />
+            {t("dealer.account.passwordTitle")}
+          </CardTitle>
+          <CardDescription>{t("dealer.account.passwordDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[
+            ["current", t("dealer.account.currentPassword")],
+            ["next", t("dealer.account.newPassword")],
+            ["confirm", t("dealer.account.confirmPassword")],
+          ].map(([key, label]) => (
+            <div key={key} className="space-y-1.5">
+              <Label>{label}</Label>
+              <div className="relative">
+                <Input
+                  type={pwd.show ? "text" : "password"}
+                  value={pwd[key as "current" | "next" | "confirm"]}
+                  onChange={(e) => setPwd((prev) => ({ ...prev, [key]: e.target.value }))}
+                  className="pr-10"
+                  autoComplete={key === "current" ? "current-password" : "new-password"}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  onClick={() => setPwd((prev) => ({ ...prev, show: !prev.show }))}
+                  aria-label={pwd.show ? t("dealer.account.hide") : t("dealer.account.show")}
+                >
+                  {pwd.show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          ))}
+          {pwd.next.length > 0 && pwd.next.length < 6 && (
+            <p className="text-xs text-destructive">{t("dealer.account.passwordTooShort")}</p>
+          )}
+          {pwd.confirm.length > 0 && pwd.next !== pwd.confirm && (
+            <p className="text-xs text-destructive">{t("dealer.account.passwordsDoNotMatch")}</p>
+          )}
+          <Button
+            type="button"
+            className="w-full bg-amber-700 hover:bg-amber-800"
+            disabled={!pwdValid || changePasswordMutation.isPending}
+            onClick={() => changePasswordMutation.mutate()}
+          >
+            {changePasswordMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            {t("dealer.account.savePassword")}
+          </Button>
+          <button
+            type="button"
+            className="w-full text-center text-xs font-medium text-amber-700 underline-offset-2 hover:underline disabled:opacity-60"
+            disabled={!user?.email || forgotPasswordMutation.isPending}
+            onClick={() => forgotPasswordMutation.mutate()}
+          >
+            {t("dealer.account.forgotPassword")}
+          </button>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-3xl border-amber-100/80 shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Mail className="h-5 w-5 text-amber-700" />
+            {t("dealer.account.emailTitle")}
+          </CardTitle>
+          <CardDescription>{t("dealer.account.emailDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="rounded-2xl bg-amber-50/70 px-3 py-2 text-sm">
+            <span className="text-muted-foreground">{t("dealer.account.currentEmail")}: </span>
+            <span className="font-semibold text-[#5c3b10]">{user?.email || "—"}</span>
+          </div>
+          {email.stage === "idle" ? (
+            <>
+              <div className="space-y-1.5">
+                <Label>{t("dealer.account.newEmail")}</Label>
+                <Input
+                  type="email"
+                  value={email.next}
+                  onChange={(e) => setEmail((prev) => ({ ...prev, next: e.target.value }))}
+                  placeholder="new@email.com"
+                  autoComplete="email"
+                />
+              </div>
+              <Button
+                type="button"
+                className="w-full bg-amber-700 hover:bg-amber-800"
+                disabled={!/^\S+@\S+\.\S+$/.test(email.next.trim()) || requestEmailMutation.isPending}
+                onClick={() => requestEmailMutation.mutate()}
+              >
+                {requestEmailMutation.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Mail className="mr-2 h-4 w-4" />
+                )}
+                {t("dealer.account.sendCode")}
+              </Button>
+            </>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label>{t("dealer.account.verificationCode")}</Label>
+                <Input
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={email.code}
+                  onChange={(e) => setEmail((prev) => ({ ...prev, code: e.target.value.replace(/\D/g, "") }))}
+                  placeholder="000000"
+                  className="text-center text-lg font-bold tracking-[0.4em]"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("dealer.account.codeSentTo")} <span className="font-semibold">{email.next}</span>
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setEmail({ next: "", code: "", stage: "idle" })}
+                >
+                  {t("dealer.account.cancel")}
+                </Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-amber-700 hover:bg-amber-800"
+                  disabled={email.code.length !== 6 || confirmEmailMutation.isPending}
+                  onClick={() => confirmEmailMutation.mutate()}
+                >
+                  {confirmEmailMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="mr-2 h-4 w-4" />
+                  )}
+                  {t("dealer.account.confirm")}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
