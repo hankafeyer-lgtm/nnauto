@@ -7281,7 +7281,7 @@ function ImportSyncTab({
                         type="button"
                         onClick={() => setSub(id)}
                         aria-pressed={active}
-                        className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all duration-200 active:scale-[0.98] ${
+                        className={`flex items-start gap-2 rounded-xl border p-2.5 text-left transition-all duration-200 active:scale-[0.98] ${
                           active
                             ? "border-transparent bg-[#6f4c17] text-white shadow-md shadow-amber-900/20"
                             : "border-amber-100 bg-white text-[#5c3b10] hover:border-amber-300 hover:bg-amber-50/60"
@@ -7295,8 +7295,8 @@ function ImportSyncTab({
                           <Icon className="h-4 w-4" />
                         </span>
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[13px] font-bold leading-tight">{label}</span>
-                          <span className={`block truncate text-[10px] leading-tight ${active ? "text-amber-50/80" : "text-muted-foreground"}`}>
+                          <span className="block text-[13px] font-bold leading-tight">{label}</span>
+                          <span className={`mt-0.5 block text-[10px] leading-tight ${active ? "text-amber-50/80" : "text-muted-foreground"}`}>
                             {tag}
                           </span>
                         </span>
