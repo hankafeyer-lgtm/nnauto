@@ -7156,12 +7156,12 @@ function ImportSyncTab({
     [storageKey],
   );
 
-  const subTabs: Array<{ id: ImportSyncSubTab; label: string; Icon: typeof Link2 }> = [
-    { id: "csv", label: "CSV Import", Icon: FileSpreadsheet },
-    { id: "xml", label: "XML Feed", Icon: RotateCcw },
-    { id: "api", label: "API", Icon: Lock },
-    { id: "wordpress", label: "WordPress", Icon: MonitorSmartphone },
-    { id: "webhooks", label: "Webhooks", Icon: Zap },
+  const subTabs: Array<{ id: ImportSyncSubTab; label: string; shortLabel: string; Icon: typeof Link2 }> = [
+    { id: "csv", label: "CSV Import", shortLabel: "CSV", Icon: FileSpreadsheet },
+    { id: "xml", label: "XML Feed", shortLabel: "XML", Icon: RotateCcw },
+    { id: "api", label: "API", shortLabel: "API", Icon: Lock },
+    { id: "wordpress", label: "WordPress", shortLabel: "WordPress", Icon: MonitorSmartphone },
+    { id: "webhooks", label: "Webhooks", shortLabel: "Webhooks", Icon: Zap },
   ];
 
   const handleVerifyXml = () => {
@@ -7254,20 +7254,24 @@ function ImportSyncTab({
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex w-full gap-1 overflow-x-auto rounded-2xl bg-amber-50/70 p-1">
-            {subTabs.map(({ id, label, Icon }) => (
+          {/* Mobile: 3-col grid so all 5 channels are visible at once (no
+              horizontal scrolling). Desktop (sm+): single row of full labels. */}
+          <div className="grid w-full grid-cols-3 gap-1 rounded-2xl bg-amber-50/70 p-1 sm:flex">
+            {subTabs.map(({ id, label, shortLabel, Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setSub(id)}
-                className={`inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-bold transition ${
+                aria-pressed={sub === id}
+                className={`inline-flex flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition sm:flex-1 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
                   sub === id
                     ? "bg-[#6f4c17] text-white shadow-sm"
                     : "text-[#8a641f] hover:bg-white/70 hover:text-[#5c3b10]"
                 }`}
               >
-                <Icon className="h-4 w-4" />
-                {label}
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="sm:hidden">{shortLabel}</span>
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>
