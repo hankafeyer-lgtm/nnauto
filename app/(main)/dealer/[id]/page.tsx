@@ -18,6 +18,7 @@ import {
 } from "./public-dealer-settings";
 import PublicHeader from "./public-header";
 import DealerContactWrite from "./dealer-contact-write";
+import BackToCabinetButton from "./back-to-cabinet-button";
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -67,11 +68,12 @@ export default async function PublicDealerProfile({ params }: PageProps) {
     <main className="min-h-screen bg-gradient-to-b from-amber-50/60 via-background to-background">
       <PublicHeader />
       <section className="mx-auto max-w-7xl space-y-4 px-3 pb-24 pt-4 sm:space-y-6 sm:px-4 sm:py-10">
+        <BackToCabinetButton ownerId={dealer.ownerId} />
         <PublicHeroPhoto dealerId={dealer.id} alt={dealer.companyName} />
         <div className="overflow-hidden rounded-[1.75rem] border border-amber-200 bg-white shadow-[0_18px_60px_rgba(120,72,12,0.12)] sm:rounded-[2rem] sm:shadow-[0_24px_90px_rgba(120,72,12,0.12)]">
           <div className="relative overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(246,220,148,0.28),transparent_34%),linear-gradient(135deg,#171006_0%,#33220c_48%,#6f4c17_100%)] px-3.5 py-3.5 text-white sm:px-5 sm:py-3">
             <div className="absolute -right-20 -top-20 h-44 w-44 rounded-full bg-amber-100/10 blur-3xl sm:h-40 sm:w-40" />
-            <div className="relative flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+            <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
               <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/25 bg-white text-base font-black text-amber-900 shadow-xl sm:h-11 sm:w-11 sm:text-sm">
                   {dealer.logoUrl ? (

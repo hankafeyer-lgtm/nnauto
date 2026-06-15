@@ -183,6 +183,7 @@ type ProfileTask = {
 type DealerTab =
   | "dashboard"
   | "mylistings"
+  | "topovani"
   | "promotion"
   | "import"
   | "integrace"
@@ -191,6 +192,7 @@ type DealerTab =
   | "reviews"
   | "microsite"
   | "billing";
+type DealerProfileSubTab = "info" | "web";
 type SettingsTarget =
   | "companyName"
   | "description"
@@ -2470,7 +2472,7 @@ function MyListingsTab({
               <h2 className="text-xl font-black tracking-tight">{t("dealer.premium.inventoryTitle")}</h2>
               <p className="text-sm text-muted-foreground">{t("dealer.premium.inventorySubtitle")}</p>
             </div>
-            <Button className="h-11 gap-2 bg-amber-700 hover:bg-amber-800" onClick={onAddVehicle}>
+            <Button className="h-11 gap-2 bg-amber-700 hover:bg-amber-800 lg:hidden" onClick={onAddVehicle}>
               <Plus className="h-4 w-4" />
               {t("header.addListing")}
             </Button>
@@ -3191,6 +3193,304 @@ const PROMO_PACKAGES = [
   },
 ];
 
+function TopovaniTab({
+  t,
+}: {
+  t: (key: string) => string;
+}) {
+  const { toast } = useToast();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [duration, setDuration] = useState<"7" | "14" | "30">("30");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["/api/dealer/listings"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/dealer/listings");
+      return res.json();
+    },
+  });
+
+  const allListings = ((data?.listings || []) as DealerListing[]).filter((listing) => !listing.is_sold);
+  const topListings = allListings.filter((listing) => listing.is_top_listing);
+  const availableListings = allListings.filter((listing) => !listing.is_top_listing);
+  const selectedListings = availableListings.filter((listing) => selectedIds.has(listing.id));
+
+  const pricePerListing = duration === "7" ? 39 : duration === "14" ? 69 : 99;
+  const totalPrice = pricePerListing * selectedIds.size;
+
+  const toggleListing = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const topMutation = useMutation({
+    mutationFn: async () => {
+      if (selectedIds.size === 0) throw new Error("no listings selected");
+      const expiresAt = new Date(Date.now() + Number(duration) * 24 * 60 * 60 * 1000).toISOString();
+      await Promise.all(
+        Array.from(selectedIds).map((id) =>
+          apiRequest("PUT", `/api/listings/${id}`, {
+            isTopListing: true,
+            topListingExpiresAt: expiresAt,
+          }),
+        ),
+      );
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+      toast({
+        title: t("dealer.topovani.success"),
+        description: t("dealer.topovani.successDescription").replace(
+          "{{count}}",
+          String(selectedIds.size),
+        ),
+      });
+      setSelectedIds(new Set());
+    },
+    onError: () => {
+      toast({
+        title: t("dealer.topovani.error"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-28 rounded-3xl" />
+        {[0, 1].map((item) => (
+          <Skeleton key={item} className="h-24 rounded-3xl" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4 pb-24 sm:pb-0">
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-amber-700">
+                NNAuto Pro
+              </p>
+              <h2 className="mt-1 flex items-center gap-2 text-2xl font-black tracking-tight text-[#5c3b10]">
+                <Crown className="h-5 w-5 text-amber-700" />
+                {t("dealer.topovani.title")}
+              </h2>
+              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                {t("dealer.topovani.subtitle")}
+              </p>
+            </div>
+            <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-amber-100 bg-white text-center">
+              <div className="px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+                  {t("dealer.topovani.activeTop")}
+                </p>
+                <p className="text-xl font-black text-[#5c3b10]">{topListings.length}</p>
+              </div>
+              <div className="border-x border-amber-100 px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+                  {t("dealer.topovani.available")}
+                </p>
+                <p className="text-xl font-black text-[#5c3b10]">{availableListings.length}</p>
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-[10px] font-black uppercase tracking-wide text-muted-foreground">
+                  {t("dealer.topovani.selected")}
+                </p>
+                <p className="text-xl font-black text-[#5c3b10]">{selectedIds.size}</p>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardContent className="space-y-4 p-5">
+          <div>
+            <h3 className="text-lg font-black text-[#5c3b10]">
+              {t("dealer.topovani.chooseDuration")}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {t("dealer.topovani.chooseDurationHint")}
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {(["7", "14", "30"] as const).map((days) => {
+              const active = duration === days;
+              const price = days === "7" ? 39 : days === "14" ? 69 : 99;
+              return (
+                <button
+                  key={days}
+                  type="button"
+                  onClick={() => setDuration(days)}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    active
+                      ? "border-amber-400 bg-amber-50 shadow-sm"
+                      : "border-amber-100 bg-white hover:bg-amber-50/60"
+                  }`}
+                >
+                  <span className="text-xl font-black text-[#5c3b10]">
+                    {days} {t("dealer.topovani.days")}
+                  </span>
+                  <span className="mt-1 block text-sm font-bold text-amber-700">
+                    {price} Kč / {t("dealer.topovani.listing")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardContent className="space-y-4 p-5">
+          <div>
+            <h3 className="text-lg font-black text-[#5c3b10]">
+              {t("dealer.topovani.chooseListings")}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {t("dealer.topovani.chooseListingsHint")}
+            </p>
+          </div>
+
+          {availableListings.length > 0 ? (
+            <div className="space-y-2">
+              {availableListings.map((listing) => {
+                const selected = selectedIds.has(listing.id);
+                return (
+                  <button
+                    key={listing.id}
+                    type="button"
+                    onClick={() => toggleListing(listing.id)}
+                    className={`flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                      selected
+                        ? "border-amber-400 bg-amber-50 shadow-sm"
+                        : "border-amber-100 bg-white hover:bg-amber-50/60"
+                    }`}
+                  >
+                    <div className="h-16 w-24 shrink-0 overflow-hidden rounded-xl bg-muted">
+                      {listing.photos?.[0] ? (
+                        <img
+                          src={`/img/${listing.photos[0]}?w=192&h=128&fit=cover`}
+                          alt={`${listing.brand} ${listing.model}`}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Car className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-black text-[#5c3b10]">
+                        {listing.brand} {listing.model} {listing.year}
+                      </p>
+                      <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                        <span>{Number(listing.price).toLocaleString("cs-CZ")} Kč</span>
+                        <span className="inline-flex items-center gap-1">
+                          <Eye className="h-3 w-3" />
+                          {displayViews(listing.views)}
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          {listing.contacts}
+                        </span>
+                      </div>
+                    </div>
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
+                        selected
+                          ? "border-amber-700 bg-amber-700 text-white"
+                          : "border-amber-200 bg-white text-amber-700"
+                      }`}
+                    >
+                      {selected ? <CheckCircle2 className="h-5 w-5" /> : <Crown className="h-4 w-4" />}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed border-amber-200 bg-amber-50/50 p-8 text-center">
+              <Crown className="mx-auto h-8 w-8 text-amber-700" />
+              <p className="mt-3 font-black text-[#5c3b10]">{t("dealer.topovani.noAvailable")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("dealer.topovani.noAvailableHint")}</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {topListings.length > 0 ? (
+        <Card className={`${premiumSurface} rounded-3xl`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Crown className="h-5 w-5 text-amber-700" />
+              {t("dealer.topovani.alreadyTop")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 md:grid-cols-2">
+            {topListings.map((listing) => (
+              <div key={listing.id} className="rounded-2xl border border-amber-100 bg-amber-50/60 p-3">
+                <p className="truncate font-bold text-[#5c3b10]">
+                  {listing.brand} {listing.model} {listing.year}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {listing.top_listing_expires_at
+                    ? t("dealer.topovani.activeUntil").replace(
+                        "{{date}}",
+                        new Date(listing.top_listing_expires_at).toLocaleDateString("cs-CZ"),
+                      )
+                    : t("dealer.topovani.active")}
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <div className="sticky bottom-24 z-20 rounded-3xl border border-amber-200 bg-white/95 p-3 shadow-[0_18px_55px_rgba(120,72,12,0.16)] backdrop-blur sm:bottom-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-bold text-[#5c3b10]">
+              {selectedIds.size > 0
+                ? t("dealer.topovani.summarySelected")
+                    .replace("{{count}}", String(selectedIds.size))
+                    .replace("{{days}}", duration)
+                : t("dealer.topovani.summaryEmpty")}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("dealer.topovani.summaryHint")}
+            </p>
+          </div>
+          <Button
+            className="h-12 rounded-2xl bg-[#6f4c17] px-6 font-black hover:bg-[#5c3b10]"
+            disabled={selectedIds.size === 0 || topMutation.isPending}
+            onClick={() => topMutation.mutate()}
+          >
+            {topMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Crown className="mr-2 h-4 w-4" />
+            )}
+            {selectedIds.size > 0
+              ? `${t("dealer.topovani.activate")} · ${totalPrice} Kč`
+              : t("dealer.topovani.activate")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PromotionTab({
   stats,
   t,
@@ -3719,6 +4019,67 @@ function PromotionTab({
           ))}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function DealerProfileTab({
+  dealer,
+  t,
+  focusTarget,
+  onFocusHandled,
+  subTab,
+  onSubTabChange,
+}: {
+  dealer: Dealer;
+  t: (key: string) => string;
+  focusTarget: SettingsTarget | null;
+  onFocusHandled: () => void;
+  subTab: DealerProfileSubTab;
+  onSubTabChange: (next: DealerProfileSubTab) => void;
+}) {
+  // A profile-level focus target (e.g. branding/verification) always belongs to
+  // the "Základní informace" tab, so switch there if one arrives.
+  useEffect(() => {
+    if (focusTarget) onSubTabChange("info");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTarget]);
+
+  const tabs: Array<{ id: DealerProfileSubTab; label: string }> = [
+    { id: "info", label: t("dealer.profileTab.info") },
+    { id: "web", label: t("dealer.profileTab.web") },
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 overflow-x-auto rounded-2xl bg-amber-50/70 p-1">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => onSubTabChange(tab.id)}
+            className={`inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-bold transition sm:flex-none sm:px-6 ${
+              subTab === tab.id
+                ? "bg-[#6f4c17] text-white shadow-sm"
+                : "text-[#8a641f] hover:bg-white/70 hover:text-[#5c3b10]"
+            }`}
+          >
+            {tab.id === "info" ? <Building2 className="h-4 w-4" /> : <MonitorSmartphone className="h-4 w-4" />}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === "info" ? (
+        <DealerSettingsTab
+          dealer={dealer}
+          t={t}
+          focusTarget={focusTarget}
+          onFocusHandled={onFocusHandled}
+        />
+      ) : (
+        <MicrositeTab dealer={dealer} t={t} />
+      )}
     </div>
   );
 }
@@ -6104,10 +6465,25 @@ export default function DealerPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<DealerTab>("dashboard");
   const [importSub, setImportSub] = useState<ImportSyncSubTab>("csv");
+  const [profileSubTab, setProfileSubTab] = useState<DealerProfileSubTab>("info");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const openImportSync = useCallback((next: ImportSyncSubTab) => {
     setImportSub(next);
     setActiveTab("import");
+  }, []);
+  const openWebProfile = useCallback(() => {
+    setProfileSubTab("web");
+    setSettingsTarget(null);
+    setActiveTab("settings");
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    if (tab === "web-profile" || tab === "web") {
+      setProfileSubTab("web");
+      setActiveTab("settings");
+    }
   }, []);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget | null>(null);
   const [addVehicleDialogOpen, setAddVehicleDialogOpen] = useState(false);
@@ -6136,7 +6512,7 @@ export default function DealerPage() {
   }, []);
   const openPublicProfile = useCallback(() => {
     if (!dealer?.id) return;
-    window.open(`/dealer/${dealer.id}`, "_blank", "noopener,noreferrer");
+    window.open(`/dealer/${dealer.id}?from=cabinet`, "_blank", "noopener,noreferrer");
   }, [dealer?.id]);
   const sharePublicProfile = useCallback(async () => {
     if (!dealer?.id) return;
@@ -6275,6 +6651,9 @@ export default function DealerPage() {
                 onAddVehicle={openAddVehicleDialog}
               />
             </TabsContent>
+            <TabsContent value="topovani" className="mt-0">
+              <TopovaniTab t={t} />
+            </TabsContent>
             <TabsContent value="promotion" className="mt-0">
               <PromotionTab stats={stats} t={t} />
             </TabsContent>
@@ -6300,17 +6679,26 @@ export default function DealerPage() {
               <LeadyTab dealer={dealer} t={t} />
             </TabsContent>
             <TabsContent value="microsite" className="mt-0">
-              <MicrositeTab dealer={dealer} t={t} />
+              <DealerProfileTab
+                dealer={dealer}
+                t={t}
+                focusTarget={settingsTarget}
+                onFocusHandled={() => setSettingsTarget(null)}
+                subTab="web"
+                onSubTabChange={setProfileSubTab}
+              />
             </TabsContent>
             <TabsContent value="billing" className="mt-0">
               <BillingTab dealer={dealer} t={t} onOpenPromotion={() => setActiveTab("promotion")} />
             </TabsContent>
             <TabsContent value="settings" className="mt-0">
-              <DealerSettingsTab
+              <DealerProfileTab
                 dealer={dealer}
                 t={t}
                 focusTarget={settingsTarget}
                 onFocusHandled={() => setSettingsTarget(null)}
+                subTab={profileSubTab}
+                onSubTabChange={setProfileSubTab}
               />
             </TabsContent>
             <TabsContent value="reviews" className="mt-0">
@@ -7418,6 +7806,13 @@ function DealerCabinetSideNav({
   }> = [
     // — Inzeráty —
     {
+      id: "import",
+      Icon: RotateCcw,
+      label: t("dealer.nav.importSync"),
+      hint: t("dealer.nav.importSyncHint"),
+      section: "Inzeráty",
+    },
+    {
       id: "mylistings",
       Icon: Car,
       label: t("dealer.myListings"),
@@ -7425,10 +7820,10 @@ function DealerCabinetSideNav({
       section: "Inzeráty",
     },
     {
-      id: "import",
-      Icon: RotateCcw,
-      label: t("dealer.nav.importSync"),
-      hint: t("dealer.nav.importSyncHint"),
+      id: "topovani",
+      Icon: Crown,
+      label: t("dealer.topovani.menu"),
+      hint: t("dealer.topovani.menuHint"),
       section: "Inzeráty",
     },
     // — Účet —
@@ -7468,28 +7863,7 @@ function DealerCabinetSideNav({
       hint: unread > 0 ? t("messages.shortcut.openInbox") : t("messages.shortcut.idle"),
       section: "Komunikace",
     },
-    {
-      id: "leady",
-      Icon: Users,
-      label: t("dealer.nav.leady"),
-      hint: t("dealer.nav.leadyHint"),
-      section: "Komunikace",
-    },
     // — Marketing & prezentace —
-    {
-      id: "promotion",
-      Icon: Rocket,
-      label: t("dealer.promo.tab"),
-      hint: "TOP / VIP",
-      section: "Marketing & prezentace",
-    },
-    {
-      id: "microsite",
-      Icon: MonitorSmartphone,
-      label: t("dealer.microsite.tab"),
-      hint: t("dealer.microsite.subtitle"),
-      section: "Marketing & prezentace",
-    },
     {
       id: "publicProfile",
       Icon: Eye,
@@ -7652,9 +8026,7 @@ function DealerMobileNav({
     section: string;
   }> = [
     { id: "import", label: t("dealer.nav.importSync"), Icon: RotateCcw, hint: t("dealer.nav.importSyncHint"), section: "Inzeráty" },
-    { id: "leady", label: t("dealer.nav.leady"), Icon: Users, hint: t("dealer.nav.leadyHint"), section: "Komunikace" },
-    { id: "promotion", label: t("dealer.promo.tab"), Icon: Rocket, hint: "TOP / VIP", section: "Marketing & prezentace" },
-    { id: "microsite", label: t("dealer.microsite.tab"), Icon: MonitorSmartphone, hint: t("dealer.microsite.subtitle"), section: "Marketing & prezentace" },
+    { id: "topovani", label: t("dealer.topovani.menu"), Icon: Crown, hint: t("dealer.topovani.menuHint"), section: "Inzeráty" },
     { id: "publicProfile", label: t("dealer.dashboard.publicProfile"), Icon: Eye, hint: t("dealer.premium.previewPublicProfile"), section: "Marketing & prezentace" },
     { id: "settings", label: t("dealer.nav.dealerProfile"), Icon: Building2, hint: t("dealer.nav.dealerProfileHint"), section: "Účet" },
     { id: "billing", label: t("dealer.billing.tab"), Icon: CreditCard, hint: t("dealer.billing.subtitle"), section: "Účet" },
@@ -7707,7 +8079,7 @@ function DealerMobileNav({
           type="button"
           onClick={() => setMoreOpen(true)}
           className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold transition active:scale-95 ${
-            ["integrace", "leady", "import", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab)
+            ["integrace", "import", "topovani", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab)
               ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200"
               : "text-muted-foreground hover:bg-amber-50 hover:text-amber-800"
           }`}

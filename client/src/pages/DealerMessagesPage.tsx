@@ -1146,15 +1146,19 @@ function MessageBubble({
             isDealer ? "text-white/80 justify-end" : "text-muted-foreground"
           }`}
         >
-          {m.channel === "email" && (
+          {(m.channel === "email" || m.channel === "sms") && (
             <Badge
               variant="outline"
               className={`gap-1 text-[9px] py-0 h-4 ${
                 isDealer ? "border-white/40 text-white/90" : ""
               }`}
             >
-              <Mail className="h-2.5 w-2.5" />
-              {t("messages.channel.email")}
+              {m.channel === "email" ? (
+                <Mail className="h-2.5 w-2.5" />
+              ) : (
+                <Smartphone className="h-2.5 w-2.5" />
+              )}
+              {m.channel === "email" ? t("messages.channel.email") : t("messages.channel.sms")}
             </Badge>
           )}
           <span>{formatTime(m.createdAt)}</span>
@@ -1386,6 +1390,8 @@ function SourceIcon({
   switch (source) {
     case "email":
       return <Mail className={className} aria-label="email" />;
+    case "sms":
+      return <Smartphone className={className} aria-label="sms" />;
     case "whatsapp":
       return <Smartphone className={className} aria-label="whatsapp" />;
     case "telegram":

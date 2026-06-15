@@ -553,7 +553,7 @@ export type CebiaReport = typeof cebiaReports.$inferSelect;
 // which for dealer accounts is the dealer's owner user). It is the column
 // every dealer-protected query filters on, so it is indexed.
 
-export const conversationSourceValues = ["chat", "email", "whatsapp", "telegram"] as const;
+export const conversationSourceValues = ["chat", "email", "sms", "whatsapp", "telegram"] as const;
 export const conversationStatusValues = ["new", "in_progress", "closed"] as const;
 export const messageSenderValues = ["dealer", "client", "system"] as const;
 export const messageTypeValues = ["text", "image", "email"] as const;
@@ -572,7 +572,7 @@ export const conversations = pgTable(
     clientName: text("client_name"),
     clientEmail: varchar("client_email"),
     clientPhone: varchar("client_phone"),
-    /** "chat" | "email" | "whatsapp" | "telegram" */
+    /** "chat" | "email" | "sms" | "whatsapp" | "telegram" */
     source: varchar("source", { length: 16 }).notNull().default("chat"),
     /** "new" | "in_progress" | "closed" */
     status: varchar("status", { length: 16 }).notNull().default("new"),
