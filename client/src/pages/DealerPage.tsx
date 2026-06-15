@@ -7265,13 +7265,13 @@ function ImportSyncTab({
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           {/* Mobile: integrations grouped into adaptive 2-col cards so all five
               channels are visible at once with no horizontal scrolling. */}
-          <div className="space-y-4 sm:hidden">
+          <div className="space-y-3 sm:hidden">
             {[
               { key: "main", label: t("dealer.importSync.groupMain"), tabs: mainTabs },
               { key: "extra", label: t("dealer.importSync.groupExtra"), tabs: extraTabs },
             ].map((grp) => (
-              <div key={grp.key} className="space-y-2">
-                <p className="px-1 text-[11px] font-bold uppercase tracking-wider text-amber-700/70">{grp.label}</p>
+              <div key={grp.key} className="space-y-1.5">
+                <p className="px-1 text-[10px] font-bold uppercase tracking-wider text-amber-700/70">{grp.label}</p>
                 <div className="grid grid-cols-2 gap-2">
                   {grp.tabs.map(({ id, label, tag, Icon }) => {
                     const active = sub === id;
@@ -7281,28 +7281,25 @@ function ImportSyncTab({
                         type="button"
                         onClick={() => setSub(id)}
                         aria-pressed={active}
-                        className={`group relative flex flex-col items-start gap-2 rounded-2xl border p-3 text-left transition-all duration-200 active:scale-[0.98] ${
+                        className={`flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition-all duration-200 active:scale-[0.98] ${
                           active
-                            ? "border-transparent bg-[#6f4c17] text-white shadow-lg shadow-amber-900/20"
+                            ? "border-transparent bg-[#6f4c17] text-white shadow-md shadow-amber-900/20"
                             : "border-amber-100 bg-white text-[#5c3b10] hover:border-amber-300 hover:bg-amber-50/60"
                         }`}
                       >
                         <span
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
                             active ? "bg-white/15 text-white" : "bg-amber-50 text-amber-700"
                           }`}
                         >
-                          <Icon className="h-5 w-5" />
+                          <Icon className="h-4 w-4" />
                         </span>
-                        <span className="text-sm font-bold leading-tight">{label}</span>
-                        <span className={`text-[11px] leading-snug ${active ? "text-amber-50/80" : "text-muted-foreground"}`}>
-                          {tag}
-                        </span>
-                        {active && (
-                          <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
-                            <Check className="h-3 w-3 text-white" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-bold leading-tight">{label}</span>
+                          <span className={`block truncate text-[10px] leading-tight ${active ? "text-amber-50/80" : "text-muted-foreground"}`}>
+                            {tag}
                           </span>
-                        )}
+                        </span>
                       </button>
                     );
                   })}
