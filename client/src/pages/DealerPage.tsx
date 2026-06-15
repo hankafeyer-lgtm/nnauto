@@ -7156,13 +7156,22 @@ function ImportSyncTab({
     [storageKey],
   );
 
-  const subTabs: Array<{ id: ImportSyncSubTab; label: string; shortLabel: string; Icon: typeof Link2 }> = [
-    { id: "csv", label: "CSV Import", shortLabel: "CSV", Icon: FileSpreadsheet },
-    { id: "xml", label: "XML Feed", shortLabel: "XML", Icon: RotateCcw },
-    { id: "api", label: "API", shortLabel: "API", Icon: Lock },
-    { id: "wordpress", label: "WordPress", shortLabel: "WordPress", Icon: MonitorSmartphone },
-    { id: "webhooks", label: "Webhooks", shortLabel: "Webhooks", Icon: Zap },
+  const subTabs: Array<{
+    id: ImportSyncSubTab;
+    label: string;
+    shortLabel: string;
+    tag: string;
+    group: "main" | "extra";
+    Icon: typeof Link2;
+  }> = [
+    { id: "csv", label: "CSV Import", shortLabel: "CSV", tag: t("dealer.importSync.csvTag"), group: "main", Icon: FileSpreadsheet },
+    { id: "xml", label: "XML Feed", shortLabel: "XML", tag: t("dealer.importSync.xmlTag"), group: "main", Icon: RotateCcw },
+    { id: "api", label: "API", shortLabel: "API", tag: t("dealer.importSync.apiTag"), group: "main", Icon: Lock },
+    { id: "wordpress", label: "WordPress", shortLabel: "WordPress", tag: t("dealer.importSync.wordpressTag"), group: "extra", Icon: MonitorSmartphone },
+    { id: "webhooks", label: "Webhooks", shortLabel: "Webhooks", tag: t("dealer.importSync.webhooksTag"), group: "extra", Icon: Zap },
   ];
+  const mainTabs = subTabs.filter((tab) => tab.group === "main");
+  const extraTabs = subTabs.filter((tab) => tab.group === "extra");
 
   const handleVerifyXml = () => {
     if (!state.xmlUrl.trim()) {
@@ -7237,41 +7246,87 @@ function ImportSyncTab({
     : "—";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 sm:space-y-5">
       <Card className={`${premiumSurface} rounded-3xl`}>
-        <CardHeader>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-2xl">
-                <RotateCcw className="h-5 w-5 text-amber-700" />
+        <CardHeader className="p-4 pb-3 sm:p-6 sm:pb-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2 text-lg sm:text-2xl">
+                <RotateCcw className="h-5 w-5 shrink-0 text-amber-700" />
                 {t("dealer.importSync.title")}
               </CardTitle>
-              <CardDescription>{t("dealer.importSync.description")}</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">{t("dealer.importSync.description")}</CardDescription>
             </div>
-            <Badge variant="outline" className="w-fit rounded-full border-amber-200 bg-amber-50 text-amber-800">
+            <Badge variant="outline" className="w-fit shrink-0 rounded-full border-amber-200 bg-amber-50 text-amber-800">
               NNAuto Pro
             </Badge>
           </div>
         </CardHeader>
-        <CardContent>
-          {/* Mobile: 3-col grid so all 5 channels are visible at once (no
-              horizontal scrolling). Desktop (sm+): single row of full labels. */}
-          <div className="grid w-full grid-cols-3 gap-1 rounded-2xl bg-amber-50/70 p-1 sm:flex">
-            {subTabs.map(({ id, label, shortLabel, Icon }) => (
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          {/* Mobile: integrations grouped into adaptive 2-col cards so all five
+              channels are visible at once with no horizontal scrolling. */}
+          <div className="space-y-4 sm:hidden">
+            {[
+              { key: "main", label: t("dealer.importSync.groupMain"), tabs: mainTabs },
+              { key: "extra", label: t("dealer.importSync.groupExtra"), tabs: extraTabs },
+            ].map((grp) => (
+              <div key={grp.key} className="space-y-2">
+                <p className="px-1 text-[11px] font-bold uppercase tracking-wider text-amber-700/70">{grp.label}</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {grp.tabs.map(({ id, label, tag, Icon }) => {
+                    const active = sub === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setSub(id)}
+                        aria-pressed={active}
+                        className={`group relative flex flex-col items-start gap-2 rounded-2xl border p-3 text-left transition-all duration-200 active:scale-[0.98] ${
+                          active
+                            ? "border-transparent bg-[#6f4c17] text-white shadow-lg shadow-amber-900/20"
+                            : "border-amber-100 bg-white text-[#5c3b10] hover:border-amber-300 hover:bg-amber-50/60"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
+                            active ? "bg-white/15 text-white" : "bg-amber-50 text-amber-700"
+                          }`}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <span className="text-sm font-bold leading-tight">{label}</span>
+                        <span className={`text-[11px] leading-snug ${active ? "text-amber-50/80" : "text-muted-foreground"}`}>
+                          {tag}
+                        </span>
+                        {active && (
+                          <span className="absolute right-2.5 top-2.5 flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
+                            <Check className="h-3 w-3 text-white" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: single-row segmented control with full labels. */}
+          <div className="hidden w-full gap-1 rounded-2xl bg-amber-50/70 p-1 sm:flex">
+            {subTabs.map(({ id, label, Icon }) => (
               <button
                 key={id}
                 type="button"
                 onClick={() => setSub(id)}
                 aria-pressed={sub === id}
-                className={`inline-flex flex-col items-center justify-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 text-xs font-bold transition sm:flex-1 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm ${
+                className={`inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-bold transition ${
                   sub === id
                     ? "bg-[#6f4c17] text-white shadow-sm"
                     : "text-[#8a641f] hover:bg-white/70 hover:text-[#5c3b10]"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="sm:hidden">{shortLabel}</span>
-                <span className="hidden sm:inline">{label}</span>
+                <Icon className="h-4 w-4" />
+                {label}
               </button>
             ))}
           </div>
