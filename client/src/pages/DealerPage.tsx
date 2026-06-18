@@ -77,6 +77,8 @@ import {
   RotateCcw,
   HelpCircle,
   MousePointerClick,
+  Home,
+  ArrowLeft,
   Bell,
   BellRing,
   AlertTriangle,
@@ -795,6 +797,21 @@ function DealerHero({
     .map((part) => part[0]?.toUpperCase())
     .join("");
 
+  const [heroSettings] = useDealerLocalStore(dealer);
+  const activePackageId =
+    heroSettings.billing.activePackage &&
+    new Date(heroSettings.billing.activePackage.expiresISO).getTime() > Date.now()
+      ? heroSettings.billing.activePackage.id
+      : null;
+  const packageNameKey: Record<string, string> = {
+    start: "dealer.billing.packageStart",
+    business: "dealer.billing.packageBusiness",
+    pro: "dealer.billing.packagePro",
+  };
+  const activePlanLabel = activePackageId
+    ? t(packageNameKey[activePackageId] ?? "dealer.billing.planFree")
+    : t("dealer.billing.planFree");
+
   const stat = (
     label: string,
     value: React.ReactNode,
@@ -848,10 +865,14 @@ function DealerHero({
               <h1 className="truncate text-base font-black tracking-tight sm:text-xl">
                 {dealer.companyName}
               </h1>
-              <Badge className="h-5 rounded-md border-amber-200 bg-white/70 px-1.5 text-[10px] font-bold text-[#7a5518] hover:bg-white/80">
+              <button
+                type="button"
+                onClick={onOpenBilling}
+                className="inline-flex h-5 items-center rounded-md border border-amber-200 bg-white/70 px-1.5 text-[10px] font-bold text-[#7a5518] transition hover:bg-white/90"
+              >
                 <Crown className="mr-1 h-3 w-3 text-amber-700" />
-                {t("dealer.premium.planTop")}
-              </Badge>
+                {activePlanLabel}
+              </button>
             </div>
 
             <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
@@ -866,7 +887,7 @@ function DealerHero({
               )}
               {stat(t("dealer.views"), displayViews(stats.totalViews))}
               {stat(t("dealer.contacts"), stats.totalContacts, onOpenMessages)}
-              {stat(t("dealer.billing.currentPlanShort"), t("dealer.premium.planTop"), onOpenBilling)}
+              {stat(t("dealer.billing.currentPlanShort"), activePlanLabel, onOpenBilling)}
             </div>
           </div>
         </div>
@@ -6384,71 +6405,20 @@ function MicrositeTab({
 function BillingTab({
   dealer,
   t,
-  onOpenPromotion,
 }: {
   dealer: Dealer;
   t: (key: string) => string;
-  onOpenPromotion: () => void;
 }) {
   const { toast } = useToast();
   const [settings, update] = useDealerLocalStore(dealer);
   const billing = settings.billing;
-  const [topUpAmount, setTopUpAmount] = useState(500);
-
-  const planLabel: Record<DealerLocalSettings["billing"]["plan"], string> = {
-    free: t("dealer.billing.planFree"),
-    top: t("dealer.premium.planTop"),
-    vip: t("dealer.billing.planVip"),
-  };
-  const planPrice: Record<DealerLocalSettings["billing"]["plan"], string> = {
-    free: "0 Kč",
-    top: "990 Kč",
-    vip: "2 490 Kč",
-  };
+  const packagesRef = useRef<HTMLDivElement>(null);
 
   const formatKc = (amount: number) =>
     new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK", maximumFractionDigits: 0 }).format(amount);
 
-  const seedInvoice = () =>
-    update((prev) => ({
-      ...prev,
-      billing: {
-        ...prev.billing,
-        invoices: [
-          {
-            id: `inv-${Date.now()}`,
-            number: `2026-${String(prev.billing.invoices.length + 1).padStart(4, "0")}`,
-            dateISO: new Date().toISOString(),
-            amountKc: 990,
-            status: "paid",
-            description: t("dealer.billing.invoicePlanLine"),
-          },
-          ...prev.billing.invoices,
-        ],
-      },
-    }));
-
-  const topUp = () => {
-    update((prev) => ({
-      ...prev,
-      billing: {
-        ...prev.billing,
-        walletKc: prev.billing.walletKc + topUpAmount,
-        invoices: [
-          {
-            id: `inv-${Date.now()}`,
-            number: `2026-W-${String(prev.billing.invoices.length + 1).padStart(4, "0")}`,
-            dateISO: new Date().toISOString(),
-            amountKc: topUpAmount,
-            status: "paid",
-            description: `${t("dealer.billing.walletTopUp")} +${formatKc(topUpAmount)}`,
-          },
-          ...prev.billing.invoices,
-        ],
-      },
-    }));
-    toast({ title: t("dealer.billing.topUpSuccess") });
-  };
+  const scrollToPackages = () =>
+    packagesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   // Annual vehicle packages: higher volume -> lower price per vehicle.
   const vehiclePackages: Array<{
@@ -6458,9 +6428,9 @@ function BillingTab({
     pricePerCar: number;
     popular?: boolean;
   }> = [
-    { id: "start", nameKey: "dealer.billing.packageStart", cars: 250, pricePerCar: 25 },
-    { id: "business", nameKey: "dealer.billing.packageBusiness", cars: 500, pricePerCar: 20, popular: true },
-    { id: "pro", nameKey: "dealer.billing.packagePro", cars: 1000, pricePerCar: 15 },
+    { id: "start", nameKey: "dealer.billing.packageStart", cars: 250, pricePerCar: 12 },
+    { id: "business", nameKey: "dealer.billing.packageBusiness", cars: 500, pricePerCar: 9, popular: true },
+    { id: "pro", nameKey: "dealer.billing.packagePro", cars: 1000, pricePerCar: 6 },
   ];
 
   const activatePackage = (pkg: (typeof vehiclePackages)[number]) => {
@@ -6493,169 +6463,68 @@ function BillingTab({
     });
   };
 
+  const activePkg = billing.activePackage
+    ? vehiclePackages.find((p) => p.id === billing.activePackage?.id) ?? null
+    : null;
+
   return (
     <div className="space-y-5">
       <Card className={`${premiumSurface} rounded-3xl overflow-hidden`}>
         <div className="bg-gradient-to-br from-amber-700 via-amber-800 to-stone-950 p-4 text-white sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <Badge className="mb-2 bg-white/20 text-white hover:bg-white/30">{planLabel[billing.plan]}</Badge>
-              <h2 className="text-2xl font-black sm:text-3xl">
-                {planLabel[billing.plan]}
-                <span className="ml-3 align-middle text-base font-bold text-amber-200">
-                  {planPrice[billing.plan]} / {t("dealer.billing.month")}
-                </span>
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm text-amber-50/80">
-                {t("dealer.billing.planDescription")}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="secondary"
-                className="h-11 rounded-2xl bg-white text-amber-900 hover:bg-amber-50"
-                onClick={onOpenPromotion}
-              >
-                <Rocket className="mr-2 h-4 w-4" />
-                {t("dealer.premium.upgradePlan")}
-              </Button>
-              <Button
-                variant="outline"
-                className="h-11 rounded-2xl border-white/30 bg-white/10 text-white hover:bg-white/20 hover:text-white"
-                onClick={() =>
-                  update((prev) => ({
-                    ...prev,
-                    billing: { ...prev.billing, autoRenew: !prev.billing.autoRenew },
-                  }))
-                }
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                {billing.autoRenew
-                  ? t("dealer.billing.autoRenewOn")
-                  : t("dealer.billing.autoRenewOff")}
-              </Button>
-            </div>
+            {activePkg && billing.activePackage ? (
+              <>
+                <div>
+                  <Badge className="mb-2 bg-white/20 text-white hover:bg-white/30">
+                    {t("dealer.billing.activePackageLabel")}
+                  </Badge>
+                  <h2 className="text-2xl font-black sm:text-3xl">
+                    {t(activePkg.nameKey)}
+                    <span className="ml-3 align-middle text-base font-bold text-amber-200">
+                      {activePkg.cars} {t("dealer.billing.carsUnit")}
+                    </span>
+                  </h2>
+                  <p className="mt-2 flex items-center gap-2 text-sm text-amber-50/80">
+                    <CalendarDays className="h-4 w-4" />
+                    {t("dealer.billing.activeUntil")}{" "}
+                    {new Date(billing.activePackage.expiresISO).toLocaleDateString("cs-CZ")}
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  className="h-11 rounded-2xl bg-white text-amber-900 hover:bg-amber-50"
+                  onClick={scrollToPackages}
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  {t("dealer.billing.changePackage")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Badge className="mb-2 bg-white/20 text-white hover:bg-white/30">
+                    {t("dealer.billing.noActivePackage")}
+                  </Badge>
+                  <h2 className="text-2xl font-black sm:text-3xl">{t("dealer.billing.packagesTitle")}</h2>
+                  <p className="mt-2 max-w-2xl text-sm text-amber-50/80">
+                    {t("dealer.billing.heroPrompt")}
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  className="h-11 rounded-2xl bg-white text-amber-900 hover:bg-amber-50"
+                  onClick={scrollToPackages}
+                >
+                  <Crown className="mr-2 h-4 w-4" />
+                  {t("dealer.billing.choosePackage")}
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
-        <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Wallet className="h-5 w-5 text-amber-700" />
-              {t("dealer.billing.walletTitle")}
-            </CardTitle>
-            <CardDescription>{t("dealer.billing.walletDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-3xl border bg-amber-50/40 p-5">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-800">
-                {t("dealer.billing.walletBalance")}
-              </p>
-              <p className="mt-1 text-4xl font-black text-amber-900">{formatKc(billing.walletKc)}</p>
-              <p className="text-xs text-muted-foreground">
-                {t("dealer.billing.walletBalanceHint")}
-              </p>
-            </div>
-            <div className="rounded-3xl border bg-white p-4">
-              <Label>{t("dealer.billing.walletTopUpAmount")}</Label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {[200, 500, 1000, 2000].map((amount) => (
-                  <Button
-                    key={amount}
-                    variant={topUpAmount === amount ? "default" : "outline"}
-                    className={`rounded-xl ${topUpAmount === amount ? "bg-amber-700 hover:bg-amber-800" : ""}`}
-                    onClick={() => setTopUpAmount(amount)}
-                  >
-                    {formatKc(amount)}
-                  </Button>
-                ))}
-              </div>
-              <Button
-                className="mt-3 w-full rounded-2xl bg-amber-700 hover:bg-amber-800"
-                onClick={topUp}
-              >
-                <CreditCard className="mr-2 h-4 w-4" />
-                {t("dealer.billing.walletTopUp")}
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between rounded-3xl border bg-white p-4">
-              <div>
-                <p className="font-bold">{t("dealer.billing.autoTopUp")}</p>
-                <p className="text-xs text-muted-foreground">
-                  {t("dealer.billing.autoTopUpHint")}
-                </p>
-              </div>
-              <Switch
-                checked={billing.autoTopUpEnabled}
-                onCheckedChange={(checked) =>
-                  update((prev) => ({
-                    ...prev,
-                    billing: { ...prev.billing, autoTopUpEnabled: checked },
-                  }))
-                }
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <CreditCard className="h-5 w-5 text-amber-700" />
-              {t("dealer.billing.paymentMethodTitle")}
-            </CardTitle>
-            <CardDescription>{t("dealer.billing.paymentMethodDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {billing.paymentLast4 ? (
-              <div className="rounded-3xl border bg-gradient-to-br from-stone-900 to-stone-700 p-5 text-white">
-                <p className="text-xs uppercase tracking-[0.2em] text-stone-300">
-                  {billing.paymentBrand || "VISA"}
-                </p>
-                <p className="mt-3 text-2xl font-mono tracking-wider">
-                  •••• •••• •••• {billing.paymentLast4}
-                </p>
-                <p className="mt-3 text-xs text-stone-300">
-                  {t("dealer.billing.expires")}: {billing.paymentExpires || "12/28"}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-3xl border border-dashed p-6 text-center">
-                <CreditCard className="mx-auto mb-3 h-10 w-10 text-amber-600" />
-                <p className="font-bold">{t("dealer.billing.noPaymentMethod")}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t("dealer.billing.noPaymentMethodHint")}
-                </p>
-              </div>
-            )}
-            <Button
-              variant="outline"
-              className="w-full rounded-2xl"
-              onClick={() =>
-                update((prev) => ({
-                  ...prev,
-                  billing: {
-                    ...prev.billing,
-                    paymentBrand: "VISA",
-                    paymentLast4: "4242",
-                    paymentExpires: "12/28",
-                  },
-                }))
-              }
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {billing.paymentLast4
-                ? t("dealer.billing.changePaymentMethod")
-                : t("dealer.billing.addPaymentMethod")}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className={`${premiumSurface} rounded-3xl`}>
+      <Card ref={packagesRef} className={`${premiumSurface} rounded-3xl scroll-mt-4`}>
         <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Crown className="h-5 w-5 text-amber-700" />
@@ -6734,20 +6603,65 @@ function BillingTab({
       </Card>
 
       <Card className={`${premiumSurface} rounded-3xl`}>
-        <CardHeader>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileSpreadsheet className="h-5 w-5 text-amber-700" />
-                {t("dealer.billing.invoicesTitle")}
-              </CardTitle>
-              <CardDescription>{t("dealer.billing.invoicesDescription")}</CardDescription>
+        <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <CreditCard className="h-5 w-5 text-amber-700" />
+            {t("dealer.billing.paymentMethodTitle")}
+          </CardTitle>
+          <CardDescription>{t("dealer.billing.paymentMethodDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
+          {billing.paymentLast4 ? (
+            <div className="rounded-3xl border bg-gradient-to-br from-stone-900 to-stone-700 p-5 text-white">
+              <p className="text-xs uppercase tracking-[0.2em] text-stone-300">
+                {billing.paymentBrand || "VISA"}
+              </p>
+              <p className="mt-3 text-2xl font-mono tracking-wider">
+                •••• •••• •••• {billing.paymentLast4}
+              </p>
+              <p className="mt-3 text-xs text-stone-300">
+                {t("dealer.billing.expires")}: {billing.paymentExpires || "12/28"}
+              </p>
             </div>
-            <Button variant="outline" className="rounded-2xl" onClick={seedInvoice}>
-              <Plus className="mr-2 h-4 w-4" />
-              {t("dealer.billing.addDemoInvoice")}
-            </Button>
-          </div>
+          ) : (
+            <div className="rounded-3xl border border-dashed p-6 text-center">
+              <CreditCard className="mx-auto mb-3 h-10 w-10 text-amber-600" />
+              <p className="font-bold">{t("dealer.billing.noPaymentMethod")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t("dealer.billing.noPaymentMethodHint")}
+              </p>
+            </div>
+          )}
+          <Button
+            variant="outline"
+            className="w-full rounded-2xl"
+            onClick={() =>
+              update((prev) => ({
+                ...prev,
+                billing: {
+                  ...prev.billing,
+                  paymentBrand: "VISA",
+                  paymentLast4: "4242",
+                  paymentExpires: "12/28",
+                },
+              }))
+            }
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            {billing.paymentLast4
+              ? t("dealer.billing.changePaymentMethod")
+              : t("dealer.billing.addPaymentMethod")}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className={`${premiumSurface} rounded-3xl`}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileSpreadsheet className="h-5 w-5 text-amber-700" />
+            {t("dealer.billing.invoicesTitle")}
+          </CardTitle>
+          <CardDescription>{t("dealer.billing.invoicesDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
           {billing.invoices.length === 0 ? (
@@ -6967,25 +6881,43 @@ export default function DealerPage() {
                 onOpenBilling={() => setActiveTab("billing")}
               />
             </div>
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <button
                 type="button"
                 onClick={() => setActiveTab("dashboard")}
-                className="group flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50/70 px-3 py-1.5 text-left shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 motion-safe:animate-attention"
-                aria-label={t("dealer.cabinet")}
+                className="group flex w-full min-w-0 items-center gap-2.5 rounded-2xl border border-amber-300 bg-amber-50/70 px-2.5 py-2 text-left shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 motion-safe:animate-attention sm:w-auto sm:gap-3 sm:px-3 sm:py-1.5"
+                aria-label={activeTab === "dashboard" ? t("dealer.cabinet") : t("dealer.backToCabinet")}
               >
-                <span className="min-w-0">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-amber-700 sm:text-sm">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6f4c17] text-white shadow-sm transition group-hover:bg-[#5c3b10] sm:h-10 sm:w-10">
+                  {activeTab === "dashboard" ? (
+                    <Home className="h-4 w-4" />
+                  ) : (
+                    <ArrowLeft className="h-4 w-4" />
+                  )}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-amber-700 sm:text-sm">
                     NNAuto Pro
                   </p>
-                  <h2 className="text-xl font-black tracking-tight sm:text-2xl">{t("dealer.cabinet")}</h2>
+                  <h2 className="truncate text-base font-black tracking-tight sm:text-2xl">
+                    {t("dealer.cabinet")}
+                  </h2>
                 </span>
-                <span className="hidden shrink-0 items-center gap-1 rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 sm:inline-flex">
-                  <MousePointerClick className="h-3 w-3" />
-                  {t("dealer.cabinetHome")}
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-900 sm:px-2.5">
+                  {activeTab === "dashboard" ? (
+                    <>
+                      <MousePointerClick className="h-3 w-3" />
+                      {t("dealer.cabinetHome")}
+                    </>
+                  ) : (
+                    <>
+                      <ArrowLeft className="h-3 w-3" />
+                      {t("dealer.backToCabinet")}
+                    </>
+                  )}
                 </span>
               </button>
-              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end">
                 <DealerMessagesShortcut />
               </div>
             </div>
@@ -7064,7 +6996,7 @@ export default function DealerPage() {
               />
             </TabsContent>
             <TabsContent value="billing" className="mt-0">
-              <BillingTab dealer={dealer} t={t} onOpenPromotion={() => setActiveTab("promotion")} />
+              <BillingTab dealer={dealer} t={t} />
             </TabsContent>
             <TabsContent value="settings" className="mt-0">
               <DealerProfileTab
@@ -8667,7 +8599,7 @@ function DealerMessagesShortcut() {
       href="/dealer/messages"
       aria-label={t("messages.heading")}
       data-testid="button-open-messages"
-      className={`group relative ml-auto flex h-12 items-center gap-3 rounded-2xl border px-3 pr-4 text-left font-bold transition active:scale-[0.99] sm:h-14 sm:px-4 ${
+      className={`group relative flex h-12 w-full items-center gap-3 rounded-2xl border px-3 pr-4 text-left font-bold transition active:scale-[0.99] sm:ml-auto sm:h-14 sm:w-auto sm:px-4 ${
         hasUnread
           ? "border-amber-400 bg-gradient-to-r from-amber-50 to-amber-100 text-amber-900 shadow-[0_10px_30px_rgba(180,83,9,0.18)] hover:from-amber-100 hover:to-amber-200"
           : "border-amber-200 bg-white text-amber-900 shadow-sm hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50"
