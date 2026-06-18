@@ -40,12 +40,17 @@ const titleCaseRegion = (s: string) =>
 async function queryBrandListings(brandSlug: string, limit = 30) {
   const norm = brandSlug.trim().toLowerCase();
   if (!norm) return [];
-  return db
-    .select()
-    .from(listings)
-    .where(and(eq(listings.isSold, false), eq(listings.brand, norm)))
-    .orderBy(desc(listings.updatedAt))
-    .limit(limit);
+  try {
+    return await db
+      .select()
+      .from(listings)
+      .where(and(eq(listings.isSold, false), eq(listings.brand, norm)))
+      .orderBy(desc(listings.updatedAt))
+      .limit(limit);
+  } catch (err) {
+    console.error("[brand] queryBrandListings failed:", err);
+    return [];
+  }
 }
 
 /**
@@ -58,36 +63,46 @@ async function queryBrandListings(brandSlug: string, limit = 30) {
 async function queryPopularModels(brandSlug: string, limit = 50) {
   const norm = brandSlug.trim().toLowerCase();
   if (!norm) return [];
-  const rows = await db
-    .select({
-      model: sql<string>`min(${listings.model})`,
-      total: sql<number>`count(*)::int`,
-    })
-    .from(listings)
-    .where(
-      and(
-        eq(listings.isSold, false),
-        sql`lower(${listings.brand}) = ${norm}`,
-      ),
-    )
-    .groupBy(sql`lower(${listings.model})`)
-    .having(sql`count(*) >= 1`)
-    .orderBy(desc(sql`count(*)`))
-    .limit(limit);
-  return rows.filter((r) => Boolean(r.model));
+  try {
+    const rows = await db
+      .select({
+        model: sql<string>`min(${listings.model})`,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(listings)
+      .where(
+        and(
+          eq(listings.isSold, false),
+          sql`lower(${listings.brand}) = ${norm}`,
+        ),
+      )
+      .groupBy(sql`lower(${listings.model})`)
+      .having(sql`count(*) >= 1`)
+      .orderBy(desc(sql`count(*)`))
+      .limit(limit);
+    return rows.filter((r) => Boolean(r.model));
+  } catch (err) {
+    console.error("[brand] queryPopularModels failed:", err);
+    return [];
+  }
 }
 
 async function queryBrandStats(brandSlug: string) {
   const norm = brandSlug.trim().toLowerCase();
-  const [row] = await db
-    .select({
-      total: sql<number>`count(*)::int`,
-      minPrice: sql<number>`min(price::numeric)::int`,
-      maxPrice: sql<number>`max(price::numeric)::int`,
-    })
-    .from(listings)
-    .where(and(eq(listings.isSold, false), sql`lower(${listings.brand}) = ${norm}`));
-  return { total: row?.total ?? 0, minPrice: row?.minPrice ?? 0, maxPrice: row?.maxPrice ?? 0 };
+  try {
+    const [row] = await db
+      .select({
+        total: sql<number>`count(*)::int`,
+        minPrice: sql<number>`min(price::numeric)::int`,
+        maxPrice: sql<number>`max(price::numeric)::int`,
+      })
+      .from(listings)
+      .where(and(eq(listings.isSold, false), sql`lower(${listings.brand}) = ${norm}`));
+    return { total: row?.total ?? 0, minPrice: row?.minPrice ?? 0, maxPrice: row?.maxPrice ?? 0 };
+  } catch (err) {
+    console.error("[brand] queryBrandStats failed:", err);
+    return { total: 0, minPrice: 0, maxPrice: 0 };
+  }
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

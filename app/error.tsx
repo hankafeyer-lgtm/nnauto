@@ -14,7 +14,27 @@ export default function RouteError({
     try {
       console.error("[nnauto] route error:", error);
     } catch {}
-  }, [error]);
+
+    // One-shot auto-recovery for transient errors (DB blips, race conditions,
+    // hydration hiccups). Guarded by a short sessionStorage cooldown so a
+    // deterministic error can never trigger an infinite retry loop: the first
+    // crash retries silently, a second crash within the window falls through
+    // to the manual UI below.
+    try {
+      const KEY = "nn_err_autoretry_ts";
+      const now = Date.now();
+      const last = Number(window.sessionStorage?.getItem(KEY) || "0");
+      if (now - last > 20000) {
+        window.sessionStorage?.setItem(KEY, String(now));
+        const id = window.setTimeout(() => {
+          try {
+            reset();
+          } catch {}
+        }, 600);
+        return () => window.clearTimeout(id);
+      }
+    } catch {}
+  }, [error, reset]);
 
   const hardReload = () => {
     try {

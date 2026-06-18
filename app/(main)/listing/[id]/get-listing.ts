@@ -68,54 +68,65 @@ export type DealerInventoryListing = Pick<
 >;
 
 export const getDealerProfileForListing = cache(async (listing: ListingRecord) => {
-  const [dealer] = await db
-    .select({
-      id: dealers.id,
-      ownerId: dealers.ownerId,
-      companyName: dealers.companyName,
-      description: dealers.description,
-      logoUrl: dealers.logoUrl,
-      website: dealers.website,
-      phone: dealers.phone,
-      email: dealers.email,
-      address: dealers.address,
-      region: dealers.region,
-      isVerified: dealers.isVerified,
-      createdAt: dealers.createdAt,
-    })
-    .from(dealers)
-    .where(eq(dealers.ownerId, listing.userId))
-    .limit(1);
-  return dealer ?? null;
+  // Enrichment only — a DB hiccup here must not crash the whole listing page.
+  try {
+    const [dealer] = await db
+      .select({
+        id: dealers.id,
+        ownerId: dealers.ownerId,
+        companyName: dealers.companyName,
+        description: dealers.description,
+        logoUrl: dealers.logoUrl,
+        website: dealers.website,
+        phone: dealers.phone,
+        email: dealers.email,
+        address: dealers.address,
+        region: dealers.region,
+        isVerified: dealers.isVerified,
+        createdAt: dealers.createdAt,
+      })
+      .from(dealers)
+      .where(eq(dealers.ownerId, listing.userId))
+      .limit(1);
+    return dealer ?? null;
+  } catch (err) {
+    console.error("[listing] getDealerProfileForListing failed:", err);
+    return null;
+  }
 });
 
 export const getDealerInventoryForListing = cache(
   async (listing: ListingRecord, take = 8): Promise<DealerInventoryListing[]> => {
-    const rows = await db
-      .select({
-        id: listings.id,
-        title: listings.title,
-        price: listings.price,
-        brand: listings.brand,
-        model: listings.model,
-        year: listings.year,
-        mileage: listings.mileage,
-        fuelType: listings.fuelType,
-        transmission: listings.transmission,
-        photos: listings.photos,
-        isTopListing: listings.isTopListing,
-      })
-      .from(listings)
-      .where(
-        and(
-          ne(listings.id, listing.id),
-          eq(listings.userId, listing.userId),
-          eq(listings.isSold, false),
-        ),
-      )
-      .orderBy(desc(listings.isTopListing), desc(listings.updatedAt), desc(listings.createdAt))
-      .limit(take);
-    return rows;
+    try {
+      const rows = await db
+        .select({
+          id: listings.id,
+          title: listings.title,
+          price: listings.price,
+          brand: listings.brand,
+          model: listings.model,
+          year: listings.year,
+          mileage: listings.mileage,
+          fuelType: listings.fuelType,
+          transmission: listings.transmission,
+          photos: listings.photos,
+          isTopListing: listings.isTopListing,
+        })
+        .from(listings)
+        .where(
+          and(
+            ne(listings.id, listing.id),
+            eq(listings.userId, listing.userId),
+            eq(listings.isSold, false),
+          ),
+        )
+        .orderBy(desc(listings.isTopListing), desc(listings.updatedAt), desc(listings.createdAt))
+        .limit(take);
+      return rows;
+    } catch (err) {
+      console.error("[listing] getDealerInventoryForListing failed:", err);
+      return [];
+    }
   },
 );
 
@@ -123,6 +134,7 @@ export const getSimilarListings = cache(
   async (listing: ListingRecord, take = 6): Promise<SimilarListing[]> => {
     if (!listing) return [];
 
+    try {
     const primary = await db
       .select({
         id: listings.id,
@@ -170,5 +182,9 @@ export const getSimilarListings = cache(
       if (merged.length >= take) break;
     }
     return merged;
+    } catch (err) {
+      console.error("[listing] getSimilarListings failed:", err);
+      return [];
+    }
   },
 );
