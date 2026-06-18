@@ -289,6 +289,41 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Browser-translation crash guard. Google Translate / Yandex / in-app
+            browser translators swap React-managed text nodes for their own,
+            which later makes React call removeChild/insertBefore on a node that
+            no longer lives where it expects -> uncaught NotFoundError that
+            crashes the whole route into the error screen on every render.
+            Patching these two DOM methods to no-op when the parent no longer
+            matches keeps the app alive while still allowing translation.
+            Must run before hydration, so it sits inline ahead of {children}. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  if (typeof Node !== 'function' || !Node.prototype) return;
+                  if (window.__nn_dom_translate_guard) return;
+                  window.__nn_dom_translate_guard = true;
+                  var origRemoveChild = Node.prototype.removeChild;
+                  Node.prototype.removeChild = function (child) {
+                    if (child && child.parentNode !== this) {
+                      return child;
+                    }
+                    return origRemoveChild.apply(this, arguments);
+                  };
+                  var origInsertBefore = Node.prototype.insertBefore;
+                  Node.prototype.insertBefore = function (newNode, referenceNode) {
+                    if (referenceNode && referenceNode.parentNode !== this) {
+                      return origInsertBefore.call(this, newNode, null);
+                    }
+                    return origInsertBefore.apply(this, arguments);
+                  };
+                } catch (err) {}
+              })();
+            `,
+          }}
+        />
         <noscript>
           <div
             style={{
