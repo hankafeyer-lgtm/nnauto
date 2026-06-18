@@ -350,8 +350,6 @@ export const listings = pgTable(
     importCountry: text("import_country"),
     photos: text("photos").array(),
     video: text("video"),
-    /** When true, listing is hidden from public browse/search but still visible to owner (cabinet) and by direct URL. */
-    isSold: boolean("is_sold").default(false).notNull(),
     createdAt: timestamp("created_at").default(sql`now()`).notNull(),
     updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   },

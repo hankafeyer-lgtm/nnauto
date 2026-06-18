@@ -79,7 +79,7 @@ export async function POST(
     const priorBuyerCount = priorMessages.filter(
       (m) => m.sender === "client",
     ).length;
-    const isFirstBuyerMessage = role === "client" && priorBuyerCount === 0;
+    const isFirstBuyerMessage = role === "buyer" && priorBuyerCount === 0;
     // Diagnostic line — fires on EVERY message POST so the production log
     // tells us why an email did or did not go out, even when the gate
     // evaluates to false. Cheap to keep — one structured log per send.
@@ -95,7 +95,7 @@ export async function POST(
     });
 
     const storedContent =
-      role === "client" ? appendListingSourceTag(content) : content;
+      role === "buyer" ? appendListingSourceTag(content) : content;
 
     const inserted = await storage.createMessage({
       conversationId: id,
