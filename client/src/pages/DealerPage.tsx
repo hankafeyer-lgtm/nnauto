@@ -6420,21 +6420,22 @@ function BillingTab({
   const scrollToPackages = () =>
     packagesRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  // Annual vehicle packages: higher volume -> lower price per vehicle.
+  // Annual vehicle packages: fixed yearly price; per-vehicle price is derived
+  // from the package total so the headline price stays stable.
   const vehiclePackages: Array<{
     id: string;
     nameKey: string;
     cars: number;
-    pricePerCar: number;
+    priceKc: number;
     popular?: boolean;
   }> = [
-    { id: "start", nameKey: "dealer.billing.packageStart", cars: 250, pricePerCar: 12 },
-    { id: "business", nameKey: "dealer.billing.packageBusiness", cars: 500, pricePerCar: 9, popular: true },
-    { id: "pro", nameKey: "dealer.billing.packagePro", cars: 1000, pricePerCar: 6 },
+    { id: "start", nameKey: "dealer.billing.packageStart", cars: 150, priceKc: 3000 },
+    { id: "business", nameKey: "dealer.billing.packageBusiness", cars: 350, priceKc: 4500, popular: true },
+    { id: "pro", nameKey: "dealer.billing.packagePro", cars: 750, priceKc: 6000 },
   ];
 
   const activatePackage = (pkg: (typeof vehiclePackages)[number]) => {
-    const total = pkg.cars * pkg.pricePerCar;
+    const total = pkg.priceKc;
     const activatedISO = new Date().toISOString();
     const expires = new Date();
     expires.setFullYear(expires.getFullYear() + 1);
@@ -6535,7 +6536,8 @@ function BillingTab({
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
             {vehiclePackages.map((pkg) => {
-              const total = pkg.cars * pkg.pricePerCar;
+              const total = pkg.priceKc;
+              const pricePerCar = Math.round(pkg.priceKc / pkg.cars);
               const isActive = billing.activePackage?.id === pkg.id;
               return (
                 <div
@@ -6573,7 +6575,7 @@ function BillingTab({
                     </p>
                     <p className="flex items-center gap-2 text-[#5c3b10]">
                       <Wallet className="h-4 w-4 text-amber-700" />
-                      <span><span className="font-black">{formatKc(pkg.pricePerCar)}</span> / {t("dealer.billing.perCar")}</span>
+                      <span><span className="font-black">{formatKc(pricePerCar)}</span> / {t("dealer.billing.perCar")}</span>
                     </p>
                     <p className="flex items-center gap-2 text-emerald-700">
                       <CalendarDays className="h-4 w-4" />
