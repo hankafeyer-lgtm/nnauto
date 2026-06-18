@@ -14,21 +14,6 @@ import { formatDistanceToNow } from "date-fns";
 import { cs, uk, enUS, de } from "date-fns/locale";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Heart } from "lucide-react";
-import sedanImage from "@assets/generated_images/Featured_car_sedan_3670cf96.png";
-import suvImage from "@assets/generated_images/Featured_car_SUV_65e6ecf7.png";
-import sportsImage from "@assets/generated_images/Featured_car_sports_0787b41f.png";
-import electricImage from "@assets/generated_images/Featured_car_electric_fd29e3f9.png";
-import hatchbackImage from "@assets/generated_images/Featured_car_hatchback_89d0679c.png";
-import truckImage from "@assets/generated_images/Featured_car_truck_55bea7bf.png";
-
-// Map of body types to images
-const bodyTypeImages: Record<string, string> = {
-  sedan: sedanImage,
-  suv: suvImage,
-  coupe: sportsImage,
-  hatchback: hatchbackImage,
-  pickup: truckImage,
-};
 
 interface FavoritesModalProps {
   isOpen: boolean;
@@ -147,12 +132,12 @@ export function FavoritesModal({ isOpen, onClose }: FavoritesModalProps) {
                   })
                 : '';
 
-              // Use actual listing photos, fallback to body type image
+              // Use the listing's own first photo; cars without a photo fall
+              // back to CarCard's built-in neutral placeholder (no stock image).
               const listingPhoto = listing.photos && listing.photos.length > 0 
                 ? listing.photos[0] 
                 : null;
-              const fallbackImage = listing.bodyType ? bodyTypeImages[listing.bodyType] || sedanImage : sedanImage;
-              const image = listingPhoto || fallbackImage;
+              const image = listingPhoto || "";
 
               // Handle array fields - take first value if array
               const fuelValue = Array.isArray(listing.fuelType) ? listing.fuelType[0] : listing.fuelType;

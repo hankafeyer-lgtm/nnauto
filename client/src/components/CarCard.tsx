@@ -17,6 +17,7 @@ import {
   Phone,
   MessageCircle,
   Send,
+  Car,
 } from "lucide-react";
 import { Link, useLocation } from "@/lib/navigation";
 import { useFavorites } from "@/contexts/FavoritesContext";
@@ -237,8 +238,13 @@ function CarCard({
   const { isFavorite, toggleFavorite } = useFavorites();
   const t = useTranslation();
   const favorite = isFavorite(id);
+  // Treat a missing/blank image as an immediate error so we show the neutral
+  // placeholder instead of an empty <img> that would shimmer forever.
+  const hasUsablePhoto =
+    (photos?.length ?? 0) > 0 ||
+    (typeof image === "string" && image.trim() !== "");
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [imageError, setImageError] = useState(!hasUsablePhoto);
   const didPrefetchRef = useRef(false);
 
   // Catalog cards now always show only the primary image.
@@ -467,6 +473,11 @@ function CarCard({
                     imageLoaded ? "opacity-100" : "opacity-0"
                   }`}
                 />
+                {imageError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                    <Car className="h-10 w-10 text-muted-foreground/40" />
+                  </div>
+                )}
 
                 {isSold && (
                   <div className="absolute top-2 left-2 z-20">
@@ -676,6 +687,11 @@ function CarCard({
               } select-none pointer-events-none`}
               draggable={false}
             />
+            {imageError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                <Car className="h-12 w-12 text-muted-foreground/40" />
+              </div>
+            )}
 
             {hasMultiplePhotos && (
               <div className="absolute bottom-2 left-2 z-20 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
