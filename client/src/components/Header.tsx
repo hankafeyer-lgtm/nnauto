@@ -410,6 +410,18 @@ function HeaderContent({
   });
 
   const handleLogout = () => {
+    // Clear client-side auth state immediately so the UI reflects the logout
+    // without waiting for the network round-trip (and without a page refresh).
+    localStorage.removeItem("nnauto_user");
+    localStorage.removeItem("nnauto_token");
+    queryClient.setQueryData(["/api/auth/user"], {
+      user: null,
+      sessionId: null,
+    });
+    queryClient.removeQueries({
+      predicate: (query) => query.queryKey[0] === "/api/listings",
+    });
+
     logoutMutation.mutate();
   };
 

@@ -178,15 +178,27 @@ export function useAuth() {
     }
   }, [confirmedUnauthorized, logout]);
 
+  // Did the auth query resolve with a definitive answer? Network errors throw
+  // and leave `data` undefined, so this is true only when the server gave a real
+  // response (200 user / 401 → { user: null }) or when we set it manually on
+  // login/logout via setQueryData. We must trust this answer — otherwise an
+  // explicit logout (serverUser === null) would fall back to the cached user and
+  // keep the UI "logged in" until the page is refreshed.
+  const serverResponded = data !== undefined;
+
   // Resolve the effective user. Priority:
   //   1. JWT expired locally → logged out
-  //   2. Server returned fresh user → use it (source of truth)
+  //   2. Server (or login/logout) gave a definitive answer → use it (source of truth)
   //   3. No server response yet but we have a cached user + valid token → use cache
   //      so users stay logged in across hard-refresh / tab re-open for the whole
   //      7-day JWT lifetime even on flaky mobile networks.
   const user = tokenInvalid
     ? null
-    : serverUser ?? (hasToken ? cachedUser : null);
+    : serverResponded
+      ? serverUser
+      : hasToken
+        ? cachedUser
+        : null;
 
   const stillResolving =
     !tokenInvalid && hasToken && isLoading && !cachedUser && !serverUser;
