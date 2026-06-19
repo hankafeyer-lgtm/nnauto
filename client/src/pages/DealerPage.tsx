@@ -6402,6 +6402,55 @@ function MicrositeTab({
   );
 }
 
+// Lightweight, dependency-free card helpers for the billing card form.
+// This stores only brand / last4 / expiry locally — never the full PAN or CVC.
+function detectCardBrand(digits: string): string {
+  if (/^4/.test(digits)) return "VISA";
+  if (/^(5[1-5]|2(2[2-9]|[3-6]|7[01]|720))/.test(digits)) return "Mastercard";
+  if (/^3[47]/.test(digits)) return "American Express";
+  if (/^(6011|65|64[4-9]|622)/.test(digits)) return "Discover";
+  if (/^3(0[0-5]|[68])/.test(digits)) return "Diners Club";
+  if (/^35/.test(digits)) return "JCB";
+  return "Karta";
+}
+
+function luhnValid(digits: string): boolean {
+  if (digits.length < 12) return false;
+  let sum = 0;
+  let alt = false;
+  for (let i = digits.length - 1; i >= 0; i--) {
+    let n = Number(digits[i]);
+    if (alt) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+    alt = !alt;
+  }
+  return sum % 10 === 0;
+}
+
+function formatCardNumber(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 19);
+  return digits.replace(/(.{4})/g, "$1 ").trim();
+}
+
+function formatCardExpiry(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+}
+
+function expiryInFuture(expiry: string): boolean {
+  const m = expiry.match(/^(\d{2})\/(\d{2})$/);
+  if (!m) return false;
+  const month = Number(m[1]);
+  const year = 2000 + Number(m[2]);
+  if (month < 1 || month > 12) return false;
+  const end = new Date(year, month, 1).getTime();
+  return end > Date.now();
+}
+
 function BillingTab({
   dealer,
   t,
@@ -6413,6 +6462,53 @@ function BillingTab({
   const [settings, update] = useDealerLocalStore(dealer);
   const billing = settings.billing;
   const packagesRef = useRef<HTMLDivElement>(null);
+
+  const [cardDialogOpen, setCardDialogOpen] = useState(false);
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvc, setCardCvc] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [cardError, setCardError] = useState<string | null>(null);
+
+  const openCardDialog = () => {
+    setCardNumber("");
+    setCardExpiry("");
+    setCardCvc("");
+    setCardName("");
+    setCardError(null);
+    setCardDialogOpen(true);
+  };
+
+  const saveCard = () => {
+    const digits = cardNumber.replace(/\D/g, "");
+    if (!luhnValid(digits)) {
+      setCardError(t("dealer.billing.cardErrorNumber"));
+      return;
+    }
+    if (!expiryInFuture(cardExpiry)) {
+      setCardError(t("dealer.billing.cardErrorExpiry"));
+      return;
+    }
+    if (cardCvc.replace(/\D/g, "").length < 3) {
+      setCardError(t("dealer.billing.cardErrorCvc"));
+      return;
+    }
+    const brand = detectCardBrand(digits);
+    update((prev) => ({
+      ...prev,
+      billing: {
+        ...prev.billing,
+        paymentBrand: brand,
+        paymentLast4: digits.slice(-4),
+        paymentExpires: cardExpiry,
+      },
+    }));
+    setCardDialogOpen(false);
+    toast({
+      title: t("dealer.billing.cardSaved"),
+      description: `${brand} •••• ${digits.slice(-4)}`,
+    });
+  };
 
   const formatKc = (amount: number) =>
     new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK", maximumFractionDigits: 0 }).format(amount);
@@ -6637,17 +6733,7 @@ function BillingTab({
           <Button
             variant="outline"
             className="w-full rounded-2xl"
-            onClick={() =>
-              update((prev) => ({
-                ...prev,
-                billing: {
-                  ...prev.billing,
-                  paymentBrand: "VISA",
-                  paymentLast4: "4242",
-                  paymentExpires: "12/28",
-                },
-              }))
-            }
+            onClick={openCardDialog}
           >
             <Plus className="mr-2 h-4 w-4" />
             {billing.paymentLast4
@@ -6656,6 +6742,97 @@ function BillingTab({
           </Button>
         </CardContent>
       </Card>
+
+      <Dialog open={cardDialogOpen} onOpenChange={setCardDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-amber-700" />
+              {billing.paymentLast4
+                ? t("dealer.billing.changePaymentMethod")
+                : t("dealer.billing.addPaymentMethod")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("dealer.billing.cardDialogDescription")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="card-number">{t("dealer.billing.cardNumber")}</Label>
+              <Input
+                id="card-number"
+                inputMode="numeric"
+                autoComplete="cc-number"
+                placeholder="1234 5678 9012 3456"
+                value={cardNumber}
+                onChange={(e) => {
+                  setCardNumber(formatCardNumber(e.target.value));
+                  setCardError(null);
+                }}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="card-name">{t("dealer.billing.cardHolder")}</Label>
+              <Input
+                id="card-name"
+                autoComplete="cc-name"
+                placeholder="Jan Novák"
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="card-expiry">{t("dealer.billing.cardExpiry")}</Label>
+                <Input
+                  id="card-expiry"
+                  inputMode="numeric"
+                  autoComplete="cc-exp"
+                  placeholder="MM/RR"
+                  value={cardExpiry}
+                  onChange={(e) => {
+                    setCardExpiry(formatCardExpiry(e.target.value));
+                    setCardError(null);
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="card-cvc">{t("dealer.billing.cardCvc")}</Label>
+                <Input
+                  id="card-cvc"
+                  inputMode="numeric"
+                  autoComplete="cc-csc"
+                  placeholder="123"
+                  value={cardCvc}
+                  onChange={(e) => {
+                    setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4));
+                    setCardError(null);
+                  }}
+                />
+              </div>
+            </div>
+
+            {cardError && (
+              <p className="text-sm font-medium text-red-600">{cardError}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCardDialogOpen(false)}>
+              {t("dealer.billing.cardCancel")}
+            </Button>
+            <Button
+              className="bg-amber-700 hover:bg-amber-800"
+              onClick={saveCard}
+            >
+              {t("dealer.billing.cardSave")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className={`${premiumSurface} rounded-3xl`}>
         <CardHeader>
