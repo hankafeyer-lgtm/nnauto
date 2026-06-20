@@ -424,7 +424,7 @@ export default function RootLayout({
             function gtag(){ dataLayer.push(arguments); }
             window.gtag = gtag;
             gtag('js', new Date());
-            gtag('config', 'G-1VPRCXDLKP', { send_page_view: true });
+            gtag('config', 'G-1VPRCXDLKP', { send_page_view: false });
             gtag('config', 'AW-17794544456');
             gtag('config', 'AW-17768541644');
           `}
