@@ -101,6 +101,8 @@ import {
   MonitorSmartphone,
   Volume2,
   Save,
+  QrCode,
+  Landmark,
 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -341,6 +343,10 @@ type DealerLocalSettings = {
     paymentBrand: string;
     paymentLast4: string;
     paymentExpires: string;
+    paymentType?: "card" | "bank" | "qr" | "applepay" | "googlepay" | "paypal";
+    paymentIban?: string;
+    paymentHolder?: string;
+    paymentEmail?: string;
     invoices: Array<{
       id: string;
       number: string;
@@ -2256,6 +2262,7 @@ function MyListingsTab({
 
   const [bulkSoldDialogOpen, setBulkSoldDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [singleDeleteId, setSingleDeleteId] = useState<string | null>(null);
   const [priceModalOpen, setPriceModalOpen] = useState(false);
   const [priceConfirmOpen, setPriceConfirmOpen] = useState(false);
   const [priceMode, setPriceMode] = useState<
@@ -2460,6 +2467,28 @@ function MyListingsTab({
               String(data.updated),
             );
       toast({ title: msg });
+    },
+    onError: () => {
+      toast({
+        title: t("dealer.listings.bulkError"),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const singleDeleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", "/api/dealer/listings/bulk", {
+        ids: [id],
+        action: "delete",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+      setSingleDeleteId(null);
+      toast({ title: t("dealer.listingDeleted") });
     },
     onError: () => {
       toast({
@@ -2858,6 +2887,15 @@ function MyListingsTab({
                       <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={() => handleEdit(l.id)}>
                         <Pencil className="h-3 w-3" />
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setSingleDeleteId(l.id)}
+                        title={t("dealer.delete")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button size="sm" variant="outline" className="h-7 px-2">
@@ -2883,6 +2921,13 @@ function MyListingsTab({
                           <DropdownMenuItem onSelect={() => toggleSoldMutation.mutate({ id: l.id, isSold: true })}>
                             <Pause className="mr-2 h-4 w-4" />
                             {t("dealer.premium.archiveListing")}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onSelect={() => setSingleDeleteId(l.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            {t("dealer.delete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -2912,6 +2957,15 @@ function MyListingsTab({
                     >
                       <Check className="mr-1 h-3.5 w-3.5" />
                       {status !== "sold" ? t("dealer.listings.markSold") : t("dealer.listings.markActive")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="col-span-3 h-10 rounded-xl border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setSingleDeleteId(l.id)}
+                    >
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      {t("dealer.delete")}
                     </Button>
                   </div>
 
@@ -3048,6 +3102,38 @@ function MyListingsTab({
               onClick={() => bulkMutation.mutate({ action: "delete" })}
             >
               {bulkMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t("dealer.delete")
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!singleDeleteId}
+        onOpenChange={(open) => {
+          if (!open) setSingleDeleteId(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("dealer.deleteListingTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("dealer.deleteListingDescription")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("dealer.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={singleDeleteMutation.isPending}
+              onClick={() =>
+                singleDeleteId && singleDeleteMutation.mutate(singleDeleteId)
+              }
+            >
+              {singleDeleteMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 t("dealer.delete")
@@ -6463,50 +6549,147 @@ function BillingTab({
   const billing = settings.billing;
   const packagesRef = useRef<HTMLDivElement>(null);
 
+  type PaymentMethodType =
+    | "card"
+    | "bank"
+    | "qr"
+    | "applepay"
+    | "googlepay"
+    | "paypal";
+
   const [cardDialogOpen, setCardDialogOpen] = useState(false);
+  const [selectedMethod, setSelectedMethod] =
+    useState<PaymentMethodType>("card");
   const [cardNumber, setCardNumber] = useState("");
   const [cardExpiry, setCardExpiry] = useState("");
   const [cardCvc, setCardCvc] = useState("");
   const [cardName, setCardName] = useState("");
+  const [bankIban, setBankIban] = useState("");
+  const [bankHolder, setBankHolder] = useState("");
+  const [paypalEmail, setPaypalEmail] = useState("");
   const [cardError, setCardError] = useState<string | null>(null);
 
   const openCardDialog = () => {
+    setSelectedMethod(billing.paymentType ?? "card");
     setCardNumber("");
     setCardExpiry("");
     setCardCvc("");
     setCardName("");
+    setBankIban("");
+    setBankHolder("");
+    setPaypalEmail("");
     setCardError(null);
     setCardDialogOpen(true);
   };
 
-  const saveCard = () => {
-    const digits = cardNumber.replace(/\D/g, "");
-    if (!luhnValid(digits)) {
-      setCardError(t("dealer.billing.cardErrorNumber"));
+  const clearPaymentFields = (prevBilling: DealerLocalSettings["billing"]) => ({
+    ...prevBilling,
+    paymentBrand: "",
+    paymentLast4: "",
+    paymentExpires: "",
+    paymentIban: "",
+    paymentHolder: "",
+    paymentEmail: "",
+  });
+
+  const saveMethod = () => {
+    if (selectedMethod === "card") {
+      const digits = cardNumber.replace(/\D/g, "");
+      if (!luhnValid(digits)) {
+        setCardError(t("dealer.billing.cardErrorNumber"));
+        return;
+      }
+      if (!expiryInFuture(cardExpiry)) {
+        setCardError(t("dealer.billing.cardErrorExpiry"));
+        return;
+      }
+      if (cardCvc.replace(/\D/g, "").length < 3) {
+        setCardError(t("dealer.billing.cardErrorCvc"));
+        return;
+      }
+      const brand = detectCardBrand(digits);
+      update((prev) => ({
+        ...prev,
+        billing: {
+          ...clearPaymentFields(prev.billing),
+          paymentType: "card",
+          paymentBrand: brand,
+          paymentLast4: digits.slice(-4),
+          paymentExpires: cardExpiry,
+          paymentHolder: cardName.trim(),
+        },
+      }));
+      setCardDialogOpen(false);
+      toast({
+        title: t("dealer.billing.methodSaved"),
+        description: `${brand} •••• ${digits.slice(-4)}`,
+      });
       return;
     }
-    if (!expiryInFuture(cardExpiry)) {
-      setCardError(t("dealer.billing.cardErrorExpiry"));
+
+    if (selectedMethod === "bank") {
+      const iban = bankIban.replace(/\s+/g, "").toUpperCase();
+      if (iban.length < 15 || !/^[A-Z]{2}[0-9A-Z]+$/.test(iban)) {
+        setCardError(t("dealer.billing.methodErrorIban"));
+        return;
+      }
+      update((prev) => ({
+        ...prev,
+        billing: {
+          ...clearPaymentFields(prev.billing),
+          paymentType: "bank",
+          paymentIban: iban,
+          paymentHolder: bankHolder.trim(),
+        },
+      }));
+      setCardDialogOpen(false);
+      toast({
+        title: t("dealer.billing.methodSaved"),
+        description: `${t("dealer.billing.methodBank")} •••• ${iban.slice(-4)}`,
+      });
       return;
     }
-    if (cardCvc.replace(/\D/g, "").length < 3) {
-      setCardError(t("dealer.billing.cardErrorCvc"));
+
+    if (selectedMethod === "paypal") {
+      const email = paypalEmail.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setCardError(t("dealer.billing.methodErrorEmail"));
+        return;
+      }
+      update((prev) => ({
+        ...prev,
+        billing: {
+          ...clearPaymentFields(prev.billing),
+          paymentType: "paypal",
+          paymentEmail: email,
+        },
+      }));
+      setCardDialogOpen(false);
+      toast({
+        title: t("dealer.billing.methodSaved"),
+        description: `PayPal · ${email}`,
+      });
       return;
     }
-    const brand = detectCardBrand(digits);
+
+    // qr / applepay / googlepay — no extra fields, just activate.
+    const label =
+      selectedMethod === "qr"
+        ? t("dealer.billing.methodQr")
+        : selectedMethod === "applepay"
+          ? t("dealer.billing.methodApplePay")
+          : t("dealer.billing.methodGooglePay");
     update((prev) => ({
       ...prev,
       billing: {
-        ...prev.billing,
-        paymentBrand: brand,
-        paymentLast4: digits.slice(-4),
-        paymentExpires: cardExpiry,
+        ...clearPaymentFields(prev.billing),
+        paymentType: selectedMethod,
       },
     }));
     setCardDialogOpen(false);
     toast({
-      title: t("dealer.billing.cardSaved"),
-      description: `${brand} •••• ${digits.slice(-4)}`,
+      title: t("dealer.billing.methodSaved"),
+      description: label,
     });
   };
 
@@ -6709,34 +6892,88 @@ function BillingTab({
           <CardDescription>{t("dealer.billing.paymentMethodDescription")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
-          {billing.paymentLast4 ? (
-            <div className="rounded-3xl border bg-gradient-to-br from-stone-900 to-stone-700 p-5 text-white">
-              <p className="text-xs uppercase tracking-[0.2em] text-stone-300">
-                {billing.paymentBrand || "VISA"}
-              </p>
-              <p className="mt-3 text-2xl font-mono tracking-wider">
-                •••• •••• •••• {billing.paymentLast4}
-              </p>
-              <p className="mt-3 text-xs text-stone-300">
-                {t("dealer.billing.expires")}: {billing.paymentExpires || "12/28"}
-              </p>
-            </div>
-          ) : (
-            <div className="rounded-3xl border border-dashed p-6 text-center">
-              <CreditCard className="mx-auto mb-3 h-10 w-10 text-amber-600" />
-              <p className="font-bold">{t("dealer.billing.noPaymentMethod")}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t("dealer.billing.noPaymentMethodHint")}
-              </p>
-            </div>
-          )}
+          {(() => {
+            const effectiveType: PaymentMethodType | null =
+              billing.paymentType ?? (billing.paymentLast4 ? "card" : null);
+
+            if (!effectiveType) {
+              return (
+                <div className="rounded-3xl border border-dashed p-6 text-center">
+                  <CreditCard className="mx-auto mb-3 h-10 w-10 text-amber-600" />
+                  <p className="font-bold">{t("dealer.billing.noPaymentMethod")}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {t("dealer.billing.noPaymentMethodHint")}
+                  </p>
+                </div>
+              );
+            }
+
+            if (effectiveType === "card") {
+              return (
+                <div className="rounded-3xl border bg-gradient-to-br from-stone-900 to-stone-700 p-5 text-white">
+                  <p className="text-xs uppercase tracking-[0.2em] text-stone-300">
+                    {billing.paymentBrand || "VISA"}
+                  </p>
+                  <p className="mt-3 text-2xl font-mono tracking-wider">
+                    •••• •••• •••• {billing.paymentLast4}
+                  </p>
+                  <p className="mt-3 text-xs text-stone-300">
+                    {t("dealer.billing.expires")}: {billing.paymentExpires || "12/28"}
+                  </p>
+                </div>
+              );
+            }
+
+            const methodMeta: Record<
+              Exclude<PaymentMethodType, "card">,
+              { icon: any; labelKey: string; detail?: string }
+            > = {
+              bank: {
+                icon: Landmark,
+                labelKey: "dealer.billing.methodBank",
+                detail: billing.paymentIban
+                  ? `IBAN •••• ${billing.paymentIban.slice(-4)}`
+                  : billing.paymentHolder,
+              },
+              qr: { icon: QrCode, labelKey: "dealer.billing.methodQr" },
+              applepay: {
+                icon: Smartphone,
+                labelKey: "dealer.billing.methodApplePay",
+              },
+              googlepay: {
+                icon: Wallet,
+                labelKey: "dealer.billing.methodGooglePay",
+              },
+              paypal: {
+                icon: Mail,
+                labelKey: "dealer.billing.methodPaypal",
+                detail: billing.paymentEmail,
+              },
+            };
+
+            const meta = methodMeta[effectiveType];
+            const Icon = meta.icon;
+            return (
+              <div className="flex items-center gap-4 rounded-3xl border bg-gradient-to-br from-stone-900 to-stone-700 p-5 text-white">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10">
+                  <Icon className="h-6 w-6" />
+                </span>
+                <div>
+                  <p className="text-base font-bold">{t(meta.labelKey)}</p>
+                  {meta.detail && (
+                    <p className="mt-1 text-xs text-stone-300">{meta.detail}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
           <Button
             variant="outline"
             className="w-full rounded-2xl"
             onClick={openCardDialog}
           >
             <Plus className="mr-2 h-4 w-4" />
-            {billing.paymentLast4
+            {billing.paymentType || billing.paymentLast4
               ? t("dealer.billing.changePaymentMethod")
               : t("dealer.billing.addPaymentMethod")}
           </Button>
@@ -6744,76 +6981,171 @@ function BillingTab({
       </Card>
 
       <Dialog open={cardDialogOpen} onOpenChange={setCardDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5 text-amber-700" />
-              {billing.paymentLast4
-                ? t("dealer.billing.changePaymentMethod")
-                : t("dealer.billing.addPaymentMethod")}
+              {t("dealer.billing.choosePaymentMethodTitle")}
             </DialogTitle>
             <DialogDescription>
-              {t("dealer.billing.cardDialogDescription")}
+              {t("dealer.billing.choosePaymentMethodDescription")}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="card-number">{t("dealer.billing.cardNumber")}</Label>
-              <Input
-                id="card-number"
-                inputMode="numeric"
-                autoComplete="cc-number"
-                placeholder="1234 5678 9012 3456"
-                value={cardNumber}
-                onChange={(e) => {
-                  setCardNumber(formatCardNumber(e.target.value));
-                  setCardError(null);
-                }}
-              />
+            <div className="grid grid-cols-3 gap-2">
+              {(
+                [
+                  { id: "card", icon: CreditCard, labelKey: "dealer.billing.methodCard" },
+                  { id: "bank", icon: Landmark, labelKey: "dealer.billing.methodBank" },
+                  { id: "qr", icon: QrCode, labelKey: "dealer.billing.methodQr" },
+                  { id: "applepay", icon: Smartphone, labelKey: "dealer.billing.methodApplePay" },
+                  { id: "googlepay", icon: Wallet, labelKey: "dealer.billing.methodGooglePay" },
+                  { id: "paypal", icon: Mail, labelKey: "dealer.billing.methodPaypal" },
+                ] as Array<{ id: PaymentMethodType; icon: any; labelKey: string }>
+              ).map((m) => {
+                const Icon = m.icon;
+                const active = selectedMethod === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedMethod(m.id);
+                      setCardError(null);
+                    }}
+                    className={`flex flex-col items-center gap-1.5 rounded-2xl border p-3 text-center text-xs font-semibold transition-all ${
+                      active
+                        ? "border-amber-500 bg-amber-50 text-amber-900 ring-2 ring-amber-500/40"
+                        : "border-amber-100 bg-white text-stone-600 hover:border-amber-300"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                    {t(m.labelKey)}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="card-name">{t("dealer.billing.cardHolder")}</Label>
-              <Input
-                id="card-name"
-                autoComplete="cc-name"
-                placeholder="Jan Novák"
-                value={cardName}
-                onChange={(e) => setCardName(e.target.value)}
-              />
-            </div>
+            {selectedMethod === "card" && (
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="card-number">{t("dealer.billing.cardNumber")}</Label>
+                  <Input
+                    id="card-number"
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                    placeholder="1234 5678 9012 3456"
+                    value={cardNumber}
+                    onChange={(e) => {
+                      setCardNumber(formatCardNumber(e.target.value));
+                      setCardError(null);
+                    }}
+                  />
+                </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="card-expiry">{t("dealer.billing.cardExpiry")}</Label>
-                <Input
-                  id="card-expiry"
-                  inputMode="numeric"
-                  autoComplete="cc-exp"
-                  placeholder="MM/RR"
-                  value={cardExpiry}
-                  onChange={(e) => {
-                    setCardExpiry(formatCardExpiry(e.target.value));
-                    setCardError(null);
-                  }}
-                />
+                <div className="space-y-1.5">
+                  <Label htmlFor="card-name">{t("dealer.billing.cardHolder")}</Label>
+                  <Input
+                    id="card-name"
+                    autoComplete="cc-name"
+                    placeholder="Jan Novák"
+                    value={cardName}
+                    onChange={(e) => setCardName(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="card-expiry">{t("dealer.billing.cardExpiry")}</Label>
+                    <Input
+                      id="card-expiry"
+                      inputMode="numeric"
+                      autoComplete="cc-exp"
+                      placeholder="MM/RR"
+                      value={cardExpiry}
+                      onChange={(e) => {
+                        setCardExpiry(formatCardExpiry(e.target.value));
+                        setCardError(null);
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="card-cvc">{t("dealer.billing.cardCvc")}</Label>
+                    <Input
+                      id="card-cvc"
+                      inputMode="numeric"
+                      autoComplete="cc-csc"
+                      placeholder="123"
+                      value={cardCvc}
+                      onChange={(e) => {
+                        setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4));
+                        setCardError(null);
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="card-cvc">{t("dealer.billing.cardCvc")}</Label>
-                <Input
-                  id="card-cvc"
-                  inputMode="numeric"
-                  autoComplete="cc-csc"
-                  placeholder="123"
-                  value={cardCvc}
-                  onChange={(e) => {
-                    setCardCvc(e.target.value.replace(/\D/g, "").slice(0, 4));
-                    setCardError(null);
-                  }}
-                />
+            )}
+
+            {selectedMethod === "bank" && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  {t("dealer.billing.bankInfo")}
+                </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="bank-iban">{t("dealer.billing.bankIban")}</Label>
+                  <Input
+                    id="bank-iban"
+                    placeholder="CZ65 0800 0000 1920 0014 5399"
+                    value={bankIban}
+                    onChange={(e) => {
+                      setBankIban(e.target.value.toUpperCase());
+                      setCardError(null);
+                    }}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="bank-holder">{t("dealer.billing.bankHolder")}</Label>
+                  <Input
+                    id="bank-holder"
+                    placeholder="Jan Novák"
+                    value={bankHolder}
+                    onChange={(e) => setBankHolder(e.target.value)}
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
+            {selectedMethod === "paypal" && (
+              <div className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                  {t("dealer.billing.paypalInfo")}
+                </p>
+                <div className="space-y-1.5">
+                  <Label htmlFor="paypal-email">{t("dealer.billing.paypalEmail")}</Label>
+                  <Input
+                    id="paypal-email"
+                    type="email"
+                    inputMode="email"
+                    placeholder="name@example.com"
+                    value={paypalEmail}
+                    onChange={(e) => {
+                      setPaypalEmail(e.target.value);
+                      setCardError(null);
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {(selectedMethod === "qr" ||
+              selectedMethod === "applepay" ||
+              selectedMethod === "googlepay") && (
+              <div className="rounded-2xl border border-dashed bg-amber-50/40 p-4 text-center text-sm text-muted-foreground">
+                {t("dealer.billing.walletInfo")}
+              </div>
+            )}
 
             {cardError && (
               <p className="text-sm font-medium text-red-600">{cardError}</p>
@@ -6826,9 +7158,9 @@ function BillingTab({
             </Button>
             <Button
               className="bg-amber-700 hover:bg-amber-800"
-              onClick={saveCard}
+              onClick={saveMethod}
             >
-              {t("dealer.billing.cardSave")}
+              {t("dealer.billing.saveMethod")}
             </Button>
           </DialogFooter>
         </DialogContent>
