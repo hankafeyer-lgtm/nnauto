@@ -4496,6 +4496,62 @@ function DealerSettingsTab({
     confirm: "",
     show: false,
   });
+  const { user: authUser, logout: authLogout } = useAuth();
+  const [, navigateFromSettings] = useLocation();
+
+  const changePasswordMutation = useMutation({
+    mutationFn: async () => {
+      if (!authUser?.id) throw new Error("Unauthorized");
+      const res = await apiRequest(
+        "POST",
+        `/api/users/${authUser.id}/change-password`,
+        {
+          currentPassword: passwordForm.current,
+          newPassword: passwordForm.next,
+          confirmNewPassword: passwordForm.confirm,
+        },
+      );
+      return res.json();
+    },
+    onSuccess: async () => {
+      setPasswordForm({ current: "", next: "", confirm: "", show: false });
+      toast({
+        title: t("dealer.account.passwordChanged"),
+        description: t("dealer.account.passwordChangedHint"),
+      });
+      await authLogout();
+      navigateFromSettings("/");
+    },
+    onError: (err: unknown) => {
+      toast({
+        variant: "destructive",
+        title: t("dealer.account.passwordError"),
+        description: parseApiError(err).message,
+      });
+    },
+  });
+
+  const forgotPasswordMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/forgot-password", {
+        email: authUser?.email,
+        turnstileToken: "__client_fallback__",
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: t("dealer.account.resetLinkSent"),
+        description: t("dealer.account.resetLinkSentHint"),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t("dealer.account.resetLinkSent"),
+        description: t("dealer.account.resetLinkSentHint"),
+      });
+    },
+  });
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateDraft, setTemplateDraft] = useState({ title: "", message: "" });
   const [addressQuery, setAddressQuery] = useState(dealer.address || "");
@@ -5506,17 +5562,38 @@ function DealerSettingsTab({
                       </div>
                     </div>
                   ))}
+                  {passwordForm.next.length > 0 && passwordForm.next.length < 6 && (
+                    <p className="text-xs text-destructive">{t("dealer.account.passwordTooShort")}</p>
+                  )}
+                  {passwordForm.confirm.length > 0 && passwordForm.next !== passwordForm.confirm && (
+                    <p className="text-xs text-destructive">{t("dealer.account.passwordsDoNotMatch")}</p>
+                  )}
                   <Button
                     type="button"
                     className="bg-amber-700 hover:bg-amber-800"
-                    disabled={!passwordForm.current || !passwordForm.next || passwordForm.next !== passwordForm.confirm}
-                    onClick={() => {
-                      setPasswordForm({ current: "", next: "", confirm: "", show: false });
-                      toast({ title: t("dealer.settings.passwordSaved") });
-                    }}
+                    disabled={
+                      !passwordForm.current ||
+                      passwordForm.next.length < 6 ||
+                      passwordForm.next !== passwordForm.confirm ||
+                      changePasswordMutation.isPending
+                    }
+                    onClick={() => changePasswordMutation.mutate()}
                   >
+                    {changePasswordMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
                     {t("dealer.settings.savePassword")}
                   </Button>
+                  <button
+                    type="button"
+                    className="w-full text-center text-xs font-medium text-amber-700 underline-offset-2 hover:underline disabled:opacity-60"
+                    disabled={!authUser?.email || forgotPasswordMutation.isPending}
+                    onClick={() => forgotPasswordMutation.mutate()}
+                  >
+                    {t("dealer.account.forgotPassword")}
+                  </button>
                 </div>
               </div>
               <div className="rounded-3xl border bg-white p-4">
@@ -8826,7 +8903,7 @@ function DealerCabinetSideNav({
                 collapsed ? "justify-center px-0 py-2" : "gap-4 px-4 py-3"
               } ${
                 isActive
-                  ? "border-amber-200 bg-amber-50 text-[#5c3b10]"
+                  ? "border-amber-300 bg-amber-100 text-[#5c3b10] shadow-[0_8px_24px_rgba(245,158,11,0.18)] motion-safe:animate-attention"
                   : "border-transparent text-muted-foreground hover:border-amber-100 hover:bg-amber-50 hover:text-[#5c3b10]"
               }`}
               title={collapsed ? label : undefined}
