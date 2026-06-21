@@ -6898,11 +6898,27 @@ function BillingTab({
               return (
                 <div
                   key={pkg.id}
+                  role={isActive ? undefined : "button"}
+                  tabIndex={isActive ? undefined : 0}
+                  onClick={() => {
+                    if (!isActive) activatePackage(pkg);
+                  }}
+                  onKeyDown={(e) => {
+                    if (isActive) return;
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      activatePackage(pkg);
+                    }
+                  }}
                   className={`relative flex flex-col rounded-3xl border p-5 transition-all duration-200 ${
                     pkg.popular
                       ? "border-amber-300 bg-amber-50/50 shadow-[0_18px_55px_rgba(120,72,12,0.12)]"
                       : "border-amber-100 bg-white"
-                  } ${isActive ? "ring-2 ring-amber-500 ring-offset-2" : "hover:-translate-y-0.5 hover:shadow-[0_22px_70px_rgba(120,72,12,0.12)]"}`}
+                  } ${
+                    isActive
+                      ? "ring-2 ring-amber-500 ring-offset-2"
+                      : "cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_22px_70px_rgba(120,72,12,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                  }`}
                 >
                   {pkg.popular && !isActive && (
                     <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-amber-700 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white shadow-sm">
@@ -6947,7 +6963,7 @@ function BillingTab({
                   ) : (
                     <Button
                       className={`mt-5 w-full rounded-2xl ${pkg.popular ? "bg-amber-700 hover:bg-amber-800" : "bg-[#6f4c17] hover:bg-[#5c3b10]"}`}
-                      onClick={() => activatePackage(pkg)}
+                      type="button"
                     >
                       <CreditCard className="mr-2 h-4 w-4" />
                       {t("dealer.billing.choosePackage")}
