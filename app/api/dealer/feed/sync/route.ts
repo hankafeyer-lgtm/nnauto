@@ -1,0 +1,62 @@
+import { NextRequest } from "next/server";
+import { json, error } from "@lib/api-helpers";
+import { requireDealer } from "@lib/auth";
+import { db } from "@lib/db";
+import { dealers, dealerFeeds } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { runFeedSync, type FeedDealerCtx } from "@lib/feed/syncFeed";
+
+function mapAuthError(e: unknown) {
+  const msg = e instanceof Error ? e.message : "Server error";
+  if (msg === "Unauthorized") return error("Unauthorized", 401);
+  if (msg === "Forbidden") return error("Forbidden", 403);
+  return error(msg, 500);
+}
+
+// POST — run a full sync now. Saves the URL first when provided, then fetches,
+// parses, upserts listings and deactivates vehicles missing from the feed.
+export async function POST(req: NextRequest) {
+  try {
+    const user = await requireDealer();
+    if (!user.dealerId) return error("Dealer not found", 404);
+
+    const [dealer] = await db
+      .select()
+      .from(dealers)
+      .where(eq(dealers.id, user.dealerId));
+    if (!dealer) return error("Dealer not found", 404);
+
+    const body = await req.json().catch(() => ({}));
+    const bodyUrl = typeof body.feedUrl === "string" ? body.feedUrl.trim() : "";
+
+    // Use the provided URL (and persist it) or fall back to the saved one.
+    let feedUrl = bodyUrl;
+    if (!feedUrl) {
+      const [feed] = await db
+        .select()
+        .from(dealerFeeds)
+        .where(eq(dealerFeeds.dealerId, user.dealerId));
+      feedUrl = feed?.feedUrl || "";
+    }
+    if (!feedUrl) return error("Není nastavena URL feedu / URL фіду не задано", 400);
+
+    const ctx: FeedDealerCtx = {
+      userId: user.id,
+      dealerId: user.dealerId,
+      region: dealer.region,
+      phone: dealer.phone || user.phone,
+      maxListings: dealer.maxListings,
+    };
+
+    let summary;
+    try {
+      summary = await runFeedSync(ctx, feedUrl);
+    } catch (e) {
+      return error(e instanceof Error ? e.message : "Sync failed", 422);
+    }
+
+    return json({ summary });
+  } catch (e) {
+    return mapAuthError(e);
+  }
+}

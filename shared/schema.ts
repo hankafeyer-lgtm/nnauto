@@ -251,6 +251,39 @@ export const bulkImportJobs = pgTable(
 
 export type BulkImportJob = typeof bulkImportJobs.$inferSelect;
 
+// ── Dealer XML/feed sync ─────────────────────────────────────────────────────
+// One row per dealer holding the configured feed URL and the latest sync
+// status/counters. Listings created from this feed carry feed_id + external_id.
+
+export const dealerFeeds = pgTable(
+  "dealer_feeds",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    dealerId: varchar("dealer_id").notNull(),
+    userId: varchar("user_id").notNull(),
+    feedUrl: text("feed_url").notNull(),
+    format: varchar("format", { length: 20 }).default("auto").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    status: varchar("status", { length: 20 }).default("idle").notNull(),
+    lastSyncAt: timestamp("last_sync_at"),
+    vehicleCount: integer("vehicle_count").default(0).notNull(),
+    createdCount: integer("created_count").default(0).notNull(),
+    updatedCount: integer("updated_count").default(0).notNull(),
+    deactivatedCount: integer("deactivated_count").default(0).notNull(),
+    errorCount: integer("error_count").default(0).notNull(),
+    lastError: text("last_error"),
+    errors: jsonb("errors"),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    uniqueIndex("dealer_feeds_dealer_id_unique").on(t.dealerId),
+    index("dealer_feeds_user_id_idx").on(t.userId),
+  ],
+);
+
+export type DealerFeed = typeof dealerFeeds.$inferSelect;
+
 // ── Brands & Models ──────────────────────────────────────────────────────────
 
 export const brands = pgTable(
@@ -350,6 +383,13 @@ export const listings = pgTable(
     importCountry: text("import_country"),
     photos: text("photos").array(),
     video: text("video"),
+    // Source tracking for automated imports (e.g. XML feed sync). `source`
+    // distinguishes manual listings from feed-synced ones; `externalId` is the
+    // vehicle id taken from the dealer's feed so we can update/deactivate it on
+    // the next sync; `feedId` links the listing to the dealer_feeds row.
+    source: text("source").default("manual"),
+    externalId: text("external_id"),
+    feedId: varchar("feed_id"),
     createdAt: timestamp("created_at").default(sql`now()`).notNull(),
     updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   },
@@ -366,6 +406,10 @@ export const listings = pgTable(
     index("listings_body_type_idx").on(t.bodyType),
     index("listings_region_idx").on(t.region),
     index("listings_user_id_idx").on(t.userId),
+    index("listings_feed_id_idx").on(t.feedId),
+    // Dedup key for feed sync. NULLs are distinct in Postgres, so manual
+    // listings (external_id IS NULL) never collide here.
+    uniqueIndex("listings_user_external_unique").on(t.userId, t.externalId),
   ],
 );
 

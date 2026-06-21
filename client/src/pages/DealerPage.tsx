@@ -7686,7 +7686,9 @@ type IntegraceState = {
   xmlVerified: boolean;
   lastSyncAt: string | null;
   vehicleCount: number;
+  createdCount: number;
   updatedCount: number;
+  deactivatedCount: number;
   errorCount: number;
   apiKey: string;
   webhookUrl: string;
@@ -7767,7 +7769,9 @@ function ImportSyncTab({
     xmlVerified: false,
     lastSyncAt: null,
     vehicleCount: 0,
+    createdCount: 0,
     updatedCount: 0,
+    deactivatedCount: 0,
     errorCount: 0,
     apiKey: "",
     webhookUrl: "",
@@ -7803,6 +7807,38 @@ function ImportSyncTab({
     [storageKey],
   );
 
+  // Load the real feed config/status from the backend. Server is the source of
+  // truth for the XML feed (URL, last sync, counters); localStorage only keeps
+  // demo-only fields like apiKey/webhook.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiRequest("GET", "/api/dealer/feed");
+        const data = await res.json();
+        const feed = data?.feed;
+        if (!feed || cancelled) return;
+        setState((prev) => ({
+          ...prev,
+          xmlUrl: feed.feedUrl || prev.xmlUrl,
+          xmlSavedUrl: feed.feedUrl || "",
+          xmlVerified: feed.status === "ok" || feed.status === "syncing",
+          lastSyncAt: feed.lastSyncAt || prev.lastSyncAt,
+          vehicleCount: feed.vehicleCount ?? prev.vehicleCount,
+          createdCount: feed.createdCount ?? prev.createdCount,
+          updatedCount: feed.updatedCount ?? prev.updatedCount,
+          deactivatedCount: feed.deactivatedCount ?? prev.deactivatedCount,
+          errorCount: feed.errorCount ?? prev.errorCount,
+        }));
+      } catch {
+        // ignore — dealer may not have configured a feed yet
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const subTabs: Array<{
     id: ImportSyncSubTab;
     label: string;
@@ -7820,35 +7856,85 @@ function ImportSyncTab({
   const mainTabs = subTabs.filter((tab) => tab.group === "main");
   const extraTabs = subTabs.filter((tab) => tab.group === "extra");
 
-  const handleVerifyXml = () => {
+  const handleVerifyXml = async () => {
     if (!state.xmlUrl.trim()) {
       toast({ title: "Zadejte XML URL", variant: "destructive" });
       return;
     }
     setBusy("verify");
-    window.setTimeout(() => {
-      persist((prev) => ({ ...prev, xmlVerified: true }));
+    try {
+      const res = await apiRequest("POST", "/api/dealer/feed/verify", {
+        feedUrl: state.xmlUrl.trim(),
+      });
+      const data = await res.json();
+      const preview = data?.preview;
+      const count = preview?.itemCount ?? 0;
+      const valid = preview?.validCount ?? 0;
+      persist((prev) => ({ ...prev, xmlVerified: count > 0, vehicleCount: count }));
+      toast({
+        title: `Nalezeno ${count} vozidel`,
+        description: `Připraveno k importu: ${valid}. Zkontrolováno bez uložení.`,
+      });
+    } catch (err) {
+      const { message } = parseApiError(err);
+      toast({ title: "Ověření selhalo", description: message, variant: "destructive" });
+    } finally {
       setBusy(null);
-      toast({ title: "XML formát vypadá v pořádku", description: "Připojení bude dokončeno po nasazení backendu." });
-    }, 700);
+    }
   };
 
-  const handleSaveXml = () => {
-    persist((prev) => ({ ...prev, xmlSavedUrl: prev.xmlUrl }));
-    toast({ title: "XML feed uložen" });
+  const handleSaveXml = async () => {
+    if (!state.xmlUrl.trim()) {
+      toast({ title: "Zadejte XML URL", variant: "destructive" });
+      return;
+    }
+    try {
+      await apiRequest("POST", "/api/dealer/feed", { feedUrl: state.xmlUrl.trim() });
+      persist((prev) => ({ ...prev, xmlSavedUrl: prev.xmlUrl.trim() }));
+      toast({ title: "XML feed uložen" });
+    } catch (err) {
+      const { message } = parseApiError(err);
+      toast({ title: "Uložení selhalo", description: message, variant: "destructive" });
+    }
   };
 
-  const handleSyncNow = () => {
-    if (!state.xmlSavedUrl.trim()) {
-      toast({ title: "Nejdříve uložte XML URL", variant: "destructive" });
+  const handleSyncNow = async () => {
+    const url = state.xmlUrl.trim() || state.xmlSavedUrl.trim();
+    if (!url) {
+      toast({ title: "Nejdříve zadejte XML URL", variant: "destructive" });
       return;
     }
     setBusy("sync");
-    window.setTimeout(() => {
-      persist((prev) => ({ ...prev, lastSyncAt: new Date().toISOString() }));
+    try {
+      const res = await apiRequest("POST", "/api/dealer/feed/sync", { feedUrl: url });
+      const data = await res.json();
+      const s = data?.summary ?? {};
+      persist((prev) => ({
+        ...prev,
+        xmlSavedUrl: url,
+        xmlVerified: true,
+        lastSyncAt: new Date().toISOString(),
+        vehicleCount: s.itemCount ?? prev.vehicleCount,
+        createdCount: s.created ?? 0,
+        updatedCount: s.updated ?? 0,
+        deactivatedCount: s.deactivated ?? 0,
+        errorCount: s.failed ?? 0,
+      }));
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] === "/api/listings",
+      });
+      toast({
+        title: "Synchronizace dokončena",
+        description: `Nové: ${s.created ?? 0}, aktualizované: ${s.updated ?? 0}, deaktivované: ${s.deactivated ?? 0}, chyby: ${s.failed ?? 0}`,
+      });
+    } catch (err) {
+      const { message } = parseApiError(err);
+      toast({ title: "Synchronizace selhala", description: message, variant: "destructive" });
+    } finally {
       setBusy(null);
-      toast({ title: "Synchronizace naplánována", description: "Reálná synchronizace poběží přes cron každých 15 minut." });
-    }, 900);
+    }
   };
 
   const handleGenerateKey = () => {
@@ -8037,7 +8123,7 @@ function ImportSyncTab({
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <IntegraceStat label="Poslední synchronizace" value={lastSyncLabel} />
               <IntegraceStat label="Počet vozidel" value={String(state.vehicleCount)} />
-              <IntegraceStat label="Aktualizováno" value={String(state.updatedCount)} />
+              <IntegraceStat label="Nové / aktualizované" value={`${state.createdCount} / ${state.updatedCount}`} />
               <IntegraceStat label="Chyby" value={String(state.errorCount)} tone={state.errorCount > 0 ? "danger" : "default"} />
             </div>
           </CardContent>

@@ -23,7 +23,9 @@ import pg from "pg";
 const { Client } = pg;
 
 const VIEWS_PER_LISTING = Number(process.argv[2]) || 15;
-const SEED_PREFIX = "seed-bulk-views";
+// Override with SEED_PREFIX=... to force a fresh, non-colliding batch of views
+// even if the script was already run before with the default prefix.
+const SEED_PREFIX = process.env.SEED_PREFIX || "seed-bulk-views";
 
 const connectionString =
   process.env.DATABASE_URL_POOLED ||
