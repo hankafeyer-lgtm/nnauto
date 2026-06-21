@@ -5,6 +5,7 @@ import { storage } from "@lib/storage";
 import { db } from "@lib/db";
 import { sql } from "drizzle-orm";
 import { invalidateListingsCache } from "../route";
+import { dispatchVehicleWebhook } from "@lib/webhooks";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -51,6 +52,18 @@ export async function PUT(
 
       const body = await _req.json();
       const updatedListing = await storage.updateListing(id, body);
+      if (user.dealerId) {
+        await dispatchVehicleWebhook({
+          dealerId: user.dealerId,
+          event:
+            updatedListing?.isSold && !existingListing.isSold
+              ? "vehicle.sold"
+              : "vehicle.updated",
+          listing: updatedListing,
+          previous: existingListing,
+          meta: { source: "listing_route", action: "update" },
+        });
+      }
       invalidateListingsCache();
       return json(updatedListing);
     } catch (err: unknown) {
@@ -87,6 +100,14 @@ export async function DELETE(
 
       const deleted = await storage.deleteListing(id);
       if (deleted) {
+        if (user.dealerId) {
+          await dispatchVehicleWebhook({
+            dealerId: user.dealerId,
+            event: "vehicle.deleted",
+            previous: existingListing,
+            meta: { source: "listing_route", action: "delete" },
+          });
+        }
         invalidateListingsCache();
         securityLog("listing_delete", {
           listingId: id,

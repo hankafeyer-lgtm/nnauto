@@ -5,6 +5,7 @@ import { listings, type Listing } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { storage } from "@lib/storage";
 import { getApiDealer, type ApiDealerCtx } from "@lib/apiAuth";
+import { dispatchVehicleWebhook } from "@lib/webhooks";
 
 export const dynamic = "force-dynamic";
 
@@ -58,5 +59,12 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
   }
 
   const updated = await storage.updateListing(listing.id, { isSold } as any);
+  await dispatchVehicleWebhook({
+    dealerId: ctx.dealerId,
+    event: isSold ? "vehicle.sold" : "vehicle.updated",
+    listing: updated,
+    previous: listing,
+    meta: { source: "api", action: "status" },
+  });
   return json({ vehicle: updated, action: "status_updated", isSold });
 }

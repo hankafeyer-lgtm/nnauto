@@ -3,6 +3,7 @@ import { json, error } from "@lib/api-helpers";
 import { requireDealer } from "@lib/auth";
 import { storage } from "@lib/storage";
 import { invalidateListingsCache } from "../../../listings/route";
+import { dispatchVehicleWebhook } from "@lib/webhooks";
 
 type BulkAction = "mark_sold" | "delete" | "price_update";
 
@@ -69,7 +70,14 @@ export async function POST(req: NextRequest) {
       }
 
       if (action === "mark_sold") {
-        await storage.updateListing(id, { isSold: true });
+        const updatedListing = await storage.updateListing(id, { isSold: true });
+        await dispatchVehicleWebhook({
+          dealerId: user.dealerId,
+          event: "vehicle.sold",
+          listing: updatedListing,
+          previous: listing,
+          meta: { source: "dealer_bulk", action },
+        });
         updated += 1;
         cacheDirty = true;
         continue;
@@ -78,6 +86,12 @@ export async function POST(req: NextRequest) {
       if (action === "delete") {
         const ok = await storage.deleteListing(id);
         if (ok) {
+          await dispatchVehicleWebhook({
+            dealerId: user.dealerId,
+            event: "vehicle.deleted",
+            previous: listing,
+            meta: { source: "dealer_bulk", action },
+          });
           updated += 1;
           cacheDirty = true;
         } else {
@@ -130,7 +144,14 @@ export async function POST(req: NextRequest) {
         newNum = roundPriceKc(current * (1 - value / 100));
       }
 
-      await storage.updateListing(id, { price: String(newNum) });
+      const updatedListing = await storage.updateListing(id, { price: String(newNum) });
+      await dispatchVehicleWebhook({
+        dealerId: user.dealerId,
+        event: "vehicle.updated",
+        listing: updatedListing,
+        previous: listing,
+        meta: { source: "dealer_bulk", action },
+      });
       updated += 1;
       cacheDirty = true;
     }

@@ -2,6 +2,7 @@ import { db } from "@lib/db";
 import { dealers, listings, dealerFeeds, insertListingSchema } from "@shared/schema";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { parseFeedXml, type MappedVehicle } from "./xmlImport";
+import { dispatchVehicleWebhook } from "@lib/webhooks";
 
 const FETCH_TIMEOUT_MS = 25_000;
 const MAX_FEED_BYTES = 30 * 1024 * 1024; // 30 MB
@@ -277,12 +278,12 @@ export async function runFeedSync(ctx: FeedDealerCtx, feedUrl: string): Promise<
       }
 
       const [existing] = await db
-        .select({ id: listings.id })
+        .select()
         .from(listings)
         .where(and(eq(listings.userId, ctx.userId), eq(listings.externalId, externalId)));
 
       if (existing) {
-        await db
+        const [updatedListing] = await db
           .update(listings)
           .set({
             ...parsed.data,
@@ -291,7 +292,15 @@ export async function runFeedSync(ctx: FeedDealerCtx, feedUrl: string): Promise<
             source: "xml_feed",
             updatedAt: new Date(),
           })
-          .where(eq(listings.id, existing.id));
+          .where(eq(listings.id, existing.id))
+          .returning();
+        await dispatchVehicleWebhook({
+          dealerId: ctx.dealerId,
+          event: existing.isSold ? "vehicle.created" : "vehicle.updated",
+          listing: updatedListing,
+          previous: existing,
+          meta: { source: "xml_feed", feedId: feed.id },
+        });
         summary.updated++;
       } else {
         if (currentCount >= ctx.maxListings) {
@@ -304,7 +313,13 @@ export async function runFeedSync(ctx: FeedDealerCtx, feedUrl: string): Promise<
           }
           continue;
         }
-        await db.insert(listings).values(parsed.data as any);
+        const [createdListing] = await db.insert(listings).values(parsed.data as any).returning();
+        await dispatchVehicleWebhook({
+          dealerId: ctx.dealerId,
+          event: "vehicle.created",
+          listing: createdListing,
+          meta: { source: "xml_feed", feedId: feed.id },
+        });
         summary.created++;
         currentCount++;
       }
@@ -312,15 +327,23 @@ export async function runFeedSync(ctx: FeedDealerCtx, feedUrl: string): Promise<
 
     // Deactivate listings from this feed that are no longer present.
     const feedListings = await db
-      .select({ id: listings.id, externalId: listings.externalId })
+      .select()
       .from(listings)
       .where(and(eq(listings.feedId, feed.id), eq(listings.isSold, false)));
     for (const row of feedListings) {
       if (row.externalId && !seen.has(row.externalId)) {
-        await db
+        const [updatedListing] = await db
           .update(listings)
           .set({ isSold: true, updatedAt: new Date() })
-          .where(eq(listings.id, row.id));
+          .where(eq(listings.id, row.id))
+          .returning();
+        await dispatchVehicleWebhook({
+          dealerId: ctx.dealerId,
+          event: "vehicle.sold",
+          listing: updatedListing,
+          previous: row,
+          meta: { source: "xml_feed", feedId: feed.id, reason: "missing_from_feed" },
+        });
         summary.deactivated++;
       }
     }

@@ -284,6 +284,35 @@ export const dealerFeeds = pgTable(
 
 export type DealerFeed = typeof dealerFeeds.$inferSelect;
 
+// ── Dealer webhooks ──────────────────────────────────────────────────────────
+// One webhook endpoint per dealer. We sign every delivery with HMAC-SHA256
+// using `secret`, and only send the events selected in `events`.
+
+export const dealerWebhooks = pgTable(
+  "dealer_webhooks",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    dealerId: varchar("dealer_id").notNull(),
+    userId: varchar("user_id").notNull(),
+    webhookUrl: text("webhook_url").notNull(),
+    secret: varchar("secret", { length: 80 }).notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    events: jsonb("events").notNull(),
+    status: varchar("status", { length: 20 }).default("idle").notNull(),
+    lastDeliveryAt: timestamp("last_delivery_at"),
+    lastStatus: integer("last_status"),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    uniqueIndex("dealer_webhooks_dealer_id_unique").on(t.dealerId),
+    index("dealer_webhooks_user_id_idx").on(t.userId),
+  ],
+);
+
+export type DealerWebhook = typeof dealerWebhooks.$inferSelect;
+
 // ── Brands & Models ──────────────────────────────────────────────────────────
 
 export const brands = pgTable(

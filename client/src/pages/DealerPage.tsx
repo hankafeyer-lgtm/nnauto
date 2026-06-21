@@ -7693,6 +7693,11 @@ type IntegraceState = {
   apiKey: string;
   webhookUrl: string;
   webhookEvents: string[];
+  webhookSecret: string;
+  webhookEnabled: boolean;
+  webhookLastStatus: number | null;
+  webhookLastError: string | null;
+  webhookLastDeliveryAt: string | null;
 };
 
 const WEBHOOK_EVENTS: Array<{ id: string; label: string }> = [
@@ -7766,6 +7771,11 @@ function ImportSyncTab({
     apiKey: "",
     webhookUrl: "",
     webhookEvents: ["vehicle.created", "vehicle.updated", "vehicle.sold"],
+    webhookSecret: "",
+    webhookEnabled: true,
+    webhookLastStatus: null,
+    webhookLastError: null,
+    webhookLastDeliveryAt: null,
   });
   const [busy, setBusy] = useState<null | "verify" | "sync" | "webhook" | "apikey">(null);
 
@@ -7840,6 +7850,34 @@ function ImportSyncTab({
         if (typeof data.apiKey === "string") {
           setState((prev) => ({ ...prev, apiKey: data.apiKey }));
         }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load persisted webhook settings/status from the backend.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiRequest("GET", "/api/dealer/webhook");
+        const data = await res.json();
+        const webhook = data?.webhook;
+        if (cancelled || !webhook) return;
+        setState((prev) => ({
+          ...prev,
+          webhookUrl: webhook.webhookUrl || prev.webhookUrl,
+          webhookEvents: Array.isArray(webhook.events) ? webhook.events : prev.webhookEvents,
+          webhookSecret: webhook.secret || "",
+          webhookEnabled: webhook.enabled ?? true,
+          webhookLastStatus: webhook.lastStatus ?? null,
+          webhookLastError: webhook.lastError ?? null,
+          webhookLastDeliveryAt: webhook.lastDeliveryAt ?? null,
+        }));
       } catch {
         // ignore
       }
@@ -7973,16 +8011,66 @@ function ImportSyncTab({
     }
   };
 
-  const handleTestWebhook = () => {
+  const handleSaveWebhook = async () => {
+    if (!state.webhookUrl.trim()) {
+      toast({ title: "Zadejte webhook URL", variant: "destructive" });
+      return false;
+    }
+    try {
+      const res = await apiRequest("POST", "/api/dealer/webhook", {
+        webhookUrl: state.webhookUrl.trim(),
+        events: state.webhookEvents,
+        enabled: state.webhookEnabled,
+      });
+      const data = await res.json();
+      const webhook = data?.webhook;
+      persist((prev) => ({
+        ...prev,
+        webhookUrl: webhook?.webhookUrl || prev.webhookUrl,
+        webhookEvents: Array.isArray(webhook?.events) ? webhook.events : prev.webhookEvents,
+        webhookSecret: webhook?.secret || prev.webhookSecret,
+        webhookEnabled: webhook?.enabled ?? prev.webhookEnabled,
+        webhookLastStatus: webhook?.lastStatus ?? prev.webhookLastStatus,
+        webhookLastError: webhook?.lastError ?? prev.webhookLastError,
+        webhookLastDeliveryAt: webhook?.lastDeliveryAt ?? prev.webhookLastDeliveryAt,
+      }));
+      toast({ title: "Webhook uložen", description: "Od této chvíle se vybrané události budou posílat na zadanou URL." });
+      return true;
+    } catch (err) {
+      const { message } = parseApiError(err);
+      toast({ title: "Uložení webhooku selhalo", description: message, variant: "destructive" });
+      return false;
+    }
+  };
+
+  const handleTestWebhook = async () => {
     if (!state.webhookUrl.trim()) {
       toast({ title: "Zadejte webhook URL", variant: "destructive" });
       return;
     }
     setBusy("webhook");
-    window.setTimeout(() => {
+    try {
+      const saved = await handleSaveWebhook();
+      if (!saved) return;
+      await apiRequest("POST", "/api/dealer/webhook/test");
+      const res = await apiRequest("GET", "/api/dealer/webhook");
+      const data = await res.json();
+      const webhook = data?.webhook;
+      if (webhook) {
+        setState((prev) => ({
+          ...prev,
+          webhookLastStatus: webhook.lastStatus ?? null,
+          webhookLastError: webhook.lastError ?? null,
+          webhookLastDeliveryAt: webhook.lastDeliveryAt ?? null,
+        }));
+      }
+      toast({ title: "Testovací událost odeslána", description: "Zkontrolujte příjem na straně CRM/dealera." });
+    } catch (err) {
+      const { message } = parseApiError(err);
+      toast({ title: "Test webhooku selhal", description: message, variant: "destructive" });
+    } finally {
       setBusy(null);
-      toast({ title: "Testovací událost odeslána", description: "Doručení ověříte po zapnutí webhook dispatcheru." });
-    }, 800);
+    }
   };
 
   const toggleEvent = (id: string) => {
@@ -8232,6 +8320,16 @@ function ImportSyncTab({
                 className="rounded-2xl"
               />
             </div>
+            <div className="flex items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-white px-4 py-3">
+              <div>
+                <p className="text-sm font-bold text-[#5c3b10]">Webhook aktivní</p>
+                <p className="text-xs text-muted-foreground">Když je vypnuto, žádné události se neposílají.</p>
+              </div>
+              <Switch
+                checked={state.webhookEnabled}
+                onCheckedChange={(checked) => persist((prev) => ({ ...prev, webhookEnabled: checked }))}
+              />
+            </div>
             <div className="space-y-2">
               <Label>Události</Label>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -8256,10 +8354,39 @@ function ImportSyncTab({
                 })}
               </div>
             </div>
-            <Button variant="outline" className="rounded-2xl" onClick={handleTestWebhook} disabled={busy === "webhook"}>
-              {busy === "webhook" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
-              Test Webhook
-            </Button>
+            {state.webhookSecret ? (
+              <div className="space-y-2 rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
+                <Label>Signing secret</Label>
+                <code className="block break-all rounded-xl bg-white px-3 py-2 text-xs text-sky-900">
+                  {state.webhookSecret}
+                </code>
+                <p className="text-xs text-sky-800/80">
+                  Každý požadavek obsahuje hlavičku <code>x-nnauto-signature</code>. CRM si tím může ověřit, že událost opravdu poslal NNAuto.
+                </p>
+              </div>
+            ) : null}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <IntegraceStat
+                label="Poslední doručení"
+                value={state.webhookLastDeliveryAt ? new Date(state.webhookLastDeliveryAt).toLocaleString("cs-CZ") : "—"}
+              />
+              <IntegraceStat label="HTTP status" value={state.webhookLastStatus ? String(state.webhookLastStatus) : "—"} />
+              <IntegraceStat
+                label="Chyba"
+                value={state.webhookLastError || "—"}
+                tone={state.webhookLastError ? "danger" : "default"}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button className="rounded-2xl bg-amber-700 hover:bg-amber-800" onClick={handleSaveWebhook}>
+                <Save className="mr-2 h-4 w-4" />
+                Uložit webhook
+              </Button>
+              <Button variant="outline" className="rounded-2xl" onClick={handleTestWebhook} disabled={busy === "webhook"}>
+                {busy === "webhook" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-2 h-4 w-4" />}
+                Test Webhook
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : null}

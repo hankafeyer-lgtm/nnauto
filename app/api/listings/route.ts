@@ -5,6 +5,7 @@ import { queryListingsFromDb } from "@lib/listingsPublicQuery";
 import * as H from "@lib/listingsQueryHelpers";
 import { storage } from "@lib/storage";
 import { insertListingSchema } from "@shared/schema";
+import { dispatchVehicleWebhook } from "@lib/webhooks";
 
 /** Kept for compatibility: listings are no longer cached in RAM on this route. */
 export function invalidateListingsCache() {}
@@ -126,6 +127,14 @@ export async function POST(req: NextRequest) {
       }
 
       const listing = await storage.createListing(validatedData);
+      if (user.dealerId) {
+        await dispatchVehicleWebhook({
+          dealerId: user.dealerId,
+          event: "vehicle.created",
+          listing,
+          meta: { source: "listing_route" },
+        });
+      }
       invalidateListingsCache();
       return json(listing);
     } catch (err: unknown) {

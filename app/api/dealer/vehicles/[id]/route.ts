@@ -5,6 +5,7 @@ import { listings, updateListingSchema, type Listing } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { storage } from "@lib/storage";
 import { getApiDealer, type ApiDealerCtx } from "@lib/apiAuth";
+import { dispatchVehicleWebhook } from "@lib/webhooks";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,13 @@ export async function PUT(req: NextRequest, context: RouteContext) {
     ...(parsed.data as Record<string, unknown>),
     source: "api",
   } as any);
+  await dispatchVehicleWebhook({
+    dealerId: ctx.dealerId,
+    event: updated?.isSold && !listing.isSold ? "vehicle.sold" : "vehicle.updated",
+    listing: updated,
+    previous: listing,
+    meta: { source: "api", action: "update" },
+  });
   return json({ vehicle: updated, action: "updated" });
 }
 
@@ -82,5 +90,11 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
 
   const ok = await storage.deleteListing(listing.id);
   if (!ok) return error("Vehicle not found", 404);
+  await dispatchVehicleWebhook({
+    dealerId: ctx.dealerId,
+    event: "vehicle.deleted",
+    previous: listing,
+    meta: { source: "api" },
+  });
   return json({ message: "Vehicle deleted", id: listing.id });
 }

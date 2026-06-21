@@ -5,6 +5,7 @@ import { listings, insertListingSchema } from "@shared/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { storage } from "@lib/storage";
 import { getApiDealer } from "@lib/apiAuth";
+import { dispatchVehicleWebhook } from "@lib/webhooks";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
   // Upsert path: update the existing vehicle with this external id.
   if (externalId) {
     const [existing] = await db
-      .select({ id: listings.id })
+      .select()
       .from(listings)
       .where(and(eq(listings.userId, ctx.userId), eq(listings.externalId, externalId)));
     if (existing) {
@@ -63,6 +64,13 @@ export async function POST(req: NextRequest) {
         source: "api",
         externalId,
       } as any);
+      await dispatchVehicleWebhook({
+        dealerId: ctx.dealerId,
+        event: updated?.isSold && !existing.isSold ? "vehicle.sold" : "vehicle.updated",
+        listing: updated,
+        previous: existing,
+        meta: { source: "api", action: "upsert" },
+      });
       return json({ vehicle: updated, action: "updated" });
     }
   }
@@ -91,5 +99,11 @@ export async function POST(req: NextRequest) {
   }
 
   const created = await storage.createListing(parsed.data);
+  await dispatchVehicleWebhook({
+    dealerId: ctx.dealerId,
+    event: "vehicle.created",
+    listing: created,
+    meta: { source: "api" },
+  });
   return json({ vehicle: created, action: "created" }, 201);
 }
