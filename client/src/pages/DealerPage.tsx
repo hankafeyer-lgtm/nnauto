@@ -7703,22 +7703,12 @@ const WEBHOOK_EVENTS: Array<{ id: string; label: string }> = [
 ];
 
 const API_ENDPOINTS: Array<{ method: string; path: string; label: string }> = [
+  { method: "GET", path: "/api/dealer/vehicles", label: "Seznam vozidel" },
   { method: "POST", path: "/api/dealer/vehicles", label: "Vytvořit vozidlo" },
   { method: "PUT", path: "/api/dealer/vehicles/{id}", label: "Aktualizovat vozidlo" },
   { method: "DELETE", path: "/api/dealer/vehicles/{id}", label: "Smazat vozidlo" },
   { method: "PATCH", path: "/api/dealer/vehicles/{id}/status", label: "Změnit stav vozidla" },
 ];
-
-function generateApiKey(): string {
-  const bytes = new Uint8Array(20);
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-    crypto.getRandomValues(bytes);
-  } else {
-    for (let i = 0; i < bytes.length; i += 1) bytes[i] = Math.floor(Math.random() * 256);
-  }
-  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-  return `nn_live_${hex}`;
-}
 
 function methodBadgeClass(method: string): string {
   switch (method) {
@@ -7777,7 +7767,7 @@ function ImportSyncTab({
     webhookUrl: "",
     webhookEvents: ["vehicle.created", "vehicle.updated", "vehicle.sold"],
   });
-  const [busy, setBusy] = useState<null | "verify" | "sync" | "webhook">(null);
+  const [busy, setBusy] = useState<null | "verify" | "sync" | "webhook" | "apikey">(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -7832,6 +7822,26 @@ function ImportSyncTab({
         }));
       } catch {
         // ignore — dealer may not have configured a feed yet
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load the dealer's stored API key (server is the source of truth).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiRequest("GET", "/api/dealer/api-key");
+        const data = await res.json();
+        if (cancelled || !data) return;
+        if (typeof data.apiKey === "string") {
+          setState((prev) => ({ ...prev, apiKey: data.apiKey }));
+        }
+      } catch {
+        // ignore
       }
     })();
     return () => {
@@ -7937,10 +7947,20 @@ function ImportSyncTab({
     }
   };
 
-  const handleGenerateKey = () => {
-    const next = generateApiKey();
-    persist((prev) => ({ ...prev, apiKey: next }));
-    toast({ title: "Nový API klíč vygenerován" });
+  const handleGenerateKey = async () => {
+    setBusy("apikey");
+    try {
+      const res = await apiRequest("POST", "/api/dealer/api-key");
+      const data = await res.json();
+      const next = typeof data?.apiKey === "string" ? data.apiKey : "";
+      persist((prev) => ({ ...prev, apiKey: next }));
+      toast({ title: "Nový API klíč vygenerován", description: "Starý klíč okamžitě přestal platit." });
+    } catch (err) {
+      const { message } = parseApiError(err);
+      toast({ title: "Generování selhalo", description: message, variant: "destructive" });
+    } finally {
+      setBusy(null);
+    }
   };
 
   const handleCopyKey = async () => {
@@ -8154,8 +8174,8 @@ function ImportSyncTab({
                     <Copy className="mr-2 h-4 w-4" />
                     Kopírovat
                   </Button>
-                  <Button className="rounded-2xl bg-amber-700 hover:bg-amber-800" onClick={handleGenerateKey}>
-                    <RotateCcw className="mr-2 h-4 w-4" />
+                  <Button className="rounded-2xl bg-amber-700 hover:bg-amber-800" onClick={handleGenerateKey} disabled={busy === "apikey"}>
+                    {busy === "apikey" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
                     Generate New Key
                   </Button>
                 </div>
