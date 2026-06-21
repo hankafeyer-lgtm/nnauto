@@ -6625,6 +6625,7 @@ function BillingTab({
   const [settings, update] = useDealerLocalStore(dealer);
   const billing = settings.billing;
   const packagesRef = useRef<HTMLDivElement>(null);
+  const [checkoutPackageId, setCheckoutPackageId] = useState<string | null>(null);
 
   type PaymentMethodType =
     | "card"
@@ -6790,7 +6791,10 @@ function BillingTab({
     { id: "pro", nameKey: "dealer.billing.packagePro", cars: 750, priceKc: 6000 },
   ];
 
-  const activatePackage = (pkg: (typeof vehiclePackages)[number]) => {
+  const markPackagePaid = (
+    pkg: (typeof vehiclePackages)[number],
+    stripeSessionId?: string | null,
+  ) => {
     const total = pkg.priceKc;
     const activatedISO = new Date().toISOString();
     const expires = new Date();
@@ -6808,7 +6812,7 @@ function BillingTab({
             dateISO: activatedISO,
             amountKc: total,
             status: "paid",
-            description: `${t("dealer.billing.packageInvoiceLine")}: ${t(pkg.nameKey)} (${pkg.cars} ${t("dealer.billing.carsUnit")})`,
+            description: `${t("dealer.billing.packageInvoiceLine")}: ${t(pkg.nameKey)} (${pkg.cars} ${t("dealer.billing.carsUnit")})${stripeSessionId ? ` · Stripe ${stripeSessionId}` : ""}`,
           },
           ...prev.billing.invoices,
         ],
@@ -6819,6 +6823,62 @@ function BillingTab({
       description: `${t(pkg.nameKey)} · ${t("dealer.billing.activeUntil")} ${expires.toLocaleDateString("cs-CZ")}`,
     });
   };
+
+  const startPackageCheckout = async (pkg: (typeof vehiclePackages)[number]) => {
+    setCheckoutPackageId(pkg.id);
+    try {
+      const res = await apiRequest("POST", "/api/dealer/package-checkout", {
+        packageId: pkg.id,
+      });
+      const data = await res.json();
+      if (!data?.url) {
+        throw new Error("Stripe checkout URL missing");
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      const { message } = parseApiError(err);
+      toast({
+        title: "Platbu se nepodařilo spustit",
+        description: message,
+        variant: "destructive",
+      });
+      setCheckoutPackageId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("package_payment") !== "success") return;
+
+    const sessionId = params.get("session_id");
+    const packageId = params.get("package_id");
+    const pkg = vehiclePackages.find((p) => p.id === packageId);
+    if (!sessionId || !pkg) return;
+
+    const marker = `nnauto_package_session_${sessionId}`;
+    if (sessionStorage.getItem(marker) === "done") return;
+
+    (async () => {
+      try {
+        const res = await apiRequest("POST", "/api/dealer/package-checkout/complete", {
+          sessionId,
+        });
+        const data = await res.json();
+        const paidPkg = vehiclePackages.find((p) => p.id === data?.packageId) ?? pkg;
+        markPackagePaid(paidPkg, sessionId);
+        sessionStorage.setItem(marker, "done");
+        window.history.replaceState(null, "", "/dealer?tab=billing");
+      } catch (err) {
+        const { message } = parseApiError(err);
+        toast({
+          title: "Platbu se nepodařilo potvrdit",
+          description: message,
+          variant: "destructive",
+        });
+      }
+    })();
+  }, [toast, t]);
 
   const activePkg = billing.activePackage
     ? vehiclePackages.find((p) => p.id === billing.activePackage?.id) ?? null
@@ -6901,13 +6961,13 @@ function BillingTab({
                   role={isActive ? undefined : "button"}
                   tabIndex={isActive ? undefined : 0}
                   onClick={() => {
-                    if (!isActive) activatePackage(pkg);
+                    if (!isActive && !checkoutPackageId) startPackageCheckout(pkg);
                   }}
                   onKeyDown={(e) => {
-                    if (isActive) return;
+                    if (isActive || checkoutPackageId) return;
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      activatePackage(pkg);
+                      startPackageCheckout(pkg);
                     }
                   }}
                   className={`relative flex flex-col rounded-3xl border p-5 transition-all duration-200 ${
@@ -6964,8 +7024,9 @@ function BillingTab({
                     <Button
                       className={`mt-5 w-full rounded-2xl ${pkg.popular ? "bg-amber-700 hover:bg-amber-800" : "bg-[#6f4c17] hover:bg-[#5c3b10]"}`}
                       type="button"
+                      disabled={!!checkoutPackageId}
                     >
-                      <CreditCard className="mr-2 h-4 w-4" />
+                      {checkoutPackageId === pkg.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
                       {t("dealer.billing.choosePackage")}
                     </Button>
                   )}
@@ -7376,6 +7437,8 @@ export default function DealerPage() {
     if (tab === "web-profile" || tab === "web") {
       setProfileSubTab("web");
       setActiveTab("settings");
+    } else if (tab === "billing") {
+      setActiveTab("billing");
     }
   }, []);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget | null>(null);
