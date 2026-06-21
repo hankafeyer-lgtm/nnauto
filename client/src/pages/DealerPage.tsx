@@ -8266,18 +8266,51 @@ function ImportSyncTab({
 
       {sub === "wordpress" ? (
         <Card className={`${premiumSurface} rounded-3xl`}>
-          <CardContent className="flex flex-col items-center justify-center gap-3 px-4 py-10 text-center sm:py-14">
-            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-100 text-amber-800">
-              <MonitorSmartphone className="h-8 w-8" />
+          <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <MonitorSmartphone className="h-5 w-5 text-amber-700" />
+              WordPress plugin
+            </CardTitle>
+            <CardDescription>
+              Synchronizujte vozidla z vašeho WordPressu do NNAuto přes oficiální plugin.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 p-4 pt-0 sm:space-y-5 sm:p-6 sm:pt-0">
+            <ImportSyncInfoBlock
+              title={t("dealer.importSync.fitTitle")}
+              text="Pro dealery, kteří provozují svůj web na WordPressu. Plugin posílá vozidla do NNAuto automaticky přes naše API."
+            />
+
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4 text-sm text-[#6b4e1f]">
+              <p className="font-bold">Instalace ve 4 krocích</p>
+              <ol className="mt-2 list-decimal space-y-1 pl-5 text-[#7a5a26]">
+                <li>Stáhněte plugin a nahrajte jej ve WordPressu (Pluginy → Nahrát plugin).</li>
+                <li>Aktivujte plugin a otevřete menu „NNAuto Sync“.</li>
+                <li>Vložte svůj API klíč (záložka API → Generate New Key).</li>
+                <li>Vyberte typ záznamu s vozidly, namapujte pole a uložte.</li>
+              </ol>
             </div>
-            <h3 className="text-xl font-black text-[#5c3b10]">WordPress plugin coming soon</h3>
-            <p className="max-w-md text-sm text-muted-foreground">
-              Připravujeme oficiální WordPress plugin. Architektura je již nyní postavená nad
-              naším API, takže propojení bude jen otázkou instalace.
+
+            <div className="flex flex-wrap gap-2">
+              <a href="/downloads/nnauto-sync.zip" download>
+                <Button className="rounded-2xl bg-amber-700 hover:bg-amber-800">
+                  <Download className="mr-2 h-4 w-4" />
+                  Stáhnout plugin (.zip)
+                </Button>
+              </a>
+              <Button
+                variant="outline"
+                className="rounded-2xl"
+                onClick={() => setSub("api")}
+              >
+                <Lock className="mr-2 h-4 w-4" />
+                Získat API klíč
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Plugin upsertuje vozidla podle ID příspěvku, takže opakovaná synchronizace nevytváří duplicity. Při přesunu do koše označí vozidlo jako prodané.
             </p>
-            <Badge variant="outline" className="rounded-full border-amber-200 bg-amber-50 text-amber-800">
-              Již brzy
-            </Badge>
           </CardContent>
         </Card>
       ) : null}
