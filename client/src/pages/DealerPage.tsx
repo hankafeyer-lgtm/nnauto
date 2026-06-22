@@ -161,6 +161,17 @@ type DealerStats = {
   }>;
 };
 
+type DealerPackageSubscription = {
+  id: string;
+  packageId: "start" | "business" | "pro";
+  status: string;
+  amountKc: number;
+  maxListings: number;
+  stripeSubscriptionId?: string | null;
+  currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd?: boolean;
+};
+
 type Dealer = {
   id: string;
   ownerId?: string;
@@ -6617,9 +6628,13 @@ function expiryInFuture(expiry: string): boolean {
 function BillingTab({
   dealer,
   t,
+  dealerPackage,
+  currentListings,
 }: {
   dealer: Dealer;
   t: (key: string) => string;
+  dealerPackage?: DealerPackageSubscription | null;
+  currentListings?: number;
 }) {
   const { toast } = useToast();
   const [settings, update] = useDealerLocalStore(dealer);
@@ -6867,6 +6882,7 @@ function BillingTab({
         const data = await res.json();
         const paidPkg = vehiclePackages.find((p) => p.id === data?.packageId) ?? pkg;
         markPackagePaid(paidPkg, sessionId);
+        queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
         sessionStorage.setItem(marker, "done");
         window.history.replaceState(null, "", "/dealer?tab=billing");
       } catch (err) {
@@ -6880,16 +6896,25 @@ function BillingTab({
     })();
   }, [toast, t]);
 
-  const activePkg = billing.activePackage
-    ? vehiclePackages.find((p) => p.id === billing.activePackage?.id) ?? null
+  const localPackageActive =
+    billing.activePackage &&
+    new Date(billing.activePackage.expiresISO).getTime() > Date.now();
+  const activePackageId =
+    dealerPackage?.packageId ?? (localPackageActive ? billing.activePackage?.id : null);
+  const activePackageExpiresISO =
+    dealerPackage?.currentPeriodEnd ??
+    (localPackageActive ? billing.activePackage?.expiresISO : null);
+  const activePkg = activePackageId
+    ? vehiclePackages.find((p) => p.id === activePackageId) ?? null
     : null;
+  const limitReached = (currentListings ?? 0) >= dealer.maxListings;
 
   return (
     <div className="space-y-5">
       <Card className={`${premiumSurface} rounded-3xl overflow-hidden`}>
         <div className="bg-gradient-to-br from-amber-700 via-amber-800 to-stone-950 p-4 text-white sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {activePkg && billing.activePackage ? (
+            {activePkg && activePackageExpiresISO ? (
               <>
                 <div>
                   <Badge className="mb-2 bg-white/20 text-white hover:bg-white/30">
@@ -6904,7 +6929,10 @@ function BillingTab({
                   <p className="mt-2 flex items-center gap-2 text-sm text-amber-50/80">
                     <CalendarDays className="h-4 w-4" />
                     {t("dealer.billing.activeUntil")}{" "}
-                    {new Date(billing.activePackage.expiresISO).toLocaleDateString("cs-CZ")}
+                    {new Date(activePackageExpiresISO).toLocaleDateString("cs-CZ")}
+                  </p>
+                  <p className="mt-1 text-sm text-amber-50/80">
+                    {currentListings ?? 0} / {dealer.maxListings} {t("dealer.billing.carsUnit")}
                   </p>
                 </div>
                 <Button
@@ -6941,6 +6969,18 @@ function BillingTab({
         </div>
       </Card>
 
+      {limitReached ? (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-[#6b4e1f]">
+          <p className="flex items-center gap-2 font-black">
+            <AlertTriangle className="h-4 w-4 text-amber-700" />
+            Dosáhli jste limitu vozidel ({currentListings ?? 0} / {dealer.maxListings})
+          </p>
+          <p className="mt-1 text-[#7a5a26]">
+            Pro přidání dalších aut si kupte nový nebo vyšší balíček. Opakovaný nákup balíčku je povolen.
+          </p>
+        </div>
+      ) : null}
+
       <Card ref={packagesRef} className={`${premiumSurface} rounded-3xl scroll-mt-4`}>
         <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -6954,7 +6994,7 @@ function BillingTab({
             {vehiclePackages.map((pkg) => {
               const total = pkg.priceKc;
               const pricePerCar = Math.round(pkg.priceKc / pkg.cars);
-              const isActive = billing.activePackage?.id === pkg.id;
+              const isActive = activePackageId === pkg.id;
               return (
                 <div
                   key={pkg.id}
@@ -7015,10 +7055,10 @@ function BillingTab({
                     </p>
                   </div>
 
-                  {isActive && billing.activePackage ? (
+                  {isActive && activePackageExpiresISO ? (
                     <Button disabled className="mt-5 w-full rounded-2xl bg-emerald-600 text-white hover:bg-emerald-600">
                       <Check className="mr-2 h-4 w-4" />
-                      {t("dealer.billing.activeUntil")} {new Date(billing.activePackage.expiresISO).toLocaleDateString("cs-CZ")}
+                      {t("dealer.billing.activeUntil")} {new Date(activePackageExpiresISO).toLocaleDateString("cs-CZ")}
                     </Button>
                   ) : (
                     <Button
@@ -7462,6 +7502,7 @@ export default function DealerPage() {
   });
   const stats = statsData?.stats as DealerStats | undefined;
   const dealer = statsData?.dealer as Dealer | undefined;
+  const dealerPackage = (statsData?.dealerPackage ?? null) as DealerPackageSubscription | null;
   const openSettingsTarget = useCallback((target: SettingsTarget) => {
     setActiveTab("settings");
     setSettingsTarget(target);
@@ -7663,7 +7704,12 @@ export default function DealerPage() {
               />
             </TabsContent>
             <TabsContent value="billing" className="mt-0">
-              <BillingTab dealer={dealer} t={t} />
+              <BillingTab
+                dealer={dealer}
+                t={t}
+                dealerPackage={dealerPackage}
+                currentListings={stats?.totalListings ?? 0}
+              />
             </TabsContent>
             <TabsContent value="settings" className="mt-0">
               <DealerProfileTab

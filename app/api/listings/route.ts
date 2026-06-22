@@ -4,8 +4,10 @@ import { getCurrentUser } from "@lib/auth";
 import { queryListingsFromDb } from "@lib/listingsPublicQuery";
 import * as H from "@lib/listingsQueryHelpers";
 import { storage } from "@lib/storage";
-import { insertListingSchema } from "@shared/schema";
+import { insertListingSchema, dealers } from "@shared/schema";
 import { dispatchVehicleWebhook } from "@lib/webhooks";
+import { db } from "@lib/db";
+import { eq, sql } from "drizzle-orm";
 
 /** Kept for compatibility: listings are no longer cached in RAM on this route. */
 export function invalidateListingsCache() {}
@@ -124,6 +126,23 @@ export async function POST(req: NextRequest) {
 
       if (validatedData.userId !== user.id) {
         return error("Cannot create listing for another user", 403);
+      }
+
+      if (user.isDealer && user.dealerId) {
+        const [dealer] = await db
+          .select({ maxListings: dealers.maxListings })
+          .from(dealers)
+          .where(eq(dealers.id, user.dealerId));
+        const countResult = (await db.execute(sql`
+          SELECT COUNT(*)::int AS total FROM listings WHERE user_id = ${user.id}
+        `)) as any;
+        const currentCount = countResult?.rows?.[0]?.total || 0;
+        if (dealer && currentCount >= dealer.maxListings) {
+          return error(
+            `Listing limit reached (${dealer.maxListings}). Please upgrade or renew your dealer package.`,
+            403,
+          );
+        }
       }
 
       const listing = await storage.createListing(validatedData);

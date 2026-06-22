@@ -4,6 +4,7 @@ import { requireDealer } from "@lib/auth";
 import { db } from "@lib/db";
 import { dealers } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
+import { getActiveDealerPackageSubscription } from "@lib/dealerPackages";
 
 export async function GET(_req: NextRequest) {
   try {
@@ -68,9 +69,11 @@ export async function GET(_req: NextRequest) {
       LIMIT 20
     `)) as any;
     const perListing = perListingResult?.rows || [];
+    const dealerPackage = await getActiveDealerPackageSubscription(user.dealerId);
 
     return json({
       dealer,
+      dealerPackage,
       stats: {
         totalListings,
         activeListings,

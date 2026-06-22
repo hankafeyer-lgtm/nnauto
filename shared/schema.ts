@@ -313,6 +313,45 @@ export const dealerWebhooks = pgTable(
 
 export type DealerWebhook = typeof dealerWebhooks.$inferSelect;
 
+// ── Dealer vehicle package subscriptions ────────────────────────────────────
+// Stripe subscriptions for annual dealer inventory packages. This is separate
+// from the existing Stripe integration used elsewhere on the site.
+
+export const dealerPackageSubscriptions = pgTable(
+  "dealer_package_subscriptions",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    dealerId: varchar("dealer_id").notNull(),
+    userId: varchar("user_id").notNull(),
+    packageId: varchar("package_id", { length: 20 }).notNull(),
+    status: varchar("status", { length: 32 }).notNull(),
+    stripeCustomerId: text("stripe_customer_id"),
+    stripeSubscriptionId: text("stripe_subscription_id").notNull(),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+    stripePriceId: text("stripe_price_id").notNull(),
+    amountKc: integer("amount_kc").notNull(),
+    currency: varchar("currency", { length: 3 }).default("CZK").notNull(),
+    maxListings: integer("max_listings").notNull(),
+    currentPeriodStart: timestamp("current_period_start"),
+    currentPeriodEnd: timestamp("current_period_end"),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false).notNull(),
+    canceledAt: timestamp("canceled_at"),
+    latestInvoiceId: text("latest_invoice_id"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    uniqueIndex("dealer_package_subscriptions_stripe_sub_unique").on(t.stripeSubscriptionId),
+    index("dealer_package_subscriptions_dealer_id_idx").on(t.dealerId),
+    index("dealer_package_subscriptions_user_id_idx").on(t.userId),
+    index("dealer_package_subscriptions_status_idx").on(t.status),
+  ],
+);
+
+export type DealerPackageSubscription =
+  typeof dealerPackageSubscriptions.$inferSelect;
+
 // ── Brands & Models ──────────────────────────────────────────────────────────
 
 export const brands = pgTable(

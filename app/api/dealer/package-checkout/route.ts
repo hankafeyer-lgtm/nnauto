@@ -1,21 +1,12 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireDealer } from "@lib/auth";
-import Stripe from "stripe";
-
-const PACKAGES = {
-  start: { name: "START", cars: 150, priceKc: 3000 },
-  business: { name: "BUSINESS", cars: 350, priceKc: 4500 },
-  pro: { name: "PRO", cars: 750, priceKc: 6000 },
-} as const;
-
-type PackageId = keyof typeof PACKAGES;
-
-function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("Stripe not configured");
-  return new Stripe(key);
-}
+import {
+  DEALER_PACKAGES,
+  getDealerPackagePriceId,
+  getDealerStripe,
+  isDealerPackageId,
+} from "@lib/dealerPackages";
 
 function getBaseUrl(req: NextRequest): string {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
@@ -30,10 +21,6 @@ function getBaseUrl(req: NextRequest): string {
   return "http://localhost:3000";
 }
 
-function isPackageId(value: unknown): value is PackageId {
-  return typeof value === "string" && value in PACKAGES;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const user = await requireDealer();
@@ -41,16 +28,17 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json().catch(() => ({}));
     const packageId = body.packageId;
-    if (!isPackageId(packageId)) return error("Invalid package", 400);
+    if (!isDealerPackageId(packageId)) return error("Invalid package", 400);
 
-    let stripe: Stripe;
+    let stripe;
     try {
-      stripe = getStripe();
+      stripe = getDealerStripe();
     } catch {
-      return error("Payment system not configured", 503);
+      return error("Dealer payment system not configured", 503);
     }
 
-    const pkg = PACKAGES[packageId];
+    const pkg = DEALER_PACKAGES[packageId];
+    const priceId = getDealerPackagePriceId(packageId);
     const baseUrl = getBaseUrl(req);
     const successUrl =
       `${baseUrl}/dealer?tab=billing&package_payment=success` +
@@ -60,25 +48,27 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       line_items: [
         {
-          price_data: {
-            currency: "czk",
-            product_data: {
-              name: `NNAuto ${pkg.name}`,
-              description: `${pkg.cars} vozidel / 1 rok`,
-            },
-            unit_amount: pkg.priceKc * 100,
-          },
+          price: priceId,
           quantity: 1,
         },
       ],
-      mode: "payment",
+      mode: "subscription",
       success_url: successUrl,
       cancel_url: `${baseUrl}/dealer?tab=billing&package_payment=cancelled&package_id=${packageId}`,
+      subscription_data: {
+        metadata: {
+          type: "dealer_vehicle_package",
+          packageId,
+          userId: user.id,
+          dealerId: user.dealerId,
+        },
+      },
       metadata: {
         type: "dealer_vehicle_package",
         packageId,
         userId: user.id,
         dealerId: user.dealerId,
+        cars: String(pkg.cars),
       },
     });
 
