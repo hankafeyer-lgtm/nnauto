@@ -787,7 +787,6 @@ function DealerHero({
   dealer,
   stats,
   t,
-  onOpenMessages,
   onProfileTask,
   onAddVehicle,
   onOpenImport,
@@ -796,7 +795,6 @@ function DealerHero({
   dealer: Dealer;
   stats: DealerStats;
   t: (key: string) => string;
-  onOpenMessages: () => void;
   onProfileTask: (target: SettingsTarget) => void;
   onAddVehicle: () => void;
   onOpenImport: (sub: ImportSyncSubTab) => void;
@@ -903,7 +901,7 @@ function DealerHero({
                 </>,
               )}
               {stat(t("dealer.views"), displayViews(stats.totalViews))}
-              {stat(t("dealer.contacts"), stats.totalContacts, onOpenMessages)}
+              {stat(t("dealer.contacts"), stats.totalContacts)}
               {stat(t("dealer.billing.currentPlanShort"), activePlanLabel, onOpenBilling)}
             </div>
           </div>
@@ -7582,7 +7580,6 @@ export default function DealerPage() {
                 dealer={dealer}
                 stats={stats}
                 t={t}
-                onOpenMessages={() => navigate("/dealer/messages")}
                 onProfileTask={openSettingsTarget}
                 onAddVehicle={openAddVehicleDialog}
                 onOpenImport={openImportSync}
