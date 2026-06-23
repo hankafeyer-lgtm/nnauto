@@ -2611,6 +2611,7 @@ function FilterSidebar() {
   });
 
   const [showAllConditions, setShowAllConditions] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     // Legacy hidden category may remain in URL and force 0 results.
@@ -3262,6 +3263,29 @@ function FilterSidebar() {
           </div>
         </div>
 
+        {/* ADVANCED FILTERS TOGGLE — primary filters above stay visible;
+            the long tail (technical, appearance, equipment, extras, region)
+            is hidden behind this button so the sidebar ends near the listings. */}
+        <button
+          type="button"
+          onClick={() => setShowAdvanced((v) => !v)}
+          className="flex items-center justify-between gap-2 w-full py-2.5 px-3 mt-1 rounded-xl border border-border bg-muted/40 hover:bg-muted transition"
+          data-testid="button-toggle-advanced-filters"
+        >
+          <span className="text-base font-semibold">
+            {showAdvanced
+              ? t("filters.hideAdvancedFilters")
+              : t("filters.advancedFilters")}
+          </span>
+          <ChevronDown
+            className={`h-5 w-5 shrink-0 transition-transform ${
+              showAdvanced ? "rotate-180" : ""
+            }`}
+          />
+        </button>
+
+        {showAdvanced && (
+        <>
         {/* TECHNICAL */}
         <Collapsible
           open={openSections.technical}
@@ -3920,6 +3944,8 @@ function FilterSidebar() {
             />
           </CollapsibleContent>
         </Collapsible>
+        </>
+        )}
 
       </CardContent>
 
