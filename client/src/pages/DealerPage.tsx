@@ -787,6 +787,7 @@ function DealerHero({
   dealer,
   stats,
   t,
+  maxListings,
   onProfileTask,
   onAddVehicle,
   onOpenImport,
@@ -795,6 +796,7 @@ function DealerHero({
   dealer: Dealer;
   stats: DealerStats;
   t: (key: string) => string;
+  maxListings: number;
   onProfileTask: (target: SettingsTarget) => void;
   onAddVehicle: () => void;
   onOpenImport: (sub: ImportSyncSubTab) => void;
@@ -896,7 +898,7 @@ function DealerHero({
                 <>
                   {visibleInventoryCount}
                   <span className="ml-0.5 text-[10px] font-semibold text-[#8a641f]/70">
-                    /{dealer.maxListings}
+                    /{maxListings}
                   </span>
                 </>,
               )}
@@ -6905,7 +6907,9 @@ function BillingTab({
   const activePkg = activePackageId
     ? vehiclePackages.find((p) => p.id === activePackageId) ?? null
     : null;
-  const limitReached = (currentListings ?? 0) >= dealer.maxListings;
+  const effectiveMaxListings =
+    dealerPackage?.maxListings ?? activePkg?.cars ?? dealer.maxListings;
+  const limitReached = (currentListings ?? 0) >= effectiveMaxListings;
 
   return (
     <div className="space-y-5">
@@ -6930,7 +6934,7 @@ function BillingTab({
                     {new Date(activePackageExpiresISO).toLocaleDateString("cs-CZ")}
                   </p>
                   <p className="mt-1 text-sm text-amber-50/80">
-                    {currentListings ?? 0} / {dealer.maxListings} {t("dealer.billing.carsUnit")}
+                    {currentListings ?? 0} / {effectiveMaxListings} {t("dealer.billing.carsUnit")}
                   </p>
                 </div>
                 <Button
@@ -6971,7 +6975,7 @@ function BillingTab({
         <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-[#6b4e1f]">
           <p className="flex items-center gap-2 font-black">
             <AlertTriangle className="h-4 w-4 text-amber-700" />
-            Dosáhli jste limitu vozidel ({currentListings ?? 0} / {dealer.maxListings})
+            Dosáhli jste limitu vozidel ({currentListings ?? 0} / {effectiveMaxListings})
           </p>
           <p className="mt-1 text-[#7a5a26]">
             Pro přidání dalších aut si kupte nový nebo vyšší balíček. Opakovaný nákup balíčku je povolen.
@@ -7580,6 +7584,7 @@ export default function DealerPage() {
                 dealer={dealer}
                 stats={stats}
                 t={t}
+                maxListings={dealerPackage?.maxListings ?? dealer.maxListings}
                 onProfileTask={openSettingsTarget}
                 onAddVehicle={openAddVehicleDialog}
                 onOpenImport={openImportSync}
