@@ -788,6 +788,7 @@ function DealerHero({
   stats,
   t,
   maxListings,
+  serverPackageId,
   onProfileTask,
   onAddVehicle,
   onOpenImport,
@@ -797,6 +798,7 @@ function DealerHero({
   stats: DealerStats;
   t: (key: string) => string;
   maxListings: number;
+  serverPackageId?: string | null;
   onProfileTask: (target: SettingsTarget) => void;
   onAddVehicle: () => void;
   onOpenImport: (sub: ImportSyncSubTab) => void;
@@ -815,11 +817,12 @@ function DealerHero({
     .join("");
 
   const [heroSettings] = useDealerLocalStore(dealer);
-  const activePackageId =
+  const localActivePackageId =
     heroSettings.billing.activePackage &&
     new Date(heroSettings.billing.activePackage.expiresISO).getTime() > Date.now()
       ? heroSettings.billing.activePackage.id
       : null;
+  const activePackageId = serverPackageId ?? localActivePackageId;
   const packageNameKey: Record<string, string> = {
     start: "dealer.billing.packageStart",
     business: "dealer.billing.packageBusiness",
@@ -6882,9 +6885,13 @@ function BillingTab({
         const data = await res.json();
         const paidPkg = vehiclePackages.find((p) => p.id === data?.packageId) ?? pkg;
         markPackagePaid(paidPkg, sessionId);
-        queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
         sessionStorage.setItem(marker, "done");
         window.history.replaceState(null, "", "/dealer?tab=billing");
+        await queryClient.refetchQueries({ queryKey: ["/api/dealer/stats"] });
+        toast({
+          title: t("dealer.billing.paymentSuccessTitle"),
+          description: t("dealer.billing.paymentSuccessDesc"),
+        });
       } catch (err) {
         const { message } = parseApiError(err);
         toast({
@@ -7585,6 +7592,7 @@ export default function DealerPage() {
                 stats={stats}
                 t={t}
                 maxListings={dealerPackage?.maxListings ?? dealer.maxListings}
+                serverPackageId={dealerPackage?.packageId ?? null}
                 onProfileTask={openSettingsTarget}
                 onAddVehicle={openAddVehicleDialog}
                 onOpenImport={openImportSync}
