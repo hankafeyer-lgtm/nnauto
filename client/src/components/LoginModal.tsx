@@ -54,6 +54,18 @@ export default function LoginModal({
   const [registerFirstName, setRegisterFirstName] = useState("");
   const [registerLastName, setRegisterLastName] = useState("");
   const [registerPhone, setRegisterPhone] = useState("");
+  const [registerType, setRegisterType] = useState<"private" | "dealer">(
+    "private",
+  );
+  const [dealerCompanyName, setDealerCompanyName] = useState("");
+  const [dealerIco, setDealerIco] = useState("");
+  const [dealerEmail, setDealerEmail] = useState("");
+  const [dealerPassword, setDealerPassword] = useState("");
+  const [dealerPhone, setDealerPhone] = useState("");
+  const [showDealerPassword, setShowDealerPassword] = useState(false);
+  const [dealerTurnstileToken, setDealerTurnstileToken] = useState<string>("");
+  const [dealerVerified, setDealerVerified] = useState(false);
+  const dealerTurnstileRef = useRef<ReliableTurnstileHandle>(null);
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
   const [forgotPasswordTurnstileToken, setForgotPasswordTurnstileToken] =
@@ -97,11 +109,15 @@ export default function LoginModal({
     } else {
       setLoginTurnstileToken("");
       setRegisterTurnstileToken("");
+      setDealerTurnstileToken("");
       setLoginVerified(false);
       setRegisterVerified(false);
+      setDealerVerified(false);
       setLoginErrorMessage(null);
+      setRegisterType("private");
       loginTurnstileRef.current?.reset();
       registerTurnstileRef.current?.reset();
+      dealerTurnstileRef.current?.reset();
     }
   }, [open, initialTab]);
 
@@ -129,6 +145,16 @@ export default function LoginModal({
   const handleRegisterTurnstileExhausted = useCallback(() => {
     setRegisterTurnstileToken("__client_fallback__");
     setRegisterVerified(true);
+  }, []);
+
+  const handleDealerTurnstileSuccess = useCallback((token: string) => {
+    setDealerTurnstileToken(token);
+    setDealerVerified(true);
+  }, []);
+
+  const handleDealerTurnstileExhausted = useCallback(() => {
+    setDealerTurnstileToken("__client_fallback__");
+    setDealerVerified(true);
   }, []);
 
   const loginMutation = useMutation({
@@ -310,6 +336,112 @@ export default function LoginModal({
       });
     },
   });
+
+  const dealerRegisterMutation = useMutation({
+    mutationFn: async (data: {
+      companyName: string;
+      ico?: string;
+      email: string;
+      password: string;
+      phone: string;
+      turnstileToken: string;
+    }) => {
+      // Step 1 — create the underlying user account (this also returns the JWT
+      // that authenticates the dealer-profile call below).
+      const regRes = await apiRequest("POST", "/api/register", {
+        email: data.email,
+        password: data.password,
+        firstName: data.companyName,
+        phone: data.phone,
+        turnstileToken: data.turnstileToken,
+      });
+      const regData = await regRes.json();
+      if (regData.token) {
+        localStorage.setItem("nnauto_token", regData.token);
+      }
+      if (regData.user) {
+        localStorage.setItem("nnauto_user", JSON.stringify(regData.user));
+      }
+
+      // Step 2 — upgrade the fresh account into a dealer/autobazar profile.
+      const dealerRes = await apiRequest("POST", "/api/dealer/register", {
+        companyName: data.companyName,
+        ico: data.ico || undefined,
+        phone: data.phone,
+        email: data.email,
+      });
+      const dealerData = await dealerRes.json();
+      return { user: regData.user, dealer: dealerData.dealer };
+    },
+    onSuccess: async (data) => {
+      queryClient.setQueryData(["/api/auth/user"], {
+        user: data.user ?? null,
+        sessionId: null,
+      });
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] === "/api/listings",
+      });
+
+      toast({
+        title: t("auth.dealerRegisterSuccess"),
+        description: t("auth.dealerRegisterSuccessDescription"),
+      });
+      onOpenChange(false);
+      setDealerCompanyName("");
+      setDealerIco("");
+      setDealerEmail("");
+      setDealerPassword("");
+      setDealerPhone("");
+      setDealerTurnstileToken("");
+      setDealerVerified(false);
+      dealerTurnstileRef.current?.reset();
+
+      window.location.assign("/dealer");
+    },
+    onError: (error: any) => {
+      setDealerTurnstileToken("");
+      setDealerVerified(false);
+      dealerTurnstileRef.current?.reset();
+
+      let errorMsg = t("auth.registerErrorDescription");
+      if (error.message) {
+        try {
+          const match = error.message.match(/:\s*(.+)$/);
+          if (match) {
+            const parsed = JSON.parse(match[1]);
+            errorMsg = parsed.error || errorMsg;
+          }
+        } catch {
+          errorMsg = error.message;
+        }
+      }
+      toast({
+        variant: "destructive",
+        title: t("auth.registerError"),
+        description: errorMsg,
+      });
+    },
+  });
+
+  const handleDealerRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!TURNSTILE_UI_OFF && !dealerTurnstileToken) {
+      toast({
+        variant: "destructive",
+        title: t("auth.verificationRequired"),
+        description: t("auth.pleaseVerify"),
+      });
+      return;
+    }
+    dealerRegisterMutation.mutate({
+      companyName: dealerCompanyName,
+      ico: dealerIco || undefined,
+      email: dealerEmail,
+      password: dealerPassword,
+      phone: dealerPhone,
+      turnstileToken: dealerTurnstileToken || "",
+    });
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -554,6 +686,52 @@ export default function LoginModal({
             </TabsContent>
 
             <TabsContent value="register">
+              <div className="mb-4 grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRegisterType("private")}
+                  aria-pressed={registerType === "private"}
+                  className={`relative flex flex-col items-start rounded-xl border-2 p-3 pr-8 text-left transition ${
+                    registerType === "private"
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-sm"
+                      : "border-border bg-transparent hover:border-primary/60 hover:bg-muted/40"
+                  }`}
+                  data-testid="button-account-type-private"
+                >
+                  {registerType === "private" && (
+                    <CheckCircle className="absolute right-2 top-2 h-4 w-4 text-primary" />
+                  )}
+                  <span className="text-sm font-semibold text-black dark:text-white">
+                    {t("auth.accountTypePrivate")}
+                  </span>
+                  <span className="mt-0.5 text-xs text-muted-foreground">
+                    {t("auth.accountTypePrivateHint")}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRegisterType("dealer")}
+                  aria-pressed={registerType === "dealer"}
+                  className={`relative flex flex-col items-start rounded-xl border-2 p-3 pr-8 text-left transition ${
+                    registerType === "dealer"
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/40 shadow-sm"
+                      : "border-border bg-transparent hover:border-primary/60 hover:bg-muted/40"
+                  }`}
+                  data-testid="button-account-type-dealer"
+                >
+                  {registerType === "dealer" && (
+                    <CheckCircle className="absolute right-2 top-2 h-4 w-4 text-primary" />
+                  )}
+                  <span className="text-sm font-semibold text-black dark:text-white">
+                    {t("auth.accountTypeDealer")}
+                  </span>
+                  <span className="mt-0.5 text-xs text-muted-foreground">
+                    {t("auth.accountTypeDealerHint")}
+                  </span>
+                </button>
+              </div>
+
+              {registerType === "private" && (
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
@@ -688,6 +866,144 @@ export default function LoginModal({
                     : t("auth.register")}
                 </Button>
               </form>
+              )}
+
+              {registerType === "dealer" && (
+              <form onSubmit={handleDealerRegister} className="space-y-4">
+                <p className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
+                  {t("auth.dealerIntro")}
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="dealer-company-name">
+                    {t("dealer.companyName")} *
+                  </Label>
+                  <Input
+                    id="dealer-company-name"
+                    type="text"
+                    placeholder={t("dealer.companyName")}
+                    value={dealerCompanyName}
+                    onChange={(e) => setDealerCompanyName(e.target.value)}
+                    required
+                    className="text-black dark:text-white"
+                    data-testid="input-dealer-company-name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dealer-ico">{t("dealer.ico")}</Label>
+                  <Input
+                    id="dealer-ico"
+                    type="text"
+                    placeholder={t("dealer.ico")}
+                    value={dealerIco}
+                    onChange={(e) => setDealerIco(e.target.value)}
+                    className="text-black dark:text-white"
+                    data-testid="input-dealer-ico"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dealer-email">{t("auth.email")}</Label>
+                  <Input
+                    id="dealer-email"
+                    type="email"
+                    placeholder={t("auth.emailPlaceholder")}
+                    value={dealerEmail}
+                    onChange={(e) => setDealerEmail(e.target.value)}
+                    required
+                    className="text-black dark:text-white"
+                    data-testid="input-dealer-email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dealer-password">{t("auth.password")}</Label>
+                  <div className="relative">
+                    <Input
+                      id="dealer-password"
+                      type={showDealerPassword ? "text" : "password"}
+                      placeholder={t("auth.passwordPlaceholder")}
+                      value={dealerPassword}
+                      onChange={(e) => setDealerPassword(e.target.value)}
+                      required
+                      className="text-black dark:text-white pr-10"
+                      data-testid="input-dealer-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDealerPassword(!showDealerPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      data-testid="button-toggle-dealer-password"
+                    >
+                      {showDealerPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dealer-phone">{t("auth.phone")} *</Label>
+                  <Input
+                    id="dealer-phone"
+                    type="tel"
+                    placeholder="+420 XXX XXX XXX"
+                    value={dealerPhone}
+                    onChange={(e) => setDealerPhone(e.target.value)}
+                    required
+                    className="text-black dark:text-white"
+                    data-testid="input-dealer-phone"
+                  />
+                </div>
+                {!TURNSTILE_UI_OFF && (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Shield className="h-4 w-4" />
+                      <span>{t("auth.securityVerification")}</span>
+                    </div>
+
+                    {dealerVerified ? (
+                      <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 px-4 py-2 rounded-lg">
+                        <CheckCircle className="h-4 w-4" />
+                        <span>{t("auth.verified")}</span>
+                      </div>
+                    ) : (
+                      <ReliableTurnstile
+                        ref={dealerTurnstileRef}
+                        siteKey={TURNSTILE_SITE_KEY}
+                        ready={
+                          dialogReady &&
+                          activeTab === "register" &&
+                          registerType === "dealer"
+                        }
+                        onSuccess={handleDealerTurnstileSuccess}
+                        onRetriesExhausted={handleDealerTurnstileExhausted}
+                        onError={() => {
+                          setDealerVerified(false);
+                          setDealerTurnstileToken("");
+                        }}
+                        onExpire={() => {
+                          setDealerVerified(false);
+                          setDealerTurnstileToken("");
+                        }}
+                      />
+                    )}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={
+                    dealerRegisterMutation.isPending ||
+                    (!TURNSTILE_UI_OFF && !dealerVerified)
+                  }
+                  data-testid="button-dealer-register-submit"
+                >
+                  {dealerRegisterMutation.isPending
+                    ? t("auth.dealerRegistering")
+                    : t("dealer.register")}
+                </Button>
+              </form>
+              )}
             </TabsContent>
           </Tabs>
         </DialogContent>
