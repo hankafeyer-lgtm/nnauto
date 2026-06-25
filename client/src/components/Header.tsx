@@ -801,7 +801,7 @@ function HeaderContent({
                       <History className="mr-3 h-5 w-5" />
                       <span>{t("header.menu.cebiaReports")}</span>
                     </DropdownMenuItem>
-                    {user?.isAdmin && (
+                    {(user?.isDealer || user?.isAdmin) && (
                       <>
                         <DropdownMenuSeparator className="my-2" />
                         <DropdownMenuItem
@@ -813,14 +813,16 @@ function HeaderContent({
                           <span>{t("dealer.cabinet")}</span>
                           <DealerUnreadBadge className="ml-auto" />
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => navigate("/admin")}
-                          className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
-                          data-testid="menu-item-admin"
-                        >
-                          <Shield className="mr-3 h-5 w-5" />
-                          <span>{t("header.menu.admin")}</span>
-                        </DropdownMenuItem>
+                        {user?.isAdmin && (
+                          <DropdownMenuItem
+                            onClick={() => navigate("/admin")}
+                            className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
+                            data-testid="menu-item-admin"
+                          >
+                            <Shield className="mr-3 h-5 w-5" />
+                            <span>{t("header.menu.admin")}</span>
+                          </DropdownMenuItem>
+                        )}
                       </>
                     )}
                     <DropdownMenuItem
