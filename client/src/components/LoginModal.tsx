@@ -543,7 +543,7 @@ export default function LoginModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("auth.login")}</DialogTitle>
             <DialogDescription>{t("auth.loginOrRegister")}</DialogDescription>
@@ -1025,7 +1025,7 @@ export default function LoginModal({
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("auth.forgotPasswordTitle")}</DialogTitle>
             <DialogDescription>
