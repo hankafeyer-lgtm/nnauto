@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { runWhenConsent } from "@/lib/cookieConsent";
 
 /**
  * Microsoft Clarity loader.
@@ -65,17 +66,21 @@ export default function ClarityLoader() {
       }
     };
 
-    const idleApi = window as Window & {
-      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-    };
-    if (typeof idleApi.requestIdleCallback === "function") {
-      idleApi.requestIdleCallback(init, { timeout: 2500 });
-    } else {
-      window.setTimeout(init, 1500);
-    }
+    // Clarity is analytics — only load it once the visitor has consented.
+    const off = runWhenConsent("analytics", () => {
+      const idleApi = window as Window & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      };
+      if (typeof idleApi.requestIdleCallback === "function") {
+        idleApi.requestIdleCallback(init, { timeout: 2500 });
+      } else {
+        window.setTimeout(init, 1500);
+      }
+    });
 
     return () => {
       cancelled = true;
+      off();
     };
   }, []);
 

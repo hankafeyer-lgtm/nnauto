@@ -244,6 +244,34 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Cookie-consent bootstrap: keeps analytics/marketing trackers from
+            firing until the visitor grants consent. Trackers below register via
+            window.__nnRunWhenConsent and are flushed by the consent banner's
+            `nn-consent-changed` event. Must run before any tracker script. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function () {
+                try {
+                  var raw = null;
+                  try { raw = localStorage.getItem('nn_cookie_consent_v1'); } catch (e) {}
+                  window.__nnConsent = raw ? JSON.parse(raw) : null;
+                } catch (e) { window.__nnConsent = null; }
+                window.__nnRunWhenConsent = function (cat, fn) {
+                  function granted() { var c = window.__nnConsent; return !!(c && c[cat]); }
+                  if (granted()) { try { fn(); } catch (e) {} return; }
+                  var handler = function () {
+                    if (granted()) {
+                      try { fn(); } catch (e) {}
+                      window.removeEventListener('nn-consent-changed', handler);
+                    }
+                  };
+                  window.addEventListener('nn-consent-changed', handler);
+                };
+              })();
+            `,
+          }}
+        />
         {/* Resilience bootstrap: recover from stale chunk references & catch runtime errors */}
         <script
           dangerouslySetInnerHTML={{
@@ -414,52 +442,58 @@ export default function RootLayout({
         {/* Google Analytics 4 + Google Ads — deferred via next/script so they
             don't block the main thread before LCP. `afterInteractive` still
             fires PageView right after hydration, so ad bounces are tracked. */}
-        <Script
-          src="https://www.googletagmanager.com/gtag/js?id=G-1VPRCXDLKP"
-          strategy="afterInteractive"
-        />
         <Script id="ga-init" strategy="afterInteractive">
           {`
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){ dataLayer.push(arguments); }
-            window.gtag = gtag;
-            gtag('js', new Date());
-            gtag('config', 'G-1VPRCXDLKP', { send_page_view: false });
-            gtag('config', 'AW-17794544456');
-            gtag('config', 'AW-17768541644');
+            (window.__nnRunWhenConsent || function(c,f){f();})('analytics', function () {
+              var s = document.createElement('script');
+              s.async = true;
+              s.src = 'https://www.googletagmanager.com/gtag/js?id=G-1VPRCXDLKP';
+              document.head.appendChild(s);
+              window.dataLayer = window.dataLayer || [];
+              function gtag(){ dataLayer.push(arguments); }
+              window.gtag = gtag;
+              gtag('js', new Date());
+              gtag('config', 'G-1VPRCXDLKP', { send_page_view: false });
+              gtag('config', 'AW-17794544456');
+              gtag('config', 'AW-17768541644');
+            });
           `}
         </Script>
         {/* Meta Pixel — same as before, only the load strategy changes. */}
         <Script id="meta-pixel" strategy="afterInteractive">
           {`
-            !function(f,b,e,v,n,t,s){
-              if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-              n.queue=[];t=b.createElement(e);t.async=!0;
-              t.src=v;s=b.getElementsByTagName(e)[0];
-              s.parentNode.insertBefore(t,s)
-            }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '${process.env.NEXT_PUBLIC_META_PIXEL_ID || "1382087426626332"}');
-            fbq('track', 'PageView');
+            (window.__nnRunWhenConsent || function(c,f){f();})('marketing', function () {
+              !function(f,b,e,v,n,t,s){
+                if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+                n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+                if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+                n.queue=[];t=b.createElement(e);t.async=!0;
+                t.src=v;s=b.getElementsByTagName(e)[0];
+                s.parentNode.insertBefore(t,s)
+              }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', '${process.env.NEXT_PUBLIC_META_PIXEL_ID || "1382087426626332"}');
+              fbq('track', 'PageView');
+            });
           `}
         </Script>
         {/* TikTok Pixel — same as before, only the load strategy changes. */}
         <Script id="tiktok-pixel" strategy="afterInteractive">
           {`
-            !function (w, d, t) {
-              w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
-              ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"];
-              ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
-              for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
-              ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};
-              ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js";
-              ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=r;ttq._t=ttq._t||{};ttq._t[e]=+new Date;
-              ttq._o=ttq._o||{};ttq._o[e]=n||{};
-              n=document.createElement("script");n.type="text/javascript";n.async=!0;n.src=r+"?sdkid="+e+"&lib="+t;
-              e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
-              ttq.load("D6OHV8BC77UBTM3F5GBG");ttq.page();
-            }(window, document, "ttq");
+            (window.__nnRunWhenConsent || function(c,f){f();})('marketing', function () {
+              !function (w, d, t) {
+                w.TiktokAnalyticsObject=t;var ttq=w[t]=w[t]||[];
+                ttq.methods=["page","track","identify","instances","debug","on","off","once","ready","alias","group","enableCookie","disableCookie","holdConsent","revokeConsent","grantConsent"];
+                ttq.setAndDefer=function(t,e){t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}};
+                for(var i=0;i<ttq.methods.length;i++)ttq.setAndDefer(ttq,ttq.methods[i]);
+                ttq.instance=function(t){for(var e=ttq._i[t]||[],n=0;n<ttq.methods.length;n++)ttq.setAndDefer(e,ttq.methods[n]);return e};
+                ttq.load=function(e,n){var r="https://analytics.tiktok.com/i18n/pixel/events.js";
+                ttq._i=ttq._i||{};ttq._i[e]=[];ttq._i[e]._u=r;ttq._t=ttq._t||{};ttq._t[e]=+new Date;
+                ttq._o=ttq._o||{};ttq._o[e]=n||{};
+                n=document.createElement("script");n.type="text/javascript";n.async=!0;n.src=r+"?sdkid="+e+"&lib="+t;
+                e=document.getElementsByTagName("script")[0];e.parentNode.insertBefore(n,e)};
+                ttq.load("D6OHV8BC77UBTM3F5GBG");ttq.page();
+              }(window, document, "ttq");
+            });
           `}
         </Script>
       </body>

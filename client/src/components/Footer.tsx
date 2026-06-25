@@ -3,6 +3,7 @@ import { SiInstagram, SiTiktok, SiFacebook } from "react-icons/si";
 const logoImage = "/logo-192.png";
 import { useAuth } from "@/hooks/useAuth";
 import { dispatchOpenAddListingAuth } from "@/lib/authRedirect";
+import { openCookieSettings } from "@/lib/cookieConsent";
 
 function Footer() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -170,6 +171,16 @@ function Footer() {
                 >
                   Ochrana osobních údajů
                 </Link>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={openCookieSettings}
+                  className="text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                  data-testid="link-cookie-settings"
+                >
+                  Nastavení cookies
+                </button>
               </li>
             </ul>
 

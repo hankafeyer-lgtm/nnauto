@@ -3,6 +3,7 @@
 import Providers from "../providers";
 import { ScrollToTop } from "@/components/ScrollToTop";
 import ClarityLoader from "@/components/ClarityLoader";
+import CookieConsentBanner from "@/components/CookieConsentBanner";
 
 export default function MainLayout({
   children,
@@ -14,6 +15,7 @@ export default function MainLayout({
       <ScrollToTop />
       <ClarityLoader />
       {children}
+      <CookieConsentBanner />
     </Providers>
   );
 }

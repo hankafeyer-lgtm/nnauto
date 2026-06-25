@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { SEO } from "@/components/SEO";
@@ -5,6 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
 export default function PrivacyPolicyPage() {
+  useEffect(() => {
+    // Scroll to the section referenced by the URL hash (e.g. /privacy#cookies),
+    // since SPA navigation does not always jump to anchors automatically.
+    if (typeof window === "undefined") return;
+    const id = window.location.hash.replace("#", "");
+    if (!id) return;
+    const scrollToId = () => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    const timer = window.setTimeout(scrollToId, 200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <SEO
@@ -211,7 +226,7 @@ export default function PrivacyPolicyPage() {
                     Pro uplatnění svých práv nás kontaktujte na:
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Email: <a href="mailto:gdpr@zlateauto.cz" className="text-primary hover:underline">gdpr@zlateauto.cz</a><br />
+                    Email: <a href="mailto:info@nnauto.cz" className="text-primary hover:underline">info@nnauto.cz</a><br />
                     Odpovíme vám do 30 dnů od obdržení žádosti.
                   </p>
                 </div>
@@ -219,7 +234,7 @@ export default function PrivacyPolicyPage() {
             </Card>
 
             {/* Cookies */}
-            <Card>
+            <Card id="cookies" className="scroll-mt-24">
               <CardHeader>
                 <CardTitle>9. Cookies a podobné technologie</CardTitle>
               </CardHeader>
