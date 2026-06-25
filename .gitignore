@@ -46,6 +46,12 @@ next
 rest-express@1.0.0
 test-results/
 
+# Local-only temp scripts (may contain SSH keys / secrets — never commit)
+.tmp_*.exp
+.tmp_*.sh
+.tmp_ssh.exp
+.tmp_check.sh
+
 # Watermark preview renders (dev-only, regenerate via scripts/watermark-preview.mjs)
 public/watermark-preview/
 .backups/
