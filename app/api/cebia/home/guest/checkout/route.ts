@@ -43,6 +43,12 @@ export async function POST(req: NextRequest) {
     const vin = typeof body?.vin === "string" ? body.vin.trim().toUpperCase() : "";
     if (!/^[A-HJ-NPR-Z0-9]{17}$/.test(vin)) return error("VIN is invalid", 400);
 
+    const emailFromBody =
+      typeof body?.email === "string" ? body.email.trim() : "";
+    const guestEmail = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailFromBody)
+      ? emailFromBody
+      : "";
+
     const guestToken = randomBytes(24).toString("base64url");
 
     const report = await storage.createCebiaReport({
@@ -60,6 +66,7 @@ export async function POST(req: NextRequest) {
       cebiaCouponNumber: null,
       cebiaReportUrl: null,
       pdfBase64: null,
+      email: guestEmail || null,
       rawResponse: { guestToken },
     });
 
@@ -95,6 +102,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
+      ...(guestEmail ? { customer_email: guestEmail } : {}),
       success_url: `${baseUrl}/cebia/return?cebia=success&session_id={CHECKOUT_SESSION_ID}&report_id=${encodeURIComponent(report.id)}`,
       cancel_url: `${baseUrl}/?cebia=cancelled`,
       client_reference_id: report.id,

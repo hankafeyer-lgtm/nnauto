@@ -7,7 +7,18 @@ export async function GET(_req: NextRequest) {
   try {
     const user = await requireAuth();
     const reports = await storage.getCebiaReportsByUserId(user.id);
-    const slim = reports.map(({ pdfBase64, rawResponse, ...rest }) => rest);
+    const slim = reports.map(
+      ({ pdfBase64, rawResponse, downloadToken, ...rest }) => ({
+        ...rest,
+        hasPdf: !!pdfBase64,
+      }),
+    );
+    // Newest first for the cabinet list.
+    slim.sort(
+      (a, b) =>
+        new Date(b.createdAt as any).getTime() -
+        new Date(a.createdAt as any).getTime(),
+    );
     return json(slim);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";

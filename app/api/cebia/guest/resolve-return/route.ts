@@ -66,15 +66,17 @@ export async function POST(req: NextRequest) {
       report.status !== "requested" &&
       report.status !== "ready"
     ) {
+      const customerEmail =
+        (session.customer_details?.email as string | undefined) || "";
       const updated = await storage.updateCebiaReport(report.id, {
         status: "paid",
         stripeSessionId: session.id,
         stripePaymentIntentId:
           (session.payment_intent as string) || report.stripePaymentIntentId,
+        email: customerEmail || report.email,
         rawResponse: mergeRawResponse(report.rawResponse, {
           stripeSession: session as any,
-          customerEmail:
-            (session.customer_details?.email as string | undefined) || "",
+          customerEmail,
         }),
       });
       if (updated) report = updated;

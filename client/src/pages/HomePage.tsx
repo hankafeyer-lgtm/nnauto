@@ -2225,6 +2225,7 @@ export default function HomePage() {
     reportId: string;
     token: string;
   } | null>(null);
+  const [homeCebiaGuestEmail, setHomeCebiaGuestEmail] = useState("");
   const [homeCebiaGuestStatus, setHomeCebiaGuestStatus] = useState<string | null>(
     null,
   );
@@ -3019,6 +3020,7 @@ export default function HomePage() {
         : "/api/cebia/home/guest/checkout";
       const res = await apiRequest("POST", endpoint, {
         vin: normalizedHomeCebiaVin,
+        ...(user ? {} : { email: homeCebiaGuestEmail.trim() || undefined }),
       });
       return (await res.json()) as { url?: string; reportId?: string; guestToken?: string };
     },
@@ -3275,7 +3277,11 @@ export default function HomePage() {
                   disabled={
                     !isHomeCebiaVinValid ||
                     homeCebiaPaymentsFrozen ||
-                    homeCebiaCheckoutMutation.isPending
+                    homeCebiaCheckoutMutation.isPending ||
+                    (!user &&
+                      !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(
+                        homeCebiaGuestEmail.trim(),
+                      ))
                   }
                   data-testid="button-home-cebia-check"
                 >
@@ -3286,6 +3292,24 @@ export default function HomePage() {
                       : t("cebia.payButton")}
                 </Button>
               </div>
+
+              {!user ? (
+                <div className="space-y-1">
+                  <Input
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={homeCebiaGuestEmail}
+                    onChange={(e) => setHomeCebiaGuestEmail(e.target.value)}
+                    placeholder={t("cebia.guestEmailPlaceholder")}
+                    className="h-10"
+                    data-testid="input-home-cebia-guest-email"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {t("cebia.guestEmailHint")}
+                  </p>
+                </div>
+              ) : null}
 
               {!user && homeCebiaGuest ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

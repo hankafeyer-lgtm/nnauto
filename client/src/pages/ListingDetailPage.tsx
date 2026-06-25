@@ -3416,6 +3416,7 @@ export default function ListingDetailPage({
   );
   const [cebiaGuestStatus, setCebiaGuestStatus] = useState<string | null>(null);
   const [cebiaGuestHasPdf, setCebiaGuestHasPdf] = useState(false);
+  const [cebiaGuestEmail, setCebiaGuestEmail] = useState("");
   const [listingEditOpen, setListingEditOpen] = useState(false);
   const [dealerHoursOpen, setDealerHoursOpen] = useState(false);
 
@@ -4011,6 +4012,7 @@ export default function ListingDetailPage({
       const res = await apiRequest("POST", endpoint, {
         vin,
         listingId: listing!.id,
+        ...(user ? {} : { email: cebiaGuestEmail.trim() || undefined }),
       });
       return (await res.json()) as { url?: string; reportId?: string; guestToken?: string };
     },
@@ -6529,9 +6531,27 @@ export default function ListingDetailPage({
             </div>
 
             {!user ? (
-              <p className="text-sm text-muted-foreground">
-                Není potřeba registrace. Po zaplacení se report zpřístupní v tomto prohlížeči.
-              </p>
+              <div className="space-y-2">
+                <label
+                  htmlFor="cebia-guest-email"
+                  className="text-sm font-medium"
+                >
+                  {t("cebia.guestEmailLabel")}
+                </label>
+                <Input
+                  id="cebia-guest-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  placeholder={t("cebia.guestEmailPlaceholder")}
+                  value={cebiaGuestEmail}
+                  onChange={(e) => setCebiaGuestEmail(e.target.value)}
+                  data-testid="input-cebia-guest-email"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("cebia.guestEmailHint")}
+                </p>
+              </div>
             ) : null}
 
             <div className="flex flex-col sm:flex-row gap-3 sm:justify-end">
@@ -6545,7 +6565,9 @@ export default function ListingDetailPage({
                 disabled={
                   !listingVinValid ||
                   cebiaCheckoutMutation.isPending ||
-                  cebiaPaymentsFrozen
+                  cebiaPaymentsFrozen ||
+                  (!user &&
+                    !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cebiaGuestEmail.trim()))
                 }
                 onClick={() => cebiaCheckoutMutation.mutate()}
                 data-testid="button-cebia-stripe-pay"

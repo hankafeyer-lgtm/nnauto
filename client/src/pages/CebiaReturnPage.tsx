@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "@/lib/navigation";
+import { useAuth } from "@/hooks/useAuth";
+import { useTranslation } from "@/lib/translations";
 import { SEO } from "@/components/SEO";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { apiRequest, parseApiError } from "@/lib/queryClient";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 type LastGuest = {
   listingId?: string;
@@ -14,8 +17,12 @@ type LastGuest = {
 
 export default function CebiaReturnPage() {
   const [, setLocation] = useLocation();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const t = useTranslation();
   const [error, setError] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [resolvedGuest, setResolvedGuest] = useState<LastGuest | null>(null);
   const autoDeliveredRef = useRef(false);
   const openedTabRef = useRef<Window | null>(null);
@@ -119,15 +126,78 @@ export default function CebiaReturnPage() {
     }
   }, [last, reportIdParam, resolvedGuest, sessionIdParam]);
 
-  const process = useCallback(async (forceDeliver = false) => {
+  // Authenticated delivery: download the PDF through apiRequest (which carries
+  // the JWT) and both open it inline and trigger a file download.
+  const deliverAuthedPdf = useCallback(async (reportId: string) => {
+    const res = await apiRequest(
+      "GET",
+      `/api/cebia/reports/${encodeURIComponent(reportId)}/pdf?download=1`,
+    );
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    if (openedTabRef.current && !openedTabRef.current.closed) {
+      openedTabRef.current.location.href = url;
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cebia-${reportId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }, []);
+
+  const processAuthed = useCallback(async (forceDeliver = false) => {
+    setIsWorking(true);
+    setError(null);
+    try {
+      const reportId =
+        reportIdParam || (resolvedGuest ? resolvedGuest.reportId : "");
+      if (!reportId) {
+        setError(t("cebiaReturn.notFound"));
+        return;
+      }
+
+      await apiRequest(
+        "POST",
+        `/api/cebia/reports/${encodeURIComponent(reportId)}/request`,
+        {},
+      ).catch(() => null);
+
+      for (let i = 0; i < 40; i++) {
+        const res = await apiRequest(
+          "POST",
+          `/api/cebia/reports/${encodeURIComponent(reportId)}/poll`,
+          {},
+        );
+        const data = await res.json();
+        if (data?.status === "ready") {
+          setIsReady(true);
+          if (!autoDeliveredRef.current || forceDeliver) {
+            autoDeliveredRef.current = true;
+            await deliverAuthedPdf(reportId);
+          }
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+      setError(t("cebiaReturn.stillPreparing"));
+    } catch (e: any) {
+      setError(parseApiError(e).message);
+    } finally {
+      setIsWorking(false);
+    }
+  }, [deliverAuthedPdf, reportIdParam, resolvedGuest, t]);
+
+  const processGuest = useCallback(async (forceDeliver = false) => {
     setIsWorking(true);
     setError(null);
     try {
       const guest = await resolveGuest();
       if (!guest) {
-        setError(
-          "Nepodařilo se dohledat tuto platbu. Otevřete prosím report z detailu inzerátu nebo nás kontaktujte.",
-        );
+        setError(t("cebiaReturn.notFound"));
         return;
       }
 
@@ -145,6 +215,7 @@ export default function CebiaReturnPage() {
         );
         const data = await res.json();
         if (data?.status === "ready") {
+          setIsReady(true);
           if (!autoDeliveredRef.current || forceDeliver) {
             autoDeliveredRef.current = true;
             openPdfInBrowser(guest.reportId, guest.token);
@@ -155,19 +226,29 @@ export default function CebiaReturnPage() {
         await new Promise((r) => setTimeout(r, 3000));
       }
 
-      setError("Report se stále připravuje. Klikněte prosím znovu na tlačítko níže.");
+      setError(t("cebiaReturn.stillPreparing"));
     } catch (e: any) {
       setError(parseApiError(e).message);
     } finally {
       setIsWorking(false);
     }
-  }, [openPdfInBrowser, resolveGuest, triggerPdfDownload]);
+  }, [openPdfInBrowser, resolveGuest, t, triggerPdfDownload]);
+
+  const process = useCallback(
+    (forceDeliver = false) => {
+      if (isAuthenticated) return processAuthed(forceDeliver);
+      return processGuest(forceDeliver);
+    },
+    [isAuthenticated, processAuthed, processGuest],
+  );
 
   useEffect(() => {
-    // Try to complete automatically on return from Stripe
+    // Wait until auth state is resolved so we pick the right (authed vs guest) flow.
+    if (authLoading || authReady) return;
+    setAuthReady(true);
     process();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading]);
 
   useEffect(() => {
     // Some browsers block async popups; reserve a tab as early as possible.
@@ -178,6 +259,8 @@ export default function CebiaReturnPage() {
       openedTabRef.current = opened;
     }
   }, []);
+
+  const listingId = resolvedGuest?.listingId || last?.listingId;
 
   return (
     <div className="container max-w-3xl py-4 sm:py-8 lg:py-10 px-3 sm:px-4">
@@ -190,12 +273,41 @@ export default function CebiaReturnPage() {
       <Card className="overflow-hidden">
         <CardContent className="p-4 sm:p-6 space-y-4">
           <div className="space-y-1">
-            <p className="text-lg font-semibold">Platba přijata</p>
+            <p className="text-lg font-semibold">{t("cebiaReturn.title")}</p>
             <p className="text-sm text-muted-foreground">
-              Dokončuji generování VIN reportu. Jakmile je PDF připravené, otevřu ho
-              v prohlížeči a zároveň spustím stažení.
+              {t("cebiaReturn.subtitle")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {isAuthenticated
+                ? t("cebiaReturn.alsoCabinetEmail")
+                : t("cebiaReturn.alsoEmail")}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {t("cebiaReturn.support")}{" "}
+              <a
+                href="mailto:info@nnauto.cz"
+                className="font-medium text-primary underline underline-offset-2"
+              >
+                info@nnauto.cz
+              </a>
             </p>
           </div>
+
+          {isWorking ? (
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-4">
+              <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+              <span className="text-sm text-muted-foreground">
+                {t("cebiaReturn.generating")}
+              </span>
+            </div>
+          ) : isReady ? (
+            <div className="flex items-center gap-3 rounded-lg border border-green-600/30 bg-green-600/10 p-4">
+              <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+              <span className="text-sm text-green-700 dark:text-green-400">
+                {t("cebiaReturn.ready")}
+              </span>
+            </div>
+          ) : null}
 
           {error ? (
             <p className="text-sm text-red-600">{error}</p>
@@ -207,9 +319,19 @@ export default function CebiaReturnPage() {
               disabled={isWorking}
               className="w-full sm:w-auto whitespace-normal text-left sm:text-center"
             >
-              {isWorking ? "Zpracovávám…" : "Otevřít + stáhnout VIN report"}
+              {isWorking ? t("cebiaReturn.processing") : t("cebiaReturn.openDownload")}
             </Button>
-            {(resolvedGuest || last) ? (
+
+            {isAuthenticated ? (
+              <Button
+                variant="outline"
+                onClick={() => setLocation("/cebia-reports")}
+                disabled={isWorking}
+                className="w-full sm:w-auto whitespace-normal text-left sm:text-center"
+              >
+                {t("cebiaReturn.openCabinet")}
+              </Button>
+            ) : (resolvedGuest || last) ? (
               <Button
                 variant="outline"
                 onClick={() => {
@@ -221,21 +343,18 @@ export default function CebiaReturnPage() {
                 disabled={isWorking}
                 className="w-full sm:w-auto whitespace-normal text-left sm:text-center"
               >
-                Stáhnout PDF znovu
+                {t("cebiaReturn.downloadAgain")}
               </Button>
             ) : null}
-            {(resolvedGuest?.listingId || last?.listingId) ? (
+
+            {!isAuthenticated && listingId ? (
               <Button
                 variant="outline"
-                onClick={() => {
-                  const nextListingId = resolvedGuest?.listingId || last?.listingId;
-                  if (!nextListingId) return;
-                  navigateToListingWithState(nextListingId);
-                }}
+                onClick={() => navigateToListingWithState(listingId)}
                 disabled={isWorking}
                 className="w-full sm:w-auto whitespace-normal text-left sm:text-center"
               >
-                Zpět na inzerát
+                {t("cebiaReturn.backToListing")}
               </Button>
             ) : null}
           </div>
@@ -244,4 +363,3 @@ export default function CebiaReturnPage() {
     </div>
   );
 }
-

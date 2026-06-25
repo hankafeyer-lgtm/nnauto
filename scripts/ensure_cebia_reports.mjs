@@ -54,6 +54,12 @@ await client.query(
   `CREATE INDEX IF NOT EXISTS cebia_reports_created_at_idx ON cebia_reports(created_at);`,
 );
 
+// Delivery columns (added later): buyer e-mail, idempotent send marker and a
+// tokenized download link used in delivery e-mails.
+await client.query(`ALTER TABLE cebia_reports ADD COLUMN IF NOT EXISTS email text;`);
+await client.query(`ALTER TABLE cebia_reports ADD COLUMN IF NOT EXISTS email_sent_at timestamp;`);
+await client.query(`ALTER TABLE cebia_reports ADD COLUMN IF NOT EXISTS download_token text;`);
+
 await client.end();
 
 console.log("cebia_reports ensured");

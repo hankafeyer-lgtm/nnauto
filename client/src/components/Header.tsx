@@ -793,6 +793,14 @@ function HeaderContent({
                       <Car className="mr-3 h-5 w-5" />
                       <span>{t("header.menu.myListings")}</span>
                     </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => navigate("/cebia-reports")}
+                      className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
+                      data-testid="menu-item-cebia-reports"
+                    >
+                      <History className="mr-3 h-5 w-5" />
+                      <span>{t("header.menu.cebiaReports")}</span>
+                    </DropdownMenuItem>
                     {user?.isAdmin && (
                       <>
                         <DropdownMenuSeparator className="my-2" />

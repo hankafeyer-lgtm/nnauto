@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { error } from "@lib/api-helpers";
-import { requireAuth } from "@lib/auth";
+import { getCurrentUser } from "@lib/auth";
 import { storage } from "@lib/storage";
 
 const CEBIA_ENABLED = process.env.CEBIA_ENABLED === "true";
@@ -12,12 +12,23 @@ export async function GET(
   try {
     if (!CEBIA_ENABLED) return error("Cebia is temporarily disabled", 503);
 
-    const user = await requireAuth();
     const { id } = await params;
 
     const report = await storage.getCebiaReportById(id);
     if (!report) return error("Not found", 404);
-    if (report.userId !== user.id) return error("Forbidden", 403);
+
+    // Access is granted to the owner (via session) OR via a matching download
+    // token (used in the delivery e-mail so the link works without a login).
+    const token = req.nextUrl.searchParams.get("token") || "";
+    let authorized = false;
+    if (token && report.downloadToken && token === report.downloadToken) {
+      authorized = true;
+    } else {
+      const user = await getCurrentUser();
+      if (user && report.userId === user.id) authorized = true;
+    }
+    if (!authorized) return error("Forbidden", 403);
+
     if (!report.pdfBase64) return error("PDF not ready yet", 409);
 
     const pdfBuffer = Buffer.from(report.pdfBase64, "base64");

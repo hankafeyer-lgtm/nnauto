@@ -627,6 +627,14 @@ export const cebiaReports = pgTable(
     pdfBase64: text("pdf_base64"),
     rawResponse: jsonb("raw_response"),
 
+    // Buyer e-mail (captured from Stripe Checkout) used to deliver the PDF
+    // and shown in the user cabinet. `emailSentAt` makes delivery idempotent.
+    email: text("email"),
+    emailSentAt: timestamp("email_sent_at"),
+    // Random token allowing an authless download link (used in e-mails), so
+    // the same delivery URL works for both guests and logged-in buyers.
+    downloadToken: text("download_token"),
+
     createdAt: timestamp("created_at").default(sql`now()`).notNull(),
     updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
   },

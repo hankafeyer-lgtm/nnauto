@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { storage } from "@lib/storage";
-import { cebiaCreatePdfQueue } from "@lib/cebiaClient";
-import { mergeRawResponse, assertValidGuestAccess } from "@lib/cebiaHelpers";
+import { assertValidGuestAccess } from "@lib/cebiaHelpers";
+import { generateAndDeliverCebiaPdf } from "@lib/cebiaGenerate";
 
 const CEBIA_ENABLED = process.env.CEBIA_ENABLED === "true";
 
@@ -21,30 +21,17 @@ export async function POST(
     if (!report) return error("Not found", 404);
     if (!assertValidGuestAccess(report, token)) return error("Forbidden", 403);
 
-    if (report.status !== "paid" && report.status !== "requested" && report.status !== "ready") {
+    if (report.status !== "paid" && report.status !== "requesting" && report.status !== "requested" && report.status !== "ready") {
       return error("Report not paid", 400);
     }
-    if (report.status === "ready" && report.pdfBase64) {
-      return json({ status: "ready" });
+
+    const result = await generateAndDeliverCebiaPdf(report.id, { pollAttempts: 1 });
+    if (result.status === "failed") {
+      return error(result.reason || "Cebia request failed", 400);
     }
 
-    const createResp = await cebiaCreatePdfQueue(report.vin);
-    if (!createResp?.queueId || createResp.queueStatus === 6) {
-      await storage.updateCebiaReport(report.id, {
-        status: "failed",
-        rawResponse: mergeRawResponse(report.rawResponse, { cebiaCreatePdfQueue: createResp }),
-      });
-      return error(createResp?.message || "Cebia request failed", 400);
-    }
-
-    const updated = await storage.updateCebiaReport(report.id, {
-      status: "requested",
-      cebiaQueueId: createResp.queueId,
-      cebiaQueueStatus: createResp.queueStatus ?? null,
-      rawResponse: mergeRawResponse(report.rawResponse, { cebiaCreatePdfQueue: createResp }),
-    });
-
-    return json({ report: updated || report });
+    const updated = await storage.getCebiaReportById(report.id);
+    return json({ status: result.status, report: updated || report });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     return error(msg, 500);
