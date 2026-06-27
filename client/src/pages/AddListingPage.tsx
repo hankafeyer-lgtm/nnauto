@@ -1165,114 +1165,10 @@ export default function AddListingPage() {
                     e.preventDefault();
                     handleSubmitClick();
                   }}
-                  className="space-y-6 sm:space-y-8 [&_button]:touch-manipulation [&_[role=button]]:touch-manipulation [&_label]:touch-manipulation"
+                  className="flex flex-col gap-6 sm:gap-8 [&_button]:touch-manipulation [&_[role=button]]:touch-manipulation [&_label]:touch-manipulation"
                 >
-                  <div className="space-y-4">
+                  <div className="space-y-4 order-[-1]">
                     <h3 className="text-lg font-medium">{t("listing.basicInfo")}</h3>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="brand"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("hero.brand")}</FormLabel>
-                            <FormControl>
-                              <BrandCombobox
-                                brands={carBrands
-                                  .filter(brand => {
-                                    const vehicleType = form.watch("vehicleType");
-                                    if (vehicleType && vehicleTypeBrands[vehicleType]) {
-                                      return vehicleTypeBrands[vehicleType].includes(brand.value);
-                                    }
-                                    return true;
-                                  })
-                                  .map(brand => ({
-                                    value: brand.value,
-                                    label: brand.label,
-                                    icon: getBrandIcon(brand.value, brand.label)
-                                  }))}
-                                value={field.value}
-                                onValueChange={(value) => {
-                                  field.onChange(value);
-                                  form.setValue("model", "");
-                                  form.setValue("trim", undefined as any);
-                                }}
-                                placeholder={t("hero.allBrands")}
-                                emptyMessage={t("hero.noBrandsFound") || "Značka nenalezena"}
-                                className="w-full h-10"
-                                testId="select-brand"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="model"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t("hero.model")}</FormLabel>
-                            <FormControl>
-                              <ModelCombobox
-                                models={availableModels}
-                                value={field.value}
-                                onValueChange={(value) => {
-                                  field.onChange(value);
-                                  form.setValue("trim", undefined as any);
-                                }}
-                                disabled={!selectedBrand}
-                                placeholder={selectedBrand ? t("hero.allModels") : t("hero.selectBrand")}
-                                emptyMessage={t("hero.noModelsFound") || "Model nenalezen"}
-                                className="w-full h-10"
-                                testId="select-model"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="trim"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Generace / Version</FormLabel>
-                            <Select
-                              value={field.value || "all"}
-                              onValueChange={(value) =>
-                                field.onChange(value === "all" ? undefined : value)
-                              }
-                              disabled={!selectedModel}
-                            >
-                              <FormControl>
-                                <SelectTrigger data-testid="select-generation-add-listing">
-                                  <SelectValue
-                                    placeholder={
-                                      selectedModel
-                                        ? "Generace / Version"
-                                        : "Nejdříve vyberte model"
-                                    }
-                                  />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent className="max-h-72 overflow-y-auto">
-                                <SelectItem value="all">Generace / Version</SelectItem>
-                                {availableGenerations.map((generation) => (
-                                  <SelectItem key={generation} value={generation}>
-                                    {generation}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
 
                     <FormField
                       control={form.control}
@@ -1380,55 +1276,10 @@ export default function AddListingPage() {
                     />
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-4 order-[-2]">
                     <h3 className="text-lg font-medium">{t("listing.vehicleDetails")}</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="condition"
-                        render={({ field }) => (
-                          <FormItem className="md:col-span-2">
-                            <FormLabel>{t("listing.condition")}</FormLabel>
-                            <FormControl>
-                              <div className="grid grid-cols-2 gap-3">
-                                {[
-                                  { label: t("filters.conditionNew"), value: "Nové", icon: Sparkles, customIcon: NewCarIcon },
-                                  { label: t("filters.conditionUsed"), value: "Ojeté", icon: Car, customIcon: UsedCarIcon },
-                                  { label: t("filters.conditionOrder"), value: "Na objednávku", icon: Package, customIcon: OrderCarIcon },
-                                  { label: t("filters.conditionParts"), value: "Na náhradní díly", icon: Wrench, customIcon: PartsIcon },
-                                  { label: t("filters.conditionRental"), value: "Pronájem", icon: Key, customIcon: null },
-                                  { label: t("filters.conditionDamaged"), value: "Havarované", icon: Wrench, customIcon: null },
-                                  { label: t("filters.conditionHistoric"), value: "Historické", icon: Sparkles, customIcon: null }
-                                ].map((condition) => {
-                                  const isSelected = field.value === condition.value;
-                                  const Icon = condition.icon;
-                                  const CustomIcon = condition.customIcon;
-                                  return (
-                                    <Button
-                                      key={condition.value}
-                                      type="button"
-                                      variant={isSelected ? "default" : "outline"}
-                                      className={`h-auto py-3 px-4 flex flex-col items-center gap-2 text-center ${isSelected ? 'toggle-elevated' : ''} toggle-elevate`}
-                                      onClick={() => field.onChange(isSelected ? undefined : condition.value)}
-                                      data-testid={`button-condition-${condition.value.toLowerCase().replace(/\s+/g, '-')}`}
-                                    >
-                                      {CustomIcon ? (
-                                        <CustomIcon className="h-10 w-10" />
-                                      ) : (
-                                        <Icon className="h-7 w-7 text-[#B8860B]" />
-                                      )}
-                                      <span className="text-xs font-medium leading-tight text-black dark:text-white">{condition.label}</span>
-                                    </Button>
-                                  );
-                                })}
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
                       <FormField
                         control={form.control}
                         name="bodyType"
@@ -1597,6 +1448,161 @@ export default function AddListingPage() {
                         )}
                       />
 
+                      <FormField
+                        control={form.control}
+                        name="condition"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>{t("listing.condition")}</FormLabel>
+                            <FormControl>
+                              <div className="grid grid-cols-2 gap-3">
+                                {[
+                                  { label: t("filters.conditionNew"), value: "Nové", icon: Sparkles, customIcon: NewCarIcon },
+                                  { label: t("filters.conditionUsed"), value: "Ojeté", icon: Car, customIcon: UsedCarIcon },
+                                  { label: t("filters.conditionOrder"), value: "Na objednávku", icon: Package, customIcon: OrderCarIcon },
+                                  { label: t("filters.conditionParts"), value: "Na náhradní díly", icon: Wrench, customIcon: PartsIcon },
+                                  { label: t("filters.conditionRental"), value: "Pronájem", icon: Key, customIcon: null },
+                                  { label: t("filters.conditionDamaged"), value: "Havarované", icon: Wrench, customIcon: null },
+                                  { label: t("filters.conditionHistoric"), value: "Historické", icon: Sparkles, customIcon: null }
+                                ].map((condition) => {
+                                  const isSelected = field.value === condition.value;
+                                  const Icon = condition.icon;
+                                  const CustomIcon = condition.customIcon;
+                                  return (
+                                    <Button
+                                      key={condition.value}
+                                      type="button"
+                                      variant={isSelected ? "default" : "outline"}
+                                      className={`h-auto py-3 px-4 flex flex-col items-center gap-2 text-center ${isSelected ? 'toggle-elevated' : ''} toggle-elevate`}
+                                      onClick={() => field.onChange(isSelected ? undefined : condition.value)}
+                                      data-testid={`button-condition-${condition.value.toLowerCase().replace(/\s+/g, '-')}`}
+                                    >
+                                      {CustomIcon ? (
+                                        <CustomIcon className="h-10 w-10" />
+                                      ) : (
+                                        <Icon className="h-7 w-7 text-[#B8860B]" />
+                                      )}
+                                      <span className="text-xs font-medium leading-tight text-black dark:text-white">{condition.label}</span>
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:col-span-2">
+                        <FormField
+                          control={form.control}
+                          name="brand"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("hero.brand")}</FormLabel>
+                              <FormControl>
+                                <BrandCombobox
+                                  brands={carBrands
+                                    .filter(brand => {
+                                      const vehicleType = form.watch("vehicleType");
+                                      if (vehicleType && vehicleTypeBrands[vehicleType]) {
+                                        return vehicleTypeBrands[vehicleType].includes(brand.value);
+                                      }
+                                      return true;
+                                    })
+                                    .map(brand => ({
+                                      value: brand.value,
+                                      label: brand.label,
+                                      icon: getBrandIcon(brand.value, brand.label)
+                                    }))}
+                                  value={field.value}
+                                  onValueChange={(value) => {
+                                    field.onChange(value);
+                                    form.setValue("model", "");
+                                    form.setValue("trim", undefined as any);
+                                  }}
+                                  placeholder={t("hero.allBrands")}
+                                  emptyMessage={t("hero.noBrandsFound") || "Značka nenalezena"}
+                                  className="w-full h-10"
+                                  testId="select-brand"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="model"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t("hero.model")}</FormLabel>
+                              <FormControl>
+                                <ModelCombobox
+                                  models={availableModels}
+                                  value={field.value}
+                                  onValueChange={(value) => {
+                                    field.onChange(value);
+                                    form.setValue("trim", undefined as any);
+                                  }}
+                                  disabled={!selectedBrand}
+                                  placeholder={selectedBrand ? t("hero.allModels") : t("hero.selectBrand")}
+                                  emptyMessage={t("hero.noModelsFound") || "Model nenalezen"}
+                                  className="w-full h-10"
+                                  testId="select-model"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
+                          name="trim"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Generace / Version</FormLabel>
+                              <Select
+                                value={field.value || "all"}
+                                onValueChange={(value) =>
+                                  field.onChange(value === "all" ? undefined : value)
+                                }
+                                disabled={!selectedModel}
+                              >
+                                <FormControl>
+                                  <SelectTrigger data-testid="select-generation-add-listing">
+                                    <SelectValue
+                                      placeholder={
+                                        selectedModel
+                                          ? "Generace / Version"
+                                          : "Nejdříve vyberte model"
+                                      }
+                                    />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent className="max-h-72 overflow-y-auto">
+                                  <SelectItem value="all">Generace / Version</SelectItem>
+                                  {availableGenerations.map((generation) => (
+                                    <SelectItem key={generation} value={generation}>
+                                      {generation}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">{t("listing.technicalData")}</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
                         name="year"
