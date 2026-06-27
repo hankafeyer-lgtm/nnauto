@@ -99,6 +99,38 @@ export default function LoginModal({
 
   const { toast } = useToast();
   const t = useTranslation();
+
+  // Map raw (often English) server error messages to a localized message in
+  // the active site language, so users always see the error in their language.
+  const localizeAuthError = (raw?: string): string => {
+    const fallback = t("auth.registerErrorDescription");
+    if (!raw || typeof raw !== "string") return fallback;
+    const m = raw.toLowerCase();
+    if (m.includes("email already")) return t("auth.errorEmailExists");
+    if (m.includes("username already")) return t("auth.errorUsernameTaken");
+    if (m.includes("phone")) return t("auth.errorPhoneRequired");
+    if (m.includes("security verification") || m.includes("turnstile"))
+      return t("auth.errorTurnstile");
+    if (m.includes("too many")) return t("auth.errorRateLimit");
+    if (m.includes("invalid") && m.includes("password"))
+      return t("auth.errorInvalidCredentials");
+    return fallback;
+  };
+
+  const extractServerError = (error: unknown): string | undefined => {
+    const msg = (error as { message?: string })?.message;
+    if (!msg) return undefined;
+    try {
+      const match = msg.match(/:\s*(.+)$/);
+      if (match) {
+        const parsed = JSON.parse(match[1]);
+        if (parsed?.error) return parsed.error as string;
+      }
+    } catch {
+      return msg;
+    }
+    return msg;
+  };
   const reloadAfterAuth = useCallback(() => {
     setTimeout(() => window.location.reload(), 250);
   }, []);
@@ -223,24 +255,22 @@ export default function LoginModal({
       setLoginVerified(false);
       loginTurnstileRef.current?.reset();
 
-      // Parse error message - apiRequest throws "status: body" format
-      let errorMsg = t("auth.loginErrorDescription");
-      if (error.message) {
-        try {
-          const match = error.message.match(/:\s*(.+)$/);
-          if (match) {
-            const parsed = JSON.parse(match[1]);
-            errorMsg = parsed.error || errorMsg;
-          }
-        } catch {
-          errorMsg = error.message;
-        }
-      }
+      const raw = extractServerError(error);
+      const lower = (raw || "").toLowerCase();
+      const errorMsg =
+        lower.includes("invalid") || lower.includes("credentials") || lower.includes("password") || lower.includes("email")
+          ? t("auth.errorInvalidCredentials")
+          : lower.includes("too many")
+            ? t("auth.errorRateLimit")
+            : lower.includes("security verification") || lower.includes("turnstile")
+              ? t("auth.errorTurnstile")
+              : t("auth.loginErrorDescription");
       setLoginErrorMessage(errorMsg);
       toast({
         variant: "destructive",
         title: t("auth.loginError"),
         description: errorMsg,
+        duration: 8000,
       });
     },
   });
@@ -316,23 +346,12 @@ export default function LoginModal({
       setRegisterVerified(false);
       registerTurnstileRef.current?.reset();
 
-      // Parse error message - apiRequest throws "status: body" format
-      let errorMsg = t("auth.registerErrorDescription");
-      if (error.message) {
-        try {
-          const match = error.message.match(/:\s*(.+)$/);
-          if (match) {
-            const parsed = JSON.parse(match[1]);
-            errorMsg = parsed.error || errorMsg;
-          }
-        } catch {
-          errorMsg = error.message;
-        }
-      }
+      const errorMsg = localizeAuthError(extractServerError(error));
       toast({
         variant: "destructive",
         title: t("auth.registerError"),
         description: errorMsg,
+        duration: 8000,
       });
     },
   });
@@ -403,22 +422,12 @@ export default function LoginModal({
       setDealerVerified(false);
       dealerTurnstileRef.current?.reset();
 
-      let errorMsg = t("auth.registerErrorDescription");
-      if (error.message) {
-        try {
-          const match = error.message.match(/:\s*(.+)$/);
-          if (match) {
-            const parsed = JSON.parse(match[1]);
-            errorMsg = parsed.error || errorMsg;
-          }
-        } catch {
-          errorMsg = error.message;
-        }
-      }
+      const errorMsg = localizeAuthError(extractServerError(error));
       toast({
         variant: "destructive",
         title: t("auth.registerError"),
         description: errorMsg,
+        duration: 8000,
       });
     },
   });
