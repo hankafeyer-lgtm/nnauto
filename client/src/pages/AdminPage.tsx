@@ -457,6 +457,9 @@ type AdminCebiaReport = {
   stripeSessionId: string | null;
   stripePaymentIntentId: string | null;
   customerEmail: string;
+  isGuest: boolean;
+  accountType: "guest" | "registered";
+  userName: string;
   hasPdf: boolean;
   adminPdfUrl: string;
 };
@@ -1276,6 +1279,7 @@ export default function AdminPage() {
                           <TableHead>VIN</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Email</TableHead>
+                          <TableHead>Uživatel</TableHead>
                           <TableHead>Price</TableHead>
                           <TableHead className="text-right">PDF</TableHead>
                         </TableRow>
@@ -1311,6 +1315,21 @@ export default function AdminPage() {
                             </TableCell>
                             <TableCell className="max-w-[220px] truncate">
                               {report.customerEmail || "-"}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-0.5">
+                                <Badge
+                                  variant={report.isGuest ? "secondary" : "default"}
+                                  className="w-fit"
+                                >
+                                  {report.isGuest ? "Host (neregistrovaný)" : "Registrovaný"}
+                                </Badge>
+                                {report.userName ? (
+                                  <span className="text-xs text-muted-foreground truncate max-w-[160px]">
+                                    {report.userName}
+                                  </span>
+                                ) : null}
+                              </div>
                             </TableCell>
                             <TableCell>
                               {report.priceCents

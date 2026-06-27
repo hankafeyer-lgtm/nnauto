@@ -26,7 +26,13 @@ export async function GET(_req: NextRequest) {
           currency: r.currency ?? null,
           stripeSessionId: r.stripeSessionId ?? null,
           stripePaymentIntentId: r.stripePaymentIntentId ?? null,
-          customerEmail: typeof rr.customerEmail === "string" ? rr.customerEmail : "",
+          customerEmail:
+            (r.email && r.email.trim()) ||
+            (typeof rr.customerEmail === "string" ? rr.customerEmail : "") ||
+            "",
+          accountType: String(r.userId || "").startsWith("guest:")
+            ? "guest"
+            : "registered",
           hasPdf: !!r.pdfBase64,
         };
       })
@@ -47,6 +53,7 @@ export async function GET(_req: NextRequest) {
       "stripeSessionId",
       "stripePaymentIntentId",
       "customerEmail",
+      "accountType",
       "hasPdf",
     ];
     const rows = reports.map((r) =>
@@ -63,6 +70,7 @@ export async function GET(_req: NextRequest) {
         r.stripeSessionId || "",
         r.stripePaymentIntentId || "",
         r.customerEmail || "",
+        r.accountType,
         r.hasPdf ? "yes" : "no",
       ]
         .map(escapeCsv)

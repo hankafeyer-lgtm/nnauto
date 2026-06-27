@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   Mail,
+  Clock,
 } from "lucide-react";
 
 type CebiaReportItem = {
@@ -28,7 +29,9 @@ type CebiaReportItem = {
   createdAt: string;
 };
 
-const PENDING_STATES = new Set(["created", "paid", "requesting", "requested"]);
+// States that are genuinely being generated (paid). `created` means checkout
+// was started but never paid, so it must not be polled or shown as "processing".
+const PENDING_STATES = new Set(["paid", "requesting", "requested"]);
 
 export default function CebiaReportsPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -130,6 +133,15 @@ export default function CebiaReportsPage() {
         </span>
       );
     }
+    // Checkout started but never paid — show as unpaid, not "processing".
+    if (report.status === "created") {
+      return (
+        <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground/70">
+          <Clock className="h-4 w-4" />
+          {t("cebiaReports.statusUnpaid")}
+        </span>
+      );
+    }
     return (
       <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -228,11 +240,11 @@ export default function CebiaReportsPage() {
                             )}
                             {t("cebiaReports.download")}
                           </Button>
-                        ) : report.status === "failed" ? null : (
+                        ) : PENDING_STATES.has(report.status) ? (
                           <span className="text-xs text-muted-foreground">
                             {t("cebiaReports.preparing")}
                           </span>
-                        )}
+                        ) : null}
                       </div>
                     </div>
                   );
