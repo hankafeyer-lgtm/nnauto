@@ -6,6 +6,10 @@ import { and, eq, sql } from "drizzle-orm";
 import { storage } from "@lib/storage";
 import { getApiDealer } from "@lib/apiAuth";
 import { dispatchVehicleWebhook } from "@lib/webhooks";
+import {
+  isDealerPackageRequiredError,
+  requireActiveDealerPackage,
+} from "@lib/dealerPackages";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +100,18 @@ export async function POST(req: NextRequest) {
   const currentCount = countRes?.rows?.[0]?.total || 0;
   if (currentCount >= ctx.maxListings) {
     return error(`Listing limit reached (${ctx.maxListings})`, 403);
+  }
+
+  try {
+    await requireActiveDealerPackage(ctx.dealerId);
+  } catch (e) {
+    if (isDealerPackageRequiredError(e)) {
+      return error(
+        "Pro import vozidel je nutné aktivní balíček START, BUSINESS nebo PRO.",
+        402,
+      );
+    }
+    throw e;
   }
 
   const created = await storage.createListing(parsed.data);

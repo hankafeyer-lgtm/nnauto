@@ -243,3 +243,28 @@ export async function getLatestDealerPackageSubscription(dealerId: string) {
     .orderBy(desc(dealerPackageSubscriptions.updatedAt));
   return row ?? null;
 }
+
+export const DEALER_PACKAGE_REQUIRED_CODE = "dealer_package_required";
+
+export class DealerPackageRequiredError extends Error {
+  readonly code = DEALER_PACKAGE_REQUIRED_CODE;
+
+  constructor() {
+    super(DEALER_PACKAGE_REQUIRED_CODE);
+    this.name = "DealerPackageRequiredError";
+  }
+}
+
+/** Import (CSV/XML/API) requires an active START / BUSINESS / PRO subscription. */
+export async function requireActiveDealerPackage(dealerId: string) {
+  const sub = await getActiveDealerPackageSubscription(dealerId);
+  if (!sub) throw new DealerPackageRequiredError();
+  return sub;
+}
+
+export function isDealerPackageRequiredError(error: unknown): boolean {
+  return (
+    error instanceof DealerPackageRequiredError ||
+    (error instanceof Error && error.message === DEALER_PACKAGE_REQUIRED_CODE)
+  );
+}

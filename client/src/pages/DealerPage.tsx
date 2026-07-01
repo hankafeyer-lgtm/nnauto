@@ -172,6 +172,20 @@ type DealerPackageSubscription = {
   cancelAtPeriodEnd?: boolean;
 };
 
+const IMPORT_VEHICLE_PACKAGES = [
+  { id: "start", nameKey: "dealer.billing.packageStart", cars: 150, priceKc: 3000 },
+  { id: "business", nameKey: "dealer.billing.packageBusiness", cars: 350, priceKc: 4500, popular: true },
+  { id: "pro", nameKey: "dealer.billing.packagePro", cars: 750, priceKc: 6000 },
+] as const;
+
+function dealerHasImportPackage(pkg: DealerPackageSubscription | null | undefined): boolean {
+  return Boolean(pkg?.packageId);
+}
+
+function formatPackageKc(amount: number): string {
+  return `${amount.toLocaleString("cs-CZ")} Kč`;
+}
+
 type Dealer = {
   id: string;
   ownerId?: string;
@@ -7543,6 +7557,15 @@ export default function DealerPage() {
     localStorage.setItem("nnauto_dealer_add_vehicle_preference", mode);
     setAddVehicleDialogOpen(false);
     if (mode === "bulk") {
+      if (!dealerHasImportPackage(dealerPackage)) {
+        setActiveTab("billing");
+        toast({
+          title: t("dealer.importSync.packageRequiredTitle"),
+          description: t("dealer.importSync.packageRequiredHint"),
+          variant: "destructive",
+        });
+        return;
+      }
       setImportSub("csv");
       setActiveTab("import");
       window.setTimeout(() => {
@@ -7553,7 +7576,7 @@ export default function DealerPage() {
       return;
     }
     navigate("/add-listing");
-  }, [navigate]);
+  }, [dealerPackage, navigate, t, toast]);
 
   if (authLoading) {
     return (
@@ -7689,6 +7712,8 @@ export default function DealerPage() {
                 onAddVehicle={openAddVehicleDialog}
                 sub={importSub}
                 onSubChange={setImportSub}
+                hasActivePackage={dealerHasImportPackage(dealerPackage)}
+                onOpenBilling={() => setActiveTab("billing")}
               />
             </TabsContent>
             <TabsContent value="integrace" className="mt-0">
@@ -7698,6 +7723,8 @@ export default function DealerPage() {
                 onAddVehicle={openAddVehicleDialog}
                 sub={importSub === "csv" ? "xml" : importSub}
                 onSubChange={setImportSub}
+                hasActivePackage={dealerHasImportPackage(dealerPackage)}
+                onOpenBilling={() => setActiveTab("billing")}
               />
             </TabsContent>
             <TabsContent value="leady" className="mt-0">
@@ -7865,6 +7892,67 @@ function methodBadgeClass(method: string): string {
   }
 }
 
+function DealerImportPackagePaywall({
+  t,
+  onOpenBilling,
+}: {
+  t: (key: string) => string;
+  onOpenBilling: () => void;
+}) {
+  return (
+    <Card className={`${premiumSurface} rounded-3xl border-amber-200`}>
+      <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
+        <CardTitle className="flex items-center gap-2 text-lg text-[#5c3b10]">
+          <Crown className="h-5 w-5 text-amber-700" />
+          {t("dealer.importSync.packageRequiredTitle")}
+        </CardTitle>
+        <CardDescription className="text-sm">
+          {t("dealer.importSync.packageRequiredDescription")}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-[#6b4e1f]">
+          {t("dealer.importSync.packageRequiredHint")}
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {IMPORT_VEHICLE_PACKAGES.map((pkg) => (
+            <div
+              key={pkg.id}
+              className={`rounded-2xl border p-4 ${
+                pkg.popular
+                  ? "border-amber-300 bg-amber-50/70"
+                  : "border-amber-100 bg-white"
+              }`}
+            >
+              {pkg.popular ? (
+                <Badge className="mb-2 bg-amber-700 text-white hover:bg-amber-700">
+                  {t("dealer.billing.mostPopular")}
+                </Badge>
+              ) : null}
+              <p className="text-sm font-black uppercase tracking-wide text-amber-800">
+                {t(pkg.nameKey)}
+              </p>
+              <p className="mt-2 text-2xl font-black text-[#5c3b10]">
+                {formatPackageKc(pkg.priceKc)}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                / {t("dealer.billing.perYear")} · {pkg.cars} {t("dealer.billing.carsUnit")}
+              </p>
+            </div>
+          ))}
+        </div>
+        <Button
+          type="button"
+          className="w-full rounded-2xl bg-amber-700 hover:bg-amber-800 sm:w-auto"
+          onClick={onOpenBilling}
+        >
+          {t("dealer.importSync.choosePackageCta")}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ImportSyncInfoBlock({ title, text }: { title: string; text: string }) {
   return (
     <div className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
@@ -7883,12 +7971,16 @@ function ImportSyncTab({
   onAddVehicle,
   sub,
   onSubChange,
+  hasActivePackage,
+  onOpenBilling,
 }: {
   dealer: Dealer;
   t: (key: string) => string;
   onAddVehicle: () => void;
   sub: ImportSyncSubTab;
   onSubChange: (next: ImportSyncSubTab) => void;
+  hasActivePackage: boolean;
+  onOpenBilling: () => void;
 }) {
   const { toast } = useToast();
   const storageKey = `nnauto_dealer_integrace_${dealer.id}`;
@@ -8306,6 +8398,10 @@ function ImportSyncTab({
         </CardContent>
       </Card>
 
+      {!hasActivePackage ? (
+        <DealerImportPackagePaywall t={t} onOpenBilling={onOpenBilling} />
+      ) : (
+        <>
       {sub === "csv" ? <BulkImportTab t={t} onAddVehicle={onAddVehicle} embedded /> : null}
 
       {sub === "xml" ? (
@@ -8576,6 +8672,8 @@ function ImportSyncTab({
           </CardContent>
         </Card>
       ) : null}
+        </>
+      )}
     </div>
   );
 }

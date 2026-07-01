@@ -9,11 +9,17 @@ import {
   insertListingSchema,
 } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
+import {
+  isDealerPackageRequiredError,
+  requireActiveDealerPackage,
+} from "@lib/dealerPackages";
 
 export async function POST(req: NextRequest) {
   try {
     const user = await requireDealer();
     if (!user.dealerId) return error("Dealer not found", 404);
+
+    await requireActiveDealerPackage(user.dealerId);
 
     const body = await req.json();
     const { listings: listingsData, fileName } = body;
@@ -105,6 +111,12 @@ export async function POST(req: NextRequest) {
     const msg = e instanceof Error ? e.message : "Server error";
     if (msg === "Unauthorized") return error("Unauthorized", 401);
     if (msg === "Forbidden") return error("Forbidden", 403);
+    if (isDealerPackageRequiredError(e)) {
+      return error(
+        "Pro import vozidel je nutné aktivní balíček START, BUSINESS nebo PRO.",
+        402,
+      );
+    }
     return error(msg, 500);
   }
 }

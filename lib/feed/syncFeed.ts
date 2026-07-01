@@ -3,6 +3,7 @@ import { dealers, listings, dealerFeeds, insertListingSchema } from "@shared/sch
 import { and, eq, ne, sql } from "drizzle-orm";
 import { parseFeedXml, type MappedVehicle } from "./xmlImport";
 import { dispatchVehicleWebhook } from "@lib/webhooks";
+import { getActiveDealerPackageSubscription } from "@lib/dealerPackages";
 
 const FETCH_TIMEOUT_MS = 25_000;
 const MAX_FEED_BYTES = 30 * 1024 * 1024; // 30 MB
@@ -408,6 +409,15 @@ export async function syncAllFeeds(): Promise<
         .where(eq(dealers.id, feed.dealerId));
       if (!dealer) {
         results.push({ dealerId: feed.dealerId, ok: false, detail: "dealer not found" });
+        continue;
+      }
+      const activePackage = await getActiveDealerPackageSubscription(feed.dealerId);
+      if (!activePackage) {
+        results.push({
+          dealerId: feed.dealerId,
+          ok: false,
+          detail: "dealer_package_required",
+        });
         continue;
       }
       const ctx: FeedDealerCtx = {

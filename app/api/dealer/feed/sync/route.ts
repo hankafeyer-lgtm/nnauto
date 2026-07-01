@@ -5,11 +5,21 @@ import { db } from "@lib/db";
 import { dealers, dealerFeeds } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { runFeedSync, type FeedDealerCtx } from "@lib/feed/syncFeed";
+import {
+  isDealerPackageRequiredError,
+  requireActiveDealerPackage,
+} from "@lib/dealerPackages";
 
 function mapAuthError(e: unknown) {
   const msg = e instanceof Error ? e.message : "Server error";
   if (msg === "Unauthorized") return error("Unauthorized", 401);
   if (msg === "Forbidden") return error("Forbidden", 403);
+  if (isDealerPackageRequiredError(e)) {
+    return error(
+      "Pro import vozidel je nutné aktivní balíček START, BUSINESS nebo PRO.",
+      402,
+    );
+  }
   return error(msg, 500);
 }
 
@@ -25,6 +35,8 @@ export async function POST(req: NextRequest) {
       .from(dealers)
       .where(eq(dealers.id, user.dealerId));
     if (!dealer) return error("Dealer not found", 404);
+
+    await requireActiveDealerPackage(user.dealerId);
 
     const body = await req.json().catch(() => ({}));
     const bodyUrl = typeof body.feedUrl === "string" ? body.feedUrl.trim() : "";
