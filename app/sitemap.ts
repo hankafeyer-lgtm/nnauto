@@ -8,8 +8,16 @@ import { queryIndexableFacetUrls } from "@lib/seo/facet-queries";
 import { listings } from "@shared/schema";
 import { desc, eq, sql } from "drizzle-orm";
 
-/** Regenerate sitemap periodically so new listings appear before Google’s next full sitemap read. */
-export const revalidate = 300;
+/**
+ * Generate the sitemap at request time instead of at build time.
+ *
+ * The sitemap runs several DB aggregations plus queryIndexableFacetUrls(), which
+ * can exceed Next.js' 60s static-generation budget and abort `next build`. A
+ * failed build leaves `.next` incomplete, so the deploy stops before restarting
+ * the server and stale chunk hashes break client-only pages (e.g. /add-listing).
+ * Rendering dynamically keeps deploys reliable.
+ */
+export const dynamic = "force-dynamic";
 
 /** Minimum active inventory before we list a brand+model SEO page in the sitemap. */
 const MIN_MODEL_LISTINGS_FOR_SITEMAP = 3;
