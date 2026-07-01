@@ -2,6 +2,12 @@ import { useState, useRef, useEffect } from "react";
 import { Video, X, Loader2, Play, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "@/lib/translations";
+import { listingsFetchHeaders } from "@/lib/queryClient";
+import {
+  isVideoFile,
+  inferVideoContentType,
+  LISTING_VIDEO_ACCEPT,
+} from "@/lib/videoFileUtils";
 
 interface VideoUploaderProps {
   video: string | null;
@@ -58,7 +64,9 @@ export function VideoUploader({
       };
 
       video.onerror = () => {
-        reject(new Error("Nepodařilo se načíst video"));
+        window.URL.revokeObjectURL(video.src);
+        // Some phone codecs cannot be previewed in-browser; allow upload anyway.
+        resolve(0);
       };
 
       video.src = URL.createObjectURL(file);
@@ -71,7 +79,7 @@ export function VideoUploader({
 
     const file = files[0];
 
-    if (!file.type.startsWith("video/")) {
+    if (!isVideoFile(file)) {
       toast({
         variant: "destructive",
         title: t("video.error") || "Chyba",
@@ -95,15 +103,24 @@ export function VideoUploader({
     setUploadPhase("uploading");
 
     try {
-      await validateVideoDuration(file);
+      const duration = await validateVideoDuration(file);
+      if (duration > maxDurationSeconds) {
+        throw new Error(
+          `Video příliš dlouhé. Maximum je ${formatDuration(
+            maxDurationSeconds,
+          )}, vaše video má ${formatDuration(duration)}`,
+        );
+      }
       setUploadProgress(10);
 
-      // Get JWT token for auth
-      const token = localStorage.getItem("nnauto_token");
-
-      // Upload via FormData to backend (avoids CORS issues with R2)
       const formData = new FormData();
-      formData.append("video", file);
+      const uploadFile =
+        file.type && file.type !== "application/octet-stream"
+          ? file
+          : new File([file], file.name || "video.mp4", {
+              type: inferVideoContentType(file),
+            });
+      formData.append("video", uploadFile, uploadFile.name || "video.mp4");
 
       const result = await new Promise<{ objectPath: string }>(
         (resolve, reject) => {
@@ -150,9 +167,9 @@ export function VideoUploader({
 
           xhr.open("POST", "/api/objects/upload-video");
 
-          // Add authorization header
-          if (token) {
-            xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+          const authHeaders = listingsFetchHeaders();
+          for (const [key, value] of Object.entries(authHeaders)) {
+            xhr.setRequestHeader(key, value);
           }
 
           xhr.withCredentials = true;
@@ -356,7 +373,7 @@ export function VideoUploader({
       <input
         ref={fileInputRef}
         type="file"
-        accept="video/*"
+        accept={LISTING_VIDEO_ACCEPT}
         onChange={handleFileSelect}
         className="hidden"
         data-testid="input-file-video"

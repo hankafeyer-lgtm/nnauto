@@ -2,12 +2,11 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import {
-  isValidListingImageBuffer,
   MAX_LISTING_IMAGE_BYTES,
 } from "@lib/listingImageValidation";
+import { normalizeListingImageUpload } from "@lib/normalizeListingImage";
 import { securityLog } from "@lib/securityLog";
 import {
-  assertAllowedUploadContentType,
   uploadBuffer,
   setObjectAclPolicy,
 } from "@lib/r2Storage";
@@ -26,31 +25,30 @@ export async function POST(req: NextRequest) {
       return error("No file provided", 400);
     }
 
-    const contentType =
-      file.type && file.type.startsWith("image/")
-        ? file.type
-        : "image/jpeg";
+    const rawBuffer = Buffer.from(await file.arrayBuffer());
 
-    try {
-      assertAllowedUploadContentType(contentType);
-    } catch {
-      return error("Only image files are allowed", 400);
-    }
-
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    if (buffer.length > MAX_LISTING_IMAGE_BYTES) {
+    if (rawBuffer.length > MAX_LISTING_IMAGE_BYTES) {
       return error(
-        `File too large. Maximum size is 20MB, got ${(buffer.length / 1024 / 1024).toFixed(2)}MB`,
+        `File too large. Maximum size is 20MB, got ${(rawBuffer.length / 1024 / 1024).toFixed(2)}MB`,
         400,
       );
     }
 
-    if (!isValidListingImageBuffer(buffer)) {
+    let normalized;
+    try {
+      normalized = await normalizeListingImageUpload(rawBuffer);
+    } catch (e: unknown) {
+      const code = e instanceof Error ? e.message : "";
+      if (code === "FILE_TOO_LARGE") {
+        return error(
+          `File too large. Maximum size is 20MB`,
+          400,
+        );
+      }
       return error("Invalid image file format", 400);
     }
 
-    const objectKey = await uploadBuffer(buffer, contentType);
+    const objectKey = await uploadBuffer(normalized.buffer, normalized.contentType);
 
     await setObjectAclPolicy(objectKey, {
       owner: user.id,
@@ -59,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     securityLog("upload_file_legacy", {
       userId: user.id,
-      bytes: buffer.length,
+      bytes: normalized.buffer.length,
       transport: "multipart",
     });
     return json({ objectPath: objectKey });

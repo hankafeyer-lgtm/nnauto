@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { X, Loader2, Camera, ImagePlus, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { uploadImageViaPresignOrLegacy } from "@/lib/uploadImagePresignOrLegacy";
+import { isImageFile, LISTING_PHOTO_ACCEPT } from "@/lib/imageFileUtils";
 import { useTranslation } from "@/lib/translations";
 
 interface PhotoItem {
@@ -20,7 +21,7 @@ interface CarPhotoUploaderProps {
   onUploadingChange?: (isUploading: boolean) => void;
 }
 
-export function CarPhotoUploader({ 
+export function CarPhotoUploader({
   photos, 
   onPhotosChange, 
   maxPhotos = 30,
@@ -89,53 +90,93 @@ export function CarPhotoUploader({
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    const selected = Array.from(files);
+    await uploadFiles(selected);
     if (fileInputRef.current) {
-      fileInputRef.current.value = '';
+      fileInputRef.current.value = "";
     }
-    await uploadFiles(Array.from(files));
   };
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDragging(false);
     if (draggedPhotoId) {
       setDraggedPhotoId(null);
       return;
     }
-    const dropped = Array.from(e.dataTransfer?.files || []).filter((f) =>
-      f.type.startsWith("image/"),
-    );
+
+    const rawFiles = Array.from(e.dataTransfer?.files || []);
+    if (rawFiles.length === 0) return;
+
+    const dropped = rawFiles.filter(isImageFile);
     if (dropped.length > 0) {
       await uploadFiles(dropped);
+      return;
     }
+
+    toast({
+      variant: "destructive",
+      title: "Chyba nahrávání",
+      description: "Vybrané soubory nejsou obrázky",
+    });
   };
 
   const uploadFiles = async (incoming: File[]) => {
-    const remainingSlots = maxPhotos - photoItems.length;
-    const filesToUpload = incoming.slice(0, remainingSlots);
+    if (incoming.length === 0) return;
 
-    if (filesToUpload.length === 0) {
+    const imageFiles = incoming.filter(isImageFile);
+    if (imageFiles.length === 0) {
       toast({
         variant: "destructive",
-        title: "Maximum dosaženo",
-        description: `Můžete nahrát maximálně ${maxPhotos} fotografií`,
+        title: "Chyba nahrávání",
+        description: "Vybrané soubory nejsou obrázky",
       });
       return;
     }
 
-    const newItems: PhotoItem[] = filesToUpload.map((file, index) => ({
-      id: `local-${Date.now()}-${index}`,
-      url: "",
-      isUploading: true,
-      isLocal: true,
-      localPreview: URL.createObjectURL(file),
-    }));
+    let filesToUpload: File[] = [];
+    let uploadItemIds: string[] = [];
+    let atCapacity = false;
 
-    setPhotoItems(prev => [...prev, ...newItems]);
+    setPhotoItems((prev) => {
+      const remainingSlots = maxPhotos - prev.length;
+      if (remainingSlots <= 0) {
+        atCapacity = true;
+        return prev;
+      }
+
+      filesToUpload = imageFiles.slice(0, remainingSlots);
+      if (filesToUpload.length === 0) {
+        return prev;
+      }
+
+      const newItems: PhotoItem[] = filesToUpload.map((file, index) => ({
+        id: `local-${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+        url: "",
+        isUploading: true,
+        isLocal: true,
+        localPreview: URL.createObjectURL(file),
+      }));
+      uploadItemIds = newItems.map((item) => item.id);
+
+      return [...prev, ...newItems];
+    });
+
+    if (filesToUpload.length === 0) {
+      if (atCapacity) {
+        toast({
+          variant: "destructive",
+          title: "Maximum dosaženo",
+          description: `Můžete nahrát maximálně ${maxPhotos} fotografií`,
+        });
+      }
+      return;
+    }
 
     for (let i = 0; i < filesToUpload.length; i++) {
       const file = filesToUpload[i];
-      const itemId = newItems[i].id;
+      const itemId = uploadItemIds[i];
 
       try {
         const maxBytes = 20 * 1024 * 1024;
@@ -143,7 +184,7 @@ export function CarPhotoUploader({
           throw new Error(`Soubor ${file.name} je příliš velký (max 20MB)`);
         }
 
-        if (file.type && !file.type.startsWith("image/")) {
+        if (!isImageFile(file)) {
           throw new Error(`Soubor ${file.name} není obrázek`);
         }
 
@@ -243,7 +284,10 @@ export function CarPhotoUploader({
       {!hasPhotos ? (
         <button
           type="button"
-          onClick={() => fileInputRef.current?.click()}
+          onClick={(e) => {
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
           className={`group relative w-full min-h-[192px] sm:min-h-[240px] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-4 p-5 sm:p-6 text-center transition-all touch-manipulation ${
             isDragging
               ? "border-[#B8860B] bg-[#B8860B]/10 scale-[1.005]"
@@ -356,7 +400,10 @@ export function CarPhotoUploader({
           {canAddMore && (
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
               className="aspect-square rounded-xl border-2 border-dashed border-[#B8860B]/40 hover:border-[#B8860B] hover:bg-[#B8860B]/5 transition-all flex flex-col items-center justify-center gap-2 p-4 touch-manipulation"
               data-testid="button-add-photos"
             >
@@ -370,7 +417,7 @@ export function CarPhotoUploader({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={LISTING_PHOTO_ACCEPT}
         multiple
         onChange={handleFileSelect}
         className="hidden"

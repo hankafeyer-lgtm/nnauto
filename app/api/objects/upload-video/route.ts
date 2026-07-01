@@ -2,6 +2,10 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { uploadBuffer } from "@lib/r2Storage";
+import {
+  inferVideoContentTypeFromBuffer,
+  isRecognizedVideoBuffer,
+} from "@lib/videoUploadUtils";
 
 const MAX_VIDEO_UPLOAD_BYTES = 200 * 1024 * 1024; // 200MB (matches UI limit)
 
@@ -24,7 +28,15 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const contentType = file.type || "video/mp4";
+
+    if (!isRecognizedVideoBuffer(buffer)) {
+      return error("Invalid video file format", 400);
+    }
+
+    const contentType = inferVideoContentTypeFromBuffer(
+      buffer,
+      file.type || undefined,
+    );
 
     // Set ACL metadata on the initial PutObject — avoid setObjectAclPolicy here,
     // which re-downloads the entire object (OOM / timeouts for large videos).

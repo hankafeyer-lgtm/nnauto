@@ -1,4 +1,5 @@
 import { apiRequest, listingsFetchHeaders } from "@/lib/queryClient";
+import { inferImageContentType } from "@/lib/imageFileUtils";
 
 function readFileAsBase64Payload(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -52,10 +53,7 @@ async function uploadMultipartSameOrigin(file: File): Promise<string> {
 }
 
 async function uploadBase64Legacy(file: File): Promise<string> {
-  const contentType =
-    file.type && file.type.startsWith("image/")
-      ? file.type
-      : "image/jpeg";
+  const contentType = inferImageContentType(file);
   const fileData = await readFileAsBase64Payload(file);
   const uploadRes = await apiRequest("POST", "/api/objects/upload-file", {
     fileData,
