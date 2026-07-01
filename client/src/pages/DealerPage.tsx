@@ -1852,10 +1852,12 @@ function BulkImportTab({
   t,
   onAddVehicle,
   embedded = false,
+  ensureImportPackage,
 }: {
   t: (key: string) => string;
   onAddVehicle: () => void;
   embedded?: boolean;
+  ensureImportPackage?: () => boolean;
 }) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1923,6 +1925,10 @@ function BulkImportTab({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
+      if (ensureImportPackage && !ensureImportPackage()) {
+        e.target.value = "";
+        return;
+      }
       setFileName(file.name);
       setUploadProgress(15);
       const reader = new FileReader();
@@ -1934,7 +1940,7 @@ function BulkImportTab({
       };
       reader.readAsText(file);
     },
-    [parseCsv],
+    [parseCsv, ensureImportPackage],
   );
 
   const handleDrop = useCallback(
@@ -1943,6 +1949,7 @@ function BulkImportTab({
       setDragActive(false);
       const file = e.dataTransfer.files?.[0];
       if (!file || !file.name.endsWith(".csv")) return;
+      if (ensureImportPackage && !ensureImportPackage()) return;
       setFileName(file.name);
       setUploadProgress(15);
       const reader = new FileReader();
@@ -1954,8 +1961,13 @@ function BulkImportTab({
       };
       reader.readAsText(file);
     },
-    [parseCsv],
+    [parseCsv, ensureImportPackage],
   );
+
+  const openCsvPicker = useCallback(() => {
+    if (ensureImportPackage && !ensureImportPackage()) return;
+    fileInputRef.current?.click();
+  }, [ensureImportPackage]);
 
   const activeJob = jobData?.job as BulkImportJob | undefined;
   const jobProgress = activeJob
@@ -2046,7 +2058,7 @@ function BulkImportTab({
                 ? "border-amber-500 bg-amber-50 shadow-inner"
                 : "hover:border-amber-400 hover:bg-amber-50/50"
             }`}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={openCsvPicker}
             onDrop={handleDrop}
             onDragEnter={() => setDragActive(true)}
             onDragLeave={() => setDragActive(false)}
@@ -2143,9 +2155,10 @@ function BulkImportTab({
                   {t("dealer.premium.validationReady")}
                 </span>
                 <Button
-                  onClick={() =>
-                    importMutation.mutate({ listings: parsedData, fileName })
-                  }
+                  onClick={() => {
+                    if (ensureImportPackage && !ensureImportPackage()) return;
+                    importMutation.mutate({ listings: parsedData, fileName });
+                  }}
                   disabled={importMutation.isPending || parsedData.length === 0}
                   className="bg-amber-700 hover:bg-amber-800"
                 >
@@ -7557,15 +7570,6 @@ export default function DealerPage() {
     localStorage.setItem("nnauto_dealer_add_vehicle_preference", mode);
     setAddVehicleDialogOpen(false);
     if (mode === "bulk") {
-      if (!dealerHasImportPackage(dealerPackage)) {
-        setActiveTab("billing");
-        toast({
-          title: t("dealer.importSync.packageRequiredTitle"),
-          description: t("dealer.importSync.packageRequiredHint"),
-          variant: "destructive",
-        });
-        return;
-      }
       setImportSub("csv");
       setActiveTab("import");
       window.setTimeout(() => {
@@ -7576,7 +7580,7 @@ export default function DealerPage() {
       return;
     }
     navigate("/add-listing");
-  }, [dealerPackage, navigate, t, toast]);
+  }, [navigate]);
 
   if (authLoading) {
     return (
@@ -8005,6 +8009,17 @@ function ImportSyncTab({
     webhookLastDeliveryAt: null,
   });
   const [busy, setBusy] = useState<null | "verify" | "sync" | "webhook" | "apikey">(null);
+  const [packagePromptOpen, setPackagePromptOpen] = useState(false);
+
+  const ensureImportPackage = useCallback((): boolean => {
+    if (hasActivePackage) return true;
+    setPackagePromptOpen(true);
+    return false;
+  }, [hasActivePackage]);
+
+  useEffect(() => {
+    if (hasActivePackage) setPackagePromptOpen(false);
+  }, [hasActivePackage]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -8174,6 +8189,7 @@ function ImportSyncTab({
   };
 
   const handleSyncNow = async () => {
+    if (!ensureImportPackage()) return;
     const url = state.xmlUrl.trim() || state.xmlSavedUrl.trim();
     if (!url) {
       toast({ title: "Nejdříve zadejte XML URL", variant: "destructive" });
@@ -8398,11 +8414,14 @@ function ImportSyncTab({
         </CardContent>
       </Card>
 
-      {!hasActivePackage ? (
-        <DealerImportPackagePaywall t={t} onOpenBilling={onOpenBilling} />
-      ) : (
-        <>
-      {sub === "csv" ? <BulkImportTab t={t} onAddVehicle={onAddVehicle} embedded /> : null}
+      {sub === "csv" ? (
+        <BulkImportTab
+          t={t}
+          onAddVehicle={onAddVehicle}
+          embedded
+          ensureImportPackage={ensureImportPackage}
+        />
+      ) : null}
 
       {sub === "xml" ? (
         <Card className={`${premiumSurface} rounded-3xl`}>
@@ -8672,8 +8691,18 @@ function ImportSyncTab({
           </CardContent>
         </Card>
       ) : null}
-        </>
-      )}
+
+      <Dialog open={packagePromptOpen} onOpenChange={setPackagePromptOpen}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto border-amber-200 p-0">
+          <DealerImportPackagePaywall
+            t={t}
+            onOpenBilling={() => {
+              setPackagePromptOpen(false);
+              onOpenBilling();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
