@@ -99,8 +99,8 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "auth.dealerRegisterSuccessDescription": "Vítejte! Nastavte si svůj autobazar.",
     "auth.accountTypePrivate": "Soukromý prodejce",
     "auth.accountTypePrivateHint": "Pro jednotlivce, kteří chtějí prodat 1–2 vozy.",
-    "auth.accountTypeDealer": "Autobazar / Dealer",
-    "auth.accountTypeDealerHint": "Pro autobazary a prodejce s více vozy.",
+    "auth.accountTypeDealer": "Firemní účet · Autobazary",
+    "auth.accountTypeDealerHint": "Pro firmy, autobazary a prodejce s více vozy.",
     "auth.dealerIntro":
       "Pro prodejce s více vozy. Získejte výhodné balíčky inzerce a možnost hromadného nahrávání vozidel.",
     "auth.loginSuccess": "Úspěšné přihlášení",
@@ -2072,8 +2072,8 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "auth.dealerRegisterSuccessDescription": "Ласкаво просимо! Налаштуйте свій автосалон.",
     "auth.accountTypePrivate": "Приватний продавець",
     "auth.accountTypePrivateHint": "Для приватних осіб, які хочуть продати 1–2 авто.",
-    "auth.accountTypeDealer": "Автосалон / Дилер",
-    "auth.accountTypeDealerHint": "Для автосалонів і продавців з кількома авто.",
+    "auth.accountTypeDealer": "Фірмовий обліковий запис · Автобазари",
+    "auth.accountTypeDealerHint": "Для фірм, автобазарів і продавців з кількома авто.",
     "auth.dealerIntro":
       "Для продавців із кількома авто. Отримайте вигідні пакети реклами та можливість масового завантаження авто.",
     "auth.loginSuccess": "Успішний вхід",
@@ -4046,8 +4046,8 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "auth.dealerRegisterSuccessDescription": "Welcome! Set up your dealership.",
     "auth.accountTypePrivate": "Private seller",
     "auth.accountTypePrivateHint": "For individuals who want to sell 1–2 cars.",
-    "auth.accountTypeDealer": "Dealership / Dealer",
-    "auth.accountTypeDealerHint": "For dealerships and sellers with multiple cars.",
+    "auth.accountTypeDealer": "Business account · Dealerships",
+    "auth.accountTypeDealerHint": "For companies, dealerships and sellers with multiple cars.",
     "auth.dealerIntro":
       "For sellers with multiple vehicles. Get advantageous advertising packages and bulk vehicle uploads.",
     "auth.loginSuccess": "Login successful",
@@ -6016,8 +6016,8 @@ const germanTranslations: Record<string, string> = {
   "auth.dealerRegisterSuccessDescription": "Willkommen! Richten Sie Ihr Autohaus ein.",
   "auth.accountTypePrivate": "Privatverkäufer",
   "auth.accountTypePrivateHint": "Für Privatpersonen, die 1–2 Fahrzeuge verkaufen möchten.",
-  "auth.accountTypeDealer": "Autohaus / Händler",
-  "auth.accountTypeDealerHint": "Für Autohäuser und Verkäufer mit mehreren Fahrzeugen.",
+  "auth.accountTypeDealer": "Firmenkonto · Autohäuser",
+  "auth.accountTypeDealerHint": "Für Firmen, Autohäuser und Verkäufer mit mehreren Fahrzeugen.",
   "auth.dealerIntro":
     "Für Verkäufer mit mehreren Fahrzeugen. Erhalten Sie vorteilhafte Anzeigenpakete und Massen-Upload von Fahrzeugen.",
   "auth.loginSuccess": "Anmeldung erfolgreich",
