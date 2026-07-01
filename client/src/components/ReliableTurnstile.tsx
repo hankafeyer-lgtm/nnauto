@@ -24,8 +24,8 @@ interface ReliableTurnstileProps {
 
 export type ReliableTurnstileHandle = TurnstileInstance;
 
-const FALLBACK_TIMEOUT_MS = 12_000;
-const DEFAULT_MAX_RETRIES = 3;
+const FALLBACK_TIMEOUT_MS = 6_000;
+const DEFAULT_MAX_RETRIES = 2;
 
 /**
  * Wraps `@marsidev/react-turnstile` with iOS Safari / slow-network safeguards:
@@ -56,33 +56,25 @@ const ReliableTurnstile = forwardRef<
 
   const [mountTick, setMountTick] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [widgetPainted, setWidgetPainted] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const [status, setStatus] = useState<"loading" | "ok" | "error" | "timeout" | "exhausted">(
     "loading",
   );
 
-  // Defer the actual mount one frame after `ready` becomes true so the
-  // surrounding dialog/page has fully painted. iOS Safari occasionally
-  // skips iframe rendering when mounted during an animation, which leaves
-  // the user staring at an empty space (the reported bug).
+  // Mount as soon as the parent dialog is ready. Extra rAF delays made the
+  // widget feel stuck on "loading" especially on desktop Safari.
   useEffect(() => {
     if (!ready) {
       setMounted(false);
+      setWidgetPainted(false);
       setStatus("loading");
       return;
     }
-    let raf1 = 0;
-    let raf2 = 0;
-    let timer = 0 as unknown as ReturnType<typeof setTimeout>;
-    raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(() => {
-        timer = setTimeout(() => setMounted(true), 80);
-      });
-    });
+    setMounted(true);
     return () => {
-      window.cancelAnimationFrame(raf1);
-      window.cancelAnimationFrame(raf2);
-      clearTimeout(timer);
+      setMounted(false);
+      setWidgetPainted(false);
     };
   }, [ready, mountTick]);
 
@@ -119,6 +111,7 @@ const ReliableTurnstile = forwardRef<
     setRetryCount(nextRetry);
     setStatus("loading");
     setMounted(false);
+    setWidgetPainted(false);
     // Do NOT call innerRef.current?.reset() here — the widget is about to
     // be unmounted and re-created with a new key, so calling reset() on a
     // widget that is simultaneously being destroyed causes the Turnstile SDK
@@ -169,7 +162,7 @@ const ReliableTurnstile = forwardRef<
       className="relative flex min-h-[70px] w-full max-w-[300px] items-center justify-center"
       data-testid="turnstile-container"
     >
-      {!mounted || status === "loading" ? (
+      {!widgetPainted && status === "loading" ? (
         <div
           className="pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground"
           aria-hidden="true"
@@ -184,16 +177,18 @@ const ReliableTurnstile = forwardRef<
             innerRef.current = instance ?? null;
           }}
           siteKey={siteKey}
+          onLoadScript={() => setWidgetPainted(true)}
+          onWidgetLoad={() => setWidgetPainted(true)}
           onSuccess={handleSuccess}
           onError={handleError}
           onExpire={handleExpire}
           options={{
             theme,
             language,
-            size: "flexible",
-            appearance: "always",
+            size: "normal",
+            appearance: "interaction-only",
             retry: "auto",
-            retryInterval: 2000,
+            retryInterval: 1500,
             refreshExpired: "auto",
           }}
         />

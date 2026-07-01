@@ -133,8 +133,18 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
+          rel="preconnect"
+          href="https://challenges.cloudflare.com"
+          crossOrigin="anonymous"
+        />
+        <link
           rel="dns-prefetch"
           href="https://challenges.cloudflare.com"
+        />
+        <Script
+          id="cf-turnstile-api"
+          src="https://challenges.cloudflare.com/turnstile/v0/api.js"
+          strategy="afterInteractive"
         />
         <link rel="preconnect" href="https://www.googletagmanager.com" crossOrigin="anonymous" />
         <link rel="preconnect" href="https://connect.facebook.net" crossOrigin="anonymous" />

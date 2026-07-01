@@ -81,8 +81,8 @@ export default function LoginModal({
       setDialogReady(false);
       return;
     }
-    const id = setTimeout(() => setDialogReady(true), 220);
-    return () => clearTimeout(id);
+    const id = window.requestAnimationFrame(() => setDialogReady(true));
+    return () => window.cancelAnimationFrame(id);
   }, [open]);
   const [forgotDialogReady, setForgotDialogReady] = useState(false);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -1024,7 +1024,7 @@ export default function LoginModal({
         onOpenChange={(o) => {
           setForgotPasswordOpen(o);
           if (o) {
-            setTimeout(() => setForgotDialogReady(true), 220);
+            window.requestAnimationFrame(() => setForgotDialogReady(true));
           } else {
             setForgotDialogReady(false);
             setForgotPasswordEmail("");
