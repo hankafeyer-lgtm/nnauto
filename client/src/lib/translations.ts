@@ -1852,6 +1852,7 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "dealer.billing.invoiceDescription": "Položka",
     "dealer.billing.invoiceAmount": "Částka",
     "dealer.billing.invoiceStatus": "Stav",
+    "dealer.billing.downloadInvoice": "Stáhnout fakturu",
     "dealer.billing.status_paid": "Zaplaceno",
     "dealer.billing.status_pending": "Čeká na platbu",
     "dealer.billing.status_failed": "Selhalo",

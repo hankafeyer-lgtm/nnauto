@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { db } from "@lib/db";
+import { ensureDealerInvoiceForPackageCheckout } from "@lib/dealerInvoice";
 import { dealerPackageSubscriptions, dealers } from "@shared/schema";
 import { and, desc, eq, inArray } from "drizzle-orm";
 
@@ -172,13 +173,28 @@ export async function activateDealerPackageFromCheckoutSession(sessionId: string
 
   if (!subscription) throw new Error("Subscription missing");
 
-  return upsertDealerPackageSubscription({
+  const row = await upsertDealerPackageSubscription({
     dealerId,
     userId,
     packageId,
     subscription,
     checkoutSessionId: session.id,
   });
+
+  await ensureDealerInvoiceForPackageCheckout({
+    dealerId,
+    userId,
+    packageId,
+    subscriptionId: row.id,
+    stripeCheckoutSessionId: session.id,
+    stripeInvoiceId:
+      typeof subscription.latest_invoice === "string"
+        ? subscription.latest_invoice
+        : subscription.latest_invoice?.id ?? null,
+    amountKc: row.amountKc,
+  });
+
+  return row;
 }
 
 export async function syncDealerSubscriptionFromStripe(subscription: Stripe.Subscription) {

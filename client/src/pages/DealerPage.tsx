@@ -6692,6 +6692,67 @@ function BillingTab({
   const [paypalEmail, setPaypalEmail] = useState("");
   const [cardError, setCardError] = useState<string | null>(null);
 
+  type InvoiceRow = {
+    id: string;
+    number: string;
+    dateISO: string;
+    amountKc: number;
+    status: "paid" | "pending" | "failed";
+    description: string;
+    isServer?: boolean;
+  };
+
+  const { data: serverInvoicesData } = useQuery({
+    queryKey: ["/api/dealer/invoices"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/dealer/invoices");
+      return res.json() as Promise<{ invoices: InvoiceRow[] }>;
+    },
+  });
+
+  const invoiceRows: InvoiceRow[] = useMemo(() => {
+    const server = serverInvoicesData?.invoices ?? [];
+    if (server.length > 0) {
+      return server.map((invoice) => ({ ...invoice, isServer: true }));
+    }
+    return billing.invoices.map((invoice) => ({
+      id: invoice.id,
+      number: invoice.number,
+      dateISO: invoice.dateISO,
+      amountKc: invoice.amountKc,
+      status: invoice.status,
+      description: invoice.description,
+      isServer: false,
+    }));
+  }, [serverInvoicesData?.invoices, billing.invoices]);
+
+  const downloadInvoice = useCallback((invoice: InvoiceRow) => {
+    if (invoice.isServer) {
+      window.open(`/api/dealer/invoices/${invoice.id}`, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const issued = new Date(invoice.dateISO).toLocaleDateString("cs-CZ");
+    const html = `<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>Faktura ${invoice.number}</title></head><body style="font-family:Arial,sans-serif;padding:40px">
+<h1>FAKTURA – DAŇOVÝ DOKLAD</h1>
+<p>Číslo faktury: <strong>${invoice.number}</strong><br>Datum vystavení: ${issued}</p>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px">
+<div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px"><strong>Dodavatel</strong><br>NNAuto<br>IČO: 23974559<br>info@nnauto.cz<br>https://nnauto.cz</div>
+<div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px"><strong>Odběratel</strong><br>${dealer.companyName}${dealer.ico ? `<br>IČO: ${dealer.ico}` : ""}${dealer.dic ? `<br>DIČ: ${dealer.dic}` : ""}</div>
+</div>
+<table style="width:100%;border-collapse:collapse;margin-top:24px"><tr><th style="border:1px solid #e5e7eb;padding:8px;text-align:left">Položka</th><th style="border:1px solid #e5e7eb;padding:8px">Celkem</th></tr>
+<tr><td style="border:1px solid #e5e7eb;padding:8px">${invoice.description}</td><td style="border:1px solid #e5e7eb;padding:8px">${invoice.amountKc.toLocaleString("cs-CZ")} Kč</td></tr></table>
+<p style="margin-top:20px"><strong>Celkem k úhradě: ${invoice.amountKc.toLocaleString("cs-CZ")} Kč</strong></p>
+</body></html>`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${invoice.number}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [dealer.companyName, dealer.dic, dealer.ico]);
+
   const openCardDialog = () => {
     setSelectedMethod(billing.paymentType ?? "card");
     setCardNumber("");
@@ -6915,6 +6976,7 @@ function BillingTab({
         sessionStorage.setItem(marker, "done");
         window.history.replaceState(null, "", "/dealer?tab=billing");
         await queryClient.refetchQueries({ queryKey: ["/api/dealer/stats"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/dealer/invoices"] });
         toast({
           title: t("dealer.billing.paymentSuccessTitle"),
           description: t("dealer.billing.paymentSuccessDesc"),
@@ -7405,7 +7467,7 @@ function BillingTab({
           <CardDescription>{t("dealer.billing.invoicesDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
-          {billing.invoices.length === 0 ? (
+          {invoiceRows.length === 0 ? (
             <div className="rounded-3xl border border-dashed p-8 text-center">
               <FileSpreadsheet className="mx-auto mb-3 h-10 w-10 text-amber-600" />
               <p className="font-bold">{t("dealer.billing.noInvoices")}</p>
@@ -7427,7 +7489,7 @@ function BillingTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {billing.invoices.map((invoice) => (
+                  {invoiceRows.map((invoice) => (
                     <tr key={invoice.id} className="border-b last:border-0 hover:bg-amber-50/40">
                       <td className="px-4 py-3 font-bold">{invoice.number}</td>
                       <td className="px-4 py-3 text-muted-foreground">
@@ -7453,25 +7515,8 @@ function BillingTab({
                           variant="ghost"
                           size="sm"
                           className="h-8 px-2"
-                          title={t("dealer.billing.download") || "Stáhnout"}
-                          onClick={() => {
-                            const lines = [
-                              `Faktura: ${invoice.number}`,
-                              `Datum: ${new Date(invoice.dateISO).toLocaleDateString()}`,
-                              `Popis: ${invoice.description}`,
-                              `Částka: ${formatKc(invoice.amountKc)}`,
-                              `Stav: ${t(`dealer.billing.status_${invoice.status}`)}`,
-                            ].join("\n");
-                            const blob = new Blob([lines], {
-                              type: "text/plain;charset=utf-8",
-                            });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `${invoice.number}.txt`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                          }}
+                          title={t("dealer.billing.downloadInvoice")}
+                          onClick={() => downloadInvoice(invoice)}
                         >
                           <Download className="h-4 w-4" />
                         </Button>

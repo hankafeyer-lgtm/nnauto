@@ -352,6 +352,44 @@ export const dealerPackageSubscriptions = pgTable(
 export type DealerPackageSubscription =
   typeof dealerPackageSubscriptions.$inferSelect;
 
+// ── Dealer billing invoices (package payments) ─────────────────────────────
+
+export const dealerInvoices = pgTable(
+  "dealer_invoices",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    dealerId: varchar("dealer_id").notNull(),
+    userId: varchar("user_id").notNull(),
+    subscriptionId: varchar("subscription_id"),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
+    stripeInvoiceId: text("stripe_invoice_id"),
+    number: varchar("number", { length: 32 }).notNull(),
+    issuedAt: timestamp("issued_at").notNull(),
+    taxableSupplyAt: timestamp("taxable_supply_at").notNull(),
+    packageId: varchar("package_id", { length: 20 }).notNull(),
+    description: text("description").notNull(),
+    amountKc: integer("amount_kc").notNull(),
+    currency: varchar("currency", { length: 3 }).default("CZK").notNull(),
+    vatRate: integer("vat_rate").default(21).notNull(),
+    status: varchar("status", { length: 20 }).default("paid").notNull(),
+    buyerCompanyName: text("buyer_company_name").notNull(),
+    buyerIco: varchar("buyer_ico", { length: 20 }),
+    buyerDic: varchar("buyer_dic", { length: 20 }),
+    buyerAddress: text("buyer_address"),
+    buyerEmail: varchar("buyer_email"),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    uniqueIndex("dealer_invoices_number_unique").on(t.number),
+    uniqueIndex("dealer_invoices_checkout_session_unique").on(t.stripeCheckoutSessionId),
+    index("dealer_invoices_dealer_id_idx").on(t.dealerId),
+    index("dealer_invoices_user_id_idx").on(t.userId),
+    index("dealer_invoices_issued_at_idx").on(t.issuedAt),
+  ],
+);
+
+export type DealerInvoice = typeof dealerInvoices.$inferSelect;
+
 // ── Brands & Models ──────────────────────────────────────────────────────────
 
 export const brands = pgTable(
