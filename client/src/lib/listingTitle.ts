@@ -61,12 +61,21 @@ function formatModel(modelRaw: string): string {
 export function getListingMainTitle(listing: {
   brand?: string | null;
   model?: string | null;
+  year?: number | string | null;
+  trim?: string | null;
+  engineVolume?: string | number | null;
   title?: string | null;
 }): string {
   const brand = formatBrand(String(listing?.brand ?? ""));
   const model = formatModel(String(listing?.model ?? ""));
-  const brandModel = [brand, model].filter(Boolean).join(" ").trim();
-  if (brandModel) return brandModel;
+  const trim = String(listing?.trim ?? "").trim();
+  const engine = listing?.engineVolume
+    ? `${listing.engineVolume}`.replace(/\.0$/, "")
+    : "";
+  const detail = trim || (engine ? `${engine} l` : "");
+  const year = listing?.year ? String(listing.year) : "";
+  const parts = [brand, model, detail, year].filter(Boolean);
+  if (parts.length) return parts.join(" ").trim();
   return String(listing?.title ?? "").trim();
 }
 

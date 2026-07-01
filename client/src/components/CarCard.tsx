@@ -72,6 +72,7 @@ interface CarCardProps {
   isTogglingSold?: boolean;
   priority?: boolean;
   vatDeductible?: boolean;
+  financingMonthlyPayment?: number | null;
   onOpenListing?: (id: string) => void;
   /** Owner-only inline stats: shown on cards under "Moje inzeráty". */
   stats?: {
@@ -123,12 +124,14 @@ function CarCard({
   isTogglingSold = false,
   priority = false,
   vatDeductible = false,
+  financingMonthlyPayment,
   onOpenListing,
   stats,
   showStatsBlock = false,
   statsLoading = false,
   completionListing = null,
 }: CarCardProps) {
+  const monthlyPayment = Number(financingMonthlyPayment || 0);
   // Owner-only inline analytics block shown on each listing card in
   // "Moje inzeráty" — matches the layout of the detailed analytics card on
   // the listing page so the owner sees the same information without
@@ -586,6 +589,11 @@ function CarCard({
                           možnost odpočtu DPH
                         </div>
                       )}
+                      {monthlyPayment > 0 && (
+                        <div className="text-xs font-bold text-[#B8860B] mt-0.5">
+                          Financování od {monthlyPayment.toLocaleString("cs-CZ")} Kč / měsíc
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-black dark:text-white">
@@ -822,6 +830,11 @@ function CarCard({
                   {vatDeductible && (
                     <div className="text-xs text-green-600 dark:text-green-400 font-medium mt-0.5">
                       možnost odpočtu DPH
+                    </div>
+                  )}
+                  {monthlyPayment > 0 && (
+                    <div className="text-xs font-bold text-[#B8860B] mt-0.5">
+                      Financování od {monthlyPayment.toLocaleString("cs-CZ")} Kč / měsíc
                     </div>
                   )}
                 </div>

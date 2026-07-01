@@ -237,7 +237,7 @@ export function VideoUploader({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="w-full min-h-[180px] sm:min-h-[220px] rounded-2xl border-2 border-dashed border-[#B8860B]/50 hover:border-[#B8860B] transition-all flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 bg-gradient-to-br from-background via-[#B8860B]/5 to-[#D4AF37]/10 hover:from-[#B8860B]/10 hover:via-[#B8860B]/15 hover:to-[#D4AF37]/20 disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.99] touch-manipulation"
+          className="w-full min-h-[184px] sm:min-h-[232px] rounded-2xl border-2 border-dashed border-[#B8860B]/50 hover:border-[#B8860B] transition-all flex flex-col items-center justify-center gap-3 sm:gap-4 p-4 sm:p-6 bg-gradient-to-br from-background via-[#B8860B]/5 to-[#D4AF37]/10 hover:from-[#B8860B]/10 hover:via-[#B8860B]/15 hover:to-[#D4AF37]/20 disabled:opacity-60 disabled:cursor-not-allowed group active:scale-[0.99] touch-manipulation"
           data-testid="button-add-video"
         >
           {uploading ? (

@@ -36,6 +36,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,7 +64,7 @@ import { useModelGenerations } from "@/hooks/useModelGenerations";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoginModal from "@/components/LoginModal";
-import { Sparkles, Car, Package, Wrench, CircleDot, Zap, Bot, Activity, ArrowUp, ArrowDown, Grid3x3, Compass, Key, MapPin, Building2, ShieldCheck } from "lucide-react";
+import { Sparkles, Car, Package, Wrench, CircleDot, Zap, Bot, Activity, ArrowUp, ArrowDown, Grid3x3, Compass, Key, MapPin, Building2, ShieldCheck, Search, Camera, ImagePlus, Crown, Check, Info, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import newCarIcon from "@assets/3AAF8DD0-3B6D-4DA3-8A1E-2858FCC004A1_1763451350424.png";
 import partsIcon from "@assets/62A9ABBD-0474-469C-8089-FA93C3E7C2B4_1763450942216.png";
 import usedCarIcon from "@assets/ABAF6CAB-50AC-450D-8FE8-342C0DF354D6_1763451176037.png";
@@ -444,6 +456,8 @@ export default function AddListingPage() {
   const [isVideoUploading, setIsVideoUploading] = useState(false);
   const [topsPurchased, setTopsPurchased] = useState(1);
   const [guestAuthModalOpen, setGuestAuthModalOpen] = useState(true);
+  const [vinStatus, setVinStatus] = useState<"idle" | "verified" | "failed">("idle");
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const submitLockRef = useRef(false);
   const submitLockToastTsRef = useRef(0);
   const { language } = useLanguage();
@@ -462,6 +476,53 @@ export default function AddListingPage() {
     ).format(value);
   };
   
+  const formatPriceDisplay = (raw: string | number | undefined | null): string => {
+    if (raw === undefined || raw === null || raw === "") return "";
+    const [intPart, decPart] = String(raw).split(".");
+    const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    return decPart !== undefined ? `${grouped},${decPart}` : grouped;
+  };
+
+  const formatPhoneDisplay = (raw: string | undefined | null): string => {
+    if (!raw) return "";
+    const trimmed = String(raw).trim();
+    const hasPlus = trimmed.startsWith("+");
+    const digits = trimmed.replace(/\D/g, "");
+    if (!digits) return hasPlus ? "+" : "";
+    // International format with country code (e.g. +420 777 555 333)
+    if (hasPlus) {
+      const cc = digits.slice(0, 3);
+      const rest = digits.slice(3);
+      const groups = rest.match(/.{1,3}/g) || [];
+      return `+${cc}${groups.length ? " " + groups.join(" ") : ""}`.trimEnd();
+    }
+    // Local format grouped in threes (e.g. 777 555 333)
+    const groups = digits.match(/.{1,3}/g) || [];
+    return groups.join(" ");
+  };
+
+  const goldActivePill =
+    "border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/40 shadow-[0_4px_12px_rgba(184,134,11,0.2)] text-[#7a5a08] dark:text-[#D4AF37]";
+
+  const InfoHint = ({ children }: { children: string }) => (
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[#B8860B] hover:bg-[#B8860B]/10"
+            aria-label="Nápověda"
+          >
+            <Info className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs">
+          <p>{children}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: currentYear - 1979 }, (_, i) => currentYear - i);
   const mileageOptions = [0, 10000, 20000, 30000, 50000, 75000, 100000, 125000, 150000, 200000, 250000, 300000, 400000, 500000, 600000];
@@ -535,6 +596,14 @@ export default function AddListingPage() {
         vatDeductible: false,
         isImported: false,
         importCountry: undefined,
+        financingAvailable: false,
+        financingMonthlyPayment: undefined,
+        financingDownPaymentPercent: undefined,
+        financingTermMonths: undefined,
+        financingProvider: undefined,
+        financingOnlineApproval: false,
+        financingForBusiness: false,
+        financingForPrivate: false,
         photos: undefined,
       });
       // Redirect to the newly created listing page
@@ -595,36 +664,106 @@ export default function AddListingPage() {
     { value: "dealer", label: t("listing.sellerDealer") },
   ];
 
-  const equipmentOptions = [
-    { value: "heatedSeats", label: t("filters.heatedSeats") },
-    { value: "electricWindows", label: t("filters.electricWindows") },
-    { value: "leatherInterior", label: t("filters.leatherInterior") },
-    { value: "climateControl", label: t("filters.climateControl") },
-    { value: "cruiseControl", label: t("filters.cruiseControl") },
-    { value: "parkingSensors", label: t("filters.parkingSensors") },
-    { value: "rearCamera", label: t("filters.rearCamera") },
-    { value: "navigationSystem", label: t("filters.navigationSystem") },
-    { value: "bluetooth", label: t("filters.bluetooth") },
-    { value: "keylessEntry", label: t("filters.keylessEntry") },
-    { value: "ledHeadlights", label: t("filters.ledHeadlights") },
-    { value: "sunroof", label: t("filters.sunroof") },
-    { value: "alloyWheels", label: t("filters.alloyWheels") },
-    { value: "ventilatedSeats", label: t("filters.ventilatedSeats") },
-    { value: "memorySeats", label: t("filters.memorySeats") },
-    { value: "massageSeats", label: t("filters.massageSeats") },
-    { value: "adaptiveCruise", label: t("filters.adaptiveCruise") },
-    { value: "laneKeeping", label: t("filters.laneKeeping") },
-    { value: "blindSpot", label: t("filters.blindSpot") },
-    { value: "rainSensor", label: t("filters.rainSensor") },
-    { value: "lightSensor", label: t("filters.lightSensor") },
-    { value: "heatedSteeringWheel", label: t("filters.heatedSteeringWheel") },
-    { value: "panoramicRoof", label: t("filters.panoramicRoof") },
-    { value: "electricSeats", label: t("filters.electricSeats") },
-    { value: "parkingAssist", label: t("filters.parkingAssist") },
-    { value: "headUpDisplay", label: t("filters.headUpDisplay") },
-    { value: "wirelessCharging", label: t("filters.wirelessCharging") },
-    { value: "towHitch", label: t("filters.towHitch") },
+  const equipmentGroups = [
+    {
+      title: "Bezpečnost",
+      options: [
+        { value: "abs", label: "ABS" },
+        { value: "esp", label: "ESP" },
+        { value: "asr", label: "ASR" },
+        { value: "driverAirbag", label: "Airbag řidiče" },
+        { value: "passengerAirbag", label: "Airbag spolujezdce" },
+        { value: "sideAirbags", label: "Boční airbagy" },
+        { value: "headAirbags", label: "Hlavové airbagy" },
+        { value: "isofix", label: "Isofix" },
+        { value: "emergencyBraking", label: "Nouzové brzdění" },
+        { value: "laneKeeping", label: t("filters.laneKeeping") },
+        { value: "trafficSignRecognition", label: "Rozpoznávání značek" },
+        { value: "hillStartAssist", label: "Asistent rozjezdu do kopce" },
+        { value: "hillDescentAssist", label: "Asistent sjíždění kopce" },
+        { value: "tirePressureMonitoring", label: "Monitoring tlaku pneumatik" },
+        { value: "driverFatigueMonitoring", label: "Hlídání únavy řidiče" },
+        { value: "blindSpot", label: t("filters.blindSpot") },
+      ],
+    },
+    {
+      title: "Komfort",
+      options: [
+        { value: "heatedSeats", label: t("filters.heatedSeats") },
+        { value: "ventilatedSeats", label: t("filters.ventilatedSeats") },
+        { value: "memorySeats", label: t("filters.memorySeats") },
+        { value: "massageSeats", label: t("filters.massageSeats") },
+        { value: "electricSeats", label: t("filters.electricSeats") },
+        { value: "electricWindows", label: t("filters.electricWindows") },
+        { value: "leatherInterior", label: t("filters.leatherInterior") },
+        { value: "climateControl", label: t("filters.climateControl") },
+        { value: "dualZoneClimate", label: "Dvouzónová klimatizace" },
+        { value: "threeZoneClimate", label: "Třízónová klimatizace" },
+        { value: "fourZoneClimate", label: "Čtyřzónová klimatizace" },
+        { value: "electricTailgate", label: "Elektrické víko kufru" },
+        { value: "softClose", label: "Soft Close" },
+        { value: "keylessEntry", label: t("filters.keylessEntry") },
+        { value: "keylessStart", label: "Bezklíčové startování" },
+        { value: "ambientLighting", label: "Ambientní osvětlení" },
+        { value: "heatedWindshield", label: "Vyhřívané čelní sklo" },
+        { value: "heatedRearSeats", label: "Vyhřívaná zadní sedadla" },
+        { value: "digitalCockpit", label: "Digitální přístrojový štít" },
+        { value: "heatedSteeringWheel", label: t("filters.heatedSteeringWheel") },
+        { value: "panoramicRoof", label: t("filters.panoramicRoof") },
+      ],
+    },
+    {
+      title: "Multimédia",
+      options: [
+        { value: "navigationSystem", label: t("filters.navigationSystem") },
+        { value: "bluetooth", label: t("filters.bluetooth") },
+        { value: "appleCarPlay", label: "Apple CarPlay" },
+        { value: "androidAuto", label: "Android Auto" },
+        { value: "usb", label: "USB" },
+        { value: "usbC", label: "USB-C" },
+        { value: "wifi", label: "Wi-Fi" },
+        { value: "handsfree", label: "Handsfree" },
+        { value: "premiumAudio", label: "Premium Audio" },
+        { value: "harmanKardon", label: "Harman Kardon" },
+        { value: "bose", label: "Bose" },
+        { value: "bangOlufsen", label: "Bang & Olufsen" },
+        { value: "dabRadio", label: "DAB rádio" },
+        { value: "wirelessCharging", label: t("filters.wirelessCharging") },
+        { value: "headUpDisplay", label: t("filters.headUpDisplay") },
+      ],
+    },
+    {
+      title: "Osvětlení",
+      options: [
+        { value: "ledHeadlights", label: t("filters.ledHeadlights") },
+        { value: "matrixLed", label: "Matrix LED" },
+        { value: "laserLights", label: "Laserová světla" },
+        { value: "biXenon", label: "Bi-Xenon" },
+        { value: "adaptiveLights", label: "Adaptivní světla" },
+        { value: "automaticHighBeam", label: "Automatické dálkové světlomety" },
+        { value: "ledDaytimeRunningLights", label: "LED denní svícení" },
+        { value: "rainSensor", label: t("filters.rainSensor") },
+        { value: "lightSensor", label: t("filters.lightSensor") },
+      ],
+    },
+    {
+      title: "Parkování",
+      options: [
+        { value: "parkingSensors", label: t("filters.parkingSensors") },
+        { value: "parkingSensorsFront", label: "Parkovací senzory vpředu" },
+        { value: "parkingSensorsRear", label: "Parkovací senzory vzadu" },
+        { value: "rearCamera", label: t("filters.rearCamera") },
+        { value: "frontCamera", label: "Přední kamera" },
+        { value: "camera360", label: "360° kamera" },
+        { value: "parkingAssist", label: t("filters.parkingAssist") },
+        { value: "automaticParking", label: "Automatické parkování" },
+        { value: "alloyWheels", label: t("filters.alloyWheels") },
+        { value: "towHitch", label: t("filters.towHitch") },
+      ],
+    },
   ];
+
+  const equipmentOptions = equipmentGroups.flatMap((group) => group.options);
 
   const extrasOptions = [
     { value: "vinCheck", label: t("filters.vinCheck") },
@@ -633,7 +772,55 @@ export default function AddListingPage() {
     { value: "notPainted", label: t("filters.notPainted") },
     { value: "warranty", label: t("filters.warranty") },
     { value: "exchange", label: t("filters.exchange") },
+    { value: "firstOwner", label: "První majitel" },
+    { value: "boughtInCz", label: "Koupeno v ČR" },
+    { value: "nonSmoking", label: "Po nekuřákovi" },
+    { value: "originalPaint", label: "Originální lak" },
+    { value: "completeServiceHistory", label: "Kompletní servisní historie" },
+    { value: "garaged", label: "Garážované" },
+    { value: "newBrakes", label: "Nové brzdy" },
+    { value: "newTires", label: "Nové pneumatiky" },
+    { value: "newStk", label: "Nová STK" },
+    { value: "secondWheelSet", label: "Druhá sada kol" },
+    { value: "winterWheels", label: "Zimní kola" },
+    { value: "summerWheels", label: "Letní kola" },
+    { value: "towHitchExtra", label: "Tažné zařízení" },
+    { value: "authorizedServiceOnly", label: "Servis pouze v autorizovaném servisu" },
+    { value: "fixedPrice", label: "Cena pevná" },
+    { value: "negotiablePrice", label: "Cena k jednání" },
+    { value: "reservationAvailable", label: "Rezervace možná" },
+    { value: "leasingAvailable", label: "Možnost leasingu" },
+    { value: "loanAvailable", label: "Možnost úvěru" },
+    { value: "operationalLeasing", label: "Operativní leasing" },
+    { value: "financialLeasing", label: "Finanční leasing" },
+    { value: "onlineApproval", label: "Schválení online" },
+    { value: "businessFinancing", label: "Financování pro podnikatele" },
+    { value: "privateFinancing", label: "Financování pro soukromé osoby" },
   ];
+
+  const saleOptionValues = [
+    "fixedPrice",
+    "negotiablePrice",
+    "exchange",
+    "reservationAvailable",
+  ];
+  const financingOptionValues = [
+    "loanAvailable",
+    "leasingAvailable",
+    "operationalLeasing",
+    "financialLeasing",
+  ];
+  const listingExtrasOptions = extrasOptions.filter(
+    (option) =>
+      !saleOptionValues.includes(option.value) &&
+      !financingOptionValues.includes(option.value),
+  );
+  const saleOptions = extrasOptions.filter((option) =>
+    saleOptionValues.includes(option.value),
+  );
+  const financingOptions = extrasOptions.filter((option) =>
+    financingOptionValues.includes(option.value),
+  );
 
   const colors = localizedOptions.getColors();
   const driveTypes = localizedOptions.getDriveTypes();
@@ -702,6 +889,14 @@ export default function AddListingPage() {
       vatDeductible: false,
       isImported: false,
       importCountry: undefined,
+      financingAvailable: false,
+      financingMonthlyPayment: undefined,
+      financingDownPaymentPercent: undefined,
+      financingTermMonths: undefined,
+      financingProvider: "",
+      financingOnlineApproval: false,
+      financingForBusiness: false,
+      financingForPrivate: false,
       photos: undefined,
     },
   });
@@ -711,7 +906,35 @@ export default function AddListingPage() {
   const selectedVehicleType = form.watch("vehicleType");
   const isTopListing = form.watch("isTopListing");
   const isImported = form.watch("isImported");
+  const isFinancingEnabled = form.watch("financingAvailable");
   const selectedSellerType = form.watch("sellerType");
+  const watchedValues = form.watch();
+  const completionPercent = (() => {
+    const v = watchedValues;
+    const checks = [
+      !!v.title?.trim(),
+      !!(v.description && String(v.description).trim()),
+      !!(v.price && parseFloat(v.price) > 0),
+      !!v.condition,
+      !!v.vehicleType,
+      !!v.brand,
+      !!v.model,
+      !!(v.year && v.year >= 1900),
+      v.mileage !== undefined && v.mileage !== null,
+      !!(v.fuelType && v.fuelType.length),
+      !!(v.transmission && v.transmission.length),
+      !!(v.color && String(v.color).trim()),
+      !!(v.driveType && v.driveType.length),
+      !!(v.engineVolume && String(v.engineVolume).trim()),
+      !!(v.power && v.power > 0),
+      !!v.sellerType,
+      !!(v.region && String(v.region).trim()),
+      !!(v.phone && String(v.phone).trim()),
+      photos.length > 0,
+    ];
+    const done = checks.filter(Boolean).length;
+    return Math.round((done / checks.length) * 100);
+  })();
   const bodyTypes = localizedOptions.getBodyTypes(selectedVehicleType ?? undefined);
   const availableModels = selectedBrand ? getModelsForVehicleType(selectedBrand, selectedVehicleType ?? undefined) : [];
   const dealerSellerChecklist =
@@ -930,6 +1153,36 @@ export default function AddListingPage() {
     return missingFields;
   };
 
+  const scrollToFirstMissingField = (missingFields: string[]) => {
+    if (typeof document === "undefined" || missingFields.length === 0) return;
+    const testIdMap: Record<string, string> = {
+      photos: "button-add-photos",
+      title: "input-title",
+      description: "input-description",
+      price: "input-price",
+      vehicleType: "button-vehicle-cars",
+      condition: "button-condition-nové",
+      brand: "select-brand",
+      model: "select-model",
+      year: "input-year",
+      mileage: "input-mileage",
+      color: "select-color",
+      engineVolume: "input-engine-volume",
+      power: "input-power",
+      sellerType: "button-seller-type-private",
+      region: "input-region",
+      phone: "input-phone",
+    };
+    const selector = testIdMap[missingFields[0]];
+    const element = selector
+      ? document.querySelector(`[data-testid="${selector}"]`)
+      : null;
+    element?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (element instanceof HTMLElement) {
+      window.setTimeout(() => element.focus?.(), 350);
+    }
+  };
+
   const handleSubmitClick = async () => {
     if (submitLockRef.current) {
       const now = Date.now();
@@ -986,10 +1239,11 @@ export default function AddListingPage() {
       });
       
       await form.trigger();
+      scrollToFirstMissingField(missingFields);
       return;
     }
-    
-    form.handleSubmit(onSubmit)();
+
+    setReviewDialogOpen(true);
   };
 
   const onSubmit = async (data: InsertListing) => {
@@ -1165,7 +1419,7 @@ export default function AddListingPage() {
                     e.preventDefault();
                     handleSubmitClick();
                   }}
-                  className="flex flex-col gap-6 sm:gap-8 [&_button]:touch-manipulation [&_[role=button]]:touch-manipulation [&_label]:touch-manipulation"
+                  className="flex flex-col gap-7 sm:gap-9 [&_button]:touch-manipulation [&_button]:transition-all [&_button]:duration-200 [&_[role=button]]:touch-manipulation [&_label]:touch-manipulation [&_input:not([type=checkbox]):not([type=radio])]:h-12 [&_input:not([type=checkbox]):not([type=radio])]:rounded-xl [&_input:not([type=checkbox]):not([type=radio])]:px-4 [&_textarea]:rounded-xl [&_textarea]:px-4 [&_textarea]:py-3 [&_textarea]:min-h-[120px] [&_[role=combobox]]:h-12 [&_[role=combobox]]:rounded-xl [&_[role=combobox]]:px-4"
                 >
                   <div className="space-y-4 order-[-1]">
                     <h3 className="text-lg font-medium">{t("listing.basicInfo")}</h3>
@@ -1212,19 +1466,31 @@ export default function AddListingPage() {
                       name="price"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t("listing.price")}</FormLabel>
+                          <FormLabel className="inline-flex items-center gap-1.5">
+                            {t("listing.price")} (Kč)
+                            <InfoHint>Uveďte reálnou cenu v Kč. Částka se při psaní automaticky formátuje.</InfoHint>
+                          </FormLabel>
                           <FormControl>
-                            <Input
-                              type="text"
-                              inputMode="numeric"
-                              placeholder={t("listing.price")}
-                              data-testid="input-price"
-                              {...field}
-                              onChange={(e) => {
-                                const cleaned = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
-                                field.onChange(cleaned);
-                              }}
-                            />
+                            <div className="relative">
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="0"
+                                className="pr-14 text-base font-semibold"
+                                data-testid="input-price"
+                                name={field.name}
+                                ref={field.ref}
+                                onBlur={field.onBlur}
+                                value={formatPriceDisplay(field.value)}
+                                onChange={(e) => {
+                                  const cleaned = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".");
+                                  field.onChange(cleaned);
+                                }}
+                              />
+                              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#B8860B]">
+                                Kč
+                              </span>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -1257,7 +1523,10 @@ export default function AddListingPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium">{t("tips.photosTitle")}</h3>
+                    <h3 className="inline-flex items-center gap-1.5 text-lg font-medium">
+                      {t("tips.photosTitle")}
+                      <InfoHint>Nejrychleji se prodávají auta s alespoň 10 kvalitními fotografiemi.</InfoHint>
+                    </h3>
                     <CarPhotoUploader 
                       photos={photos}
                       onPhotosChange={setPhotos}
@@ -1267,7 +1536,19 @@ export default function AddListingPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium">{t("video.title")}</h3>
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <h3 className="text-lg font-medium">{t("video.title")}</h3>
+                      <span className="inline-flex items-center gap-1.5 text-sm font-medium text-[#B8860B]">
+                        <Sparkles className="h-4 w-4" />
+                        {language === "uk"
+                          ? "Відео підвищує шанс продажу."
+                          : language === "de"
+                            ? "Video erhöht die Verkaufschance."
+                            : language === "en"
+                              ? "Video increases the chance of selling."
+                              : "Video zvyšuje šanci prodeje."}
+                      </span>
+                    </div>
                     <VideoUploader 
                       video={video}
                       onVideoChange={setVideo}
@@ -1296,8 +1577,8 @@ export default function AddListingPage() {
                                       return (
                                         <Button
                                           type="button"
-                                          variant={isSelected ? "default" : "outline"}
-                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          variant="outline"
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/50 shadow-[0_6px_18px_rgba(184,134,11,0.28)] scale-[1.03] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                           onClick={() =>
                                             handleVehicleCategoryChange(
                                               field,
@@ -1318,8 +1599,8 @@ export default function AddListingPage() {
                                       return (
                                         <Button
                                           type="button"
-                                          variant={isSelected ? "default" : "outline"}
-                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          variant="outline"
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/50 shadow-[0_6px_18px_rgba(184,134,11,0.28)] scale-[1.03] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                           onClick={() =>
                                             handleVehicleCategoryChange(field, "dodavky", isSelected)
                                           }
@@ -1336,8 +1617,8 @@ export default function AddListingPage() {
                                       return (
                                         <Button
                                           type="button"
-                                          variant={isSelected ? "default" : "outline"}
-                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          variant="outline"
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/50 shadow-[0_6px_18px_rgba(184,134,11,0.28)] scale-[1.03] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                           onClick={() =>
                                             handleVehicleCategoryChange(
                                               field,
@@ -1358,8 +1639,8 @@ export default function AddListingPage() {
                                       return (
                                         <Button
                                           type="button"
-                                          variant={isSelected ? "default" : "outline"}
-                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          variant="outline"
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/50 shadow-[0_6px_18px_rgba(184,134,11,0.28)] scale-[1.03] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                           onClick={() =>
                                             handleVehicleCategoryChange(field, "motorky", isSelected)
                                           }
@@ -1376,8 +1657,8 @@ export default function AddListingPage() {
                                       return (
                                         <Button
                                           type="button"
-                                          variant={isSelected ? "default" : "outline"}
-                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          variant="outline"
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/50 shadow-[0_6px_18px_rgba(184,134,11,0.28)] scale-[1.03] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                           onClick={() =>
                                             handleVehicleCategoryChange(
                                               field,
@@ -1398,8 +1679,8 @@ export default function AddListingPage() {
                                       return (
                                         <Button
                                           type="button"
-                                          variant={isSelected ? "default" : "outline"}
-                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated ring-2 ring-[#B8860B]/50' : ''} toggle-elevate`}
+                                          variant="outline"
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/50 shadow-[0_6px_18px_rgba(184,134,11,0.28)] scale-[1.03] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                           onClick={() =>
                                             handleVehicleCategoryChange(field, "elektro", isSelected)
                                           }
@@ -1423,8 +1704,8 @@ export default function AddListingPage() {
                                         <Button
                                           key={type.value}
                                           type="button"
-                                          variant={isSelected ? "default" : "outline"}
-                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'toggle-elevated' : ''} toggle-elevate`}
+                                          variant="outline"
+                                          className={`h-auto py-3 px-2 flex flex-col items-center gap-1 text-center ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/40 shadow-[0_5px_16px_rgba(184,134,11,0.22)] scale-[1.02] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                           onClick={() => {
                                             if (isSelected) {
                                               field.onChange(undefined);
@@ -1472,8 +1753,8 @@ export default function AddListingPage() {
                                     <Button
                                       key={condition.value}
                                       type="button"
-                                      variant={isSelected ? "default" : "outline"}
-                                      className={`h-auto py-3 px-4 flex flex-col items-center gap-2 text-center ${isSelected ? 'toggle-elevated' : ''} toggle-elevate`}
+                                      variant="outline"
+                                      className={`h-auto py-3 px-4 flex flex-col items-center gap-2 text-center ${isSelected ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/40 shadow-[0_5px_16px_rgba(184,134,11,0.22)] scale-[1.02] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                       onClick={() => field.onChange(isSelected ? undefined : condition.value)}
                                       data-testid={`button-condition-${condition.value.toLowerCase().replace(/\s+/g, '-')}`}
                                     >
@@ -1523,7 +1804,7 @@ export default function AddListingPage() {
                                   }}
                                   placeholder={t("hero.allBrands")}
                                   emptyMessage={t("hero.noBrandsFound") || "Značka nenalezena"}
-                                  className="w-full h-10"
+                                  className="w-full h-12"
                                   testId="select-brand"
                                 />
                               </FormControl>
@@ -1549,7 +1830,7 @@ export default function AddListingPage() {
                                   disabled={!selectedBrand}
                                   placeholder={selectedBrand ? t("hero.allModels") : t("hero.selectBrand")}
                                   emptyMessage={t("hero.noModelsFound") || "Model nenalezen"}
-                                  className="w-full h-10"
+                                  className="w-full h-12"
                                   testId="select-model"
                                 />
                               </FormControl>
@@ -1619,7 +1900,7 @@ export default function AddListingPage() {
                                         value={field.value?.toString() || ""}
                                         readOnly
                                         placeholder={t("listing.year")}
-                                        className="h-10 text-black dark:text-white pr-8 cursor-pointer"
+                                        className="h-12 text-black dark:text-white pr-8 cursor-pointer"
                                         data-testid="input-year"
                                       />
                                       <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -1648,8 +1929,8 @@ export default function AddListingPage() {
                                 </Popover>
                                 <Button
                                   type="button"
-                                  variant={yearCustom ? "default" : "outline"}
-                                  className={`w-full h-auto py-2 px-3 text-xs ${!yearCustom ? 'text-black dark:text-white' : ''} ${yearCustom ? 'toggle-elevated' : ''} toggle-elevate`}
+                                  variant="outline"
+                                  className={`w-full h-auto py-2 px-3 text-xs ${!yearCustom ? 'text-black dark:text-white' : ''} ${yearCustom ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/40 shadow-[0_5px_16px_rgba(184,134,11,0.22)] scale-[1.02] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                   onClick={() => setYearCustom(!yearCustom)}
                                   data-testid="button-year-custom"
                                 >
@@ -1663,7 +1944,7 @@ export default function AddListingPage() {
                                     placeholder={t("listing.year")}
                                     value={field.value || ""}
                                     onChange={(e) => field.onChange(parseInt(e.target.value) || undefined)}
-                                    className="h-10 text-black dark:text-white"
+                                    className="h-12 text-black dark:text-white"
                                     data-testid="input-year-custom"
                                   />
                                 )}
@@ -1679,7 +1960,10 @@ export default function AddListingPage() {
                         name="mileage"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>{t("listing.mileage")}</FormLabel>
+                            <FormLabel className="inline-flex items-center gap-1.5">
+                              {t("listing.mileage")}
+                              <InfoHint>Zadejte skutečný nájezd v kilometrech. Kupující často filtrují podle nájezdu.</InfoHint>
+                            </FormLabel>
                             <FormControl>
                               <div className="space-y-2">
                                 <Popover open={mileageOpen} onOpenChange={setMileageOpen}>
@@ -1690,7 +1974,7 @@ export default function AddListingPage() {
                                         value={field.value ? `${formatNumber(field.value)} km` : ""}
                                         readOnly
                                         placeholder={t("listing.mileage")}
-                                        className="h-10 text-black dark:text-white pr-8 cursor-pointer"
+                                        className="h-12 text-black dark:text-white pr-8 cursor-pointer"
                                         data-testid="input-mileage"
                                       />
                                       <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -1719,8 +2003,8 @@ export default function AddListingPage() {
                                 </Popover>
                                 <Button
                                   type="button"
-                                  variant={mileageCustom ? "default" : "outline"}
-                                  className={`w-full h-auto py-2 px-3 text-xs ${!mileageCustom ? 'text-black dark:text-white' : ''} ${mileageCustom ? 'toggle-elevated' : ''} toggle-elevate`}
+                                  variant="outline"
+                                  className={`w-full h-auto py-2 px-3 text-xs ${!mileageCustom ? 'text-black dark:text-white' : ''} ${mileageCustom ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/40 shadow-[0_5px_16px_rgba(184,134,11,0.22)] scale-[1.02] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                   onClick={() => setMileageCustom(!mileageCustom)}
                                   data-testid="button-mileage-custom"
                                 >
@@ -1733,7 +2017,7 @@ export default function AddListingPage() {
                                     placeholder={t("listing.mileage")}
                                     value={field.value || ""}
                                     onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                                    className="h-10 text-black dark:text-white"
+                                    className="h-12 text-black dark:text-white"
                                     data-testid="input-mileage-custom"
                                   />
                                 )}
@@ -1939,7 +2223,7 @@ export default function AddListingPage() {
                                         value={field.value ? `${field.value} L` : ""}
                                         readOnly
                                         placeholder={t("listing.engineVolume")}
-                                        className="h-10 text-black dark:text-white pr-8 cursor-pointer"
+                                        className="h-12 text-black dark:text-white pr-8 cursor-pointer"
                                         data-testid="input-engine-volume"
                                       />
                                       <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -1981,8 +2265,8 @@ export default function AddListingPage() {
                                 </Popover>
                                 <Button
                                   type="button"
-                                  variant={engineCustom ? "default" : "outline"}
-                                  className={`w-full h-auto py-2 px-3 text-xs ${!engineCustom ? 'text-black dark:text-white' : ''} ${engineCustom ? 'toggle-elevated' : ''} toggle-elevate`}
+                                  variant="outline"
+                                  className={`w-full h-auto py-2 px-3 text-xs ${!engineCustom ? 'text-black dark:text-white' : ''} ${engineCustom ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/40 shadow-[0_5px_16px_rgba(184,134,11,0.22)] scale-[1.02] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                   onClick={() => setEngineCustom(!engineCustom)}
                                   data-testid="button-engine-custom"
                                 >
@@ -1996,7 +2280,7 @@ export default function AddListingPage() {
                                     placeholder={t("listing.engineVolume")}
                                     value={field.value || ""}
                                     onChange={(e) => field.onChange(e.target.value)}
-                                    className="h-10 text-black dark:text-white"
+                                    className="h-12 text-black dark:text-white"
                                     data-testid="input-engine-custom"
                                   />
                                 )}
@@ -2023,7 +2307,7 @@ export default function AddListingPage() {
                                         value={field.value ? `${field.value} kW` : ""}
                                         readOnly
                                         placeholder={t("listing.power")}
-                                        className="h-10 text-black dark:text-white pr-8 cursor-pointer"
+                                        className="h-12 text-black dark:text-white pr-8 cursor-pointer"
                                         data-testid="input-power"
                                       />
                                       <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -2065,8 +2349,8 @@ export default function AddListingPage() {
                                 </Popover>
                                 <Button
                                   type="button"
-                                  variant={powerCustom ? "default" : "outline"}
-                                  className={`w-full h-auto py-2 px-3 text-xs ${!powerCustom ? 'text-black dark:text-white' : ''} ${powerCustom ? 'toggle-elevated' : ''} toggle-elevate`}
+                                  variant="outline"
+                                  className={`w-full h-auto py-2 px-3 text-xs ${!powerCustom ? 'text-black dark:text-white' : ''} ${powerCustom ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/40 shadow-[0_5px_16px_rgba(184,134,11,0.22)] scale-[1.02] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                   onClick={() => setPowerCustom(!powerCustom)}
                                   data-testid="button-power-custom"
                                 >
@@ -2087,7 +2371,7 @@ export default function AddListingPage() {
                                         field.onChange(isNaN(parsed) ? undefined : parsed);
                                       }
                                     }}
-                                    className="h-10 text-black dark:text-white"
+                                    className="h-12 text-black dark:text-white"
                                     data-testid="input-power-custom"
                                   />
                                 )}
@@ -2106,37 +2390,37 @@ export default function AddListingPage() {
                             <FormLabel>{t("listing.doors")}</FormLabel>
                             <FormControl>
                               <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-2">
-                                  {[
-                                    { key: '3' as const, label: t("filters.doors3") },
-                                    { key: '5' as const, label: t("filters.doors5") },
-                                    { key: 'custom' as const, label: t("filters.doorsCustom") }
-                                  ].map((option) => {
-                                    const isSelected = doorsFilterType === option.key;
+                                <div className="flex flex-wrap gap-2">
+                                  {[2, 3, 4, 5].map((num) => {
+                                    const isSelected = doorsFilterType !== 'custom' && field.value === num;
                                     return (
                                       <Button
-                                        key={option.key}
+                                        key={num}
                                         type="button"
-                                        variant={isSelected ? "default" : "outline"}
-                                        className={`h-auto py-3 px-4 ${!isSelected ? 'text-black dark:text-white' : ''} ${option.key === 'custom' ? 'col-span-2' : ''} ${isSelected ? 'toggle-elevated' : ''} toggle-elevate`}
+                                        variant="outline"
+                                        className={`h-12 min-w-[3.5rem] rounded-xl px-4 text-base font-semibold ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? goldActivePill : ''} toggle-elevate`}
                                         onClick={() => {
-                                          if (doorsFilterType === option.key) {
-                                            setDoorsFilterType('');
-                                            return;
-                                          }
-                                          setDoorsFilterType(option.key);
-                                          if (option.key !== 'custom') {
-                                            field.onChange(parseInt(option.key));
-                                          }
+                                          setDoorsFilterType('');
+                                          field.onChange(field.value === num ? undefined : num);
                                         }}
-                                        data-testid={`button-doors-${option.key}`}
+                                        data-testid={`button-doors-${num}`}
                                       >
-                                        {option.label}
+                                        {num}
                                       </Button>
                                     );
                                   })}
+                                  <Button
+                                    key="custom"
+                                    type="button"
+                                    variant="outline"
+                                    className={`h-12 min-w-[3.5rem] rounded-xl px-4 text-base font-semibold ${doorsFilterType !== 'custom' ? 'text-black dark:text-white' : ''} ${doorsFilterType === 'custom' ? goldActivePill : ''} toggle-elevate`}
+                                    onClick={() => setDoorsFilterType(doorsFilterType === 'custom' ? '' : 'custom')}
+                                    data-testid="button-doors-custom"
+                                  >
+                                    6+
+                                  </Button>
                                 </div>
-                                
+
                                 {doorsFilterType === 'custom' && (
                                   <Input
                                     type="number"
@@ -2169,39 +2453,37 @@ export default function AddListingPage() {
                             <FormLabel>{t("listing.seats")}</FormLabel>
                             <FormControl>
                               <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-2">
-                                  {[
-                                    { key: '5' as const, label: t("filters.seats5") },
-                                    { key: '7' as const, label: t("filters.seats7") },
-                                    { key: 'custom' as const, label: t("filters.seatsCustom") }
-                                  ].map((option) => {
-                                    const isSelected = seatsFilterType === option.key;
+                                <div className="flex flex-wrap gap-2">
+                                  {[2, 4, 5, 7].map((num) => {
+                                    const isSelected = seatsFilterType !== 'custom' && field.value === num;
                                     return (
                                       <Button
-                                        key={option.key}
+                                        key={num}
                                         type="button"
-                                        variant={isSelected ? "default" : "outline"}
-                                        className={`h-auto py-3 px-4 ${!isSelected ? 'text-black dark:text-white' : ''} ${option.key === 'custom' ? 'col-span-2' : ''} ${isSelected ? 'toggle-elevated' : ''} toggle-elevate`}
+                                        variant="outline"
+                                        className={`h-12 min-w-[3.5rem] rounded-xl px-4 text-base font-semibold ${!isSelected ? 'text-black dark:text-white' : ''} ${isSelected ? goldActivePill : ''} toggle-elevate`}
                                         onClick={() => {
-                                          if (seatsFilterType === option.key) {
-                                            setSeatsFilterType('');
-                                            return;
-                                          }
-                                          setSeatsFilterType(option.key);
-                                          if (option.key === '5') {
-                                            field.onChange(5);
-                                          } else if (option.key === '7') {
-                                            field.onChange(7);
-                                          }
+                                          setSeatsFilterType('');
+                                          field.onChange(field.value === num ? undefined : num);
                                         }}
-                                        data-testid={`button-seats-${option.key}`}
+                                        data-testid={`button-seats-${num}`}
                                       >
-                                        {option.label}
+                                        {num}
                                       </Button>
                                     );
                                   })}
+                                  <Button
+                                    key="custom"
+                                    type="button"
+                                    variant="outline"
+                                    className={`h-12 min-w-[3.5rem] rounded-xl px-4 text-base font-semibold ${seatsFilterType !== 'custom' ? 'text-black dark:text-white' : ''} ${seatsFilterType === 'custom' ? goldActivePill : ''} toggle-elevate`}
+                                    onClick={() => setSeatsFilterType(seatsFilterType === 'custom' ? '' : 'custom')}
+                                    data-testid="button-seats-custom"
+                                  >
+                                    9+
+                                  </Button>
                                 </div>
-                                
+
                                 {seatsFilterType === 'custom' && (
                                   <Input
                                     type="number"
@@ -2242,7 +2524,7 @@ export default function AddListingPage() {
                                         value={field.value?.toString() || ""}
                                         readOnly
                                         placeholder={t("listing.owners")}
-                                        className="h-10 text-black dark:text-white pr-8 cursor-pointer"
+                                        className="h-12 text-black dark:text-white pr-8 cursor-pointer"
                                         data-testid="input-owners"
                                       />
                                       <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -2284,8 +2566,8 @@ export default function AddListingPage() {
                                 </Popover>
                                 <Button
                                   type="button"
-                                  variant={ownersCustom ? "default" : "outline"}
-                                  className={`w-full h-auto py-2 px-3 text-xs ${!ownersCustom ? 'text-black dark:text-white' : ''} ${ownersCustom ? 'toggle-elevated' : ''} toggle-elevate`}
+                                  variant="outline"
+                                  className={`w-full h-auto py-2 px-3 text-xs ${!ownersCustom ? 'text-black dark:text-white' : ''} ${ownersCustom ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/40 shadow-[0_5px_16px_rgba(184,134,11,0.22)] scale-[1.02] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate`}
                                   onClick={() => setOwnersCustom(!ownersCustom)}
                                   data-testid="button-owners-custom"
                                 >
@@ -2298,7 +2580,7 @@ export default function AddListingPage() {
                                     placeholder={t("listing.owners")}
                                     value={field.value ?? ""}
                                     onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : undefined)}
-                                    className="h-10 text-black dark:text-white"
+                                    className="h-12 text-black dark:text-white"
                                     data-testid="input-owners-custom"
                                   />
                                 )}
@@ -2323,8 +2605,8 @@ export default function AddListingPage() {
                                     <Button
                                       key={seller.value}
                                       type="button"
-                                      variant={isSelected ? "default" : "outline"}
-                                      className={`h-auto py-3 px-4 ${isSelected ? 'toggle-elevated' : ''} toggle-elevate text-black dark:text-white`}
+                                      variant="outline"
+                                      className={`h-auto py-3 px-4 ${isSelected ? 'border-2 border-[#B8860B] bg-gradient-to-b from-[#B8860B]/15 to-[#D4AF37]/10 ring-2 ring-[#B8860B]/40 shadow-[0_5px_16px_rgba(184,134,11,0.22)] scale-[1.02] text-[#7a5a08] dark:text-[#D4AF37]' : ''} toggle-elevate text-black dark:text-white`}
                                       onClick={() => field.onChange(seller.value)}
                                       data-testid={`button-seller-type-${seller.value}`}
                                     >
@@ -2518,9 +2800,14 @@ export default function AddListingPage() {
                             <FormLabel>{t("listing.phone")}</FormLabel>
                             <FormControl>
                               <Input
-                                placeholder={t("listing.phonePlaceholder")}
-                                {...field}
-                                value={field.value || ""}
+                                type="tel"
+                                inputMode="tel"
+                                placeholder={t("listing.phonePlaceholder") || "+420 777 555 333"}
+                                name={field.name}
+                                ref={field.ref}
+                                onBlur={field.onBlur}
+                                value={formatPhoneDisplay(field.value)}
+                                onChange={(e) => field.onChange(formatPhoneDisplay(e.target.value))}
                                 data-testid="input-phone"
                               />
                             </FormControl>
@@ -2534,27 +2821,86 @@ export default function AddListingPage() {
                         name="vin"
                         render={({ field }) => (
                           <FormItem className="md:col-span-2">
-                            <FormLabel>{t("listing.vin")}</FormLabel>
+                            <FormLabel className="inline-flex items-center gap-1.5">
+                              {t("listing.vin")}
+                              <InfoHint>VIN má 17 znaků. Automatické načtení údajů zapneme jen po ověření bezplatného VIN API.</InfoHint>
+                            </FormLabel>
                             <FormControl>
-                              <Input
-                                placeholder={t("listing.vinPlaceholder")}
-                                {...field}
-                                value={field.value || ""}
-                                onChange={(e) => {
-                                  const normalized = e.target.value
-                                    .toUpperCase()
-                                    .replace(/\s+/g, "")
-                                    .replace(/[^A-Z0-9]/g, "")
-                                    .replace(/[IOQ]/g, "")
-                                    .slice(0, 17);
-                                  field.onChange(normalized);
-                                }}
-                                maxLength={17}
-                                className="uppercase"
-                                data-testid="input-vin"
-                              />
+                              <div className="flex flex-col sm:flex-row gap-2">
+                                <Input
+                                  placeholder={t("listing.vinPlaceholder")}
+                                  {...field}
+                                  value={field.value || ""}
+                                  onChange={(e) => {
+                                    const normalized = e.target.value
+                                      .toUpperCase()
+                                      .replace(/\s+/g, "")
+                                      .replace(/[^A-Z0-9]/g, "")
+                                      .replace(/[IOQ]/g, "")
+                                      .slice(0, 17);
+                                    field.onChange(normalized);
+                                    setVinStatus("idle");
+                                  }}
+                                  maxLength={17}
+                                  className="uppercase flex-1"
+                                  data-testid="input-vin"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="h-12 shrink-0 gap-2 rounded-xl border-[#B8860B]/40 px-4 font-semibold text-[#B8860B] hover:bg-[#B8860B]/10 hover:text-[#B8860B] disabled:opacity-50"
+                                  disabled={(field.value || "").length !== 17}
+                                  onClick={() => {
+                                    setVinStatus("failed");
+                                    toast({
+                                      title:
+                                        language === "uk"
+                                          ? "Готуємо функцію"
+                                          : language === "de"
+                                            ? "In Vorbereitung"
+                                            : language === "en"
+                                              ? "Coming soon"
+                                              : "Připravujeme",
+                                      description:
+                                        language === "uk"
+                                          ? "Автоматичне заповнення з VIN буде доступне найближчим часом."
+                                          : language === "de"
+                                            ? "Das automatische Ausfüllen aus der VIN ist bald verfügbar."
+                                            : language === "en"
+                                              ? "Automatic data loading from VIN will be available soon."
+                                              : "Automatické načtení údajů z VIN bude brzy dostupné.",
+                                    })
+                                  }}
+                                  data-testid="button-vin-decode"
+                                >
+                                  <Search className="h-4 w-4" />
+                                  <span>
+                                    {language === "uk"
+                                      ? "Завантажити дані з VIN"
+                                      : language === "de"
+                                        ? "Daten aus VIN laden"
+                                        : language === "en"
+                                          ? "Load data from VIN"
+                                          : "Načíst údaje z VIN"}
+                                  </span>
+                                </Button>
+                              </div>
                             </FormControl>
-                            <FormDescription>{t("listing.vinHint")}</FormDescription>
+                            <div className="mt-2 flex flex-col gap-1.5">
+                              <FormDescription>{t("listing.vinHint")}</FormDescription>
+                              {vinStatus === "verified" && (
+                                <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700">
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  VIN ověřen
+                                </div>
+                              )}
+                              {vinStatus === "failed" && (
+                                <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-700">
+                                  <XCircle className="h-4 w-4" />
+                                  VIN nebylo možné ověřit.
+                                </div>
+                              )}
+                            </div>
                             <FormMessage />
                           </FormItem>
                         )}
@@ -2563,6 +2909,39 @@ export default function AddListingPage() {
                     </div>
                   </div>
 
+                  <Accordion type="single" collapsible className="rounded-2xl border bg-card/40">
+                    <AccordionItem value="vehicle-history" className="border-b-0">
+                      <AccordionTrigger className="px-4 sm:px-5 text-lg font-semibold hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          {language === "uk"
+                            ? "Історія автомобіля"
+                            : language === "de"
+                              ? "Fahrzeughistorie"
+                              : language === "en"
+                                ? "Vehicle history"
+                                : "Historie vozidla"}
+                          {[
+                            watchedValues.owners,
+                            watchedValues.euroEmission,
+                            watchedValues.stkValidUntil,
+                            watchedValues.hasServiceBook,
+                            watchedValues.isImported,
+                            watchedValues.importCountry,
+                          ].filter(Boolean).length > 0 && (
+                            <span className="rounded-full bg-[#B8860B]/15 px-2 py-0.5 text-xs font-bold text-[#B8860B]">
+                              {[
+                                watchedValues.owners,
+                                watchedValues.euroEmission,
+                                watchedValues.stkValidUntil,
+                                watchedValues.hasServiceBook,
+                                watchedValues.isImported,
+                                watchedValues.importCountry,
+                              ].filter(Boolean).length}
+                            </span>
+                          )}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 sm:px-5">
                   <div className={`space-y-4 rounded-3xl border p-4 sm:p-5 ${
                     selectedSellerType === "dealer"
                       ? "border-amber-200 bg-amber-50/45"
@@ -2746,79 +3125,129 @@ export default function AddListingPage() {
                     />
                   )}
                   </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
 
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">{t("listing.equipment")}</h3>
+                  <Accordion type="single" collapsible className="rounded-2xl border bg-card/40">
+                    <AccordionItem value="equipment" className="border-b-0">
+                      <AccordionTrigger className="px-4 sm:px-5 text-lg font-semibold hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          {t("listing.equipment")}
+                          {(watchedValues.equipment?.length || 0) > 0 && (
+                            <span className="rounded-full bg-[#B8860B]/15 px-2 py-0.5 text-xs font-bold text-[#B8860B]">
+                              {watchedValues.equipment?.length}
+                            </span>
+                          )}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 sm:px-5">
                     <FormField
                       control={form.control}
                       name="equipment"
                       render={() => (
                         <FormItem>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                            {equipmentOptions.map((option) => (
-                              <FormField
-                                key={option.value}
-                                control={form.control}
-                                name="equipment"
-                                render={({ field }) => {
-                                  return (
-                                    <FormItem
+                          <div className="space-y-5">
+                            {equipmentGroups.map((group) => (
+                              <div key={group.title} className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="h-px flex-1 bg-border" />
+                                  <h4 className="text-sm font-bold uppercase tracking-[0.14em] text-[#B8860B]">
+                                    {group.title}
+                                  </h4>
+                                  <div className="h-px flex-1 bg-border" />
+                                </div>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                  {group.options.map((option) => (
+                                    <FormField
                                       key={option.value}
-                                      className="flex flex-row items-start space-x-3 space-y-0"
-                                    >
-                                      <FormControl>
-                                        <Checkbox
-                                          checked={field.value?.includes(option.value)}
-                                          onCheckedChange={(checked) => {
-                                            const current = Array.isArray(field.value) ? field.value : [];
-                                            if (checked === true) {
-                                              if (!current.includes(option.value)) {
-                                                field.onChange([...current, option.value]);
-                                              }
-                                            } else {
-                                              field.onChange(current.filter((value) => value !== option.value));
-                                            }
-                                          }}
-                                          data-testid={`checkbox-equipment-${option.value}`}
-                                        />
-                                      </FormControl>
-                                      <FormLabel className="text-sm font-normal">
-                                        {option.label}
-                                      </FormLabel>
-                                    </FormItem>
-                                  )
-                                }}
-                              />
+                                      control={form.control}
+                                      name="equipment"
+                                      render={({ field }) => {
+                                        const isChecked = field.value?.includes(option.value);
+                                        return (
+                                          <FormItem
+                                            key={option.value}
+                                            className={`flex min-h-12 flex-row items-center space-x-3 space-y-0 rounded-xl border px-3 py-2.5 transition-all ${
+                                              isChecked
+                                                ? "border-[#B8860B] bg-[#B8860B]/10 shadow-sm"
+                                                : "border-border bg-background hover:border-[#B8860B]/40"
+                                            }`}
+                                          >
+                                            <FormControl>
+                                              <Checkbox
+                                                checked={isChecked}
+                                                onCheckedChange={(checked) => {
+                                                  const current = Array.isArray(field.value) ? field.value : [];
+                                                  if (checked === true) {
+                                                    if (!current.includes(option.value)) {
+                                                      field.onChange([...current, option.value]);
+                                                    }
+                                                  } else {
+                                                    field.onChange(current.filter((value) => value !== option.value));
+                                                  }
+                                                }}
+                                                data-testid={`checkbox-equipment-${option.value}`}
+                                              />
+                                            </FormControl>
+                                            <FormLabel className="cursor-pointer text-sm font-medium leading-snug">
+                                              {option.label}
+                                            </FormLabel>
+                                          </FormItem>
+                                        )
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
                             ))}
                           </div>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                  </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
 
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">{t("listing.extras")}</h3>
+                  <Accordion type="single" collapsible className="rounded-2xl border bg-card/40">
+                    <AccordionItem value="extras" className="border-b-0">
+                      <AccordionTrigger className="px-4 sm:px-5 text-lg font-semibold hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          {t("listing.extras")}
+                          {listingExtrasOptions.filter((option) => watchedValues.extras?.includes(option.value)).length > 0 && (
+                            <span className="rounded-full bg-[#B8860B]/15 px-2 py-0.5 text-xs font-bold text-[#B8860B]">
+                              {listingExtrasOptions.filter((option) => watchedValues.extras?.includes(option.value)).length}
+                            </span>
+                          )}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 sm:px-5">
                     <FormField
                       control={form.control}
                       name="extras"
                       render={() => (
                         <FormItem>
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                            {extrasOptions.map((option) => (
+                            {listingExtrasOptions.map((option) => (
                               <FormField
                                 key={option.value}
                                 control={form.control}
                                 name="extras"
                                 render={({ field }) => {
+                                  const isChecked = field.value?.includes(option.value);
                                   return (
                                     <FormItem
                                       key={option.value}
-                                      className="flex flex-row items-start space-x-3 space-y-0"
+                                      className={`flex min-h-12 flex-row items-center space-x-3 space-y-0 rounded-xl border px-3 py-2.5 transition-all ${
+                                        isChecked
+                                          ? "border-[#B8860B] bg-[#B8860B]/10 shadow-sm"
+                                          : "border-border bg-background hover:border-[#B8860B]/40"
+                                      }`}
                                     >
                                       <FormControl>
                                         <Checkbox
-                                          checked={field.value?.includes(option.value)}
+                                          checked={isChecked}
                                           onCheckedChange={(checked) => {
                                             const current = Array.isArray(field.value) ? field.value : [];
                                             if (checked === true) {
@@ -2832,7 +3261,7 @@ export default function AddListingPage() {
                                           data-testid={`checkbox-extra-${option.value}`}
                                         />
                                       </FormControl>
-                                      <FormLabel className="text-sm font-normal">
+                                      <FormLabel className="cursor-pointer text-sm font-medium leading-snug">
                                         {option.label}
                                       </FormLabel>
                                     </FormItem>
@@ -2845,37 +3274,398 @@ export default function AddListingPage() {
                         </FormItem>
                       )}
                     />
-                  </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+
+                  <Accordion type="single" collapsible className="rounded-2xl border bg-card/40">
+                    <AccordionItem value="sale-options" className="border-b-0">
+                      <AccordionTrigger className="px-4 sm:px-5 text-lg font-semibold hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          Možnosti prodeje
+                          {saleOptions.filter((option) => watchedValues.extras?.includes(option.value)).length > 0 && (
+                            <span className="rounded-full bg-[#B8860B]/15 px-2 py-0.5 text-xs font-bold text-[#B8860B]">
+                              {saleOptions.filter((option) => watchedValues.extras?.includes(option.value)).length}
+                            </span>
+                          )}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 sm:px-5">
+                        <FormField
+                          control={form.control}
+                          name="extras"
+                          render={() => (
+                            <FormItem>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {saleOptions.map((option) => (
+                                  <FormField
+                                    key={option.value}
+                                    control={form.control}
+                                    name="extras"
+                                    render={({ field }) => {
+                                      const isChecked = field.value?.includes(option.value);
+                                      return (
+                                        <FormItem
+                                          className={`flex min-h-12 flex-row items-center space-x-3 space-y-0 rounded-xl border px-3 py-2.5 transition-all ${
+                                            isChecked
+                                              ? "border-[#B8860B] bg-[#B8860B]/10 shadow-sm"
+                                              : "border-border bg-background hover:border-[#B8860B]/40"
+                                          }`}
+                                        >
+                                          <FormControl>
+                                            <Checkbox
+                                              checked={isChecked}
+                                              onCheckedChange={(checked) => {
+                                                const current = Array.isArray(field.value) ? field.value : [];
+                                                if (checked === true) {
+                                                  if (!current.includes(option.value)) {
+                                                    field.onChange([...current, option.value]);
+                                                  }
+                                                } else {
+                                                  field.onChange(current.filter((value) => value !== option.value));
+                                                }
+                                              }}
+                                              data-testid={`checkbox-sale-${option.value}`}
+                                            />
+                                          </FormControl>
+                                          <FormLabel className="cursor-pointer text-sm font-medium leading-snug">
+                                            {option.label}
+                                          </FormLabel>
+                                        </FormItem>
+                                      );
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+
+                  <Accordion type="single" collapsible className="rounded-2xl border bg-card/40">
+                    <AccordionItem value="financing-options" className="border-b-0">
+                      <AccordionTrigger className="px-4 sm:px-5 text-lg font-semibold hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          Možnosti financování
+                          {[
+                            watchedValues.financingAvailable,
+                            watchedValues.financingMonthlyPayment,
+                            watchedValues.financingDownPaymentPercent,
+                            watchedValues.financingTermMonths,
+                            watchedValues.financingProvider,
+                            watchedValues.financingOnlineApproval,
+                            watchedValues.financingForBusiness,
+                            watchedValues.financingForPrivate,
+                            ...financingOptions.filter((option) =>
+                              watchedValues.extras?.includes(option.value),
+                            ),
+                          ].filter(Boolean).length > 0 && (
+                            <span className="rounded-full bg-[#B8860B]/15 px-2 py-0.5 text-xs font-bold text-[#B8860B]">
+                              {[
+                                watchedValues.financingAvailable,
+                                watchedValues.financingMonthlyPayment,
+                                watchedValues.financingDownPaymentPercent,
+                                watchedValues.financingTermMonths,
+                                watchedValues.financingProvider,
+                                watchedValues.financingOnlineApproval,
+                                watchedValues.financingForBusiness,
+                                watchedValues.financingForPrivate,
+                                ...financingOptions.filter((option) =>
+                                  watchedValues.extras?.includes(option.value),
+                                ),
+                              ].filter(Boolean).length}
+                            </span>
+                          )}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 sm:px-5">
+                        <FormField
+                          control={form.control}
+                          name="financingAvailable"
+                          render={({ field }) => (
+                            <FormItem
+                              className={`mb-4 flex min-h-12 flex-row items-center space-x-3 space-y-0 rounded-xl border px-3 py-2.5 transition-all ${
+                                field.value
+                                  ? "border-[#B8860B] bg-[#B8860B]/10 shadow-sm"
+                                  : "border-border bg-background hover:border-[#B8860B]/40"
+                              }`}
+                            >
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value === true}
+                                  onCheckedChange={(checked) => {
+                                    const enabled = checked === true;
+                                    field.onChange(enabled);
+                                    if (!enabled) {
+                                      form.setValue("financingMonthlyPayment", undefined);
+                                      form.setValue("financingDownPaymentPercent", undefined);
+                                      form.setValue("financingTermMonths", undefined);
+                                      form.setValue("financingProvider", "");
+                                      form.setValue("financingOnlineApproval", false);
+                                      form.setValue("financingForBusiness", false);
+                                      form.setValue("financingForPrivate", false);
+                                      form.setValue(
+                                        "extras",
+                                        (form.getValues("extras") || []).filter(
+                                          (value) => !financingOptionValues.includes(value),
+                                        ),
+                                      );
+                                    }
+                                  }}
+                                  data-testid="checkbox-financing-available"
+                                />
+                              </FormControl>
+                              <FormLabel className="cursor-pointer text-sm font-semibold leading-snug">
+                                Chci nabídnout financování
+                              </FormLabel>
+                            </FormItem>
+                          )}
+                        />
+                        {isFinancingEnabled && (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <FormField
+                                control={form.control}
+                                name="financingMonthlyPayment"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Financování od (Kč / měsíc)</FormLabel>
+                                    <FormControl>
+                                      <div className="relative">
+                                        <Input
+                                          type="text"
+                                          inputMode="numeric"
+                                          placeholder="např. 3 990"
+                                          className="pr-28 font-semibold"
+                                          value={formatPriceDisplay(field.value)}
+                                          onChange={(e) => {
+                                            const cleaned = e.target.value.replace(/[^\d]/g, "");
+                                            field.onChange(cleaned ? Number(cleaned) : undefined);
+                                          }}
+                                          data-testid="input-financing-monthly-payment"
+                                        />
+                                        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-[#B8860B]">
+                                          Kč / měsíc
+                                        </span>
+                                      </div>
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="financingDownPaymentPercent"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Akontace od (%)</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        max={100}
+                                        placeholder="např. 10"
+                                        value={field.value ?? ""}
+                                        onChange={(e) =>
+                                          field.onChange(e.target.value ? Number(e.target.value) : undefined)
+                                        }
+                                        data-testid="input-financing-down-payment"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="financingTermMonths"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Doba splácení (měsíce)</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        placeholder="např. 72"
+                                        value={field.value ?? ""}
+                                        onChange={(e) =>
+                                          field.onChange(e.target.value ? Number(e.target.value) : undefined)
+                                        }
+                                        data-testid="input-financing-term"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={form.control}
+                                name="financingProvider"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Poskytovatel financování</FormLabel>
+                                    <FormControl>
+                                      <Input
+                                        placeholder="nepovinné"
+                                        {...field}
+                                        value={field.value || ""}
+                                        data-testid="input-financing-provider"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              {financingOptions.map((option) => (
+                                <FormField
+                                  key={option.value}
+                                  control={form.control}
+                                  name="extras"
+                                  render={({ field }) => {
+                                    const isChecked = field.value?.includes(option.value);
+                                    return (
+                                      <FormItem
+                                        className={`flex min-h-12 flex-row items-center space-x-3 space-y-0 rounded-xl border px-3 py-2.5 transition-all ${
+                                          isChecked
+                                            ? "border-[#B8860B] bg-[#B8860B]/10 shadow-sm"
+                                            : "border-border bg-background hover:border-[#B8860B]/40"
+                                        }`}
+                                      >
+                                        <FormControl>
+                                          <Checkbox
+                                            checked={isChecked}
+                                            onCheckedChange={(checked) => {
+                                              const current = Array.isArray(field.value) ? field.value : [];
+                                              if (checked === true) {
+                                                if (!current.includes(option.value)) {
+                                                  field.onChange([...current, option.value]);
+                                                }
+                                              } else {
+                                                field.onChange(current.filter((value) => value !== option.value));
+                                              }
+                                            }}
+                                            data-testid={`checkbox-financing-${option.value}`}
+                                          />
+                                        </FormControl>
+                                        <FormLabel className="cursor-pointer text-sm font-medium leading-snug">
+                                          {option.label}
+                                        </FormLabel>
+                                      </FormItem>
+                                    );
+                                  }}
+                                />
+                              ))}
+                              {[
+                                ["financingOnlineApproval", "Schválení online"],
+                                ["financingForBusiness", "Financování pro podnikatele"],
+                                ["financingForPrivate", "Financování pro soukromé osoby"],
+                              ].map(([name, label]) => (
+                                <FormField
+                                  key={name}
+                                  control={form.control}
+                                  name={name as any}
+                                  render={({ field }) => (
+                                    <FormItem
+                                      className={`flex min-h-12 flex-row items-center space-x-3 space-y-0 rounded-xl border px-3 py-2.5 transition-all ${
+                                        field.value
+                                          ? "border-[#B8860B] bg-[#B8860B]/10 shadow-sm"
+                                          : "border-border bg-background hover:border-[#B8860B]/40"
+                                      }`}
+                                    >
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value === true}
+                                          onCheckedChange={(checked) =>
+                                            field.onChange(checked === true)
+                                          }
+                                          data-testid={`checkbox-${name}`}
+                                        />
+                                      </FormControl>
+                                      <FormLabel className="cursor-pointer text-sm font-medium leading-snug">
+                                        {label}
+                                      </FormLabel>
+                                    </FormItem>
+                                  )}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
 
                   <FormField
                     control={form.control}
                     name="isTopListing"
                     render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormItem className="space-y-0">
                         <FormControl>
-                          <Checkbox
-                            checked={field.value === true}
-                            onCheckedChange={(checked) => field.onChange(checked === true)}
+                          <button
+                            type="button"
+                            onClick={() => field.onChange(field.value !== true)}
+                            className={`w-full text-left rounded-2xl border-2 p-4 sm:p-5 transition-all ${
+                              field.value
+                                ? "border-[#B8860B] bg-gradient-to-br from-[#B8860B]/15 to-[#D4AF37]/10 shadow-[0_8px_24px_rgba(184,134,11,0.25)]"
+                                : "border-[#B8860B]/30 bg-card hover:border-[#B8860B]/60 hover:bg-[#B8860B]/5"
+                            }`}
                             data-testid="checkbox-top-listing"
-                          />
+                          >
+                            <div className="flex items-start gap-3 sm:gap-4">
+                              <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#B8860B] to-[#D4AF37] text-white shadow">
+                                <Crown className="h-5 w-5 sm:h-6 sm:w-6" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-base sm:text-lg font-bold text-foreground">
+                                    {language === "uk"
+                                      ? "Топ оголошення"
+                                      : language === "de"
+                                        ? "Top-Anzeige"
+                                        : language === "en"
+                                          ? "Top listing"
+                                          : "Top inzerát"}
+                                  </span>
+                                  <span className="rounded-full bg-gradient-to-r from-[#B8860B] to-[#D4AF37] px-3 py-0.5 text-sm font-bold text-white shadow-sm">
+                                    99 Kč
+                                  </span>
+                                </div>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                  {language === "uk"
+                                    ? "Вища позиція в результатах протягом 30 днів."
+                                    : language === "de"
+                                      ? "Höhere Position in den Ergebnissen für 30 Tage."
+                                      : language === "en"
+                                        ? "Higher position in results for 30 days."
+                                        : "Vyšší pozice ve výsledcích po dobu 30 dnů."}
+                                </p>
+                              </div>
+                              <div
+                                className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-all ${
+                                  field.value
+                                    ? "border-[#B8860B] bg-[#B8860B] text-white"
+                                    : "border-muted-foreground/40"
+                                }`}
+                              >
+                                {field.value && <Check className="h-4 w-4" />}
+                              </div>
+                            </div>
+                          </button>
                         </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>
-                            {t("listing.topListing")}
-                          </FormLabel>
-                          <FormDescription>
-                            {t("listing.topListingDesc")}
-                          </FormDescription>
-                        </div>
                       </FormItem>
                     )}
                   />
 
-                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6">
+                  <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full sm:w-auto"
+                      className="w-full sm:w-auto h-12 rounded-xl"
                       onClick={() => setLocation("/listings")}
                       data-testid="button-cancel"
                     >
@@ -2889,7 +3679,7 @@ export default function AddListingPage() {
                         completeTopListingMutation.isPending ||
                         isMediaUploading
                       }
-                      className="w-full sm:flex-1"
+                      className="w-full sm:flex-1 h-14 rounded-xl text-base font-bold text-white border-0 bg-gradient-to-r from-[#B8860B] to-[#D4AF37] shadow-[0_10px_30px_rgba(184,134,11,0.35)] transition-all hover:from-[#a3760a] hover:to-[#c9a431] hover:shadow-[0_14px_36px_rgba(184,134,11,0.45)] hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
                       data-testid="button-submit"
                     >
                       {isMediaUploading
@@ -2909,12 +3699,100 @@ export default function AddListingPage() {
                   </div>
                 </form>
               </Form>
+              {completionPercent >= 60 && (
+                <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 px-4 py-3 shadow-[0_-10px_30px_rgba(0,0,0,0.08)] backdrop-blur-md sm:hidden">
+                  <Button
+                    type="button"
+                    onClick={handleSubmitClick}
+                    disabled={
+                      createListingMutation.isPending ||
+                      isProcessingCheckout ||
+                      completeTopListingMutation.isPending ||
+                      isMediaUploading
+                    }
+                    className="h-12 w-full rounded-xl bg-gradient-to-r from-[#B8860B] to-[#D4AF37] font-bold text-white shadow-[0_8px_20px_rgba(184,134,11,0.3)]"
+                    data-testid="button-sticky-submit"
+                  >
+                    {completionPercent}% vyplněno · {t("listing.submit")}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
       </main>
       
       <Footer />
+
+      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+        <DialogContent className="sm:max-w-lg" data-testid="dialog-listing-review">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <ShieldCheck className="h-6 w-6 text-[#B8860B]" />
+              Kontrola inzerátu
+            </DialogTitle>
+            <DialogDescription>
+              Rychlá kontrola před publikací. Pokud je vše v pořádku, potvrďte zveřejnění.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 rounded-2xl border bg-muted/20 p-3">
+            {[
+              { ok: !!form.getValues("price"), label: "Cena" },
+              { ok: !!form.getValues("phone"), label: "Telefon" },
+              { ok: photos.length > 0, label: "Fotografie" },
+              { ok: !!form.getValues("brand") && !!form.getValues("model"), label: "Značka a model" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center gap-2 rounded-xl bg-background px-3 py-2 text-sm font-medium">
+                {item.ok ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-600" />
+                )}
+                <span>{item.label}</span>
+              </div>
+            ))}
+            {!form.getValues("vin") && (
+              <div className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+                <AlertTriangle className="h-4 w-4" />
+                VIN není vyplněn
+              </div>
+            )}
+            {photos.length > 0 && photos.length < 10 && (
+              <div className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
+                <AlertTriangle className="h-4 w-4" />
+                Doporučujeme přidat více fotografií (ideálně alespoň 10)
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 rounded-xl"
+              onClick={() => setReviewDialogOpen(false)}
+            >
+              Ještě upravit
+            </Button>
+            <Button
+              type="button"
+              className="h-12 rounded-xl bg-gradient-to-r from-[#B8860B] to-[#D4AF37] font-bold text-white hover:from-[#a3760a] hover:to-[#c9a431]"
+              onClick={() => {
+                setReviewDialogOpen(false);
+                form.handleSubmit(onSubmit)();
+              }}
+              disabled={
+                createListingMutation.isPending ||
+                isProcessingCheckout ||
+                completeTopListingMutation.isPending ||
+                isMediaUploading
+              }
+              data-testid="button-confirm-publish"
+            >
+              Potvrdit a publikovat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showPaymentSuccessDialog} onOpenChange={setShowPaymentSuccessDialog}>
         <DialogContent className="sm:max-w-md" data-testid="dialog-payment-success">

@@ -3130,6 +3130,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { canPrefetchHeavyResources } from "@/lib/queryClient";
 import { getListingMainTitle } from "@/lib/listingTitle";
+import {
+  buildListingImageAlt,
+  buildListingSeoDescription,
+  buildListingSeoTitle,
+} from "@lib/seo/listing-meta";
 import { buildListingAbsoluteUrl, buildListingPath } from "@/lib/listingUrl";
 import { format } from "date-fns";
 import { extractShortIdFromSlug } from "@lib/seo/listing-url";
@@ -4344,6 +4349,52 @@ export default function ListingDetailPage({
       { value: "headUpDisplay", label: t("filters.headUpDisplay") },
       { value: "wirelessCharging", label: t("filters.wirelessCharging") },
       { value: "towHitch", label: t("filters.towHitch") },
+      { value: "abs", label: "ABS" },
+      { value: "esp", label: "ESP" },
+      { value: "asr", label: "ASR" },
+      { value: "driverAirbag", label: "Airbag řidiče" },
+      { value: "passengerAirbag", label: "Airbag spolujezdce" },
+      { value: "sideAirbags", label: "Boční airbagy" },
+      { value: "headAirbags", label: "Hlavové airbagy" },
+      { value: "isofix", label: "Isofix" },
+      { value: "emergencyBraking", label: "Nouzové brzdění" },
+      { value: "trafficSignRecognition", label: "Rozpoznávání značek" },
+      { value: "hillStartAssist", label: "Asistent rozjezdu do kopce" },
+      { value: "hillDescentAssist", label: "Asistent sjíždění kopce" },
+      { value: "tirePressureMonitoring", label: "Monitoring tlaku pneumatik" },
+      { value: "driverFatigueMonitoring", label: "Hlídání únavy řidiče" },
+      { value: "dualZoneClimate", label: "Dvouzónová klimatizace" },
+      { value: "threeZoneClimate", label: "Třízónová klimatizace" },
+      { value: "fourZoneClimate", label: "Čtyřzónová klimatizace" },
+      { value: "electricTailgate", label: "Elektrické víko kufru" },
+      { value: "softClose", label: "Soft Close" },
+      { value: "keylessStart", label: "Bezklíčové startování" },
+      { value: "ambientLighting", label: "Ambientní osvětlení" },
+      { value: "heatedWindshield", label: "Vyhřívané čelní sklo" },
+      { value: "heatedRearSeats", label: "Vyhřívaná zadní sedadla" },
+      { value: "digitalCockpit", label: "Digitální přístrojový štít" },
+      { value: "appleCarPlay", label: "Apple CarPlay" },
+      { value: "androidAuto", label: "Android Auto" },
+      { value: "usb", label: "USB" },
+      { value: "usbC", label: "USB-C" },
+      { value: "wifi", label: "Wi-Fi" },
+      { value: "handsfree", label: "Handsfree" },
+      { value: "premiumAudio", label: "Premium Audio" },
+      { value: "harmanKardon", label: "Harman Kardon" },
+      { value: "bose", label: "Bose" },
+      { value: "bangOlufsen", label: "Bang & Olufsen" },
+      { value: "dabRadio", label: "DAB rádio" },
+      { value: "matrixLed", label: "Matrix LED" },
+      { value: "laserLights", label: "Laserová světla" },
+      { value: "biXenon", label: "Bi-Xenon" },
+      { value: "adaptiveLights", label: "Adaptivní světla" },
+      { value: "automaticHighBeam", label: "Automatické dálkové světlomety" },
+      { value: "ledDaytimeRunningLights", label: "LED denní svícení" },
+      { value: "parkingSensorsFront", label: "Parkovací senzory vpředu" },
+      { value: "parkingSensorsRear", label: "Parkovací senzory vzadu" },
+      { value: "frontCamera", label: "Přední kamera" },
+      { value: "camera360", label: "360° kamera" },
+      { value: "automaticParking", label: "Automatické parkování" },
     ],
     [t],
   );
@@ -4356,6 +4407,31 @@ export default function ListingDetailPage({
       { value: "notPainted", label: t("filters.notPainted") },
       { value: "warranty", label: t("filters.warranty") },
       { value: "exchange", label: t("filters.exchange") },
+      { value: "firstOwner", label: "První majitel" },
+      { value: "boughtInCz", label: "Koupeno v ČR" },
+      { value: "nonSmoking", label: "Po nekuřákovi" },
+      { value: "originalPaint", label: "Originální lak" },
+      { value: "completeServiceHistory", label: "Kompletní servisní historie" },
+      { value: "garaged", label: "Garážované" },
+      { value: "newBrakes", label: "Nové brzdy" },
+      { value: "newTires", label: "Nové pneumatiky" },
+      { value: "newStk", label: "Nová STK" },
+      { value: "secondWheelSet", label: "Druhá sada kol" },
+      { value: "winterWheels", label: "Zimní kola" },
+      { value: "summerWheels", label: "Letní kola" },
+      { value: "towHitchExtra", label: "Tažné zařízení" },
+      { value: "authorizedServiceOnly", label: "Servis pouze v autorizovaném servisu" },
+      { value: "fixedPrice", label: "Cena pevná" },
+      { value: "negotiablePrice", label: "Cena k jednání" },
+      { value: "reservationAvailable", label: "Rezervace možná" },
+      { value: "leasingAvailable", label: "Možnost leasingu" },
+      { value: "loanAvailable", label: "Možnost úvěru" },
+      { value: "financingAvailable", label: "Možnost financování" },
+      { value: "operationalLeasing", label: "Operativní leasing" },
+      { value: "financialLeasing", label: "Finanční leasing" },
+      { value: "onlineApproval", label: "Schválení online" },
+      { value: "businessFinancing", label: "Financování pro podnikatele" },
+      { value: "privateFinancing", label: "Financování pro soukromé osoby" },
     ],
     [t],
   );
@@ -4688,38 +4764,19 @@ export default function ListingDetailPage({
 
   const seoTitle = useMemo(() => {
     if (!listing) return "";
-    const price = Number(listing.price).toLocaleString(
-      language === "cs"
-        ? "cs-CZ"
-        : language === "uk"
-          ? "uk-UA"
-          : language === "de"
-            ? "de-DE"
-            : "en-US",
-    );
-    return `${listing.year} ${listing.brand} ${listing.model} - ${price} ${
-      language === "en" ? "CZK" : "Kč"
-    } | Prodej`;
-  }, [listing, language]);
+    return buildListingSeoTitle(listing);
+  }, [listing]);
 
   const seoDescription = useMemo(() => {
     if (!listing) return "";
-    const price = Number(listing.price).toLocaleString("cs-CZ");
-    const km = listing.mileage.toLocaleString("cs-CZ");
-    const fuel = listing.fuelType?.[0] || "";
-    const trans = listing.transmission?.[0] || "";
-    const power = listing.power ? `, ${listing.power} kW` : "";
-    const engine = listing.engineVolume ? ` ${listing.engineVolume}l` : "";
-    const region = listing.region ? `, ${listing.region}` : "";
-    const base = `${listing.year} ${listing.brand} ${listing.model}${engine}${power}. ${km} km, ${fuel}, ${trans}. ${price} Kč${region}.`;
-    const cta = language === "cs" ? "Koupit na NNAuto.cz" : language === "uk" ? "Купити на NNAuto.cz" : language === "de" ? "Kaufen auf NNAuto.cz" : "Buy on NNAuto.cz";
-    const desc = listing.description ? listing.description.substring(0, 100).replace(/\n/g, " ") + "..." : "";
-    return `${base} ${desc} ${cta}`.substring(0, 160);
-  }, [listing, language]);
+    return buildListingSeoDescription(listing);
+  }, [listing]);
 
   const seoImage = useMemo(() => {
     const first = photoKeys[0];
-    return first ? `https://nnauto.cz/objects/${first}` : undefined;
+    return first
+      ? `https://nnauto.cz/img/${first.replace(/^\/+/, "")}?w=1200&q=80&f=webp`
+      : undefined;
   }, [photoKeys]);
 
   const seoKeywords = useMemo(() => {
@@ -4840,7 +4897,23 @@ export default function ListingDetailPage({
     listing.extras?.includes("notDamaged") ? "Nehavarované" : "",
     listing.vatDeductible ? "Možnost odpočtu DPH" : "",
   ].filter(Boolean).slice(0, 5);
-  const monthlyFinance = Math.max(1900, Math.round(Number(listing.price) / 72 / 100) * 100);
+  const financingMonthlyPayment = Number(listing.financingMonthlyPayment || 0);
+  const financingLabels = [
+    listing.extras?.includes("leasingAvailable") ? "Možnost leasingu" : "",
+    listing.extras?.includes("loanAvailable") ? "Možnost úvěru" : "",
+    listing.extras?.includes("operationalLeasing") ? "Operativní leasing" : "",
+    listing.extras?.includes("financialLeasing") ? "Finanční leasing" : "",
+    listing.financingOnlineApproval ? "Schválení online" : "",
+    listing.financingForBusiness ? "Pro podnikatele" : "",
+    listing.financingForPrivate ? "Pro soukromé osoby" : "",
+  ].filter(Boolean);
+  const hasFinancingDetails =
+    listing.financingAvailable ||
+    financingMonthlyPayment > 0 ||
+    !!listing.financingDownPaymentPercent ||
+    !!listing.financingTermMonths ||
+    !!listing.financingProvider ||
+    financingLabels.length > 0;
 
   return (
     <div
@@ -4872,13 +4945,17 @@ export default function ListingDetailPage({
           { lang: "en", url: listingUrl },
           { lang: "de", url: listingUrl },
         ]}
-        structuredData={{
-          "@context": "https://schema.org",
-          "@graph": [
-            ...(vehicleSchema ? [vehicleSchema] : []),
-            ...(breadcrumbSchema ? [breadcrumbSchema] : []),
-          ],
-        }}
+        structuredData={
+          isEmbedded
+            ? {
+                "@context": "https://schema.org",
+                "@graph": [
+                  ...(vehicleSchema ? [vehicleSchema] : []),
+                  ...(breadcrumbSchema ? [breadcrumbSchema] : []),
+                ],
+              }
+            : undefined
+        }
       />
 
       <Header compactMobile={isEmbedded} showMobileSearch={!isEmbedded} />
@@ -4957,7 +5034,7 @@ export default function ListingDetailPage({
                                 })}
                                 desktopMinWidth={1024}
                                 upgrade={index === currentCarouselIndex}
-                                alt={`${getListingMainTitle(listing)} - ${index + 1}`}
+                                alt={buildListingImageAlt(listing, index)}
                                 loading={index === 0 ? "eager" : "lazy"}
                                 decoding="async"
                                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 800px"
@@ -5073,7 +5150,7 @@ export default function ListingDetailPage({
                     <div className="aspect-[3/2] relative bg-muted">
                       <img
                         src="https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=1200&h=675&fit=crop"
-                        alt={getListingMainTitle(listing)}
+                        alt={buildListingImageAlt(listing, 0)}
                         loading="eager"
                         decoding="async"
                         className="w-full h-full object-cover object-center bg-muted"
@@ -5147,7 +5224,7 @@ export default function ListingDetailPage({
                               })}
                               desktopMinWidth={1024}
                               upgrade={index === currentCarouselIndex}
-                              alt={`${getListingMainTitle(listing)}${listing.year ? ` ${listing.year}` : ""} – foto ${index + 1}`}
+                              alt={buildListingImageAlt(listing, index + 1)}
                               loading={index === 0 ? "eager" : "lazy"}
                               decoding="async"
                               sizes="64px"
@@ -5325,6 +5402,15 @@ export default function ListingDetailPage({
                     {listing.vatDeductible ? (
                       <p className="text-xs text-muted-foreground">
                         {t("detail.vatIncluded")}
+                      </p>
+                    ) : null}
+                    {hasFinancingDetails && financingMonthlyPayment > 0 ? (
+                      <p className="mt-1 text-xs font-bold text-[#B8860B]">
+                        Financování od{" "}
+                        {new Intl.NumberFormat("cs-CZ").format(
+                          financingMonthlyPayment,
+                        )}{" "}
+                        Kč / měsíc
                       </p>
                     ) : null}
                   </div>
@@ -6073,6 +6159,56 @@ export default function ListingDetailPage({
                           )}{" "}
                           Kč
                         </p>
+                      </div>
+                    )}
+
+                    {hasFinancingDetails && (
+                      <div className="mt-5 rounded-2xl border border-[#B8860B]/30 bg-gradient-to-br from-[#B8860B]/10 to-[#D4AF37]/10 p-4">
+                        <p className="text-sm font-semibold text-muted-foreground">
+                          Možnosti financování
+                        </p>
+                        {financingMonthlyPayment > 0 ? (
+                          <p
+                            className="mt-1 text-2xl font-extrabold text-[#B8860B]"
+                            data-testid="text-financing-monthly-payment"
+                          >
+                            Financování od{" "}
+                            {new Intl.NumberFormat("cs-CZ").format(
+                              financingMonthlyPayment,
+                            )}{" "}
+                            Kč / měsíc
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-lg font-bold text-[#B8860B]">
+                            Financování je možné
+                          </p>
+                        )}
+                        <div className="mt-3 grid gap-2 text-sm text-foreground">
+                          {listing.financingDownPaymentPercent ? (
+                            <div className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-[#B8860B]" />
+                              Akontace od {listing.financingDownPaymentPercent} %
+                            </div>
+                          ) : null}
+                          {listing.financingTermMonths ? (
+                            <div className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-[#B8860B]" />
+                              Doba splácení {listing.financingTermMonths} měsíců
+                            </div>
+                          ) : null}
+                          {listing.financingProvider ? (
+                            <div className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-[#B8860B]" />
+                              {listing.financingProvider}
+                            </div>
+                          ) : null}
+                          {financingLabels.slice(0, 4).map((label) => (
+                            <div key={label} className="flex items-center gap-2">
+                              <Check className="h-4 w-4 text-[#B8860B]" />
+                              {label}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>

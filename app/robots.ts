@@ -1,7 +1,17 @@
 import type { MetadataRoute } from "next";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 
+const SEO_DISALLOW = [
+  "/?from=",
+  "/?sort=",
+  "/*?filter=",
+  "/*utm_",
+  "/*fbclid=",
+  "/*gclid=",
+];
+
 const DISALLOW_COMMON = [
+  ...SEO_DISALLOW,
   "/api/",
   "/admin",
   "/admin/*",
@@ -20,9 +30,10 @@ const DISALLOW_COMMON = [
   "/*.json$",
 ];
 
-const PRIMARY_ALLOW = ["/", "/listings", "/listing/", "/auta/", "/prodej/"];
+const PRIMARY_ALLOW = ["/", "/listings", "/listing/", "/auta", "/auta/", "/prodej/"];
 
 const MAIN_BOT_DISALLOW = [
+  ...SEO_DISALLOW,
   "/api/",
   "/admin",
   "/admin/*",

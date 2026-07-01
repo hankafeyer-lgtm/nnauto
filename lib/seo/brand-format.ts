@@ -190,13 +190,24 @@ export function formatModelDisplay(raw: string | null | undefined): string {
     .join(" ");
 }
 
+/** Card/list heading: brand + model only (year shown separately in metadata). */
+export function formatVehicleCardHeading(
+  brand: string | null | undefined,
+  model: string | null | undefined,
+): string {
+  return [formatBrandDisplay(brand), formatModelDisplay(model)]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+}
+
 /** Helper: combined "Brand Model Year" with proper capitalization. */
 export function formatVehicleTitle(
   brand: string | null | undefined,
   model: string | null | undefined,
   year: number | string | null | undefined,
 ): string {
-  return [formatBrandDisplay(brand), formatModelDisplay(model), year ? String(year) : ""]
+  return [formatVehicleCardHeading(brand, model), year ? String(year) : ""]
     .filter(Boolean)
     .join(" ")
     .trim();

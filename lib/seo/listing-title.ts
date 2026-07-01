@@ -1,16 +1,10 @@
 import type { listings } from "@shared/schema";
+import { buildListingH1 } from "./listing-meta";
 
 type ListingRow = Partial<typeof listings.$inferSelect>;
 
 /** Server-safe listing title builder (SSR / sitemap / SEO pages). */
 export function getListingMainTitleFromRow(l: ListingRow): string {
-  const cap = (v: string | null | undefined) =>
-    v ? v.charAt(0).toUpperCase() + v.slice(1) : "";
-  const parts = [
-    cap(l.brand),
-    cap(l.model),
-    l.year ? String(l.year) : "",
-  ].filter(Boolean);
-  const base = parts.join(" ").trim();
-  return base || (l.title ?? "Vozidlo");
+  const h1 = buildListingH1(l);
+  return h1 || (l.title ?? "Vozidlo");
 }

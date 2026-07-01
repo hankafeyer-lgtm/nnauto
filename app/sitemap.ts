@@ -4,6 +4,7 @@ import { SITE_ORIGIN } from "@lib/seo/constants";
 import { normalizeSlug } from "@lib/seo/slug";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { dedupeSitemapEntries } from "@lib/seo/sitemap-utils";
+import { queryIndexableFacetUrls } from "@lib/seo/facet-queries";
 import { listings } from "@shared/schema";
 import { desc, eq, sql } from "drizzle-orm";
 
@@ -23,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       brand: listings.brand,
       model: listings.model,
       year: listings.year,
+      photos: listings.photos,
       updatedAt: listings.updatedAt,
       createdAt: listings.createdAt,
     })
@@ -59,6 +61,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1.0,
     },
     {
+      url: `${SITE_ORIGIN}/auta`,
+      lastModified: new Date(),
+      changeFrequency: "daily",
+      priority: 0.95,
+    },
+    {
       url: `${SITE_ORIGIN}/listings`,
       lastModified: new Date(),
       changeFrequency: "hourly",
@@ -90,17 +98,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  const listingPages: MetadataRoute.Sitemap = allListings.map((l) => ({
-    url: `${SITE_ORIGIN}${buildListingUrl({
-      id: l.id,
-      brand: l.brand,
-      model: l.model,
-      year: l.year,
-    })}`,
-    lastModified: l.updatedAt || l.createdAt || new Date(),
-    changeFrequency: "daily" as const,
-    priority: 0.8,
-  }));
+  const listingPages: MetadataRoute.Sitemap = allListings.map((l) => {
+    const images =
+      Array.isArray((l as { photos?: string[] }).photos) &&
+      (l as { photos?: string[] }).photos?.length
+        ? (l as { photos: string[] }).photos
+            .slice(0, 5)
+            .map(
+              (p) =>
+                `${SITE_ORIGIN}/img/${String(p).replace(/^\/+/, "")}?w=1200&q=80&f=webp`,
+            )
+        : undefined;
+    return {
+      url: `${SITE_ORIGIN}${buildListingUrl({
+        id: l.id,
+        brand: l.brand,
+        model: l.model,
+        year: l.year,
+      })}`,
+      lastModified: l.updatedAt || l.createdAt || new Date(),
+      changeFrequency: "daily" as const,
+      priority: 0.8,
+      ...(images?.length ? { images } : {}),
+    };
+  });
 
   const brandPages: MetadataRoute.Sitemap = brandRows
     .filter((b) => !!b.brand)
@@ -128,8 +149,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return path.split("/").every((seg, i) => i === 0 || seg.length > 0);
     });
 
+  const facetPages: MetadataRoute.Sitemap = (
+    await queryIndexableFacetUrls(MIN_MODEL_LISTINGS_FOR_SITEMAP)
+  ).map((entry) => ({
+    url: entry.url,
+    lastModified: entry.lastModified,
+    changeFrequency: "daily" as const,
+    priority: 0.65,
+  }));
+
   return dedupeSitemapEntries([
     ...staticPages,
+    ...facetPages,
     ...brandPages,
     ...modelPages,
     ...listingPages,

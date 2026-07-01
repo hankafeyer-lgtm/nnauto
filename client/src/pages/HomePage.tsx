@@ -2748,6 +2748,7 @@ export default function HomePage() {
           photos,
           title: getListingMainTitle(listing),
           price: Number(listing.price),
+          financingMonthlyPayment: Number(listing.financingMonthlyPayment || 0),
           year: listing.year,
           mileage: listing.mileage,
           fuel: fuelType

@@ -20,16 +20,28 @@ import { SITE_ORIGIN } from "@lib/seo/constants";
 import {
   formatBrandDisplay,
   formatModelDisplay,
-  formatVehicleTitle,
 } from "@lib/seo/brand-format";
-import { buildListingCarJsonLd } from "@lib/seo/structured-data";
+import { buildListingCarJsonLd, buildListingProductJsonLd } from "@lib/seo/structured-data";
 import {
-  buildListingUrl,
   buildListingAbsoluteUrl,
 } from "@lib/seo/listing-url";
+import {
+  buildListingH1,
+  buildListingImageAlt,
+  buildListingInternalLinks,
+  buildListingSeoDescription,
+  buildListingSeoParagraph,
+  buildListingSeoTitle,
+} from "@lib/seo/listing-meta";
 import { normalizeSlug } from "@lib/seo/slug";
 import ListingDetailClient from "./listing-detail-client";
 import ListingSeoSummary from "./ListingSeoSummary";
+import { ListingBreadcrumbNav, buildListingBreadcrumbJsonLdItems } from "@lib/seo/helpers/breadcrumb";
+import {
+  SimilarListings,
+  ListingAboutVehicle,
+  RelatedOffers,
+} from "@lib/seo/components/listing/RelatedOffers";
 import type {
   DealerInventoryListing,
   DealerProfileForListing,
@@ -45,71 +57,36 @@ export function buildListingMetadata(
 ): Metadata {
   if (!listing) return { title: "Inzerát nenalezen | NNAuto" };
 
-  const capitalize = (v: string) =>
-    v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+  const title = buildListingSeoTitle(listing);
+  const desc = buildListingSeoDescription(listing);
   const brand = formatBrandDisplay(listing.brand);
   const model = formatModelDisplay(listing.model);
-  const price = Number(listing.price).toLocaleString("cs-CZ");
-  const mileage = listing.mileage
-    ? listing.mileage.toLocaleString("cs-CZ")
-    : "";
   const fuelList = Array.isArray(listing.fuelType)
     ? listing.fuelType.filter(Boolean)
     : [];
-  const transmissionList = Array.isArray(listing.transmission)
-    ? listing.transmission.filter(Boolean)
-    : [];
-  const fuel = capitalize(fuelList[0] || "");
-  const transmission = capitalize(transmissionList[0] || "");
-  const region = listing.region ? capitalize(String(listing.region)) : "";
-
-  const titleParts = [
-    `${brand} ${model} ${listing.year}`.trim(),
-    fuel,
-    mileage ? `${mileage} km` : "",
-    `${price} Kč`,
-    region,
-  ].filter(Boolean);
-  const title = `${titleParts.join(" · ")} | NNAuto`;
+  const region = listing.region ? String(listing.region) : "";
 
   const photo = listing.photos?.[0];
   const imageUrl = photo
     ? `${SITE_ORIGIN}/img/${photo.replace(/^\/+/, "")}?w=1200&q=80&f=webp`
     : `${SITE_ORIGIN}/og-image.png`;
-
-  const descParts: string[] = [];
-  descParts.push(`Prodám ${brand} ${model}, rok ${listing.year}`);
-  if (mileage) descParts.push(`najeto ${mileage} km`);
-  if (fuel) descParts.push(fuel.toLowerCase());
-  if (transmission) descParts.push(transmission.toLowerCase());
-  if (region) descParts.push(region);
-  let desc = descParts.join(", ") + `. Cena ${price} Kč.`;
-  if (listing.description && listing.description.trim().length) {
-    const snippet = listing.description.replace(/\s+/g, " ").trim().slice(0, 80);
-    desc += ` ${snippet}${snippet.length === 80 ? "…" : ""}`;
-  }
-  desc += " Prohlédněte si fotky a kontaktujte prodejce na NNAuto.cz.";
-  desc = desc.slice(0, 300);
+  const imageAlt = buildListingImageAlt(listing, 0);
 
   const keywords = [
     brand,
     model,
     `${brand} ${model}`,
     `${brand} ${model} ${listing.year}`,
-    `${brand} ${model} ${fuel}`.trim(),
     `prodej ${brand} ${model}`,
     `ojeté ${brand}`,
-    fuel ? `${fuel} ${brand}` : "",
+    fuelList[0] ? `${fuelList[0]} ${brand}` : "",
     region ? `auta ${region}` : "",
-    region ? `autobazar ${region}` : "",
     "prodej aut",
-    "bazar aut",
     "NNAuto",
   ]
     .filter(Boolean)
     .join(", ");
 
-  // Always canonical to the new SEO URL — both routes converge here.
   const canonicalUrl = buildListingAbsoluteUrl(SITE_ORIGIN, {
     id: listing.id,
     brand: listing.brand,
@@ -129,7 +106,7 @@ export function buildListingMetadata(
       description: desc,
       url: canonicalUrl,
       siteName: "NNAuto",
-      images: [{ url: imageUrl, width: 1200, height: 630, alt: title }],
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: imageAlt }],
       locale: "cs_CZ",
       type: "website",
     },
@@ -187,41 +164,12 @@ export function renderListingDetailPage({
   const initialDealerProfile = dealerProfile ? cloneSerializable(dealerProfile) : null;
   const initialDealerInventory = cloneSerializable(dealerInventory);
   const brand = formatBrandDisplay(listing.brand);
-  const price = Number(listing.price).toLocaleString("cs-CZ");
   const modelLabel = formatModelDisplay(listing.model);
-  const yearLabel = listing.year ? String(listing.year) : "";
-  const summaryTitle = formatVehicleTitle(
-    listing.brand,
-    listing.model,
-    listing.year,
-  );
+  const summaryTitle = buildListingH1(listing);
   const listingName = summaryTitle;
   const brandSlug = normalizeSlug(listing.brand);
   const modelSlug = normalizeSlug(listing.model);
-  const brandFilterUrl = `${SITE_ORIGIN}/auta/${brandSlug}`;
-  const modelFilterUrl = `${SITE_ORIGIN}/auta/${brandSlug}/${modelSlug}`;
-  const fuelText = Array.isArray(listing.fuelType)
-    ? listing.fuelType.join(", ")
-    : ((listing.fuelType as unknown as string) || "");
-  const transmissionText = Array.isArray(listing.transmission)
-    ? listing.transmission.join(", ")
-    : ((listing.transmission as unknown as string) || "");
 
-  const productImageUrls = Array.isArray(listing.photos)
-    ? listing.photos
-        .filter((p): p is string => typeof p === "string" && p.trim().length > 0)
-        .slice(0, 6)
-        .map(
-          (p) =>
-            `${SITE_ORIGIN}/img/${p.replace(/^\/+/, "")}?w=1200&q=80&f=webp`,
-        )
-    : [];
-  const primaryImage = productImageUrls[0] ?? null;
-
-  // Build preload URLs for the very first gallery photo so the browser
-  // starts fetching the LCP image before the React bundle even runs. The
-  // exact same URLs are then reused by the client-side carousel and the
-  // fullscreen lightbox (immutable cache hit → instant paint).
   const firstPhotoKey = Array.isArray(listing.photos)
     ? listing.photos.find(
         (p): p is string => typeof p === "string" && p.trim().length > 0,
@@ -238,17 +186,6 @@ export function renderListingDetailPage({
     ? `/img/${firstPhotoCleanKey}?w=1120&q=84&f=webp&v=${PIPELINE_VERSION}`
     : null;
 
-  const conditionRaw = (listing.condition || "").toLowerCase();
-  const itemConditionUrl = conditionRaw.includes("nov")
-    ? "https://schema.org/NewCondition"
-    : conditionRaw.includes("havar") || conditionRaw.includes("damag")
-      ? "https://schema.org/DamagedCondition"
-      : "https://schema.org/UsedCondition";
-
-  const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-
   // Always use the canonical (new SEO) URL in JSON-LD so structured-data
   // points consistently at one URL.
   const canonicalUrl = buildListingAbsoluteUrl(SITE_ORIGIN, {
@@ -258,96 +195,28 @@ export function renderListingDetailPage({
     year: listing.year,
   });
 
-  const productJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: listingName,
-    sku: listing.id,
-    description: listing.description || `${listingName} - inzerat na NNAuto`,
-    brand: brand ? { "@type": "Brand", name: brand } : undefined,
-    image: productImageUrls.length
-      ? productImageUrls
-      : primaryImage
-        ? [primaryImage]
-        : undefined,
-    additionalProperty: [
-      { "@type": "PropertyValue", name: "Rok", value: String(listing.year) },
-      {
-        "@type": "PropertyValue",
-        name: "Najeto",
-        value: `${listing.mileage?.toLocaleString("cs-CZ")} km`,
-      },
-      { "@type": "PropertyValue", name: "Palivo", value: fuelText || undefined },
-      {
-        "@type": "PropertyValue",
-        name: "Prevodovka",
-        value: transmissionText || undefined,
-      },
-    ].filter((item) => Boolean(item.value)),
-    offers: {
-      "@type": "Offer",
-      price: String(Number(listing.price)),
-      priceCurrency: "CZK",
-      availability: "https://schema.org/InStock",
-      itemCondition: itemConditionUrl,
-      priceValidUntil,
-      url: canonicalUrl,
-      shippingDetails: {
-        "@type": "OfferShippingDetails",
-        shippingRate: {
-          "@type": "MonetaryAmount",
-          value: "0",
-          currency: "CZK",
-        },
-        shippingDestination: {
-          "@type": "DefinedRegion",
-          addressCountry: "CZ",
-        },
-        doesNotShip: true,
-      },
-      hasMerchantReturnPolicy: {
-        "@type": "MerchantReturnPolicy",
-        applicableCountry: "CZ",
-        returnPolicyCategory:
-          "https://schema.org/MerchantReturnNotPermitted",
-      },
-      seller: {
-        "@type": "Organization",
-        name: "NNAuto",
-        url: SITE_ORIGIN,
-      },
-    },
-  };
+  const productJsonLd = buildListingProductJsonLd(listing, canonicalUrl);
 
   const breadcrumbJsonLd = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "NNAuto",
-        item: `${SITE_ORIGIN}/`,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: brand,
-        item: brandFilterUrl,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: modelLabel,
-        item: modelFilterUrl,
-      },
-      {
-        "@type": "ListItem",
-        position: 4,
-        name: yearLabel,
-      },
-    ],
+    itemListElement: buildListingBreadcrumbJsonLdItems(SITE_ORIGIN, {
+      brand,
+      brandSlug,
+      modelLabel,
+      modelSlug,
+      listingName,
+      canonicalUrl,
+    }).map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      ...(item.item ? { item: item.item } : {}),
+    })),
   };
+
+  const seoParagraph = buildListingSeoParagraph(listing);
+  const internalLinks = buildListingInternalLinks(listing);
 
   const carJsonLd = buildListingCarJsonLd(listing);
 
@@ -385,34 +254,13 @@ export function renderListingDetailPage({
       ) : null}
       <main className="min-h-screen bg-background">
         <div className="container mx-auto px-3 pt-3 sm:px-4 sm:pt-4 max-w-7xl">
-          <a
-            href={`/auta/${brandSlug}`}
-            className="block truncate text-sm text-muted-foreground hover:underline sm:hidden"
-          >
-            {`\u2190 Zpět na ${brand}`}
-          </a>
-          <nav
-            aria-label="Breadcrumb"
-            className="hidden flex-wrap items-center gap-x-2 gap-y-1 overflow-x-auto text-sm leading-relaxed text-muted-foreground sm:flex"
-          >
-            <a href="/" className="shrink-0 hover:underline">NNAuto</a>
-            <span className="text-muted-foreground/70">{">"}</span>
-            <a
-              href={`/auta/${brandSlug}`}
-              className="max-w-[40vw] truncate hover:underline sm:max-w-none"
-            >
-              {brand}
-            </a>
-            <span className="text-muted-foreground/70">{">"}</span>
-            <a
-              href={`/auta/${brandSlug}/${modelSlug}`}
-              className="max-w-[40vw] truncate hover:underline sm:max-w-none"
-            >
-              {modelLabel}
-            </a>
-            <span className="text-muted-foreground/70">{">"}</span>
-            <span aria-current="page" className="shrink-0">{yearLabel}</span>
-          </nav>
+          <ListingBreadcrumbNav
+            brand={brand}
+            brandSlug={brandSlug}
+            modelLabel={modelLabel}
+            modelSlug={modelSlug}
+            listingName={listingName}
+          />
         </div>
         <ListingSeoSummary listing={listing} />
         <ListingDetailClient
@@ -423,43 +271,9 @@ export function renderListingDetailPage({
           embeddedMode={false}
           primaryHeading="delegated"
         />
-        {similarListings.length ? (
-          <section className="container mx-auto mt-6 border-t px-3 py-6 sm:mt-8 sm:px-4 sm:py-8 max-w-7xl">
-            <h2 className="text-xl font-semibold mb-4">Souvisejici auta</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {similarListings.map((item) => {
-                const itemPhoto = item.photos?.[0];
-                const itemPrice = Number(item.price).toLocaleString("cs-CZ");
-                const itemHref = buildListingUrl({
-                  id: item.id,
-                  brand: item.brand,
-                  model: item.model,
-                  year: item.year,
-                });
-                return (
-                  <a
-                    key={item.id}
-                    href={itemHref}
-                    className="block rounded-lg border border-border bg-card hover:bg-accent/40 transition-colors overflow-hidden"
-                  >
-                    {itemPhoto ? (
-                      <img
-                        src={`${SITE_ORIGIN}/img/${itemPhoto.replace(/^\/+/, "")}?w=480&q=76&f=webp`}
-                        alt={item.title}
-                        loading="lazy"
-                        className="w-full h-36 object-cover"
-                      />
-                    ) : null}
-                    <div className="p-3 space-y-1">
-                      <p className="text-sm font-medium line-clamp-2">{item.title}</p>
-                      <p className="text-primary font-semibold">{itemPrice} Kč</p>
-                    </div>
-                  </a>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
+        <SimilarListings items={similarListings} />
+        <ListingAboutVehicle paragraph={seoParagraph} />
+        <RelatedOffers links={internalLinks} />
       </main>
     </>
   );

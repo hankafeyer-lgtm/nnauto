@@ -152,6 +152,7 @@ export function FavoritesModal({ isOpen, onClose }: FavoritesModalProps) {
                     image={image}
                     title={getListingMainTitle(listing)}
                     price={Number(listing.price)}
+                    financingMonthlyPayment={Number(listing.financingMonthlyPayment || 0)}
                     year={listing.year}
                     mileage={listing.mileage}
                     fuel={fuelValue ? (fuelLabels[fuelValue] || fuelValue) : "-"}

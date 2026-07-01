@@ -1,6 +1,11 @@
 import type { Listing } from "@shared/schema";
 import { SITE_ORIGIN } from "./constants";
 import { buildListingAbsoluteUrl } from "./listing-url";
+import { sanitizeJsonLd } from "./sanitize-jsonld";
+import {
+  buildListingSeoDescription,
+  buildListingH1,
+} from "./listing-meta";
 
 const fuelTypeMap: Record<string, string> = {
   benzin: "Gasoline",
@@ -51,13 +56,128 @@ function listingPhotoUrls(photos: string[] | null | undefined, max = 10): string
   });
 }
 
-/** Schema.org Car + Offer for a DB listing row */
+export type BreadcrumbItem = { name: string; url?: string };
+
+export function buildBreadcrumbJsonLd(items: BreadcrumbItem[]) {
+  return sanitizeJsonLd({
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  });
+}
+
+export type FaqItemInput = { question: string; answer: string };
+
+export function buildFaqPageJsonLd(items: FaqItemInput[]) {
+  return sanitizeJsonLd({
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: items.map((item) => ({
+      "@type": "Question",
+      name: item.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: item.answer,
+      },
+    })),
+  });
+}
+
+export type ItemListEntry = { name: string; url: string };
+
+export function buildItemListJsonLd(
+  name: string,
+  entries: ItemListEntry[],
+  numberOfItems?: number,
+) {
+  return sanitizeJsonLd({
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name,
+    numberOfItems: numberOfItems ?? entries.length,
+    itemListElement: entries.map((entry, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      url: entry.url,
+      name: entry.name,
+    })),
+  });
+}
+
+export function buildCollectionPageJsonLd(opts: {
+  name: string;
+  description: string;
+  url: string;
+  items?: ItemListEntry[];
+  stats?: { total: number; minPrice: number; maxPrice: number; avgPrice?: number };
+}) {
+  return sanitizeJsonLd({
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: opts.name,
+    description: opts.description,
+    url: opts.url,
+    isPartOf: { "@id": `${SITE_ORIGIN}/#website` },
+    mainEntity: opts.items?.length
+      ? {
+          "@type": "ItemList",
+          numberOfItems: opts.stats?.total ?? opts.items.length,
+          itemListElement: opts.items.map((entry, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            url: entry.url,
+            name: entry.name,
+          })),
+        }
+      : undefined,
+    ...(opts.stats && opts.stats.total >= 3 && opts.stats.minPrice > 0
+      ? {
+          offers: {
+            "@type": "AggregateOffer",
+            lowPrice: String(opts.stats.minPrice),
+            highPrice: String(opts.stats.maxPrice),
+            priceCurrency: "CZK",
+            offerCount: opts.stats.total,
+            availability: "https://schema.org/InStock",
+          },
+        }
+      : {}),
+  });
+}
+
+export function buildAggregateOfferJsonLd(opts: {
+  name: string;
+  stats: { total: number; minPrice: number; maxPrice: number; avgPrice?: number };
+}) {
+  if (opts.stats.total < 3 || opts.stats.minPrice <= 0) return undefined;
+  return sanitizeJsonLd({
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: opts.name,
+    offers: {
+      "@type": "AggregateOffer",
+      lowPrice: String(opts.stats.minPrice),
+      highPrice: String(opts.stats.maxPrice),
+      priceCurrency: "CZK",
+      offerCount: opts.stats.total,
+      availability: "https://schema.org/InStock",
+    },
+  });
+}
+
+/** Schema.org Vehicle + Offer for a DB listing row */
 export function buildListingCarJsonLd(listing: Listing) {
   const id = listing.id;
   const url = buildListingAbsoluteUrl(SITE_ORIGIN, {
     id,
     brand: listing.brand,
     model: listing.model,
+    year: listing.year,
   });
   const conditionUrl =
     listing.condition === "new"
@@ -69,23 +189,26 @@ export function buildListingCarJsonLd(listing: Listing) {
   const drive = listing.driveType?.[0];
   const body = listing.bodyType ?? undefined;
 
-  return {
+  return sanitizeJsonLd({
     "@context": "https://schema.org",
-    "@type": "Car",
+    "@type": "Vehicle",
     "@id": `${url}#vehicle`,
-    name: `${listing.year} ${listing.brand} ${listing.model}`,
+    name: `${listing.year} ${listing.brand} ${listing.model}`.trim(),
     brand: { "@type": "Brand", name: listing.brand },
     manufacturer: { "@type": "Organization", name: listing.brand },
     model: listing.model,
-    modelDate: String(listing.year),
-    productionDate: String(listing.year),
+    vehicleModelDate: listing.year ? String(listing.year) : undefined,
+    productionDate: listing.year ? String(listing.year) : undefined,
     vehicleIdentificationNumber: listing.vin || undefined,
-    mileageFromOdometer: {
-      "@type": "QuantitativeValue",
-      value: listing.mileage,
-      unitCode: "KMT",
-      unitText: "km",
-    },
+    mileageFromOdometer:
+      listing.mileage != null
+        ? {
+            "@type": "QuantitativeValue",
+            value: listing.mileage,
+            unitCode: "KMT",
+            unitText: "km",
+          }
+        : undefined,
     fuelType: fuel ? fuelTypeMap[fuel] || fuel : undefined,
     vehicleTransmission: trans ? transmissionMap[trans] || trans : undefined,
     driveWheelConfiguration: drive ? driveTypeMap[drive] || drive : undefined,
@@ -95,7 +218,9 @@ export function buildListingCarJsonLd(listing: Listing) {
     vehicleSeatingCapacity: listing.seats ?? undefined,
     description:
       listing.description?.slice(0, 5000) ||
-      `Prodej ${listing.year} ${listing.brand} ${listing.model}. Najeto ${listing.mileage.toLocaleString("cs-CZ")} km.`,
+      (listing.mileage != null
+        ? `Prodej ${listing.year} ${listing.brand} ${listing.model}. Najeto ${listing.mileage.toLocaleString("cs-CZ")} km.`
+        : undefined),
     image: listingPhotoUrls(listing.photos),
     url,
     offers: {
@@ -109,11 +234,63 @@ export function buildListingCarJsonLd(listing: Listing) {
         : "https://schema.org/InStock",
       itemCondition: conditionUrl,
     },
-  };
+  });
+}
+
+export function buildListingProductJsonLd(
+  listing: Listing,
+  canonicalUrl: string,
+) {
+  const name = buildListingH1(listing);
+  const description =
+    listing.description?.slice(0, 5000) ||
+    buildListingSeoDescription(listing);
+  const price = Number(listing.price);
+  const photos = Array.isArray(listing.photos) ? listing.photos : [];
+  const imageUrls = listingPhotoUrls(photos, 6);
+
+  const conditionRaw = String(listing.condition ?? "").toLowerCase();
+  const itemConditionUrl = conditionRaw.includes("nov")
+    ? "https://schema.org/NewCondition"
+    : conditionRaw.includes("havar") || conditionRaw.includes("damag")
+      ? "https://schema.org/DamagedCondition"
+      : "https://schema.org/UsedCondition";
+
+  const priceValidUntil = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
+  return sanitizeJsonLd({
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name,
+    sku: listing.id,
+    description,
+    brand: listing.brand
+      ? { "@type": "Brand", name: listing.brand }
+      : undefined,
+    image: imageUrls,
+    offers: {
+      "@type": "Offer",
+      price: String(price),
+      priceCurrency: "CZK",
+      availability: listing.isSold
+        ? "https://schema.org/OutOfStock"
+        : "https://schema.org/InStock",
+      itemCondition: itemConditionUrl,
+      priceValidUntil,
+      url: canonicalUrl,
+      seller: {
+        "@type": "Organization",
+        name: "NNAuto",
+        url: SITE_ORIGIN,
+      },
+    },
+  });
 }
 
 export function buildOrganizationJsonLd() {
-  return {
+  return sanitizeJsonLd({
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${SITE_ORIGIN}/#organization`,
@@ -126,6 +303,7 @@ export function buildOrganizationJsonLd() {
       width: 512,
       height: 512,
     },
+    image: `${SITE_ORIGIN}/og-image.png`,
     description:
       "NNAuto je online autobazar v České republice s ověřenými inzeráty osobních aut, motocyklů a nákladních vozidel.",
     areaServed: {
@@ -133,11 +311,21 @@ export function buildOrganizationJsonLd() {
       name: "Czech Republic",
     },
     inLanguage: "cs-CZ",
-  };
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer support",
+      availableLanguage: ["cs", "en"],
+      url: `${SITE_ORIGIN}/about`,
+    },
+    sameAs: [
+      "https://www.facebook.com/nnauto.cz",
+      "https://www.instagram.com/nnauto.cz",
+    ],
+  });
 }
 
 export function buildWebSiteJsonLd() {
-  return {
+  return sanitizeJsonLd({
     "@context": "https://schema.org",
     "@type": "WebSite",
     "@id": `${SITE_ORIGIN}/#website`,
@@ -154,34 +342,54 @@ export function buildWebSiteJsonLd() {
       },
       "query-input": "required name=search_term_string",
     },
-  };
+  });
 }
 
 export function buildHomePageJsonLdGraph() {
-  return {
+  return sanitizeJsonLd({
     "@context": "https://schema.org",
     "@graph": [buildOrganizationJsonLd(), buildWebSiteJsonLd()],
-  };
+  });
 }
 
-/** ItemList of recent listing URLs — emitted on `/listings` HTML for crawlers (SPA shell uses NoSSR). */
+/** ItemList of recent listing URLs — emitted on `/listings` HTML for crawlers. */
 export function buildListingIndexItemListJsonLd(
   rows: { id: string; title: string; brand: string; model: string }[],
 ) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "Aktuální inzeráty NNAuto",
-    numberOfItems: rows.length,
-    itemListElement: rows.map((row, index) => ({
-      "@type": "ListItem",
-      position: index + 1,
+  return buildItemListJsonLd(
+    "Aktuální inzeráty NNAuto",
+    rows.map((row) => ({
+      name: row.title || `${row.brand} ${row.model}`.trim(),
       url: buildListingAbsoluteUrl(SITE_ORIGIN, {
         id: row.id,
         brand: row.brand,
         model: row.model,
       }),
-      name: row.title || `${row.brand} ${row.model}`.trim(),
     })),
-  };
+    rows.length,
+  );
+}
+
+export function buildBrandAggregateOfferJsonLd(opts: {
+  brandName: string;
+  total: number;
+  minPrice: number;
+  maxPrice: number;
+}) {
+  if (opts.total < 3 || opts.minPrice <= 0) return undefined;
+  return sanitizeJsonLd({
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: `${opts.brandName} – ojetá auta`,
+    description: `Nabídka ${opts.total} ojetých vozů ${opts.brandName} na NNAuto.cz`,
+    brand: { "@type": "Brand", name: opts.brandName },
+    offers: {
+      "@type": "AggregateOffer",
+      lowPrice: String(opts.minPrice),
+      highPrice: String(opts.maxPrice),
+      priceCurrency: "CZK",
+      offerCount: opts.total,
+      availability: "https://schema.org/InStock",
+    },
+  });
 }

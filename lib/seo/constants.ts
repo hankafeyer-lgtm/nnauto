@@ -1,1 +1,1 @@
-export const SITE_ORIGIN = "https://nnauto.cz";
+export { SITE_ORIGIN, absoluteUrl, getSiteOrigin } from "./site-url";

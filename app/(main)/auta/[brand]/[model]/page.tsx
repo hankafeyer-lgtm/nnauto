@@ -6,12 +6,60 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 import JsonLd from "@lib/seo/JsonLd";
 import {
+  buildBreadcrumbJsonLd,
+  buildCollectionPageJsonLd,
+  buildFaqPageJsonLd,
+  buildItemListJsonLd,
+} from "@lib/seo/structured-data";
+import {
+  buildModelFaq,
+  buildModelSeoIntro,
+  buildModelWatchOut,
+  buildModelWhyBuy,
+  getSimilarModelLinks,
+  getSimilarPriceLink,
+} from "@lib/seo/seo-content";
+import {
   formatBrandDisplay,
   formatModelDisplay,
   formatVehicleTitle,
 } from "@lib/seo/brand-format";
-import { normalizeSlug } from "@lib/seo/slug";
+import { normalizeSlug, slugVariants } from "@lib/seo/slug";
+import {
+  getFacetBySlug,
+  isBrandFacetSlug,
+  getBrandFacetClusterLinks,
+} from "@lib/seo/facets";
+import {
+  countModelListingsWithVariants,
+  queryFacetListings,
+  queryFacetStats,
+  queryModelCollectionStats,
+} from "@lib/seo/facet-queries";
+import {
+  FacetCollectionPage,
+  buildFacetPageMetadata,
+} from "@lib/seo/FacetCollectionPage";
+import { buildAggregateOfferJsonLd } from "@lib/seo/structured-data";
 import { buildListingUrl } from "@lib/seo/listing-url";
+import { isSeoFeatureEnabled, shouldEmitFaqJsonLd } from "@lib/seo/features";
+import { ModelBreadcrumb } from "@lib/seo/helpers/breadcrumb";
+import { ModelListingGrid } from "@lib/seo/components/model/ModelListingGrid";
+import {
+  ModelSeoIntroParagraphs,
+  ModelWhyBuy,
+  ModelWatchOut,
+} from "@lib/seo/components/model/ModelSeoIntro";
+import { ModelFaq } from "@lib/seo/components/model/ModelFaq";
+import { ModelLegacySeoBlock } from "@lib/seo/components/model/ModelLegacySeoBlock";
+import {
+  ModelSiblingModels,
+  ModelSimilarModels,
+  ModelSimilarPrice,
+  ModelCategories,
+  ModelFacetSearchLinks,
+  ModelRelatedNav,
+} from "@lib/seo/components/model/ModelRelatedModels";
 
 /**
  * Model-level SEO landing page (e.g. /auta/skoda/octavia, /auta/bmw/3-series).
@@ -34,9 +82,6 @@ const LIST_LIMIT = 30;
 type Params = { brand: string; model: string };
 type Props = { params: Promise<Params> };
 
-const titleCaseRegion = (s: string) =>
-  s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
-
 function decodeAndNormalize(raw: string): string {
   try {
     return normalizeSlug(decodeURIComponent(raw));
@@ -51,6 +96,8 @@ async function queryModelListings(
   limit = LIST_LIMIT,
 ) {
   if (!brandSlug || !modelSlug) return [];
+  const variants = slugVariants(modelSlug);
+  if (!variants.length) return [];
   return db
     .select()
     .from(listings)
@@ -58,7 +105,10 @@ async function queryModelListings(
       and(
         eq(listings.isSold, false),
         sql`lower(${listings.brand}) = ${brandSlug}`,
-        sql`lower(${listings.model}) = ${modelSlug}`,
+        sql`lower(${listings.model}) in (${sql.join(
+          variants.map((v) => sql`${v}`),
+          sql`, `,
+        )})`,
       ),
     )
     .orderBy(desc(listings.updatedAt))
@@ -69,18 +119,7 @@ async function countModelListings(
   brandSlug: string,
   modelSlug: string,
 ): Promise<number> {
-  if (!brandSlug || !modelSlug) return 0;
-  const rows = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(listings)
-    .where(
-      and(
-        eq(listings.isSold, false),
-        sql`lower(${listings.brand}) = ${brandSlug}`,
-        sql`lower(${listings.model}) = ${modelSlug}`,
-      ),
-    );
-  return rows[0]?.count ?? 0;
+  return countModelListingsWithVariants(brandSlug, modelSlug);
 }
 
 async function priceRange(
@@ -125,20 +164,62 @@ async function yearRange(
   return { min: rows[0]?.min ?? null, max: rows[0]?.max ?? null };
 }
 
+async function querySiblingModels(
+  brandSlug: string,
+  excludeModelSlug: string,
+  limit = 8,
+) {
+  if (!brandSlug || !excludeModelSlug) return [];
+  return db
+    .select({
+      model: sql<string>`min(${listings.model})`,
+      total: sql<number>`count(*)::int`,
+    })
+    .from(listings)
+    .where(
+      and(
+        eq(listings.isSold, false),
+        sql`lower(${listings.brand}) = ${brandSlug}`,
+        sql`lower(${listings.model}) != ${excludeModelSlug}`,
+      ),
+    )
+    .groupBy(sql`lower(${listings.model})`)
+    .orderBy(desc(sql`count(*)`))
+    .limit(limit);
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { brand, model } = await params;
   const brandSlug = decodeAndNormalize(brand);
   const modelSlug = decodeAndNormalize(model);
+
+  if (isBrandFacetSlug(modelSlug)) {
+    if (!isSeoFeatureEnabled("facetPages")) notFound();
+    const modelCount = await countModelListingsWithVariants(brandSlug, modelSlug);
+    if (modelCount === 0) {
+      const facet = getFacetBySlug(modelSlug);
+      if (facet) {
+        const stats = await queryFacetStats(facet, brandSlug);
+        return buildFacetPageMetadata(
+          facet,
+          stats,
+          `${SITE_ORIGIN}/auta/${brandSlug}/${facet.slug}`,
+          brandSlug,
+        );
+      }
+    }
+  }
+
   const brandName = formatBrandDisplay(brandSlug);
   const modelName = formatModelDisplay(modelSlug);
   const total = await countModelListings(brandSlug, modelSlug);
 
   const canonical = `${SITE_ORIGIN}/auta/${brandSlug}/${modelSlug}`;
   const title = total
-    ? `Prodej ${brandName} ${modelName} – ojeté i nové vozy v ČR | NNAuto`
-    : `${brandName} ${modelName} | NNAuto`;
+    ? `${brandName} ${modelName} na prodej | Ojeté ${brandName} ${modelName} | NNAuto`
+    : `${brandName} ${modelName} na prodej | NNAuto`;
   const description = total
-    ? `Aktuální nabídka ${brandName} ${modelName} v ČR – ${total}+ inzerátů od soukromých prodejců i autobazarů. Filtrujte podle roku, ceny, najetých km a paliva, kontaktujte prodejce přímo.`
+    ? `Prohlédněte si aktuální nabídku ${brandName} ${modelName} na NNAuto.cz. Ceny, fotografie, parametry a ověřené vozy.`
     : `Nabídka ${brandName} ${modelName} na NNAuto – online autobazar v České republice.`;
 
   const robots: Metadata["robots"] =
@@ -167,6 +248,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         },
       ],
     },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [`${SITE_ORIGIN}/og-image.png`],
+    },
     keywords: [
       `${brandName} ${modelName}`,
       `prodej ${brandName} ${modelName}`,
@@ -188,11 +275,36 @@ export default async function BrandModelLandingPage({ params }: Props) {
   const modelSlug = decodeAndNormalize(model);
   if (!brandSlug || !modelSlug) notFound();
 
-  const [rows, total, price, year] = await Promise.all([
+  if (isBrandFacetSlug(modelSlug)) {
+    if (!isSeoFeatureEnabled("facetPages")) notFound();
+    const modelCount = await countModelListingsWithVariants(brandSlug, modelSlug);
+    if (modelCount === 0) {
+      const facet = getFacetBySlug(modelSlug);
+      if (facet) {
+        const [rows, stats] = await Promise.all([
+          queryFacetListings(facet, brandSlug, 30),
+          queryFacetStats(facet, brandSlug),
+        ]);
+        if (stats.total === 0) notFound();
+        return (
+          <FacetCollectionPage
+            facet={facet}
+            brandSlug={brandSlug}
+            rows={rows}
+            stats={stats}
+            canonical={`${SITE_ORIGIN}/auta/${brandSlug}/${facet.slug}`}
+          />
+        );
+      }
+    }
+  }
+
+  const [rows, total, price, year, siblingModels] = await Promise.all([
     queryModelListings(brandSlug, modelSlug),
     countModelListings(brandSlug, modelSlug),
     priceRange(brandSlug, modelSlug),
     yearRange(brandSlug, modelSlug),
+    querySiblingModels(brandSlug, modelSlug),
   ]);
 
   // No active inventory – do not generate a thin page.
@@ -203,52 +315,85 @@ export default async function BrandModelLandingPage({ params }: Props) {
   const canonical = `${SITE_ORIGIN}/auta/${brandSlug}/${modelSlug}`;
   const isThin = total < MIN_INDEX;
 
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      {
-        "@type": "ListItem",
-        position: 1,
-        name: "NNAuto",
-        item: `${SITE_ORIGIN}/`,
-      },
-      {
-        "@type": "ListItem",
-        position: 2,
-        name: "Inzeráty",
-        item: `${SITE_ORIGIN}/listings`,
-      },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: brandName,
-        item: `${SITE_ORIGIN}/auta/${brandSlug}`,
-      },
-      {
-        "@type": "ListItem",
-        position: 4,
-        name: modelName,
-      },
-    ],
-  };
+  const fuelMap = new Map<string, number>();
+  const transMap = new Map<string, number>();
+  for (const l of rows) {
+    const f = Array.isArray(l.fuelType) ? l.fuelType[0] : null;
+    if (f) fuelMap.set(f, (fuelMap.get(f) ?? 0) + 1);
+    const t = Array.isArray(l.transmission) ? l.transmission[0] : null;
+    if (t) transMap.set(t, (transMap.get(t) ?? 0) + 1);
+  }
 
-  const itemListJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: `${brandName} ${modelName} – inzeráty na NNAuto`,
-    numberOfItems: rows.length,
-    itemListElement: rows.map((l, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      url: `${SITE_ORIGIN}${buildListingUrl({
-        id: l.id,
-        brand: l.brand,
-        model: l.model,
-      })}`,
-      name: formatVehicleTitle(l.brand, l.model, l.year),
+  const modelStats = {
+    total,
+    minPrice: price.min,
+    maxPrice: price.max,
+    minYear: year.min,
+    maxYear: year.max,
+    fuels: [...fuelMap.entries()].map(([name, count]) => ({ name, count })),
+    transmissions: [...transMap.entries()].map(([name, count]) => ({ name, count })),
+    siblingModels: siblingModels.map((s) => ({
+      name: s.model,
+      slug: normalizeSlug(s.model),
+      count: s.total,
     })),
   };
+
+  const introParagraphs = buildModelSeoIntro(brandSlug, modelSlug, modelStats);
+  const whyBuy = buildModelWhyBuy(brandSlug, modelSlug);
+  const watchOut = buildModelWatchOut(brandSlug, modelSlug);
+  const faqItems = buildModelFaq(brandSlug, modelSlug, modelStats);
+  const similarModelLinks = getSimilarModelLinks(
+    brandSlug,
+    siblingModels.map((s) => ({ name: s.model, slug: normalizeSlug(s.model) })),
+  );
+  const similarPriceLink = getSimilarPriceLink(
+    brandSlug,
+    modelSlug,
+    price.min,
+    price.max,
+  );
+
+  const itemListEntries = rows.map((l) => ({
+    name: formatVehicleTitle(l.brand, l.model, l.year),
+    url: `${SITE_ORIGIN}${buildListingUrl({
+      id: l.id,
+      brand: l.brand,
+      model: l.model,
+    })}`,
+  }));
+
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd([
+    { name: "NNAuto", url: `${SITE_ORIGIN}/` },
+    { name: "Auta", url: `${SITE_ORIGIN}/auta` },
+    { name: brandName, url: `${SITE_ORIGIN}/auta/${brandSlug}` },
+    { name: modelName, url: canonical },
+  ]);
+
+  const modelCollectionStats = await queryModelCollectionStats(brandSlug, modelSlug);
+
+  const collectionJsonLd = buildCollectionPageJsonLd({
+    name: `${brandName} ${modelName} na prodej`,
+    description: `Aktuální nabídka ${brandName} ${modelName} na NNAuto.cz`,
+    url: canonical,
+    items: itemListEntries,
+    stats: modelCollectionStats,
+  });
+
+  const itemListJsonLd = buildItemListJsonLd(
+    `${brandName} ${modelName} – inzeráty na NNAuto`,
+    itemListEntries,
+    rows.length,
+  );
+
+  const faqJsonLd = shouldEmitFaqJsonLd("modelFaq")
+    ? buildFaqPageJsonLd(faqItems)
+    : null;
+  const modelAggregateJsonLd = buildAggregateOfferJsonLd({
+    name: `${brandName} ${modelName} na prodej`,
+    stats: modelCollectionStats,
+  });
+  const brandFacetLinks = getBrandFacetClusterLinks(brandSlug, brandName);
 
   const formatPrice = (n: number | null) =>
     n !== null ? `${n.toLocaleString("cs-CZ")} Kč` : null;
@@ -256,29 +401,19 @@ export default async function BrandModelLandingPage({ params }: Props) {
   return (
     <main className="container mx-auto max-w-6xl px-4 py-8">
       <JsonLd data={breadcrumbJsonLd} />
+      <JsonLd data={collectionJsonLd} />
       <JsonLd data={itemListJsonLd} />
+      {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
+      {modelAggregateJsonLd ? <JsonLd data={modelAggregateJsonLd} /> : null}
 
-      <nav
-        className="text-sm text-muted-foreground mb-4 flex flex-wrap gap-1"
-        aria-label="Breadcrumb"
-      >
-        <a href="/" className="hover:underline">
-          NNAuto
-        </a>
-        <span>/</span>
-        <a href="/listings" className="hover:underline">
-          Inzeráty
-        </a>
-        <span>/</span>
-        <a href={`/auta/${brandSlug}`} className="hover:underline">
-          {brandName}
-        </a>
-        <span>/</span>
-        <span className="text-foreground font-medium">{modelName}</span>
-      </nav>
+      <ModelBreadcrumb
+        brandName={brandName}
+        brandSlug={brandSlug}
+        modelName={modelName}
+      />
 
       <h1 className="text-3xl md:text-4xl font-bold mb-3">
-        Prodej {brandName} {modelName} v České republice
+        {brandName} {modelName} na prodej
       </h1>
 
       {/* Intro block — different from /listings UI: short summary with concrete
@@ -322,180 +457,37 @@ export default async function BrandModelLandingPage({ params }: Props) {
       <h2 className="text-xl font-semibold mb-3">
         Aktuální nabídka {brandName} {modelName}
       </h2>
-      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {rows.map((l) => {
-          const yearLabel = l.year;
-          const mileage = l.mileage
-            ? `${l.mileage.toLocaleString("cs-CZ")} km`
-            : "";
-          const priceLabel = l.price
-            ? `${Number(l.price).toLocaleString("cs-CZ")} Kč`
-            : "";
-          const img = l.photos?.[0]
-            ? `${SITE_ORIGIN}/img/${l.photos[0].replace(/^\/+/, "")}?w=800&q=75&f=webp`
-            : null;
-          const carTitle = formatVehicleTitle(l.brand, l.model, l.year);
-          return (
-            <li
-              key={l.id}
-              className="rounded-lg border bg-card overflow-hidden"
-            >
-              <a
-                href={buildListingUrl({
-                  id: l.id,
-                  brand: l.brand,
-                  model: l.model,
-                })}
-                className="block group"
-              >
-                {img ? (
-                  <img
-                    src={img}
-                    alt={carTitle}
-                    className="w-full h-48 object-cover"
-                    loading="lazy"
-                    decoding="async"
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-muted" aria-hidden="true" />
-                )}
-                <div className="p-3 space-y-1">
-                  <h3 className="font-semibold group-hover:underline">
-                    {carTitle}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {[
-                      yearLabel,
-                      mileage,
-                      l.region ? titleCaseRegion(String(l.region)) : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                  <p className="font-semibold text-[#B8860B]">{priceLabel}</p>
-                </div>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
+      <ModelListingGrid rows={rows} />
 
-      {/* Unique long-form SEO copy. Generic enough to work for any brand+model
-          combination yet rich with vehicle-buyer keywords. Aim ~500–700 slov
-          tak, aby stránka nebyla duplicitou /listings. */}
-      <section className="mt-12 prose max-w-none text-muted-foreground space-y-4 text-[15px] leading-relaxed">
-        <h2 className="text-2xl font-semibold text-foreground">
-          {brandName} {modelName} – co je dobré vědět před nákupem
-        </h2>
-        <p>
-          <strong>{brandName} {modelName}</strong> patří mezi vyhledávané
-          modely na českém trhu ojetých vozů. Pokud zvažujete nákup, zaměřte
-          se zejména na servisní historii, soulad reálného nájezdu s údaji
-          v technickém průkazu a celkový technický stav vozu. U starších
-          ročníků je vhodné nechat vůz prohlédnout v autorizovaném servisu
-          nebo nezávislým technikem – odhalíte tak skryté závady, které
-          z popisu nebo fotografií nemusí být patrné.
-        </p>
-        <p>
-          Při výběru konkrétního {brandName} {modelName} doporučujeme
-          porovnat několik inzerátů z podobné cenové i ročníkové kategorie.
-          Cena vozu se odvíjí od roku výroby, najetých kilometrů, výbavy,
-          stavu karoserie, motorového a převodového ústrojí. Vozy se
-          servisní knihou a doložitelnou historií mají na sekundárním trhu
-          vyšší hodnotu a snáze se prodávají dál.
-        </p>
-        <h3 className="text-xl font-semibold text-foreground">
-          Motory, převodovky a varianty
-        </h3>
-        <p>
-          Model {modelName} bývá u značky {brandName} obvykle dostupný v
-          několika motorizacích – benzín, diesel, případně hybrid nebo
-          elektro. Každá varianta má své výhody: zážehové motory bývají
-          tišší a mají nižší pořizovací cenu, vznětové motory nabízejí
-          vyšší krouticí moment a delší dojezd, hybridní pohon pak nižší
-          spotřebu ve městě. Před nákupem si rozmyslete, kolik kilometrů
-          ročně najedete – pro převážně městský provoz se vyplatí benzín
-          nebo hybrid, pro dálniční jízdy spíše diesel.
-        </p>
-        <p>
-          Převodovka může být manuální nebo automatická (klasická,
-          dvouspojková, CVT). Automatické převodovky jsou pohodlnější, ale
-          vyžadují pravidelnou výměnu oleje a mohou být nákladnější na
-          opravy. Manuální převodovka je obvykle spolehlivější a levnější
-          v servisu.
-        </p>
-        <h3 className="text-xl font-semibold text-foreground">
-          Co zkontrolovat při prohlídce {modelName}
-        </h3>
-        <p>
-          Při prohlídce {brandName} {modelName} se zaměřte na rovnoměrnost
-          spár karoserie, kvalitu laku, případnou korozi pod prahy a v
-          podběhu kol, stav podvozku a stav motorového prostoru. V
-          interiéru zkontrolujte funkčnost elektroniky, klimatizace,
-          multimédií a všech tlačítek. Otestujte vozidlo na jízdě:
-          poslouchejte motor, sledujte chování při brzdění, akceleraci a
-          řazení.
-        </p>
-        <p>
-          Pro starší vozy je rozumné objednat report z VIN kódu –{" "}
-          <strong>Cebia</strong> nabízí online prověření historie vozu
-          včetně počtu majitelů, kontroly nájezdu, případných havárií a
-          zástav. Investice v řádu stovek korun vám může ušetřit
-          nepříjemnosti za desetitisíce.
-        </p>
-        <h3 className="text-xl font-semibold text-foreground">
-          Prodej {brandName} {modelName} přes NNAuto
-        </h3>
-        <p>
-          Pokud naopak chcete {brandName} {modelName} prodat,{" "}
-          <a href="/add-listing" className="underline">
-            vložte inzerát zdarma na NNAuto
-          </a>
-          . Doporučujeme nahrát alespoň 8–12 fotografií ve dne, popsat
-          výbavu, servisní historii i případné drobné vady. Inzerát s
-          kvalitními fotografiemi a podrobným popisem se prodává rychleji
-          a za lepší cenu. Pro maximální dosah využijte zvýraznění{" "}
-          <a href="/pricing" className="underline">
-            TOP inzerátu
-          </a>
-          .
-        </p>
-        <p>
-          Cenu stanovte podle aktuální nabídky podobných vozů – u tohoto
-          modelu na NNAuto najdete{" "}
-          <a
-            href={`/listings?brand=${encodeURIComponent(brandSlug)}&model=${encodeURIComponent(modelSlug)}`}
-            className="underline"
-          >
-            kompletní katalog s pokročilými filtry
-          </a>{" "}
-          (rok, cena, najeto, palivo, převodovka, region). Realistická
-          cena s ohledem na technický stav, výbavu a sezónu vede k
-          úspěšnému prodeji během několika dnů.
-        </p>
-      </section>
-
-      <section className="mt-10">
-        <h2 className="text-xl font-semibold mb-3">
-          {brandName} {modelName} – hledat podle
-        </h2>
-        <ul className="flex flex-wrap gap-2">
-          <li><a href={`/prodej/${brandSlug}-${modelSlug}-diesel`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} diesel</a></li>
-          <li><a href={`/prodej/${brandSlug}-${modelSlug}-benzin`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} benzín</a></li>
-          <li><a href={`/prodej/${brandSlug}-${modelSlug}-automat`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} automat</a></li>
-          <li><a href={`/prodej/${brandSlug}-${modelSlug}-kombi`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} kombi</a></li>
-          <li><a href={`/prodej/${brandSlug}-${modelSlug}`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">{brandName} {modelName} na prodej</a></li>
-        </ul>
-      </section>
-
-      <section className="mt-6">
-        <h3 className="text-base font-semibold mb-2 text-muted-foreground">Související</h3>
-        <ul className="flex flex-wrap gap-2">
-          <li><a href={`/auta/${brandSlug}`} className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">Vše {brandName}</a></li>
-          <li><a href="/listings" className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">Všechny inzeráty</a></li>
-          <li><a href="/tips" className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent">Tipy a rady</a></li>
-        </ul>
-      </section>
+      <ModelSeoIntroParagraphs paragraphs={introParagraphs} />
+      <ModelWhyBuy brandName={brandName} modelName={modelName} paragraphs={whyBuy} />
+      <ModelWatchOut brandName={brandName} modelName={modelName} paragraphs={watchOut} />
+      <ModelFaq brandName={brandName} modelName={modelName} items={faqItems} />
+      <ModelLegacySeoBlock
+        brandName={brandName}
+        modelName={modelName}
+        brandSlug={brandSlug}
+        modelSlug={modelSlug}
+      />
+      <ModelSiblingModels
+        brandSlug={brandSlug}
+        brandName={brandName}
+        siblings={siblingModels.map((s) => ({
+          model: s.model,
+          slug: normalizeSlug(s.model),
+          total: s.total,
+        }))}
+      />
+      <ModelSimilarModels links={similarModelLinks} />
+      <ModelSimilarPrice link={similarPriceLink} />
+      <ModelCategories brandName={brandName} links={brandFacetLinks} />
+      <ModelFacetSearchLinks
+        brandName={brandName}
+        modelName={modelName}
+        brandSlug={brandSlug}
+        modelSlug={modelSlug}
+      />
+      <ModelRelatedNav brandSlug={brandSlug} brandName={brandName} />
 
       {isThin ? (
         <p className="mt-8 text-xs text-muted-foreground">

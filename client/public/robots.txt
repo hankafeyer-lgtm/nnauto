@@ -1,11 +1,23 @@
 # NNAuto Robots.txt
 # https://nnauto.cz
+# Note: Next.js app/robots.ts is authoritative in production; keep this aligned for static fallbacks.
 
 User-agent: *
 Allow: /
+Allow: /listings
+Allow: /listing/
+Allow: /auta
+Allow: /auta/
+Allow: /prodej/
+Disallow: /?from=
+Disallow: /?sort=
+Disallow: /*?filter=
+Disallow: /*utm_
+Disallow: /*fbclid=
+Disallow: /*gclid=
+Disallow: /api/
 Disallow: /admin
 Disallow: /admin/*
-Disallow: /api/
 Disallow: /profile
 Disallow: /settings
 Disallow: /dealer
@@ -17,35 +29,35 @@ Disallow: /en
 Disallow: /en/
 Disallow: /de
 Disallow: /de/
+Disallow: /listings?
 Disallow: /*.json$
 
-# Allow important pages
-Allow: /listings
-Allow: /listing/*
-Allow: /about
-Allow: /contact
-Allow: /tips
-
-# Crawl-delay (optional, in seconds)
-Crawl-delay: 1
-
-# Specific bot rules
 User-agent: Googlebot
 Allow: /
-Disallow: /admin
+Allow: /listings
+Allow: /listing/
+Allow: /auta
+Allow: /auta/
+Allow: /prodej/
+Disallow: /?from=
+Disallow: /?sort=
+Disallow: /*?filter=
+Disallow: /*utm_
+Disallow: /*fbclid=
+Disallow: /*gclid=
 Disallow: /api/
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /profile
+Disallow: /settings
+Disallow: /add-listing
+Disallow: /listings?
 
 User-agent: Bingbot
 Allow: /
-Disallow: /admin
 Disallow: /api/
-
-User-agent: Yandex
-Allow: /
 Disallow: /admin
-Disallow: /api/
 
-# Block bad bots
 User-agent: AhrefsBot
 Disallow: /
 
@@ -55,5 +67,4 @@ Disallow: /
 User-agent: MJ12bot
 Disallow: /
 
-# Sitemap location
 Sitemap: https://nnauto.cz/sitemap.xml

@@ -4389,6 +4389,7 @@ export default function ListingsPage() {
         photos,
         title: getListingMainTitle(listing),
         price: Number.parseFloat(listing.price),
+        financingMonthlyPayment: Number(listing.financingMonthlyPayment || 0),
         year: listing.year,
         mileage: listing.mileage,
         fuel: fuelType ? (fuelLabels as any)[fuelType] || fuelType : "-",

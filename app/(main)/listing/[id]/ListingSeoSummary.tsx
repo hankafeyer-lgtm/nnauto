@@ -1,6 +1,10 @@
 import type { listings } from "@shared/schema";
+import { isSeoFeatureEnabled } from "@lib/seo/features";
 import { SITE_ORIGIN } from "@lib/seo/constants";
-import { getListingMainTitle } from "@/lib/listingTitle";
+import {
+  buildListingH1,
+  buildListingImageAlt,
+} from "@lib/seo/listing-meta";
 import { normalizeSlug } from "@lib/seo/slug";
 
 type ListingRow = typeof listings.$inferSelect;
@@ -20,7 +24,9 @@ function arr(v: unknown): string[] {
  * to understand and rank the page for long-tail queries.
  */
 export default function ListingSeoSummary({ listing }: { listing: ListingRow }) {
-  const heading = getListingMainTitle(listing);
+  if (!isSeoFeatureEnabled("listingSeoSummary")) return null;
+
+  const heading = buildListingH1(listing);
   const price = Number(listing.price).toLocaleString("cs-CZ");
   const year = listing.year ? String(listing.year) : null;
   const mileage =
@@ -83,7 +89,7 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
       {firstImgSrc ? (
         <img
           src={firstImgSrc}
-          alt={`${heading} – hlavní foto`}
+          alt={buildListingImageAlt(listing, 0)}
           width={960}
           height={640}
           fetchPriority="high"
@@ -91,7 +97,9 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
         />
       ) : null}
 
-      <h1 id="listing-primary-heading">{heading}</h1>
+      <p className="font-semibold" id="listing-primary-heading">
+        {heading}
+      </p>
       {listing.isSold ? <p>Tento inzerát je označen jako prodaný.</p> : null}
       <p>Cena: {price} Kč</p>
 
@@ -145,7 +153,7 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
             <img
               key={p}
               src={`${SITE_ORIGIN}/img/${p.replace(/^\/+/, "")}?w=800&q=75&f=webp`}
-              alt={`${heading} – foto ${i + 1}`}
+              alt={buildListingImageAlt(listing, i + 1)}
               width={800}
               height={533}
               loading="lazy"
