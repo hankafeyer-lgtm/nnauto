@@ -7903,6 +7903,32 @@ function DealerImportPackagePaywall({
   t: (key: string) => string;
   onOpenBilling: () => void;
 }) {
+  const { toast } = useToast();
+  const [checkoutPackageId, setCheckoutPackageId] = useState<string | null>(null);
+
+  const startCheckout = async (pkg: (typeof IMPORT_VEHICLE_PACKAGES)[number]) => {
+    if (checkoutPackageId) return;
+    setCheckoutPackageId(pkg.id);
+    try {
+      const res = await apiRequest("POST", "/api/dealer/package-checkout", {
+        packageId: pkg.id,
+      });
+      const data = await res.json();
+      if (!data?.url) {
+        throw new Error("Stripe checkout URL missing");
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      const { message } = parseApiError(err);
+      toast({
+        title: "Platbu se nepodařilo spustit",
+        description: message,
+        variant: "destructive",
+      });
+      setCheckoutPackageId(null);
+    }
+  };
+
   return (
     <Card className={`${premiumSurface} rounded-3xl border-amber-200`}>
       <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-2">
@@ -7919,38 +7945,61 @@ function DealerImportPackagePaywall({
           {t("dealer.importSync.packageRequiredHint")}
         </p>
         <div className="grid gap-3 sm:grid-cols-3">
-          {IMPORT_VEHICLE_PACKAGES.map((pkg) => (
-            <div
-              key={pkg.id}
-              className={`rounded-2xl border p-4 ${
-                pkg.popular
-                  ? "border-amber-300 bg-amber-50/70"
-                  : "border-amber-100 bg-white"
-              }`}
-            >
-              {pkg.popular ? (
-                <Badge className="mb-2 bg-amber-700 text-white hover:bg-amber-700">
-                  {t("dealer.billing.mostPopular")}
-                </Badge>
-              ) : null}
-              <p className="text-sm font-black uppercase tracking-wide text-amber-800">
-                {t(pkg.nameKey)}
-              </p>
-              <p className="mt-2 text-2xl font-black text-[#5c3b10]">
-                {formatPackageKc(pkg.priceKc)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                / {t("dealer.billing.perYear")} · {pkg.cars} {t("dealer.billing.carsUnit")}
-              </p>
-            </div>
-          ))}
+          {IMPORT_VEHICLE_PACKAGES.map((pkg) => {
+            const isCheckingOut = checkoutPackageId === pkg.id;
+            const isDisabled = checkoutPackageId !== null && !isCheckingOut;
+            return (
+              <button
+                key={pkg.id}
+                type="button"
+                onClick={() => startCheckout(pkg)}
+                disabled={isDisabled}
+                className={`rounded-2xl border p-4 text-left transition-all duration-200 ${
+                  pkg.popular
+                    ? "border-amber-300 bg-amber-50/70"
+                    : "border-amber-100 bg-white"
+                } ${
+                  isDisabled
+                    ? "cursor-not-allowed opacity-60"
+                    : "cursor-pointer hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                }`}
+              >
+                {pkg.popular ? (
+                  <Badge className="mb-2 bg-amber-700 text-white hover:bg-amber-700">
+                    {t("dealer.billing.mostPopular")}
+                  </Badge>
+                ) : null}
+                <p className="text-sm font-black uppercase tracking-wide text-amber-800">
+                  {t(pkg.nameKey)}
+                </p>
+                <p className="mt-2 text-2xl font-black text-[#5c3b10]">
+                  {formatPackageKc(pkg.priceKc)}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  / {t("dealer.billing.perYear")} · {pkg.cars} {t("dealer.billing.carsUnit")}
+                </p>
+                <p className="mt-3 text-xs font-bold text-amber-800">
+                  {isCheckingOut ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      {t("dealer.billing.choosePackage")}…
+                    </span>
+                  ) : (
+                    t("dealer.billing.choosePackage")
+                  )}
+                </p>
+              </button>
+            );
+          })}
         </div>
         <Button
           type="button"
-          className="w-full rounded-2xl bg-amber-700 hover:bg-amber-800 sm:w-auto"
+          variant="outline"
+          className="w-full rounded-2xl sm:w-auto"
           onClick={onOpenBilling}
+          disabled={!!checkoutPackageId}
         >
-          {t("dealer.importSync.choosePackageCta")}
+          {t("dealer.billing.manage")}
         </Button>
       </CardContent>
     </Card>
