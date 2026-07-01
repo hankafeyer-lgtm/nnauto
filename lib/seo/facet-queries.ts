@@ -1,7 +1,13 @@
 import { db } from "@lib/db";
 import { listings } from "@shared/schema";
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
-import type { FacetDefinition } from "./facets";
+import {
+  buildBrandFacetPath,
+  buildGlobalFacetPath,
+  listBrandFacets,
+  listGlobalFacets,
+  type FacetDefinition,
+} from "./facets";
 import { slugVariants } from "./slug";
 
 export type CollectionStats = {
@@ -232,38 +238,191 @@ export async function queryIndexableFacetUrls(
   min = 3,
 ): Promise<{ url: string; lastModified: Date }[]> {
   const { SITE_ORIGIN } = await import("./constants");
-  const { listGlobalFacets, listBrandFacets, buildGlobalFacetPath, buildBrandFacetPath } =
-    await import("./facets");
-  const out: { url: string; lastModified: Date }[] = [];
+  const now = new Date();
+  const globalFacets = listGlobalFacets();
+  const brandFacets = listBrandFacets();
+  const fuelSlugs = globalFacets
+    .filter((facet) => facet.kind === "fuel")
+    .map((facet) => String(facet.value));
+  const transmissionSlugs = globalFacets
+    .filter((facet) => facet.kind === "transmission")
+    .map((facet) => String(facet.value));
+  const bodySlugs = globalFacets
+    .filter((facet) => facet.kind === "body")
+    .map((facet) => String(facet.value));
+  const yearValues = globalFacets
+    .filter((facet) => facet.kind === "year")
+    .map((facet) => Number(facet.value));
 
-  for (const facet of listGlobalFacets()) {
-    const total = await countFacetListings(facet);
-    if (total >= min) {
-      out.push({
-        url: `${SITE_ORIGIN}${buildGlobalFacetPath(facet.slug)}`,
-        lastModified: new Date(),
-      });
-    }
-  }
+  try {
+    const result = (await db.execute(sql`
+      WITH active AS (
+        SELECT
+          ${listings.id} AS id,
+          lower(trim(${listings.brand})) AS brand,
+          ${listings.fuelType} AS fuel_type,
+          ${listings.transmission} AS transmission,
+          lower(${listings.bodyType}) AS body_type,
+          ${listings.driveType} AS drive_type,
+          ${listings.price}::numeric AS price,
+          ${listings.year} AS year
+        FROM ${listings}
+        WHERE ${listings.isSold} = false
+      ),
+      facet_hits AS (
+        SELECT NULL::text AS brand, lower(f) AS slug, id
+        FROM active, unnest(fuel_type) AS f
+        WHERE lower(f) IN (${sql.join(fuelSlugs.map((slug) => sql`${slug}`), sql`, `)})
 
-  const brandRows = await db
-    .select({ brand: sql<string>`lower(trim(${listings.brand}))` })
-    .from(listings)
-    .where(eq(listings.isSold, false))
-    .groupBy(sql`lower(trim(${listings.brand}))`);
+        UNION ALL
 
-  for (const { brand } of brandRows) {
-    if (!brand) continue;
-    for (const facet of listBrandFacets()) {
-      const total = await countFacetListings(facet, brand);
-      if (total >= min) {
-        out.push({
-          url: `${SITE_ORIGIN}${buildBrandFacetPath(brand, facet.slug)}`,
-          lastModified: new Date(),
-        });
+        SELECT brand, lower(f) AS slug, id
+        FROM active, unnest(fuel_type) AS f
+        WHERE brand <> ''
+          AND lower(f) IN (${sql.join(
+            brandFacets
+              .filter((facet) => facet.kind === "fuel")
+              .map((facet) => sql`${String(facet.value)}`),
+            sql`, `,
+          )})
+
+        UNION ALL
+
+        SELECT NULL::text AS brand, lower(t) AS slug, id
+        FROM active, unnest(transmission) AS t
+        WHERE lower(t) IN (${sql.join(transmissionSlugs.map((slug) => sql`${slug}`), sql`, `)})
+
+        UNION ALL
+
+        SELECT brand, lower(t) AS slug, id
+        FROM active, unnest(transmission) AS t
+        WHERE brand <> ''
+          AND lower(t) IN (${sql.join(
+            brandFacets
+              .filter((facet) => facet.kind === "transmission")
+              .map((facet) => sql`${String(facet.value)}`),
+            sql`, `,
+          )})
+
+        UNION ALL
+
+        SELECT NULL::text AS brand, body_type AS slug, id
+        FROM active
+        WHERE body_type IN (${sql.join(bodySlugs.map((slug) => sql`${slug}`), sql`, `)})
+
+        UNION ALL
+
+        SELECT brand, body_type AS slug, id
+        FROM active
+        WHERE brand <> ''
+          AND body_type IN (${sql.join(
+            brandFacets
+              .filter((facet) => facet.kind === "body")
+              .map((facet) => sql`${String(facet.value)}`),
+            sql`, `,
+          )})
+
+        UNION ALL
+
+        SELECT NULL::text AS brand, '4x4' AS slug, id
+        FROM active
+        WHERE EXISTS (
+          SELECT 1 FROM unnest(drive_type) AS d
+          WHERE lower(d) IN ('awd', '4x4')
+        )
+
+        UNION ALL
+
+        SELECT brand, '4x4' AS slug, id
+        FROM active
+        WHERE brand <> ''
+          AND EXISTS (
+            SELECT 1 FROM unnest(drive_type) AS d
+            WHERE lower(d) IN ('awd', '4x4')
+          )
+
+        UNION ALL
+
+        SELECT NULL::text AS brand, 'do-200000' AS slug, id
+        FROM active
+        WHERE price <= 200000
+
+        UNION ALL
+
+        SELECT brand, 'do-200000' AS slug, id
+        FROM active
+        WHERE brand <> '' AND price <= 200000
+
+        UNION ALL
+
+        SELECT NULL::text AS brand, 'do-300000' AS slug, id
+        FROM active
+        WHERE price <= 300000
+
+        UNION ALL
+
+        SELECT brand, 'do-300000' AS slug, id
+        FROM active
+        WHERE brand <> '' AND price <= 300000
+
+        UNION ALL
+
+        SELECT NULL::text AS brand, 'do-500000' AS slug, id
+        FROM active
+        WHERE price <= 500000
+
+        UNION ALL
+
+        SELECT brand, 'do-500000' AS slug, id
+        FROM active
+        WHERE brand <> '' AND price <= 500000
+
+        UNION ALL
+
+        SELECT NULL::text AS brand, year::text AS slug, id
+        FROM active
+        WHERE year IN (${sql.join(yearValues.map((year) => sql`${year}`), sql`, `)})
+
+        UNION ALL
+
+        SELECT brand, year::text AS slug, id
+        FROM active
+        WHERE brand <> ''
+          AND year IN (${sql.join(
+            brandFacets
+              .filter((facet) => facet.kind === "year")
+              .map((facet) => sql`${Number(facet.value)}`),
+            sql`, `,
+          )})
+      )
+      SELECT brand, slug, count(DISTINCT id)::int AS total
+      FROM facet_hits
+      GROUP BY brand, slug
+      HAVING count(DISTINCT id) >= ${min}
+      ORDER BY brand NULLS FIRST, slug
+    `)) as { rows?: { brand: string | null; slug: string; total: number }[] };
+
+    return (result.rows ?? []).flatMap((row) => {
+      if (!row.brand) {
+        if (!globalFacets.some((facet) => facet.slug === row.slug)) return [];
+        return [
+          {
+            url: `${SITE_ORIGIN}${buildGlobalFacetPath(row.slug)}`,
+            lastModified: now,
+          },
+        ];
       }
-    }
-  }
 
-  return out;
+      if (!brandFacets.some((facet) => facet.slug === row.slug)) return [];
+      return [
+        {
+          url: `${SITE_ORIGIN}${buildBrandFacetPath(row.brand, row.slug)}`,
+          lastModified: now,
+        },
+      ];
+    });
+  } catch (err) {
+    console.error("[facet] queryIndexableFacetUrls failed:", err);
+    return [];
+  }
 }
