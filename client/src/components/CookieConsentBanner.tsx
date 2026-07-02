@@ -115,6 +115,7 @@ export default function CookieConsentBanner() {
                 </p>
                 <Link
                   href="/privacy#cookies"
+                  prefetch={false}
                   className="inline-block text-sm text-primary underline underline-offset-2"
                 >
                   {t("cookie.more")}

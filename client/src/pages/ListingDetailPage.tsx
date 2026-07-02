@@ -3812,7 +3812,8 @@ export default function ListingDetailPage({
     };
   }, [carouselApi]);
 
-  // Preload nearby photos (current + next 2) for fast swipe; rest load on demand.
+  // Preload nearby photos on desktop only. Mobile networks benefit more from
+  // keeping the initial detail view focused on the current photo.
   useEffect(() => {
     const len = photoKeys.length;
     if (!len) return;
@@ -3821,6 +3822,7 @@ export default function ListingDetailPage({
     if (!canPrefetchHeavyResources()) return;
 
     const isDesktop = isLgViewport();
+    if (!isDesktop) return;
     const preloadWidth = isDesktop ? 960 : 520;
     const preloadQuality = isDesktop ? 76 : 64;
     const preloadCount = Math.min(isDesktop ? 3 : 1, len);
@@ -3855,11 +3857,8 @@ export default function ListingDetailPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoKeys.length, currentCarouselIndex]);
 
-  // Lightbox pre-warm: once the detail page is interactive, drip-feed
-  // lightbox-sized URLs for ALL photos into the browser cache so the very
-  // first fullscreen open and any later fast swipe paint immediately. The
-  // /img/ route ships `immutable` headers, so repeat hits cost zero. Runs
-  // exclusively on idle frames; never competes with the carousel.
+  // Lightbox pre-warm: desktop only. On mobile this competed with card/detail
+  // loading and made photo-heavy listings feel slower on first open.
   const preloadedLightboxUrlsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     const len = photoKeys.length;
@@ -3868,6 +3867,7 @@ export default function ListingDetailPage({
     if (!w) return;
     if (!canPrefetchHeavyResources()) return;
     const isDesktop = isLgViewport();
+    if (!isDesktop) return;
     const seen = preloadedLightboxUrlsRef.current;
 
     const idleApi = w as Window & {
@@ -5013,29 +5013,29 @@ export default function ListingDetailPage({
                     >
                       <CarouselContent>
                         {/* Photos first */}
-                        {photoKeys.map((key, index) => (
+                        {photoKeys.map((key, index) => {
+                          const isCurrentPhoto = index === currentCarouselIndex;
+                          return (
                           <CarouselItem key={`photo-${key}-${index}`}>
                             <div
                               className="aspect-[3/2] relative bg-muted cursor-pointer touch-manipulation"
                               onClick={() => openLightboxAt(index)}
                             >
                               <ResponsiveImage
-                                // було 400px → робимо 768px, щоб на мобільному/retina було чітко
                                 mobileSrc={getOptimizedImageUrl(key, {
-                                  width: 560,
-                                  quality: 78,
+                                  width: isCurrentPhoto ? 560 : 240,
+                                  quality: isCurrentPhoto ? 78 : 58,
                                   format: "webp",
                                 })}
-                                // було 1200px → робимо 1600px для деталки (виглядає значно різкіше)
                                 desktopSrc={getOptimizedImageUrl(key, {
-                                  width: 1120,
-                                  quality: 84,
+                                  width: isCurrentPhoto ? 1120 : 320,
+                                  quality: isCurrentPhoto ? 84 : 62,
                                   format: "webp",
                                 })}
                                 desktopMinWidth={1024}
-                                upgrade={index === currentCarouselIndex}
+                                upgrade={isCurrentPhoto}
                                 alt={buildListingImageAlt(listing, index)}
-                                loading={index === 0 ? "eager" : "lazy"}
+                                loading={isCurrentPhoto && index === 0 ? "eager" : "lazy"}
                                 decoding="async"
                                 sizes="(max-width: 640px) 100vw, (max-width: 1024px) 75vw, 800px"
                                 className="w-full h-full object-cover object-center bg-muted"
@@ -5077,7 +5077,8 @@ export default function ListingDetailPage({
                               </button>
                             </div>
                           </CarouselItem>
-                        ))}
+                          );
+                        })}
 
                         {/* Video last */}
                         {hasVideo && (

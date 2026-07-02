@@ -3007,11 +3007,6 @@ import {
 
 import type { Listing } from "@shared/schema";
 
-import sedanImage from "@assets/generated_images/Featured_car_sedan_3670cf96.png";
-import suvImage from "@assets/generated_images/Featured_car_SUV_65e6ecf7.png";
-import sportsImage from "@assets/generated_images/Featured_car_sports_0787b41f.png";
-import hatchbackImage from "@assets/generated_images/Featured_car_hatchback_89d0679c.png";
-import truckImage from "@assets/generated_images/Featured_car_truck_55bea7bf.png";
 import { getListingMainTitle } from "@/lib/listingTitle";
 import { buildListingPath } from "@/lib/listingUrl";
 import { listingsSeoFromSearch } from "@lib/seo/listings-metadata";
@@ -3019,14 +3014,6 @@ import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
-
-const bodyTypeImages: Record<string, string> = {
-  sedan: sedanImage,
-  suv: suvImage,
-  coupe: sportsImage,
-  hatchback: hatchbackImage,
-  pickup: truckImage,
-};
 
 const ITEMS_PER_PAGE = 20;
 const DEFAULT_SORT = "newest";
@@ -4360,13 +4347,11 @@ export default function ListingsPage() {
     return sortedListings.map((listing) => {
       const regionLabel = regionLabelMap.get(listing.region || "") || listing.region || "";
 
-      let image = sedanImage;
+      let image = "";
       const firstPhoto = listing.photos?.[0];
 
       if (typeof firstPhoto === "string" && firstPhoto.trim()) {
         image = resolveListingPhotoUrl(firstPhoto.trim());
-      } else if (listing.bodyType && bodyTypeImages[listing.bodyType]) {
-        image = bodyTypeImages[listing.bodyType];
       }
 
       const datePosted = formatDistanceToNow(new Date(listing.createdAt), {

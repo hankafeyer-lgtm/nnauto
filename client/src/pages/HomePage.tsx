@@ -2092,19 +2092,6 @@ import {
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 
-import sedanImage from "@assets/generated_images/Featured_car_sedan_3670cf96.png";
-import suvImage from "@assets/generated_images/Featured_car_SUV_65e6ecf7.png";
-import sportsImage from "@assets/generated_images/Featured_car_sports_0787b41f.png";
-import hatchbackImage from "@assets/generated_images/Featured_car_hatchback_89d0679c.png";
-import truckImage from "@assets/generated_images/Featured_car_truck_55bea7bf.png";
-
-const bodyTypeImages: Record<string, string> = {
-  sedan: sedanImage,
-  suv: suvImage,
-  coupe: sportsImage,
-  hatchback: hatchbackImage,
-  pickup: truckImage,
-};
 const CEBIA_AUTOTRACER_URL = "https://www.cebia.cz/autotracer";
 const CEBIA_FAVICON_URL = "https://www.cebia.cz/favicon.ico";
 
@@ -2704,8 +2691,9 @@ export default function HomePage() {
         listing.region ||
         "";
 
-      // image: first uploaded photo or fallback by bodyType
-      let image = sedanImage;
+      // Use uploaded photo when available; CarCard renders a lightweight
+      // placeholder when a listing has no photo.
+      let image = "";
       const firstPhoto = listing.photos?.[0];
 
       if (typeof firstPhoto === "string") {
@@ -2713,11 +2701,7 @@ export default function HomePage() {
         if (trimmed) {
           const photoPath = trimmed.replace(/^\/+/, "");
           image = `/objects/${photoPath}`;
-        } else if (listing.bodyType && bodyTypeImages[listing.bodyType]) {
-          image = bodyTypeImages[listing.bodyType];
         }
-      } else if (listing.bodyType && bodyTypeImages[listing.bodyType]) {
-        image = bodyTypeImages[listing.bodyType];
       }
 
       const datePosted = formatDistanceToNow(new Date(listing.createdAt), {

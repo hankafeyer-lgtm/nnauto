@@ -428,6 +428,7 @@ function CarCard({
       >
         <Link
           href={listingHref}
+          prefetch={false}
           data-testid={`link-car-${id}`}
           className="touch-manipulation"
           onClick={handleListingClick}
@@ -656,6 +657,7 @@ function CarCard({
     >
       <Link
         href={listingHref}
+        prefetch={false}
         data-testid={`link-car-${id}`}
         className="block h-full touch-manipulation"
         onClick={handleListingClick}
