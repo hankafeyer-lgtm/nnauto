@@ -592,12 +592,18 @@ function HeaderContent({
               asChild
               variant="outline"
               size="sm"
-              className={`gap-1 px-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
+              className={`gap-1 px-1.5 sm:px-3 ${
+                compactMobile ? "h-9 rounded-xl" : ""
+              }`}
             >
-              <a href="/add-listing" data-testid="button-open-add-listing" className="inline-flex items-center gap-1">
-                <Plus className="w-4 h-4" />
-                <span className="hidden text-[11px] leading-none whitespace-nowrap min-[390px]:inline sm:text-sm">
-                  Přidat inzerát
+              <a
+                href="/add-listing"
+                data-testid="button-open-add-listing"
+                className="inline-flex min-w-0 items-center gap-1"
+              >
+                <Plus className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
+                <span className="whitespace-nowrap text-[10px] font-medium leading-none sm:text-sm">
+                  {t("header.addListing")}
                 </span>
               </a>
             </Button>
