@@ -9,6 +9,7 @@ import { buildAutaIndexMetadata } from "@lib/seo/auta-metadata";
 import {
   buildBreadcrumbJsonLd,
   buildCollectionPageJsonLd,
+  buildFaqPageJsonLd,
   buildHomePageJsonLdGraph,
 } from "@lib/seo/structured-data";
 import { formatBrandDisplay } from "@lib/seo/brand-format";
@@ -92,6 +93,28 @@ export default async function AutaIndexPage({ searchParams }: Props) {
     url: canonical,
     items: itemEntries,
   });
+  const faq = buildFaqPageJsonLd([
+    {
+      question: "Jak najdu nejlepší ojeté auto na prodej?",
+      answer:
+        "Začněte výběrem značky nebo typu vozu, potom porovnejte cenu, rok výroby, nájezd, palivo a region prodejce. Na NNAuto můžete přejít ze stránky /auta na konkrétní značku, model nebo filtrovaný katalog inzerátů.",
+    },
+    {
+      question: "Jsou na NNAuto inzeráty od soukromých prodejců i autobazarů?",
+      answer:
+        "Ano. V katalogu najdete auta od soukromých prodejců i autobazarů z celé České republiky. U každého inzerátu kontaktujete prodejce přímo.",
+    },
+    {
+      question: "Jaké stránky jsou nejlepší pro rychlé hledání auta?",
+      answer:
+        "Pro obecný výběr použijte katalog /listings. Pro SEO kategorie a rychlé porovnání můžete využít stránky jako diesel auta, SUV auta, auta do 300 000 Kč nebo konkrétní značky a modely.",
+    },
+    {
+      question: "Na co si dát pozor při koupi ojetého auta?",
+      answer:
+        "Zkontrolujte servisní historii, technický stav, nájezd, stav karoserie a shodu VIN. U dražších nebo starších vozů doporučujeme prověření historie vozidla a osobní prohlídku.",
+    },
+  ]);
 
   return (
     <main className="container mx-auto max-w-6xl px-4 py-8">
@@ -99,6 +122,7 @@ export default async function AutaIndexPage({ searchParams }: Props) {
       <JsonLd data={buildHomePageJsonLdGraph()} />
       {breadcrumb ? <JsonLd data={breadcrumb} /> : null}
       {collection ? <JsonLd data={collection} /> : null}
+      <JsonLd data={faq} />
 
       <AutaIndexBreadcrumb />
 
