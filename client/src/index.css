@@ -284,6 +284,7 @@
   }
 
   @media (max-width: 767px) {
+    html.android
     .hero-mobile-card-grid {
       display: grid !important;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -291,6 +292,7 @@
       gap: 0.5rem;
     }
 
+    html.android
     .hero-mobile-card-grid > button {
       width: 100%;
       min-width: 0;
@@ -299,6 +301,7 @@
       padding-right: 0.375rem;
     }
 
+    html.android
     .hero-mobile-card-grid > button span {
       max-width: 100%;
       overflow-wrap: anywhere;
@@ -306,7 +309,9 @@
       line-height: 1.15;
     }
 
+    html.android
     .hero-mobile-card-grid > button svg,
+    html.android
     .hero-mobile-card-grid > button img {
       max-width: 2rem;
       max-height: 2rem;

@@ -2705,6 +2705,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { useBrandModels } from "@/hooks/useBrandModels";
 import { useModelGenerations } from "@/hooks/useModelGenerations";
+import { useIsAndroidDevice } from "@/hooks/useIsAndroidDevice";
 import {
   useTranslation,
   useLocalizedOptions,
@@ -2821,6 +2822,7 @@ function MobileFilters({
   const t = useTranslation();
   const localizedOptions = useLocalizedOptions();
   const { language } = useLanguage();
+  const isAndroidDevice = useIsAndroidDevice();
   const [canType, setCanType] = useState(false);
   const {
     filters,
@@ -3123,7 +3125,9 @@ function MobileFilters({
         <DrawerContent
           style={{ bottom: keyboardOffset }}
           translate="no"
-          className="h-[100dvh] max-h-[100dvh] w-screen max-w-[100vw] overflow-hidden bg-background flex flex-col"
+          className={`bg-background h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col ${
+            isAndroidDevice ? "w-screen max-w-[100vw]" : ""
+          }`}
         >
           {" "}
           <DrawerHeader className="border-b pb-4 shrink-0">
@@ -3159,7 +3163,11 @@ function MobileFilters({
             </DrawerDescription>
           </DrawerHeader>
           <ScrollArea className="flex-1 min-h-0 overflow-y-auto overscroll-contain ios-scroll">
-            <div className="w-full max-w-full space-y-6 overflow-x-hidden p-4">
+            <div
+              className={`space-y-6 p-4 ${
+                isAndroidDevice ? "w-full max-w-full overflow-x-hidden" : ""
+              }`}
+            >
               {/* CONDITION */}
               <Collapsible
                 open={openSections.condition}
@@ -3177,7 +3185,7 @@ function MobileFilters({
                 </CollapsibleTrigger>
 
                 <CollapsibleContent className="space-y-6 pt-4">
-                  <div className="grid min-w-0 grid-cols-2 gap-3">
+                  <div className={`grid grid-cols-2 gap-3 ${isAndroidDevice ? "min-w-0" : ""}`}>
                     {[
                       {
                         label: t("filters.conditionNew"),
@@ -3235,7 +3243,9 @@ function MobileFilters({
                           key={condition.key}
                           type="button"
                           variant={isSelected ? "default" : "outline"}
-                          className={`h-auto min-w-0 px-2 py-3 flex flex-col items-center gap-2 text-center ${
+                          className={`h-auto py-3 flex flex-col items-center gap-2 text-center ${
+                            isAndroidDevice ? "min-w-0 px-2" : "px-4"
+                          } ${
                             isSelected ? "toggle-elevated" : ""
                           } toggle-elevate`}
                           onClick={() => handleConditionToggle(condition.key)}
@@ -3303,7 +3313,7 @@ function MobileFilters({
                     <Label className="text-base font-medium">
                       {t("listing.vehicleType")}
                     </Label>
-                    <div className="grid min-w-0 grid-cols-3 gap-2">
+                    <div className={`grid grid-cols-3 gap-2 ${isAndroidDevice ? "min-w-0" : ""}`}>
                       {[
                         {
                           key: "osobni-auta",
@@ -3349,7 +3359,9 @@ function MobileFilters({
                             key={item.key}
                             type="button"
                             onClick={() => handleVehicleTypeToggle(item.key)}
-                            className={`min-w-0 flex flex-col items-center justify-center gap-1 p-1.5 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                            className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                              isAndroidDevice ? "min-w-0 p-1.5" : "p-2"
+                            } ${
                               selected
                                 ? "bg-primary text-primary-foreground border-primary-border"
                                 : "bg-background border-input text-black dark:text-white"
@@ -3362,7 +3374,9 @@ function MobileFilters({
                               className="w-8 h-8"
                             />
                             <span
-                              className={`max-w-full break-words text-center text-[11px] leading-tight ${
+                              className={`text-center leading-tight ${
+                                isAndroidDevice ? "max-w-full break-words text-[11px]" : "text-xs"
+                              } ${
                                 !selected ? "text-black dark:text-white" : ""
                               }`}
                             >
@@ -3378,7 +3392,7 @@ function MobileFilters({
                     <Label className="text-base font-medium">
                       {t("filters.bodyType")}
                     </Label>
-                    <div className="grid min-w-0 grid-cols-3 gap-2">
+                    <div className={`grid grid-cols-3 gap-2 ${isAndroidDevice ? "min-w-0" : ""}`}>
                       {bodyTypes.map((type) => {
                         const IconComponent = bodyTypeIcons[type.value] || Car;
                         const isSelected =
@@ -3389,7 +3403,9 @@ function MobileFilters({
                             key={type.value}
                             type="button"
                             onClick={() => handleBodyTypeToggle(type.value)}
-                            className={`min-w-0 flex flex-col items-center justify-center gap-1 p-1.5 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                            className={`flex flex-col items-center justify-center gap-1 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                              isAndroidDevice ? "min-w-0 p-1.5" : "p-2"
+                            } ${
                               isSelected
                                 ? "bg-primary text-primary-foreground border-primary-border"
                                 : "bg-background border-input text-black dark:text-white"
@@ -3398,7 +3414,9 @@ function MobileFilters({
                           >
                             <IconComponent className="w-8 h-8" />
                             <span
-                              className={`max-w-full break-words text-center text-[11px] leading-tight ${
+                              className={`text-center leading-tight ${
+                                isAndroidDevice ? "max-w-full break-words text-[11px]" : "text-xs"
+                              } ${
                                 !isSelected ? "text-black dark:text-white" : ""
                               }`}
                             >

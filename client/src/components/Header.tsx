@@ -42,6 +42,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import LoginModal from "@/components/LoginModal";
 import { useFilterParams } from "@/hooks/useFilterParams";
+import { useIsAndroidDevice } from "@/hooks/useIsAndroidDevice";
 import { carBrands, carModels } from "@shared/carDatabase";
 const logoImage = "/logo-icon-only.png";
 
@@ -97,6 +98,7 @@ function HeaderContent({
   const t = useTranslation();
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const isAndroidDevice = useIsAndroidDevice();
   const [location, navigate] = useLocation();
   const { setSearch, filters } = useFilterParams();
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -452,10 +454,12 @@ function HeaderContent({
 
   return (
     <header
-      className="sticky top-0 z-50 w-full max-w-[100vw] overflow-x-clip border-b bg-background shadow-lg transform-gpu [backface-visibility:hidden]"
+      className={`sticky top-0 z-50 border-b bg-background shadow-lg transform-gpu [backface-visibility:hidden] ${
+        isAndroidDevice ? "w-full max-w-[100vw] overflow-x-clip" : ""
+      }`}
     >
       <div
-        className={`container mx-auto w-full ${
+        className={`container mx-auto ${isAndroidDevice ? "w-full" : ""} ${
           compactMobile
             ? "pl-2 pr-[calc(0.875rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
             : "pl-2.5 pr-[calc(1.125rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
@@ -502,9 +506,11 @@ function HeaderContent({
               </div>
               <span
                 className={`font-bold tracking-tight ${
-                  compactMobile
+                  compactMobile && isAndroidDevice
                     ? "text-[1.45rem] leading-none max-[390px]:text-[1.15rem] sm:text-2xl md:text-3xl lg:text-4xl"
-                    : "text-lg max-[390px]:text-base sm:text-2xl md:text-3xl lg:text-4xl"
+                    : compactMobile
+                      ? "text-[1.65rem] leading-none max-[390px]:text-[1.35rem] sm:text-2xl md:text-3xl lg:text-4xl"
+                      : "text-xl sm:text-2xl md:text-3xl lg:text-4xl"
                 }`}
               >
                 <span className="text-[#B8860B]">NN</span>
@@ -592,7 +598,9 @@ function HeaderContent({
               asChild
               variant="outline"
               size="sm"
-              className={`gap-1 px-1.5 sm:px-3 ${
+              className={`gap-1 ${
+                isAndroidDevice ? "px-1.5" : "px-2"
+              } sm:px-3 ${
                 compactMobile ? "h-9 rounded-xl" : ""
               }`}
             >
@@ -601,8 +609,10 @@ function HeaderContent({
                 data-testid="button-open-add-listing"
                 className="inline-flex min-w-0 items-center gap-1"
               >
-                <Plus className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
-                <span className="whitespace-nowrap text-[10px] font-medium leading-none sm:text-sm">
+                <Plus className={`${isAndroidDevice ? "h-3.5 w-3.5" : "h-4 w-4"} shrink-0 sm:h-4 sm:w-4`} />
+                <span className={`whitespace-nowrap font-medium leading-none sm:text-sm ${
+                  isAndroidDevice ? "text-[10px]" : "text-[11px]"
+                }`}>
                   {t("header.addListing")}
                 </span>
               </a>
