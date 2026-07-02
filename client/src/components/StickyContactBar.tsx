@@ -295,21 +295,21 @@ export default function StickyContactBar(props: StickyContactBarProps) {
   if (variant === "minimal") {
     return (
       <div
-        className={`fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 ${SAFE_BOTTOM} pt-3 px-3`}
+        className={`fixed inset-x-0 bottom-0 z-40 max-w-[100vw] overflow-x-clip border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 ${SAFE_BOTTOM} px-2 pt-3 sm:px-3`}
         data-testid="sticky-contact-bar"
         data-variant="minimal"
       >
-        <div className="container mx-auto flex items-center gap-2">
+        <div className="mx-auto flex w-full max-w-screen-sm min-w-0 items-center gap-2">
           {hasAnyChannel ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   size="lg"
-                  className="flex-1 h-12 rounded-xl text-base"
+                  className="h-12 min-w-0 flex-1 rounded-xl px-2 text-sm sm:px-4 sm:text-base"
                   data-testid="sticky-contact-message-trigger"
                 >
-                  <MessageSquare className="h-5 w-5 mr-2" />
-                  {labelMessage}
+                  <MessageSquare className="mr-1.5 h-5 w-5 shrink-0 sm:mr-2" />
+                  <span className="truncate">{labelMessage}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -329,9 +329,9 @@ export default function StickyContactBar(props: StickyContactBarProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button size="lg" className="flex-1 h-12 rounded-xl text-base" disabled>
-              <MessageSquare className="h-5 w-5 mr-2" />
-              {labelMessage}
+            <Button size="lg" className="h-12 min-w-0 flex-1 rounded-xl px-2 text-sm sm:px-4 sm:text-base" disabled>
+              <MessageSquare className="mr-1.5 h-5 w-5 shrink-0 sm:mr-2" />
+              <span className="truncate">{labelMessage}</span>
             </Button>
           )}
           {links.tel ? (
@@ -339,12 +339,12 @@ export default function StickyContactBar(props: StickyContactBarProps) {
               asChild
               size="lg"
               variant="outline"
-              className="flex-1 h-12 rounded-xl text-base"
+              className="h-12 min-w-0 flex-1 rounded-xl px-2 text-sm sm:px-4 sm:text-base"
               data-testid="sticky-contact-call"
             >
-              <a href={links.tel} onClick={onCall}>
-                <Phone className="h-5 w-5 mr-2" />
-                {labelCall}
+              <a href={links.tel} onClick={onCall} className="min-w-0">
+                <Phone className="mr-1.5 h-5 w-5 shrink-0 sm:mr-2" />
+                <span className="truncate">{labelCall}</span>
               </a>
             </Button>
           ) : null}

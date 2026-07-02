@@ -3123,7 +3123,7 @@ function MobileFilters({
         <DrawerContent
           style={{ bottom: keyboardOffset }}
           translate="no"
-          className="bg-background h-[100dvh] max-h-[100dvh] overflow-hidden flex flex-col"
+          className="h-[100dvh] max-h-[100dvh] w-screen max-w-[100vw] overflow-hidden bg-background flex flex-col"
         >
           {" "}
           <DrawerHeader className="border-b pb-4 shrink-0">
@@ -3159,7 +3159,7 @@ function MobileFilters({
             </DrawerDescription>
           </DrawerHeader>
           <ScrollArea className="flex-1 min-h-0 overflow-y-auto overscroll-contain ios-scroll">
-            <div className="space-y-6 p-4">
+            <div className="w-full max-w-full space-y-6 overflow-x-hidden p-4">
               {/* CONDITION */}
               <Collapsible
                 open={openSections.condition}
@@ -3177,7 +3177,7 @@ function MobileFilters({
                 </CollapsibleTrigger>
 
                 <CollapsibleContent className="space-y-6 pt-4">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid min-w-0 grid-cols-2 gap-3">
                     {[
                       {
                         label: t("filters.conditionNew"),
@@ -3235,7 +3235,7 @@ function MobileFilters({
                           key={condition.key}
                           type="button"
                           variant={isSelected ? "default" : "outline"}
-                          className={`h-auto py-3 px-4 flex flex-col items-center gap-2 text-center ${
+                          className={`h-auto min-w-0 px-2 py-3 flex flex-col items-center gap-2 text-center ${
                             isSelected ? "toggle-elevated" : ""
                           } toggle-elevate`}
                           onClick={() => handleConditionToggle(condition.key)}
@@ -3303,7 +3303,7 @@ function MobileFilters({
                     <Label className="text-base font-medium">
                       {t("listing.vehicleType")}
                     </Label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid min-w-0 grid-cols-3 gap-2">
                       {[
                         {
                           key: "osobni-auta",
@@ -3349,7 +3349,7 @@ function MobileFilters({
                             key={item.key}
                             type="button"
                             onClick={() => handleVehicleTypeToggle(item.key)}
-                            className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                            className={`min-w-0 flex flex-col items-center justify-center gap-1 p-1.5 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
                               selected
                                 ? "bg-primary text-primary-foreground border-primary-border"
                                 : "bg-background border-input text-black dark:text-white"
@@ -3362,7 +3362,7 @@ function MobileFilters({
                               className="w-8 h-8"
                             />
                             <span
-                              className={`text-xs text-center leading-tight ${
+                              className={`max-w-full break-words text-center text-[11px] leading-tight ${
                                 !selected ? "text-black dark:text-white" : ""
                               }`}
                             >
@@ -3378,7 +3378,7 @@ function MobileFilters({
                     <Label className="text-base font-medium">
                       {t("filters.bodyType")}
                     </Label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid min-w-0 grid-cols-3 gap-2">
                       {bodyTypes.map((type) => {
                         const IconComponent = bodyTypeIcons[type.value] || Car;
                         const isSelected =
@@ -3389,7 +3389,7 @@ function MobileFilters({
                             key={type.value}
                             type="button"
                             onClick={() => handleBodyTypeToggle(type.value)}
-                            className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
+                            className={`min-w-0 flex flex-col items-center justify-center gap-1 p-1.5 rounded-lg border-2 transition-colors hover-elevate active-elevate-2 ${
                               isSelected
                                 ? "bg-primary text-primary-foreground border-primary-border"
                                 : "bg-background border-input text-black dark:text-white"
@@ -3398,7 +3398,7 @@ function MobileFilters({
                           >
                             <IconComponent className="w-8 h-8" />
                             <span
-                              className={`text-xs text-center leading-tight ${
+                              className={`max-w-full break-words text-center text-[11px] leading-tight ${
                                 !isSelected ? "text-black dark:text-white" : ""
                               }`}
                             >

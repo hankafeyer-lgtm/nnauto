@@ -452,10 +452,10 @@ function HeaderContent({
 
   return (
     <header
-      className="sticky top-0 z-50 border-b bg-background shadow-lg transform-gpu [backface-visibility:hidden]"
+      className="sticky top-0 z-50 w-full max-w-[100vw] overflow-x-clip border-b bg-background shadow-lg transform-gpu [backface-visibility:hidden]"
     >
       <div
-        className={`container mx-auto ${
+        className={`container mx-auto w-full ${
           compactMobile
             ? "pl-2 pr-[calc(0.875rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
             : "pl-2.5 pr-[calc(1.125rem+env(safe-area-inset-right,0px))] sm:px-6 lg:px-8"
@@ -503,8 +503,8 @@ function HeaderContent({
               <span
                 className={`font-bold tracking-tight ${
                   compactMobile
-                    ? "text-[1.65rem] leading-none max-[390px]:text-[1.35rem] sm:text-2xl md:text-3xl lg:text-4xl"
-                    : "text-xl sm:text-2xl md:text-3xl lg:text-4xl"
+                    ? "text-[1.45rem] leading-none max-[390px]:text-[1.15rem] sm:text-2xl md:text-3xl lg:text-4xl"
+                    : "text-lg max-[390px]:text-base sm:text-2xl md:text-3xl lg:text-4xl"
                 }`}
               >
                 <span className="text-[#B8860B]">NN</span>
@@ -592,11 +592,11 @@ function HeaderContent({
               asChild
               variant="outline"
               size="sm"
-              className={`gap-1 px-1.5 pr-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
+              className={`gap-1 px-2 sm:px-3 ${compactMobile ? "h-9 rounded-xl" : ""}`}
             >
               <a href="/add-listing" data-testid="button-open-add-listing" className="inline-flex items-center gap-1">
                 <Plus className="w-4 h-4" />
-                <span className="text-[11px] leading-none whitespace-nowrap sm:text-sm">
+                <span className="hidden text-[11px] leading-none whitespace-nowrap min-[390px]:inline sm:text-sm">
                   Přidat inzerát
                 </span>
               </a>
@@ -860,13 +860,13 @@ function HeaderContent({
         <div
           className={`md:hidden pb-3 sm:pb-4 ${showMobileSearch ? "" : "hidden"}`}
         >
-          <form onSubmit={handleSearch} className="w-full">
+          <form onSubmit={handleSearch} className="w-full max-w-full">
             <div className="relative">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
                 placeholder={t("header.search")}
-                className="pl-12 h-12 rounded-xl"
+                className="h-12 w-full min-w-0 rounded-xl pl-12"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 data-testid="input-search-mobile"

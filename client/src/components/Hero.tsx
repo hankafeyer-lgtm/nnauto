@@ -2984,7 +2984,7 @@ function Hero() {
                 <div className="flex items-center gap-2">
                   <div
                     ref={vehicleTypeScrollRef}
-                    className="flex-1 flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide"
+                    className="hero-mobile-card-grid flex-1 flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide"
                   >
                     <button
                       type="button"
@@ -3114,7 +3114,7 @@ function Hero() {
                   </Button>
                   <div
                     ref={bodyTypeScrollRef}
-                    className="flex-1 flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide"
+                    className="hero-mobile-card-grid flex-1 flex gap-1.5 sm:gap-2 lg:gap-2.5 overflow-x-auto pb-2 scrollbar-hide"
                   >
                   {bodyTypes.map((type) => {
                     const IconComponent = bodyTypeIcons[type.value] || Car;
