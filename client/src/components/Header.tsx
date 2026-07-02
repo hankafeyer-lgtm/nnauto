@@ -593,13 +593,21 @@ function HeaderContent({
             </div>
           </form>
 
-          <div className="relative z-30 ml-auto flex items-center gap-1 sm:gap-2 lg:gap-3 shrink-0">
+          <div
+            className={`relative z-30 ml-auto flex items-center gap-1 sm:gap-2 lg:gap-3 ${
+              isAndroidDevice
+                ? "shrink-0"
+                : "max-md:min-w-0 max-md:flex-1 md:shrink-0"
+            }`}
+          >
             <Button
               asChild
               variant="outline"
               size="sm"
               className={`gap-1 ${
-                isAndroidDevice ? "px-1.5" : "px-2"
+                isAndroidDevice
+                  ? "px-1.5"
+                  : "px-2 max-md:flex-1 max-md:justify-start max-md:pl-3 max-md:pr-2"
               } sm:px-3 ${
                 compactMobile ? "h-9 rounded-xl" : ""
               }`}
