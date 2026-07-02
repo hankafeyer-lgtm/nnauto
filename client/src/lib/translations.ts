@@ -5,7 +5,7 @@ import { carModels } from "@shared/carDatabase";
 const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> = {
   cs: {
     // Header
-    "header.addListing": "Přidat auto",
+    "header.addListing": "Přidat inzerát",
     "header.search": "Hledat automobily...",
     "header.listings": "inzerátů",
     "header.menu.myAccount": "Můj účet",

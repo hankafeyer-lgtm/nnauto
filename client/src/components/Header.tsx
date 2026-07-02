@@ -499,18 +499,18 @@ function HeaderContent({
                   fetchPriority="high"
                   className={`object-contain ${
                     compactMobile
-                      ? "w-9 h-9 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
-                      : "w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
+                      ? "w-9 h-9 max-[360px]:h-7 max-[360px]:w-7 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
+                      : "w-12 h-12 max-[360px]:h-7 max-[360px]:w-7 sm:w-16 sm:h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
                   }`}
                 />
               </div>
               <span
                 className={`font-bold tracking-tight ${
                   compactMobile && isAndroidDevice
-                    ? "text-[1.45rem] leading-none max-[390px]:text-[1.15rem] sm:text-2xl md:text-3xl lg:text-4xl"
+                    ? "text-[1.45rem] leading-none max-[390px]:text-[1.15rem] max-[360px]:text-[0.95rem] sm:text-2xl md:text-3xl lg:text-4xl"
                     : compactMobile
-                      ? "text-[1.65rem] leading-none max-[390px]:text-[1.35rem] sm:text-2xl md:text-3xl lg:text-4xl"
-                      : "text-xl sm:text-2xl md:text-3xl lg:text-4xl"
+                      ? "text-[1.65rem] leading-none max-[390px]:text-[1.35rem] max-[360px]:text-[0.95rem] sm:text-2xl md:text-3xl lg:text-4xl"
+                      : "text-xl max-[360px]:text-[0.95rem] sm:text-2xl md:text-3xl lg:text-4xl"
                 }`}
               >
                 <span className="text-[#B8860B]">NN</span>
@@ -594,7 +594,7 @@ function HeaderContent({
           </form>
 
           <div
-            className={`relative z-30 ml-auto flex items-center gap-1 sm:gap-2 lg:gap-3 ${
+            className={`relative z-30 ml-auto flex items-center gap-1 max-[360px]:gap-0.5 sm:gap-2 lg:gap-3 ${
               isAndroidDevice
                 ? "shrink-0"
                 : "max-md:min-w-0 max-md:flex-1 md:shrink-0"
@@ -628,7 +628,7 @@ function HeaderContent({
             <Button
               variant="outline"
               size="icon"
-              className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 sm:h-12 sm:w-12"}`}
+              className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 max-[360px]:h-9 max-[360px]:w-9 sm:h-12 sm:w-12"}`}
               onClick={toggleDarkMode}
               data-testid="button-theme-toggle"
             >
@@ -644,7 +644,7 @@ function HeaderContent({
                 <Button
                   variant="outline"
                   size="icon"
-                  className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 sm:h-12 sm:w-12"}`}
+                  className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 max-[360px]:h-9 max-[360px]:w-9 sm:h-12 sm:w-12"}`}
                   data-testid="button-language"
                 >
                   <Languages className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -719,7 +719,7 @@ function HeaderContent({
                 <Button
                   variant="outline"
                   size="icon"
-                  className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 sm:h-12 sm:w-12"}`}
+                    className={`rounded-lg sm:rounded-xl ${compactMobile ? "h-9 w-9 sm:h-12 sm:w-12" : "h-10 w-10 max-[360px]:h-9 max-[360px]:w-9 sm:h-12 sm:w-12"}`}
                   data-testid="button-menu"
                 >
                   <Menu className="h-[1.2rem] w-[1.2rem] sm:h-5 sm:w-5" strokeWidth={2.25} />
