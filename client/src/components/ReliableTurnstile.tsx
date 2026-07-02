@@ -24,7 +24,7 @@ interface ReliableTurnstileProps {
 
 export type ReliableTurnstileHandle = TurnstileInstance;
 
-const FALLBACK_TIMEOUT_MS = 6_000;
+const FALLBACK_TIMEOUT_MS = 3_500;
 const DEFAULT_MAX_RETRIES = 2;
 
 /**
@@ -35,8 +35,8 @@ const DEFAULT_MAX_RETRIES = 2;
  *   - Always uses size="flexible" so the widget fills the container width
  *     instead of the unreliable compact 130×120 layout on phones.
  *   - Shows a loading skeleton with reserved height to avoid layout shift.
- *   - After FALLBACK_TIMEOUT_MS without success or error, shows a user-
- *     visible "Obnovit ověření" retry button that re-mounts the widget.
+ *   - After FALLBACK_TIMEOUT_MS without success or error, automatically
+ *     re-mounts the widget once so slow mobile browsers recover quickly.
  *   - After maxRetries exhausted, calls onRetriesExhausted so the parent
  *     can let the user proceed without client-side verification.
  */
@@ -78,15 +78,24 @@ const ReliableTurnstile = forwardRef<
     };
   }, [ready, mountTick]);
 
-  // Fallback timeout: if no success/error arrived after N seconds, give the
-  // user a way out instead of leaving them stuck on an empty widget.
+  // Fallback timeout: if no success/error arrived after N seconds, retry once
+  // automatically. If Cloudflare still cannot load, let the parent use its
+  // server-side fallback instead of leaving the user stuck.
   useEffect(() => {
     if (!mounted || status !== "loading") return;
     const id = setTimeout(() => {
-      setStatus((s) => (s === "loading" ? "timeout" : s));
+      if (retryCount + 1 >= maxRetries) {
+        setStatus("exhausted");
+        onRetriesExhausted?.();
+        return;
+      }
+      setRetryCount((n) => n + 1);
+      setMounted(false);
+      setWidgetPainted(false);
+      setMountTick((n) => n + 1);
     }, FALLBACK_TIMEOUT_MS);
     return () => clearTimeout(id);
-  }, [mounted, status]);
+  }, [mounted, status, retryCount, maxRetries, onRetriesExhausted]);
 
   const handleSuccess = (token: string) => {
     setStatus("ok");
@@ -186,7 +195,7 @@ const ReliableTurnstile = forwardRef<
             theme,
             language,
             size: "normal",
-            appearance: "interaction-only",
+            appearance: "always",
             retry: "auto",
             retryInterval: 1500,
             refreshExpired: "auto",

@@ -40,7 +40,6 @@ const TURNSTILE_UI_OFF =
   process.env.NODE_ENV !== "production" ||
   (typeof process !== "undefined" &&
     process.env.NEXT_PUBLIC_TURNSTILE_UI_OFF === "true");
-const CLIENT_FALLBACK_TURNSTILE_TOKEN = "__client_fallback__";
 
 export default function LoginModal({
   open,
@@ -435,44 +434,61 @@ export default function LoginModal({
 
   const handleDealerRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    const token =
-      dealerTurnstileToken ||
-      (!TURNSTILE_UI_OFF ? CLIENT_FALLBACK_TURNSTILE_TOKEN : "");
+    if (!TURNSTILE_UI_OFF && !dealerTurnstileToken) {
+      toast({
+        variant: "destructive",
+        title: t("auth.verificationRequired"),
+        description: t("auth.pleaseVerify"),
+      });
+      return;
+    }
     dealerRegisterMutation.mutate({
       companyName: dealerCompanyName,
       ico: dealerIco || undefined,
       email: dealerEmail,
       password: dealerPassword,
       phone: dealerPhone,
-      turnstileToken: token,
+      turnstileToken: dealerTurnstileToken || "",
     });
   };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginErrorMessage(null);
-    const token =
-      loginTurnstileToken ||
-      (!TURNSTILE_UI_OFF ? CLIENT_FALLBACK_TURNSTILE_TOKEN : "");
+    if (!TURNSTILE_UI_OFF && !loginTurnstileToken) {
+      const verifyMsg = t("auth.pleaseVerify");
+      setLoginErrorMessage(verifyMsg);
+      toast({
+        variant: "destructive",
+        title: t("auth.verificationRequired"),
+        description: verifyMsg,
+      });
+      return;
+    }
     loginMutation.mutate({
       email,
       password,
-      turnstileToken: token,
+      turnstileToken: loginTurnstileToken || "",
     });
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    const token =
-      registerTurnstileToken ||
-      (!TURNSTILE_UI_OFF ? CLIENT_FALLBACK_TURNSTILE_TOKEN : "");
+    if (!TURNSTILE_UI_OFF && !registerTurnstileToken) {
+      toast({
+        variant: "destructive",
+        title: t("auth.verificationRequired"),
+        description: t("auth.pleaseVerify"),
+      });
+      return;
+    }
     registerMutation.mutate({
       email: registerEmail,
       password: registerPassword,
       firstName: registerFirstName || undefined,
       lastName: registerLastName || undefined,
       phone: registerPhone,
-      turnstileToken: token,
+      turnstileToken: registerTurnstileToken || "",
     });
   };
 
@@ -519,12 +535,17 @@ export default function LoginModal({
 
   const handleForgotPassword = (e: React.FormEvent) => {
     e.preventDefault();
-    const token =
-      forgotPasswordTurnstileToken ||
-      (!TURNSTILE_UI_OFF ? CLIENT_FALLBACK_TURNSTILE_TOKEN : "");
+    if (!TURNSTILE_UI_OFF && !forgotPasswordTurnstileToken) {
+      toast({
+        variant: "destructive",
+        title: t("auth.passwordSentError"),
+        description: "Dokončete prosím bezpečnostní ověření.",
+      });
+      return;
+    }
     forgotPasswordMutation.mutate({
       email: forgotPasswordEmail,
-      turnstileToken: token,
+      turnstileToken: forgotPasswordTurnstileToken || "",
     });
   };
 
@@ -644,7 +665,10 @@ export default function LoginModal({
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={loginMutation.isPending}
+                  disabled={
+                    loginMutation.isPending ||
+                    (!TURNSTILE_UI_OFF && !loginVerified)
+                  }
                   data-testid="button-login-submit"
                 >
                   {loginMutation.isPending
@@ -843,7 +867,10 @@ export default function LoginModal({
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={registerMutation.isPending}
+                  disabled={
+                    registerMutation.isPending ||
+                    (!TURNSTILE_UI_OFF && !registerVerified)
+                  }
                   data-testid="button-register-submit"
                 >
                   {registerMutation.isPending
@@ -977,7 +1004,10 @@ export default function LoginModal({
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={dealerRegisterMutation.isPending}
+                  disabled={
+                    dealerRegisterMutation.isPending ||
+                    (!TURNSTILE_UI_OFF && !dealerVerified)
+                  }
                   data-testid="button-dealer-register-submit"
                 >
                   {dealerRegisterMutation.isPending
