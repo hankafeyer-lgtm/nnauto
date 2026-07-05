@@ -466,6 +466,17 @@ export default function RootLayout({
               gtag('config', 'G-1VPRCXDLKP', { send_page_view: false });
               gtag('config', 'AW-17794544456');
               gtag('config', 'AW-17768541644');
+              var pagePath = window.location.pathname + window.location.search;
+              var now = Date.now();
+              if (window.__nnLastGaPageViewKey !== pagePath || now - (window.__nnLastGaPageViewAt || 0) >= 2000) {
+                window.__nnLastGaPageViewKey = pagePath;
+                window.__nnLastGaPageViewAt = now;
+                gtag('event', 'page_view', {
+                  page_path: pagePath,
+                  page_location: window.location.href,
+                  page_title: document.title
+                });
+              }
             });
           `}
         </Script>

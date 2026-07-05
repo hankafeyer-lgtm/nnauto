@@ -27,6 +27,8 @@ declare global {
     ttq?: TtqFn;
     __nn_utm?: string;
     __nn_landing_referrer?: string;
+    __nnLastGaPageViewKey?: string;
+    __nnLastGaPageViewAt?: number;
   }
 }
 
@@ -176,6 +178,15 @@ export function trackPageView(path?: string): void {
 
   retry(() => {
     if (typeof window.gtag !== "function") return false;
+    const now = Date.now();
+    if (
+      window.__nnLastGaPageViewKey === pagePath &&
+      now - (window.__nnLastGaPageViewAt || 0) < 2_000
+    ) {
+      return true;
+    }
+    window.__nnLastGaPageViewKey = pagePath;
+    window.__nnLastGaPageViewAt = now;
     window.gtag("event", "page_view", {
       page_path: pagePath,
       page_location: pageLocation,
