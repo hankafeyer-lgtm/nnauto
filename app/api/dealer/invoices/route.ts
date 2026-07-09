@@ -1,6 +1,6 @@
 import { json, error } from "@lib/api-helpers";
 import { requireDealer } from "@lib/auth";
-import { listDealerInvoices } from "@lib/dealerInvoice";
+import { listDealerInvoices, serializeDealerInvoiceListItem } from "@lib/dealerInvoice";
 
 export async function GET() {
   try {
@@ -9,15 +9,7 @@ export async function GET() {
 
     const invoices = await listDealerInvoices(user.dealerId, user.id);
     return json({
-      invoices: invoices.map((invoice) => ({
-        id: invoice.id,
-        number: invoice.number,
-        dateISO: invoice.issuedAt,
-        amountKc: invoice.amountKc,
-        status: invoice.status,
-        description: invoice.description,
-        packageId: invoice.packageId,
-      })),
+      invoices: invoices.map(serializeDealerInvoiceListItem),
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";

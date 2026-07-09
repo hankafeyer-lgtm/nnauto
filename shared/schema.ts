@@ -366,6 +366,10 @@ export const dealerInvoices = pgTable(
     number: varchar("number", { length: 32 }).notNull(),
     issuedAt: timestamp("issued_at").notNull(),
     taxableSupplyAt: timestamp("taxable_supply_at").notNull(),
+    paidAt: timestamp("paid_at"),
+    paymentMethod: varchar("payment_method", { length: 80 })
+      .default("Online platba kartou")
+      .notNull(),
     packageId: varchar("package_id", { length: 20 }).notNull(),
     description: text("description").notNull(),
     amountKc: integer("amount_kc").notNull(),
@@ -377,6 +381,8 @@ export const dealerInvoices = pgTable(
     buyerDic: varchar("buyer_dic", { length: 20 }),
     buyerAddress: text("buyer_address"),
     buyerEmail: varchar("buyer_email"),
+    htmlContent: text("html_content"),
+    pdfBase64: text("pdf_base64"),
     createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   },
   (t) => [

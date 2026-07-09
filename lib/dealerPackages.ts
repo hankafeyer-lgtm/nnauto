@@ -272,10 +272,28 @@ export class DealerPackageRequiredError extends Error {
 }
 
 /** Import (CSV/XML/API) requires an active START / BUSINESS / PRO subscription. */
-export async function requireActiveDealerPackage(dealerId: string) {
+export async function requireActiveDealerPackage(
+  dealerId: string,
+  opts?: { isAdmin?: boolean },
+) {
+  if (opts?.isAdmin) return null;
   const sub = await getActiveDealerPackageSubscription(dealerId);
   if (!sub) throw new DealerPackageRequiredError();
   return sub;
+}
+
+export function getAdminDealerPackageBypass() {
+  const end = new Date();
+  end.setFullYear(end.getFullYear() + 1);
+  return {
+    id: "admin-import-bypass",
+    packageId: "pro" as DealerPackageId,
+    status: "active",
+    amountKc: 0,
+    maxListings: DEALER_PACKAGES.pro.cars,
+    currentPeriodEnd: end.toISOString(),
+    cancelAtPeriodEnd: false,
+  };
 }
 
 export function isDealerPackageRequiredError(error: unknown): boolean {

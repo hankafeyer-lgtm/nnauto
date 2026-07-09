@@ -178,7 +178,11 @@ const IMPORT_VEHICLE_PACKAGES = [
   { id: "pro", nameKey: "dealer.billing.packagePro", cars: 750, priceKc: 6000 },
 ] as const;
 
-function dealerHasImportPackage(pkg: DealerPackageSubscription | null | undefined): boolean {
+function dealerHasImportPackage(
+  pkg: DealerPackageSubscription | null | undefined,
+  isAdmin?: boolean,
+): boolean {
+  if (isAdmin) return true;
   return Boolean(pkg?.packageId);
 }
 
@@ -6660,11 +6664,13 @@ function BillingTab({
   t,
   dealerPackage,
   currentListings,
+  isAdmin,
 }: {
   dealer: Dealer;
   t: (key: string) => string;
   dealerPackage?: DealerPackageSubscription | null;
   currentListings?: number;
+  isAdmin?: boolean;
 }) {
   const { toast } = useToast();
   const [settings, update] = useDealerLocalStore(dealer);
@@ -6691,6 +6697,34 @@ function BillingTab({
   const [bankHolder, setBankHolder] = useState("");
   const [paypalEmail, setPaypalEmail] = useState("");
   const [cardError, setCardError] = useState<string | null>(null);
+  const [creatingTestInvoice, setCreatingTestInvoice] = useState(false);
+
+  const createTestInvoice = useCallback(async () => {
+    setCreatingTestInvoice(true);
+    try {
+      const res = await apiRequest("POST", "/api/dealer/invoices/test", {
+        packageId: "business",
+      });
+      const data = await res.json();
+      await queryClient.invalidateQueries({ queryKey: ["/api/dealer/invoices"] });
+      toast({
+        title: t("dealer.billing.testInvoiceCreated"),
+        description: data?.invoice?.number ?? "",
+      });
+      if (data?.invoice?.number) {
+        window.open(`/dealer/invoices/${encodeURIComponent(data.invoice.number)}`, "_blank", "noopener,noreferrer");
+      }
+    } catch (err) {
+      const { message } = parseApiError(err);
+      toast({
+        title: t("dealer.billing.testInvoiceFailed"),
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingTestInvoice(false);
+    }
+  }, [t, toast]);
 
   type InvoiceRow = {
     id: string;
@@ -6699,6 +6733,7 @@ function BillingTab({
     amountKc: number;
     status: "paid" | "pending" | "failed";
     description: string;
+    url?: string;
     isServer?: boolean;
   };
 
@@ -6726,32 +6761,38 @@ function BillingTab({
     }));
   }, [serverInvoicesData?.invoices, billing.invoices]);
 
-  const downloadInvoice = useCallback((invoice: InvoiceRow) => {
+  const openInvoice = useCallback((invoice: InvoiceRow) => {
+    const target = invoice.url || `/dealer/invoices/${encodeURIComponent(invoice.number)}`;
+    window.open(target, "_blank", "noopener,noreferrer");
+  }, []);
+
+  const downloadInvoice = useCallback(async (invoice: InvoiceRow) => {
     if (invoice.isServer) {
-      window.open(`/api/dealer/invoices/${invoice.id}`, "_blank", "noopener,noreferrer");
+      try {
+        const res = await apiRequest(
+          "GET",
+          `/api/dealer/invoices/by-number/${encodeURIComponent(invoice.number)}?format=pdf&download=1`,
+        );
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${invoice.number}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        const { message } = parseApiError(err);
+        toast({
+          title: t("dealer.billing.testInvoiceFailed"),
+          description: message,
+          variant: "destructive",
+        });
+      }
       return;
     }
 
-    const issued = new Date(invoice.dateISO).toLocaleDateString("cs-CZ");
-    const html = `<!DOCTYPE html><html lang="cs"><head><meta charset="utf-8"><title>Faktura ${invoice.number}</title></head><body style="font-family:Arial,sans-serif;padding:40px">
-<h1>FAKTURA – DAŇOVÝ DOKLAD</h1>
-<p>Číslo faktury: <strong>${invoice.number}</strong><br>Datum vystavení: ${issued}</p>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px">
-<div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px"><strong>Dodavatel</strong><br>NNAuto<br>IČO: 23974559<br>info@nnauto.cz<br>https://nnauto.cz</div>
-<div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px"><strong>Odběratel</strong><br>${dealer.companyName}${dealer.ico ? `<br>IČO: ${dealer.ico}` : ""}${dealer.dic ? `<br>DIČ: ${dealer.dic}` : ""}</div>
-</div>
-<table style="width:100%;border-collapse:collapse;margin-top:24px"><tr><th style="border:1px solid #e5e7eb;padding:8px;text-align:left">Položka</th><th style="border:1px solid #e5e7eb;padding:8px">Celkem</th></tr>
-<tr><td style="border:1px solid #e5e7eb;padding:8px">${invoice.description}</td><td style="border:1px solid #e5e7eb;padding:8px">${invoice.amountKc.toLocaleString("cs-CZ")} Kč</td></tr></table>
-<p style="margin-top:20px"><strong>Celkem k úhradě: ${invoice.amountKc.toLocaleString("cs-CZ")} Kč</strong></p>
-</body></html>`;
-    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${invoice.number}.html`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [dealer.companyName, dealer.dic, dealer.ico]);
+    openInvoice(invoice);
+  }, [openInvoice, t, toast]);
 
   const openCardDialog = () => {
     setSelectedMethod(billing.paymentType ?? "card");
@@ -7467,6 +7508,26 @@ function BillingTab({
           <CardDescription>{t("dealer.billing.invoicesDescription")}</CardDescription>
         </CardHeader>
         <CardContent>
+          {isAdmin ? (
+            <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+              <p className="font-semibold">{t("dealer.billing.adminBypassTitle")}</p>
+              <p className="mt-1 text-sky-900/80">{t("dealer.billing.adminBypassHint")}</p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-3 rounded-2xl border-sky-300 bg-white"
+                disabled={creatingTestInvoice}
+                onClick={createTestInvoice}
+              >
+                {creatingTestInvoice ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileSpreadsheet className="mr-2 h-4 w-4" />
+                )}
+                {t("dealer.billing.createTestInvoice")}
+              </Button>
+            </div>
+          ) : null}
           {invoiceRows.length === 0 ? (
             <div className="rounded-3xl border border-dashed p-8 text-center">
               <FileSpreadsheet className="mx-auto mb-3 h-10 w-10 text-amber-600" />
@@ -7491,7 +7552,15 @@ function BillingTab({
                 <tbody>
                   {invoiceRows.map((invoice) => (
                     <tr key={invoice.id} className="border-b last:border-0 hover:bg-amber-50/40">
-                      <td className="px-4 py-3 font-bold">{invoice.number}</td>
+                      <td className="px-4 py-3 font-bold">
+                        <button
+                          type="button"
+                          className="text-left text-amber-800 hover:underline"
+                          onClick={() => openInvoice(invoice)}
+                        >
+                          {invoice.number}
+                        </button>
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {new Date(invoice.dateISO).toLocaleDateString()}
                       </td>
@@ -7511,15 +7580,26 @@ function BillingTab({
                         </Badge>
                       </td>
                       <td className="px-4 py-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 px-2"
-                          title={t("dealer.billing.downloadInvoice")}
-                          onClick={() => downloadInvoice(invoice)}
-                        >
-                          <Download className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2"
+                            title={t("dealer.billing.viewInvoice")}
+                            onClick={() => openInvoice(invoice)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2"
+                            title={t("dealer.billing.downloadInvoice")}
+                            onClick={() => downloadInvoice(invoice)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -7761,7 +7841,7 @@ export default function DealerPage() {
                 onAddVehicle={openAddVehicleDialog}
                 sub={importSub}
                 onSubChange={setImportSub}
-                hasActivePackage={dealerHasImportPackage(dealerPackage)}
+                hasActivePackage={dealerHasImportPackage(dealerPackage, user?.isAdmin)}
                 onOpenBilling={() => setActiveTab("billing")}
               />
             </TabsContent>
@@ -7772,7 +7852,7 @@ export default function DealerPage() {
                 onAddVehicle={openAddVehicleDialog}
                 sub={importSub === "csv" ? "xml" : importSub}
                 onSubChange={setImportSub}
-                hasActivePackage={dealerHasImportPackage(dealerPackage)}
+                hasActivePackage={dealerHasImportPackage(dealerPackage, user?.isAdmin)}
                 onOpenBilling={() => setActiveTab("billing")}
               />
             </TabsContent>
@@ -7795,6 +7875,7 @@ export default function DealerPage() {
                 t={t}
                 dealerPackage={dealerPackage}
                 currentListings={stats?.totalListings ?? 0}
+                isAdmin={user?.isAdmin}
               />
             </TabsContent>
             <TabsContent value="settings" className="mt-0">

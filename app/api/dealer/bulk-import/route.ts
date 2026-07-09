@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const user = await requireDealer();
     if (!user.dealerId) return error("Dealer not found", 404);
 
-    await requireActiveDealerPackage(user.dealerId);
+    await requireActiveDealerPackage(user.dealerId, { isAdmin: user.isAdmin });
 
     const body = await req.json();
     const { listings: listingsData, fileName } = body;

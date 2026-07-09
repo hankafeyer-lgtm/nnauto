@@ -2,25 +2,31 @@ import { NextRequest } from "next/server";
 import { error } from "@lib/api-helpers";
 import { requireDealer } from "@lib/auth";
 import {
-  getDealerInvoiceForUser,
+  getDealerInvoiceByNumberForUser,
   getDealerInvoiceHtmlContent,
   getDealerInvoicePdfBuffer,
 } from "@lib/dealerInvoice";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ number: string }> },
 ) {
   try {
     const user = await requireDealer();
     if (!user.dealerId) return error("Dealer not found", 404);
 
-    const { id } = await params;
-    const invoice = await getDealerInvoiceForUser(id, user.dealerId, user.id);
+    const { number } = await params;
+    const decodedNumber = decodeURIComponent(number);
+    const invoice = await getDealerInvoiceByNumberForUser(
+      decodedNumber,
+      user.dealerId,
+      user.id,
+    );
     if (!invoice) return error("Invoice not found", 404);
 
     const format = req.nextUrl.searchParams.get("format");
     const download = req.nextUrl.searchParams.get("download") === "1";
+    const embed = req.nextUrl.searchParams.get("embed") === "1";
 
     if (format === "pdf") {
       const pdf = await getDealerInvoicePdfBuffer(invoice);
@@ -35,7 +41,7 @@ export async function GET(
     }
 
     const html = await getDealerInvoiceHtmlContent(invoice, {
-      showToolbar: !download,
+      showToolbar: !download && !embed,
     });
 
     return new Response(html, {

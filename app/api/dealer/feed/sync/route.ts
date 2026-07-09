@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       .where(eq(dealers.id, user.dealerId));
     if (!dealer) return error("Dealer not found", 404);
 
-    await requireActiveDealerPackage(user.dealerId);
+    await requireActiveDealerPackage(user.dealerId, { isAdmin: user.isAdmin });
 
     const body = await req.json().catch(() => ({}));
     const bodyUrl = typeof body.feedUrl === "string" ? body.feedUrl.trim() : "";

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { db } from "@lib/db";
-import { listings, insertListingSchema } from "@shared/schema";
+import { listings, insertListingSchema, users } from "@shared/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { storage } from "@lib/storage";
 import { getApiDealer } from "@lib/apiAuth";
@@ -103,7 +103,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    await requireActiveDealerPackage(ctx.dealerId);
+    const [owner] = await db
+      .select({ isAdmin: users.isAdmin })
+      .from(users)
+      .where(eq(users.id, ctx.userId));
+    await requireActiveDealerPackage(ctx.dealerId, { isAdmin: owner?.isAdmin });
   } catch (e) {
     if (isDealerPackageRequiredError(e)) {
       return error(
