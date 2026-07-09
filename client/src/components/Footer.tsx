@@ -112,6 +112,15 @@ function Footer() {
               </li>
               <li>
                 <Link
+                  href="/prodat-auto"
+                  className="text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                  data-testid="link-sell-car"
+                >
+                  Prodat auto
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/pricing"
                   className="text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
                   data-testid="link-pricing"

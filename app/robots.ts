@@ -30,7 +30,7 @@ const DISALLOW_COMMON = [
   "/*.json$",
 ];
 
-const PRIMARY_ALLOW = ["/", "/listings", "/listing/", "/auta", "/auta/", "/prodej/"];
+const PRIMARY_ALLOW = ["/", "/listings", "/listing/", "/auta", "/auta/", "/prodej/", "/prodat-auto"];
 
 const MAIN_BOT_DISALLOW = [
   ...SEO_DISALLOW,

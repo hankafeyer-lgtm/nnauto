@@ -22,6 +22,7 @@ import {
   formatBrandDisplay,
 } from "@lib/seo/brand-format";
 import { normalizeSlug } from "@lib/seo/slug";
+import { inzeratWord, formatCzk } from "@lib/seo/czech-format";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { getTopModelLinksForBrand, isTopModel } from "@lib/seo/top-models";
 import {
@@ -160,11 +161,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const brandName = formatBrandDisplay(brandSlug);
   const stats = await queryBrandStats(brandSlug);
   const hasAny = stats.total > 0;
+  const fromPart =
+    stats.minPrice && stats.minPrice > 0 ? ` od ${formatCzk(stats.minPrice)}` : "";
   const title = hasAny
-    ? `${brandName} na prodej | Ojeté vozy ${brandName} | NNAuto`
+    ? `${brandName} na prodej – ${stats.total} ${inzeratWord(stats.total)}${fromPart} | NNAuto`
     : `${brandName} na prodej | NNAuto`;
   const description = hasAny
-    ? `Vyberte si z nabídky vozů ${brandName} na NNAuto.cz. Ojeté automobily ${brandName}, aktuální ceny, fotografie a parametry.`
+    ? `Aktuálně ${stats.total} ${inzeratWord(stats.total)} ${brandName}${fromPart}. Ojeté vozy ${brandName} od soukromých prodejců i autobazarů v ČR – ceny, fotografie a parametry na NNAuto.cz.`
     : `Aktuální nabídka ${brandName} na NNAuto – prémiovém marketplace automobilů v ČR.`;
   const canonical = `${SITE_ORIGIN}/auta/${encodeURIComponent(brand.toLowerCase())}`;
 

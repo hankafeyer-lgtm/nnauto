@@ -25,6 +25,7 @@ import {
   formatVehicleTitle,
 } from "@lib/seo/brand-format";
 import { normalizeSlug, slugVariants } from "@lib/seo/slug";
+import { inzeratWord, formatCzk } from "@lib/seo/czech-format";
 import {
   getFacetBySlug,
   isBrandFacetSlug,
@@ -214,12 +215,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const modelName = formatModelDisplay(modelSlug);
   const total = await countModelListings(brandSlug, modelSlug);
 
+  // Fetch the lowest price so the title/description can advertise "od X Kč"
+  // (a stronger click magnet in the SERP than a generic label).
+  const price = total >= MIN_INDEX
+    ? await priceRange(brandSlug, modelSlug)
+    : { min: null, max: null };
+  const fromPart =
+    price.min !== null && price.min > 0 ? ` od ${formatCzk(price.min)}` : "";
+
   const canonical = `${SITE_ORIGIN}/auta/${brandSlug}/${modelSlug}`;
   const title = total
-    ? `${brandName} ${modelName} na prodej | Ojeté ${brandName} ${modelName} | NNAuto`
+    ? `${brandName} ${modelName} na prodej – ${total} ${inzeratWord(total)}${fromPart} | NNAuto`
     : `${brandName} ${modelName} na prodej | NNAuto`;
   const description = total
-    ? `Prohlédněte si aktuální nabídku ${brandName} ${modelName} na NNAuto.cz. Ceny, fotografie, parametry a ověřené vozy.`
+    ? `Aktuálně ${total} ${inzeratWord(total)} ${brandName} ${modelName}${fromPart}. Ověřené ojeté vozy od soukromých prodejců i autobazarů v ČR – ceny, fotografie a parametry. Kontaktujte prodejce přímo.`
     : `Nabídka ${brandName} ${modelName} na NNAuto – online autobazar v České republice.`;
 
   const robots: Metadata["robots"] =

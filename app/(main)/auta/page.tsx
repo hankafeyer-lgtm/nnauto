@@ -136,6 +136,7 @@ export default async function AutaIndexPage({ searchParams }: Props) {
       <SeoHubLinks
         links={[
           { label: "Katalog inzerátů", href: "/listings" },
+          { label: "Prodat auto zdarma", href: "/prodat-auto" },
           ...listGlobalFacets()
             .slice(0, 10)
             .map((f) => ({
