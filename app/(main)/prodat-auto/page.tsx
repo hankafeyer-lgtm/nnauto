@@ -131,6 +131,14 @@ const POPULAR_SELL_LINKS: { label: string; href: string }[] = [
   { label: "Prodej Peugeot", href: "/auta/peugeot" },
 ];
 
+const TOP_MODEL_SELL_LINKS: { label: string; href: string }[] = [
+  { label: "Prodat Renault Scenic", href: "/prodat-auto/renault-scenic" },
+  { label: "Prodat Renault Megane", href: "/prodat-auto/renault-megane" },
+  { label: "Prodat Volkswagen Golf GTI", href: "/prodat-auto/volkswagen-golf-gti" },
+  { label: "Prodat Škoda Superb", href: "/prodat-auto/skoda-superb" },
+  { label: "Prodat SEAT Leon", href: "/prodat-auto/seat-leon" },
+];
+
 export default async function ProdatAutoPage() {
   const activeCount = await countActiveListings();
 
@@ -277,6 +285,24 @@ export default async function ProdatAutoPage() {
         </section>
 
         {/* Internal links */}
+        <section aria-labelledby="prodej-modely" className="mb-10">
+          <h2 id="prodej-modely" className="text-xl font-semibold mb-3">
+            Prodej auta podle modelu
+          </h2>
+          <ul className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+            {TOP_MODEL_SELL_LINKS.map((l) => (
+              <li key={l.href}>
+                <a
+                  href={l.href}
+                  className="text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  {l.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section aria-labelledby="prodej-znacky" className="mb-10">
           <h2 id="prodej-znacky" className="text-xl font-semibold mb-3">
             Prodej auta podle značky

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "@/lib/translations";
 import { Link } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
@@ -38,7 +38,6 @@ export default function CookieConsentBanner() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
-  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const current = getConsent();
@@ -56,26 +55,6 @@ export default function CookieConsentBanner() {
     window.addEventListener(OPEN_SETTINGS_EVENT, openHandler);
     return () => window.removeEventListener(OPEN_SETTINGS_EVENT, openHandler);
   }, []);
-
-  // While the banner is on screen, reserve space at the bottom of the page so
-  // the fixed banner never covers page content (e.g. the privacy policy).
-  const bannerActive = !decided && !settingsOpen;
-  useEffect(() => {
-    if (!bannerActive) {
-      document.body.style.paddingBottom = "";
-      return;
-    }
-    const apply = () => {
-      const h = bannerRef.current?.offsetHeight ?? 0;
-      document.body.style.paddingBottom = h ? `${h + 16}px` : "";
-    };
-    apply();
-    window.addEventListener("resize", apply);
-    return () => {
-      window.removeEventListener("resize", apply);
-      document.body.style.paddingBottom = "";
-    };
-  }, [bannerActive]);
 
   const acceptAll = () => {
     saveConsent({ analytics: true, marketing: true });
@@ -99,7 +78,6 @@ export default function CookieConsentBanner() {
     <>
       {showBanner ? (
         <div
-          ref={bannerRef}
           className="fixed inset-x-0 bottom-0 z-[120] p-3 sm:p-4"
           role="dialog"
           aria-label={t("cookie.title")}

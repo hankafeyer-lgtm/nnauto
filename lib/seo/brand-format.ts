@@ -102,6 +102,9 @@ const MODEL_CANONICAL: Record<string, string> = {
   felicia: "Felicia",
   passat: "Passat",
   golf: "Golf",
+  "golf-gti": "Golf GTI",
+  "golf-gtd": "Golf GTD",
+  "golf-r": "Golf R",
   polo: "Polo",
   jetta: "Jetta",
   tiguan: "Tiguan",
@@ -183,6 +186,10 @@ export function formatModelDisplay(raw: string | null | undefined): string {
     .split(/[-\s]+/)
     .filter(Boolean)
     .map((part) => {
+      // Popular trim abbreviations should stay uppercase in snippets.
+      if (/^(gti|gtd|gtr|rs|rsq|amg|m|m-sport|st|sti|opc|cupra|fr|r-line)$/.test(part)) {
+        return part.toUpperCase();
+      }
       // Tokens like "rs6", "m3", "a4", "x5" are usually all-uppercase.
       if (/^[a-z]{1,2}\d+$/.test(part)) return part.toUpperCase();
       return part.charAt(0).toUpperCase() + part.slice(1);

@@ -456,6 +456,12 @@ export default async function BrandModelLandingPage({ params }: Props) {
           Všechny modely {brandName}
         </a>
         <a
+          href={`/prodat-auto/${brandSlug}-${modelSlug}`}
+          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
+        >
+          Prodat {brandName} {modelName}
+        </a>
+        <a
           href="/listings"
           className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
         >

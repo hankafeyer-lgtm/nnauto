@@ -163,6 +163,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       return path.split("/").every((seg, i) => i === 0 || seg.length > 0);
     });
 
+  const sellerModelPages: MetadataRoute.Sitemap = modelRows
+    .filter((row) => !!row.brand && !!row.model)
+    .map((row) => {
+      const brandSlug = normalizeSlug(String(row.brand));
+      const modelSlug = normalizeSlug(String(row.model));
+      return {
+        url: `${SITE_ORIGIN}/prodat-auto/${brandSlug}-${modelSlug}`,
+        lastModified: row.lastUpdate ? new Date(row.lastUpdate) : new Date(),
+        changeFrequency: "weekly" as const,
+        priority: 0.6,
+      };
+    })
+    .filter((entry) => {
+      const path = entry.url.replace(SITE_ORIGIN, "");
+      return path.split("/").every((seg, i) => i === 0 || seg.length > 0);
+    });
+
   const facetPages: MetadataRoute.Sitemap = (
     await queryIndexableFacetUrls(MIN_MODEL_LISTINGS_FOR_SITEMAP)
   ).map((entry) => ({
@@ -177,6 +194,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...facetPages,
     ...brandPages,
     ...modelPages,
+    ...sellerModelPages,
     ...listingPages,
   ]);
 }
