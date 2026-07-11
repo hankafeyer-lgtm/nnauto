@@ -237,9 +237,16 @@ export async function runFeedSync(ctx: FeedDealerCtx, feedUrl: string): Promise<
     summary.coverage = coverage;
     summary.warnings = warnings;
 
-    // Current listing count for limit enforcement.
+    // Deleted dealer listings still consume package slots, so removing a car
+    // cannot be used to bypass the paid package limit.
     const countRes = (await db.execute(sql`
-      SELECT COUNT(*)::int AS total FROM listings WHERE user_id = ${ctx.userId}
+      SELECT
+        (
+          SELECT COUNT(*)::int FROM listings WHERE user_id = ${ctx.userId}
+        ) +
+        (
+          SELECT COUNT(*)::int FROM deleted_listings WHERE user_id = ${ctx.userId}
+        ) AS total
     `)) as any;
     let currentCount = countRes?.rows?.[0]?.total || 0;
 
@@ -425,7 +432,7 @@ export async function syncAllFeeds(): Promise<
         dealerId: feed.dealerId,
         region: dealer.region,
         phone: dealer.phone,
-        maxListings: dealer.maxListings,
+        maxListings: activePackage.maxListings,
       };
       const summary = await runFeedSync(ctx, feed.feedUrl);
       results.push({ dealerId: feed.dealerId, ok: true, detail: summary });

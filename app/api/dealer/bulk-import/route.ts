@@ -3,23 +3,21 @@ import { json, error } from "@lib/api-helpers";
 import { requireDealer } from "@lib/auth";
 import { db } from "@lib/db";
 import {
-  dealers,
   listings,
   bulkImportJobs,
   insertListingSchema,
 } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import {
+  assertDealerCanCreateListings,
+  isDealerPackageLimitReachedError,
   isDealerPackageRequiredError,
-  requireActiveDealerPackage,
 } from "@lib/dealerPackages";
 
 export async function POST(req: NextRequest) {
   try {
     const user = await requireDealer();
     if (!user.dealerId) return error("Dealer not found", 404);
-
-    await requireActiveDealerPackage(user.dealerId, { isAdmin: user.isAdmin });
 
     const body = await req.json();
     const { listings: listingsData, fileName } = body;
@@ -31,23 +29,12 @@ export async function POST(req: NextRequest) {
       return error("Maximum 50 listings per import", 400);
     }
 
-    const countResult = (await db.execute(sql`
-      SELECT COUNT(*)::int AS total FROM listings WHERE user_id = ${user.id}
-    `)) as any;
-    const currentCount = countResult?.rows?.[0]?.total || 0;
-
-    const [dealer] = await db
-      .select()
-      .from(dealers)
-      .where(eq(dealers.id, user.dealerId));
-    if (!dealer) return error("Dealer not found", 404);
-
-    if (currentCount + listingsData.length > dealer.maxListings) {
-      return error(
-        `Exceeds listing limit. Current: ${currentCount}, Importing: ${listingsData.length}, Max: ${dealer.maxListings}`,
-        400,
-      );
-    }
+    await assertDealerCanCreateListings({
+      dealerId: user.dealerId,
+      userId: user.id,
+      requested: listingsData.length,
+      isAdmin: user.isAdmin,
+    });
 
     const [job] = await db
       .insert(bulkImportJobs)
@@ -115,6 +102,12 @@ export async function POST(req: NextRequest) {
       return error(
         "Pro import vozidel je nutné aktivní balíček START, BUSINESS nebo PRO.",
         402,
+      );
+    }
+    if (isDealerPackageLimitReachedError(e)) {
+      return error(
+        `Limit balíčku je vyčerpán. Využito: ${e.used}, importujete: ${e.requested}, maximum: ${e.max}.`,
+        403,
       );
     }
     return error(msg, 500);

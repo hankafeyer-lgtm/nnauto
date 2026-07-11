@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { db } from "@lib/db";
 import { listings, updateListingSchema, type Listing } from "@shared/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { storage } from "@lib/storage";
 import { getApiDealer, type ApiDealerCtx } from "@lib/apiAuth";
 import { dispatchVehicleWebhook } from "@lib/webhooks";
@@ -88,6 +88,10 @@ export async function DELETE(req: NextRequest, context: RouteContext) {
   const listing = await resolveOwnedListing(ctx, id);
   if (!listing) return error("Vehicle not found", 404);
 
+  await db.execute(sql`
+    INSERT INTO deleted_listings (listing_id, user_id, deleted_by, brand, model, title, year, price, photo)
+    VALUES (${listing.id}, ${listing.userId}, ${ctx.userId}, ${listing.brand}, ${listing.model}, ${listing.title}, ${listing.year}, ${listing.price}, ${listing.photos?.[0] || null})
+  `);
   const ok = await storage.deleteListing(listing.id);
   if (!ok) return error("Vehicle not found", 404);
   await dispatchVehicleWebhook({

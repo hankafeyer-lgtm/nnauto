@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireDealer } from "@lib/auth";
 import { storage } from "@lib/storage";
+import { db } from "@lib/db";
+import { sql } from "drizzle-orm";
 import { invalidateListingsCache } from "../../../listings/route";
 import { dispatchVehicleWebhook } from "@lib/webhooks";
 
@@ -84,6 +86,10 @@ export async function POST(req: NextRequest) {
       }
 
       if (action === "delete") {
+        await db.execute(sql`
+          INSERT INTO deleted_listings (listing_id, user_id, deleted_by, brand, model, title, year, price, photo)
+          VALUES (${id}, ${listing.userId}, ${user.id}, ${listing.brand}, ${listing.model}, ${listing.title}, ${listing.year}, ${listing.price}, ${listing.photos?.[0] || null})
+        `);
         const ok = await storage.deleteListing(id);
         if (ok) {
           await dispatchVehicleWebhook({

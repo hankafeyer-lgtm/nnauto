@@ -2,7 +2,7 @@ import Stripe from "stripe";
 import { db } from "@lib/db";
 import { ensureDealerInvoiceForPackageCheckout } from "@lib/dealerInvoice";
 import { dealerPackageSubscriptions, dealers } from "@shared/schema";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 export const DEALER_PACKAGES = {
   start: {
@@ -261,6 +261,7 @@ export async function getLatestDealerPackageSubscription(dealerId: string) {
 }
 
 export const DEALER_PACKAGE_REQUIRED_CODE = "dealer_package_required";
+export const DEALER_PACKAGE_LIMIT_REACHED_CODE = "dealer_package_limit_reached";
 
 export class DealerPackageRequiredError extends Error {
   readonly code = DEALER_PACKAGE_REQUIRED_CODE;
@@ -271,7 +272,36 @@ export class DealerPackageRequiredError extends Error {
   }
 }
 
-/** Import (CSV/XML/API) requires an active START / BUSINESS / PRO subscription. */
+export class DealerPackageLimitReachedError extends Error {
+  readonly code = DEALER_PACKAGE_LIMIT_REACHED_CODE;
+  readonly used: number;
+  readonly max: number;
+  readonly requested: number;
+
+  constructor(args: { used: number; max: number; requested?: number }) {
+    super(DEALER_PACKAGE_LIMIT_REACHED_CODE);
+    this.name = "DealerPackageLimitReachedError";
+    this.used = args.used;
+    this.max = args.max;
+    this.requested = args.requested ?? 1;
+  }
+}
+
+export async function countDealerUsedListingSlots(userId: string): Promise<number> {
+  const result = (await db.execute(sql`
+    SELECT
+      (
+        SELECT COUNT(*)::int FROM listings WHERE user_id = ${userId}
+      ) +
+      (
+        SELECT COUNT(*)::int FROM deleted_listings WHERE user_id = ${userId}
+      ) AS total
+  `)) as { rows?: Array<{ total?: number | string | null }> };
+  const raw = result?.rows?.[0]?.total ?? 0;
+  return typeof raw === "number" ? raw : Number(raw) || 0;
+}
+
+/** Import/add/API actions require an active START / BUSINESS / PRO subscription. */
 export async function requireActiveDealerPackage(
   dealerId: string,
   opts?: { isAdmin?: boolean },
@@ -280,6 +310,37 @@ export async function requireActiveDealerPackage(
   const sub = await getActiveDealerPackageSubscription(dealerId);
   if (!sub) throw new DealerPackageRequiredError();
   return sub;
+}
+
+export async function assertDealerCanCreateListings(args: {
+  dealerId: string;
+  userId: string;
+  requested?: number;
+  isAdmin?: boolean;
+}) {
+  if (args.isAdmin) {
+    return {
+      subscription: null,
+      used: 0,
+      max: DEALER_PACKAGES.pro.cars,
+      remaining: DEALER_PACKAGES.pro.cars,
+    };
+  }
+
+  const subscription = await requireActiveDealerPackage(args.dealerId);
+  const used = await countDealerUsedListingSlots(args.userId);
+  const max = subscription.maxListings;
+  const requested = Math.max(1, args.requested ?? 1);
+  if (used + requested > max) {
+    throw new DealerPackageLimitReachedError({ used, max, requested });
+  }
+
+  return {
+    subscription,
+    used,
+    max,
+    remaining: Math.max(0, max - used),
+  };
 }
 
 export function getAdminDealerPackageBypass() {
@@ -300,5 +361,14 @@ export function isDealerPackageRequiredError(error: unknown): boolean {
   return (
     error instanceof DealerPackageRequiredError ||
     (error instanceof Error && error.message === DEALER_PACKAGE_REQUIRED_CODE)
+  );
+}
+
+export function isDealerPackageLimitReachedError(
+  error: unknown,
+): error is DealerPackageLimitReachedError {
+  return (
+    error instanceof DealerPackageLimitReachedError ||
+    (error instanceof Error && error.message === DEALER_PACKAGE_LIMIT_REACHED_CODE)
   );
 }

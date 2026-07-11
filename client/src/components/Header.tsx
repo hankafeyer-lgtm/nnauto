@@ -33,7 +33,7 @@ import {
   Building2,
   MessageCircle,
 } from "lucide-react";
-import { useState, useEffect, useMemo, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, lazy, Suspense, type MouseEvent } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "@/lib/translations";
 import { useAuth } from "@/hooks/useAuth";
@@ -62,6 +62,12 @@ type SearchSuggestion = {
   value: string;
   brand?: string;
   score: number;
+};
+
+type DealerPackageStatus = {
+  isDealer: boolean;
+  active: boolean;
+  limitReached?: boolean;
 };
 
 const normalizeSearchText = (value: string) =>
@@ -220,8 +226,36 @@ function HeaderContent({
     refetchOnMount: false,
   });
 
+  const { data: dealerPackageStatus } = useQuery<DealerPackageStatus>({
+    queryKey: ["/api/dealer/package-status"],
+    enabled: !!user?.isDealer,
+    staleTime: 60_000,
+    refetchOnMount: false,
+  });
+
   const baseListingsCount = listingsCountData?.pagination?.total ?? 0;
   const totalListingsCount = baseListingsCount > 0 ? baseListingsCount + 98 : 0;
+
+  const openAddListing = (event?: MouseEvent<HTMLElement>) => {
+    event?.preventDefault();
+    if (user?.isDealer && dealerPackageStatus && !dealerPackageStatus.active) {
+      toast({
+        title: "Nejdříve aktivujte balíček",
+        description: "Dealer může přidávat a importovat auta až po úspěšné platbě balíčku.",
+      });
+      navigate("/dealer?tab=billing");
+      return;
+    }
+    if (user?.isDealer && dealerPackageStatus?.limitReached) {
+      toast({
+        title: "Limit balíčku je vyčerpán",
+        description: "Pro další auta aktivujte nový nebo vyšší balíček.",
+      });
+      navigate("/dealer?tab=billing");
+      return;
+    }
+    navigate("/add-listing");
+  };
 
   const suggestions = useMemo(() => {
     const trimmedQuery = searchQuery.trim();
@@ -612,8 +646,9 @@ function HeaderContent({
                 compactMobile ? "h-9 rounded-xl" : ""
               }`}
             >
-              <a
-                href="/add-listing"
+              <button
+                type="button"
+                onClick={openAddListing}
                 data-testid="button-open-add-listing"
                 className="inline-flex min-w-0 items-center gap-1"
               >
@@ -623,7 +658,7 @@ function HeaderContent({
                 }`}>
                   {t("header.addListing")}
                 </span>
-              </a>
+              </button>
             </Button>
             <Button
               variant="outline"
@@ -751,14 +786,15 @@ function HeaderContent({
                   <span>{t("header.menu.newCars")}</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link
-                    href="/add-listing"
+                  <button
+                    type="button"
+                    onClick={openAddListing}
                     className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border cursor-pointer flex items-center"
                     data-testid="menu-item-add-listing"
                   >
                     <Plus className="mr-3 h-5 w-5" />
                     <span>{t("header.menu.addListing")}</span>
-                  </Link>
+                  </button>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-2" />
                 {!isAuthenticated ? (

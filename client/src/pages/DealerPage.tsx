@@ -172,19 +172,20 @@ type DealerPackageSubscription = {
   cancelAtPeriodEnd?: boolean;
 };
 
+type DealerPackageStatus = {
+  isDealer: boolean;
+  active: boolean;
+  usedListings?: number;
+  maxListings?: number | null;
+  remainingListings?: number | null;
+  limitReached?: boolean;
+};
+
 const IMPORT_VEHICLE_PACKAGES = [
   { id: "start", nameKey: "dealer.billing.packageStart", cars: 150, priceKc: 3000 },
   { id: "business", nameKey: "dealer.billing.packageBusiness", cars: 350, priceKc: 4500, popular: true },
   { id: "pro", nameKey: "dealer.billing.packagePro", cars: 750, priceKc: 6000 },
 ] as const;
-
-function dealerHasImportPackage(
-  pkg: DealerPackageSubscription | null | undefined,
-  isAdmin?: boolean,
-): boolean {
-  if (isAdmin) return true;
-  return Boolean(pkg?.packageId);
-}
 
 function formatPackageKc(amount: number): string {
   return `${amount.toLocaleString("cs-CZ")} Kč`;
@@ -7664,6 +7665,15 @@ export default function DealerPage() {
   const stats = statsData?.stats as DealerStats | undefined;
   const dealer = statsData?.dealer as Dealer | undefined;
   const dealerPackage = (statsData?.dealerPackage ?? null) as DealerPackageSubscription | null;
+  const { data: packageStatus } = useQuery<DealerPackageStatus>({
+    queryKey: ["/api/dealer/package-status"],
+    enabled: !!user?.isDealer,
+    staleTime: 60_000,
+  });
+  const hasActiveDealerPackage =
+    !!user?.isAdmin || Boolean(dealerPackage?.packageId || packageStatus?.active);
+  const usedDealerListingSlots =
+    packageStatus?.usedListings ?? stats?.totalListings ?? 0;
   const openSettingsTarget = useCallback((target: SettingsTarget) => {
     setActiveTab("settings");
     setSettingsTarget(target);
@@ -7841,7 +7851,7 @@ export default function DealerPage() {
                 onAddVehicle={openAddVehicleDialog}
                 sub={importSub}
                 onSubChange={setImportSub}
-                hasActivePackage={dealerHasImportPackage(dealerPackage, user?.isAdmin)}
+                hasActivePackage={hasActiveDealerPackage}
                 onOpenBilling={() => setActiveTab("billing")}
               />
             </TabsContent>
@@ -7852,7 +7862,7 @@ export default function DealerPage() {
                 onAddVehicle={openAddVehicleDialog}
                 sub={importSub === "csv" ? "xml" : importSub}
                 onSubChange={setImportSub}
-                hasActivePackage={dealerHasImportPackage(dealerPackage, user?.isAdmin)}
+                hasActivePackage={hasActiveDealerPackage}
                 onOpenBilling={() => setActiveTab("billing")}
               />
             </TabsContent>
@@ -7874,7 +7884,7 @@ export default function DealerPage() {
                 dealer={dealer}
                 t={t}
                 dealerPackage={dealerPackage}
-                currentListings={stats?.totalListings ?? 0}
+                currentListings={usedDealerListingSlots}
                 isAdmin={user?.isAdmin}
               />
             </TabsContent>
@@ -7908,51 +7918,63 @@ export default function DealerPage() {
           />
           <Dialog open={addVehicleDialogOpen} onOpenChange={setAddVehicleDialogOpen}>
             <DialogContent className="w-[calc(100vw-1.5rem)] rounded-3xl border-amber-100 p-4 shadow-[0_24px_80px_rgba(120,72,12,0.18)] sm:max-w-xl sm:p-6">
-              <DialogHeader>
-                <DialogTitle>{t("dealer.addVehicle.title")}</DialogTitle>
-                <DialogDescription>{t("dealer.addVehicle.description")}</DialogDescription>
-              </DialogHeader>
+              {hasActiveDealerPackage ? (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>{t("dealer.addVehicle.title")}</DialogTitle>
+                    <DialogDescription>{t("dealer.addVehicle.description")}</DialogDescription>
+                  </DialogHeader>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => chooseAddVehicleFlow("single")}
-                  className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99] ${
-                    addVehiclePreference === "single" ? "border-amber-400 bg-amber-50 shadow-sm" : "bg-white"
-                  }`}
-                >
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
-                    <Plus className="h-6 w-6" />
-                  </div>
-                  <p className="text-lg font-black">{t("dealer.addVehicle.singleTitle")}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{t("dealer.addVehicle.singleDescription")}</p>
-                  <span className="mt-4 inline-flex items-center text-sm font-bold text-amber-700">
-                    {t("dealer.addVehicle.continue")}
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </span>
-                </button>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => chooseAddVehicleFlow("single")}
+                      className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99] ${
+                        addVehiclePreference === "single" ? "border-amber-400 bg-amber-50 shadow-sm" : "bg-white"
+                      }`}
+                    >
+                      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+                        <Plus className="h-6 w-6" />
+                      </div>
+                      <p className="text-lg font-black">{t("dealer.addVehicle.singleTitle")}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{t("dealer.addVehicle.singleDescription")}</p>
+                      <span className="mt-4 inline-flex items-center text-sm font-bold text-amber-700">
+                        {t("dealer.addVehicle.continue")}
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </span>
+                    </button>
 
-                <button
-                  type="button"
-                  onClick={() => chooseAddVehicleFlow("bulk")}
-                  className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99] ${
-                    addVehiclePreference === "bulk" ? "border-amber-400 bg-amber-50 shadow-sm" : "bg-white"
-                  }`}
-                >
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
-                    <Upload className="h-6 w-6" />
+                    <button
+                      type="button"
+                      onClick={() => chooseAddVehicleFlow("bulk")}
+                      className={`rounded-3xl border p-4 text-left transition hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 active:scale-[0.99] ${
+                        addVehiclePreference === "bulk" ? "border-amber-400 bg-amber-50 shadow-sm" : "bg-white"
+                      }`}
+                    >
+                      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-800">
+                        <Upload className="h-6 w-6" />
+                      </div>
+                      <div className="mb-1 flex items-center gap-2">
+                        <p className="text-lg font-black">{t("dealer.addVehicle.bulkTitle")}</p>
+                        <Badge className="bg-amber-700 text-white hover:bg-amber-700">CSV/XML</Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{t("dealer.addVehicle.bulkDescription")}</p>
+                      <span className="mt-4 inline-flex items-center text-sm font-bold text-amber-700">
+                        {t("dealer.addVehicle.continue")}
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </span>
+                    </button>
                   </div>
-                  <div className="mb-1 flex items-center gap-2">
-                    <p className="text-lg font-black">{t("dealer.addVehicle.bulkTitle")}</p>
-                    <Badge className="bg-amber-700 text-white hover:bg-amber-700">CSV/XML</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{t("dealer.addVehicle.bulkDescription")}</p>
-                  <span className="mt-4 inline-flex items-center text-sm font-bold text-amber-700">
-                    {t("dealer.addVehicle.continue")}
-                    <ChevronRight className="ml-1 h-4 w-4" />
-                  </span>
-                </button>
-              </div>
+                </>
+              ) : (
+                <DealerImportPackagePaywall
+                  t={t}
+                  onOpenBilling={() => {
+                    setAddVehicleDialogOpen(false);
+                    setActiveTab("billing");
+                  }}
+                />
+              )}
             </DialogContent>
           </Dialog>
           </div>

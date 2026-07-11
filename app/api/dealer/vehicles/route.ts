@@ -2,13 +2,14 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { db } from "@lib/db";
 import { listings, insertListingSchema, users } from "@shared/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { storage } from "@lib/storage";
 import { getApiDealer } from "@lib/apiAuth";
 import { dispatchVehicleWebhook } from "@lib/webhooks";
 import {
+  assertDealerCanCreateListings,
+  isDealerPackageLimitReachedError,
   isDealerPackageRequiredError,
-  requireActiveDealerPackage,
 } from "@lib/dealerPackages";
 
 export const dynamic = "force-dynamic";
@@ -93,26 +94,28 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Enforce the dealer's listing limit.
-  const countRes = (await db.execute(sql`
-    SELECT COUNT(*)::int AS total FROM listings WHERE user_id = ${ctx.userId}
-  `)) as any;
-  const currentCount = countRes?.rows?.[0]?.total || 0;
-  if (currentCount >= ctx.maxListings) {
-    return error(`Listing limit reached (${ctx.maxListings})`, 403);
-  }
-
   try {
     const [owner] = await db
       .select({ isAdmin: users.isAdmin })
       .from(users)
       .where(eq(users.id, ctx.userId));
-    await requireActiveDealerPackage(ctx.dealerId, { isAdmin: owner?.isAdmin });
+    await assertDealerCanCreateListings({
+      dealerId: ctx.dealerId,
+      userId: ctx.userId,
+      requested: 1,
+      isAdmin: owner?.isAdmin,
+    });
   } catch (e) {
     if (isDealerPackageRequiredError(e)) {
       return error(
         "Pro import vozidel je nutné aktivní balíček START, BUSINESS nebo PRO.",
         402,
+      );
+    }
+    if (isDealerPackageLimitReachedError(e)) {
+      return error(
+        `Limit balíčku je vyčerpán. Využito: ${e.used}, přidáváte: ${e.requested}, maximum: ${e.max}.`,
+        403,
       );
     }
     throw e;

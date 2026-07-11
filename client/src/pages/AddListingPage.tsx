@@ -5,7 +5,7 @@ import { insertListingSchema, type InsertListing } from "@shared/schema";
 import { carBrands, carModels } from "@shared/carDatabase";
 import { useTranslation, useLocalizedOptions, vehicleTypeBrands, getModelsForVehicleType } from "@/lib/translations";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useSearch } from "@/lib/navigation";
@@ -64,7 +64,7 @@ import { useModelGenerations } from "@/hooks/useModelGenerations";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import LoginModal from "@/components/LoginModal";
-import { Sparkles, Car, Package, Wrench, CircleDot, Zap, Bot, Activity, ArrowUp, ArrowDown, Grid3x3, Compass, Key, MapPin, Building2, ShieldCheck, Search, Camera, ImagePlus, Crown, Check, Info, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { Sparkles, Car, Package, Wrench, CircleDot, Zap, Bot, Activity, ArrowUp, ArrowDown, Grid3x3, Compass, Key, MapPin, Building2, ShieldCheck, Search, Camera, ImagePlus, Crown, Check, Info, CheckCircle2, XCircle, AlertTriangle, CreditCard } from "lucide-react";
 import newCarIcon from "@assets/3AAF8DD0-3B6D-4DA3-8A1E-2858FCC004A1_1763451350424.png";
 import partsIcon from "@assets/62A9ABBD-0474-469C-8089-FA93C3E7C2B4_1763450942216.png";
 import usedCarIcon from "@assets/ABAF6CAB-50AC-450D-8FE8-342C0DF354D6_1763451176037.png";
@@ -140,6 +140,14 @@ type CzLocationSuggestion = {
 
 type CzLocationAutocompleteResponse = {
   items: CzLocationSuggestion[];
+};
+
+type DealerPackageStatus = {
+  isDealer: boolean;
+  active: boolean;
+  usedListings?: number;
+  maxListings?: number | null;
+  limitReached?: boolean;
 };
 
 const normalizeLookup = (value: string): string =>
@@ -393,6 +401,16 @@ export default function AddListingPage() {
   const [, setLocation] = useLocation();
   const searchString = useSearch();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { data: dealerPackageStatus, isLoading: dealerPackageStatusLoading } =
+    useQuery<DealerPackageStatus>({
+      queryKey: ["/api/dealer/package-status"],
+      enabled: !!user?.isDealer,
+      queryFn: async () => {
+        const res = await apiRequest("GET", "/api/dealer/package-status");
+        return res.json();
+      },
+      staleTime: 60_000,
+    });
   const [photos, setPhotos] = useState<string[]>([]);
   const [video, setVideo] = useState<string | null>(null);
   const [ownersFilterType, setOwnersFilterType] = useState<'1' | '2' | 'custom' | ''>('');
@@ -1395,6 +1413,53 @@ export default function AddListingPage() {
           onOpenChange={setGuestAuthModalOpen}
           initialTab="register"
         />
+      </div>
+    );
+  }
+
+  if (user.isDealer && dealerPackageStatusLoading) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="text-lg">{t("common.loading") || "Načítání..."}</div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (user.isDealer && dealerPackageStatus && (!dealerPackageStatus.active || dealerPackageStatus.limitReached)) {
+    const limitReached = !!dealerPackageStatus.limitReached;
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Header />
+        <main className="flex-1 bg-gradient-to-b from-amber-50/60 to-background px-4 py-12">
+          <Card className="mx-auto max-w-2xl rounded-3xl border-amber-200 shadow-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Crown className="h-6 w-6 text-amber-700" />
+                {limitReached ? "Limit balíčku je vyčerpán" : "Aktivujte dealerský balíček"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground">
+                {limitReached
+                  ? `Využito: ${dealerPackageStatus.usedListings ?? 0} / ${dealerPackageStatus.maxListings ?? 0} vozidel. Pro další auta aktivujte nový nebo vyšší balíček.`
+                  : "Dealer může přidávat nebo importovat auta až po úspěšné platbě balíčku START, BUSINESS nebo PRO."}
+              </p>
+              <Button
+                type="button"
+                className="h-12 rounded-2xl bg-amber-700 px-6 font-bold hover:bg-amber-800"
+                onClick={() => setLocation("/dealer?tab=billing")}
+              >
+                <CreditCard className="mr-2 h-4 w-4" />
+                Vybrat balíček a zaplatit
+              </Button>
+            </CardContent>
+          </Card>
+        </main>
+        <Footer />
       </div>
     );
   }
