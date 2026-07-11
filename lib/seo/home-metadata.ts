@@ -3,9 +3,9 @@ import { absoluteUrl } from "./site-url";
 import { resolveHomeCanonicalUrl } from "./canonical";
 
 const HOME_TITLE =
-  "NNAuto - Prémiový Marketplace Aut v ČR | Prodej a Nákup Vozidel";
+  "Online autobazar NNAuto | Ojetá auta na prodej v ČR";
 const HOME_DESCRIPTION =
-  "NNAuto – moderní online autobazar v ČR. Tisíce ověřených inzerátů osobních aut, motocyklů a nákladních vozidel. Filtrujte podle značky, modelu, ceny a regionu.";
+  "Ojetá auta na prodej v ČR na NNAuto.cz. Prohlédněte si aktuální inzeráty osobních aut, SUV, motocyklů a užitkových vozů. Filtrujte podle značky, modelu, ceny a regionu.";
 const HOME_OG_DESCRIPTION =
   "Najděte své vysněné auto na NNAuto. Osobní auta, motocykly i nákladní vozy. Ověření prodejci, pokročilé filtry a kontakt přímo s majitelem inzerátu.";
 
@@ -20,7 +20,7 @@ export function buildHomePageMetadata(
     title: HOME_TITLE,
     description: HOME_DESCRIPTION,
     openGraph: {
-      title: "NNAuto - Prémiový Marketplace Aut v České Republice",
+      title: HOME_TITLE,
       description: HOME_OG_DESCRIPTION,
       url: canonical,
       siteName: "NNAuto",
@@ -30,7 +30,7 @@ export function buildHomePageMetadata(
     },
     twitter: {
       card: "summary_large_image",
-      title: "NNAuto - Prémiový Marketplace Aut v České Republice",
+      title: HOME_TITLE,
       description: HOME_OG_DESCRIPTION,
       images: [absoluteUrl("/og-image.png")],
     },

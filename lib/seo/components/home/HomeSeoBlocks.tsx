@@ -15,6 +15,18 @@ const POPULAR_BRANDS = [
   "jeep",
 ];
 
+const PRIORITY_SEARCH_LINKS = [
+  { href: "/auta/renault/megane", label: "Renault Megane na prodej" },
+  { href: "/auta/renault/scenic", label: "Renault Scenic na prodej" },
+  { href: "/auta/skoda/kodiaq", label: "Škoda Kodiaq na prodej" },
+  { href: "/auta/skoda/octavia", label: "Škoda Octavia na prodej" },
+  { href: "/auta/volkswagen/golf-gti", label: "Golf GTI na prodej" },
+  { href: "/auta/mercedes-benz/c-class", label: "Mercedes C na prodej" },
+  { href: "/auta/suv", label: "SUV auta na prodej" },
+  { href: "/auta/automat", label: "Auta s automatem" },
+  { href: "/auta/diesel", label: "Diesel auta na prodej" },
+] as const;
+
 type TopModel = {
   brand: string | null;
   model: string | null;
@@ -178,6 +190,16 @@ export function HomeSeoBlocks({
           Nejčastěji hledané vozy
         </h3>
         <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {PRIORITY_SEARCH_LINKS.map((link) => (
+            <li key={link.href}>
+              <a
+                href={link.href}
+                className="text-muted-foreground hover:text-foreground hover:underline transition-colors"
+              >
+                {link.label}
+              </a>
+            </li>
+          ))}
           {topLinks.slice(0, 15).map((l) => (
             <li key={l.slug}>
               <a

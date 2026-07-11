@@ -10,20 +10,22 @@ import { normalizeSlug } from "./slug";
  */
 export const TOP_MODEL_SLUGS: readonly string[] = [
   "skoda-octavia",
+  "skoda-kodiaq",
+  "renault-megane",
+  "renault-scenic",
   "skoda-superb",
   "volkswagen-golf",
+  "volkswagen-golf-gti",
   "volkswagen-passat",
+  "mercedes-benz-c-class",
   "bmw-3-series",
   "bmw-5-series",
   "bmw-x5",
   "audi-a4",
   "audi-a6",
-  "mercedes-benz-c-class",
   "mercedes-benz-e-class",
   "ford-focus",
   "ford-mondeo",
-  "renault-megane",
-  "renault-scenic",
   "opel-insignia",
   "peugeot-508",
   "citroen-c5",
@@ -90,7 +92,7 @@ export function getTopModelLinks(): TopModelLink[] {
     return {
       slug,
       href: `/auta/${normalizeSlug(brandRaw)}/${normalizeSlug(modelRaw)}`,
-      label: `${brandDisplay} ${modelDisplay}`,
+      label: `${brandDisplay} ${modelDisplay} na prodej`,
     };
   });
 }

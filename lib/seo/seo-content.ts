@@ -43,6 +43,91 @@ function formatPrice(n: number): string {
   return n.toLocaleString("cs-CZ");
 }
 
+type PriorityModelSeo = {
+  titleKeyword: string;
+  searchPhrase: string;
+  descriptionLead: string;
+  introLead: string;
+  faqQuestion?: string;
+};
+
+const PRIORITY_MODEL_SEO: Record<string, PriorityModelSeo> = {
+  "renault-megane": {
+    titleKeyword: "Renault Megane na prodej",
+    searchPhrase: "renault megane prodej",
+    descriptionLead:
+      "Aktuální nabídka vozů Renault Megane na prodej v ČR.",
+    introLead:
+      "Hledáte Renault Megane na prodej? Na NNAuto.cz porovnáte aktuální inzeráty Renault Megane z celé České republiky podle ceny, roku výroby, nájezdu, paliva a regionu prodejce.",
+    faqQuestion: "Kde koupit Renault Megane na prodej?",
+  },
+  "renault-scenic": {
+    titleKeyword: "Renault Scenic na prodej",
+    searchPhrase: "renault scenic prodej",
+    descriptionLead:
+      "Aktuální nabídka vozů Renault Scenic na prodej v ČR.",
+    introLead:
+      "Hledáte Renault Scenic na prodej? Na NNAuto.cz najdete rodinné vozy Renault Scenic od soukromých prodejců i autobazarů, včetně cen, fotografií a parametrů konkrétních inzerátů.",
+    faqQuestion: "Kde najít Renault Scenic na prodej?",
+  },
+  "skoda-kodiaq": {
+    titleKeyword: "Škoda Kodiaq na prodej",
+    searchPhrase: "skoda kodiaq prodej",
+    descriptionLead:
+      "Aktuální nabídka SUV Škoda Kodiaq na prodej v ČR.",
+    introLead:
+      "Hledáte Škoda Kodiaq na prodej? NNAuto.cz soustředí aktuální inzeráty oblíbeného rodinného SUV Škoda Kodiaq s možností porovnání ceny, ročníku, nájezdu a výbavy.",
+    faqQuestion: "Kde koupit Škoda Kodiaq na prodej?",
+  },
+  "skoda-octavia": {
+    titleKeyword: "Škoda Octavia na prodej",
+    searchPhrase: "octavia skoda prodej",
+    descriptionLead:
+      "Aktuální nabídka vozů Škoda Octavia na prodej v ČR.",
+    introLead:
+      "Hledáte Škoda Octavia na prodej? Na NNAuto.cz porovnáte nabídku modelu Škoda Octavia podle ceny, karoserie, motorizace, nájezdu a regionu prodejce.",
+    faqQuestion: "Kde najít Škoda Octavia na prodej?",
+  },
+  "volkswagen-golf": {
+    titleKeyword: "Volkswagen Golf na prodej",
+    searchPhrase: "volkswagen golf prodej",
+    descriptionLead:
+      "Aktuální nabídka vozů Volkswagen Golf na prodej v ČR.",
+    introLead:
+      "Hledáte Volkswagen Golf na prodej? Na NNAuto.cz najdete aktuální inzeráty modelu Volkswagen Golf, včetně benzínových, dieselových i sportovních variant podle dostupné nabídky.",
+    faqQuestion: "Kde koupit Volkswagen Golf na prodej?",
+  },
+  "volkswagen-golf-gti": {
+    titleKeyword: "Golf GTI na prodej",
+    searchPhrase: "golf gti na prodej",
+    descriptionLead:
+      "Aktuální nabídka vozů Volkswagen Golf GTI na prodej v ČR.",
+    introLead:
+      "Hledáte Golf GTI na prodej? NNAuto.cz pomáhá porovnat sportovní verze Volkswagen Golf GTI podle roku výroby, výkonu, nájezdu, ceny a technického stavu.",
+    faqQuestion: "Kde najít Golf GTI na prodej?",
+  },
+  "mercedes-benz-c-class": {
+    titleKeyword: "Mercedes C na prodej",
+    searchPhrase: "mercedes c prodej",
+    descriptionLead:
+      "Aktuální nabídka vozů Mercedes-Benz třídy C na prodej v ČR.",
+    introLead:
+      "Hledáte Mercedes C na prodej? Na NNAuto.cz najdete vozy Mercedes-Benz třídy C od dealerů i soukromých prodejců s přehledem cen, ročníků, nájezdu a výbavy.",
+    faqQuestion: "Kde koupit Mercedes C na prodej?",
+  },
+};
+
+function priorityModelKey(brandSlug: string, modelSlug: string): string {
+  return `${normalizeSlug(brandSlug)}-${normalizeSlug(modelSlug)}`;
+}
+
+export function getPriorityModelSeo(
+  brandSlug: string,
+  modelSlug: string,
+): PriorityModelSeo | null {
+  return PRIORITY_MODEL_SEO[priorityModelKey(brandSlug, modelSlug)] ?? null;
+}
+
 function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
@@ -171,9 +256,11 @@ export function buildModelSeoIntro(
   const brand = formatBrandDisplay(brandSlug);
   const model = formatModelDisplay(modelSlug);
   const paragraphs: string[] = [];
+  const priority = getPriorityModelSeo(brandSlug, modelSlug);
 
   paragraphs.push(
-    `Model ${brand} ${model} patří mezi často hledané vozy na českém trhu ojetin. Na NNAuto.cz najdete přehled aktuálních inzerátů s fotografiemi, cenami a technickými parametry – kontaktujete prodejce přímo, bez mezičlánků.`,
+    priority?.introLead ??
+      `Model ${brand} ${model} patří mezi často hledané vozy na českém trhu ojetin. Na NNAuto.cz najdete přehled aktuálních inzerátů s fotografiemi, cenami a technickými parametry – kontaktujete prodejce přímo, bez mezičlánků.`,
   );
 
   if (stats.total > 0) {
@@ -255,7 +342,8 @@ export function buildModelFaq(
       ? `V nabídce jsou motorizace: ${stats.fuels.map((f) => fuelLabel(f.name)).join(", ")}. Dostupnost konkrétní varianty závisí na aktuálních inzerátech.`
       : `Dostupné motorizace ${brand} ${model} se mění podle inzerátů v katalogu. Podívejte se na filtr paliva ve výpisu vozů.`;
 
-  return [
+  const priority = getPriorityModelSeo(brandSlug, modelSlug);
+  const items: FaqItem[] = [
     { question: `Kolik stojí ${brand} ${model}?`, answer: priceAnswer },
     {
       question: `Jaké motorizace ${brand} ${model} jsou dostupné?`,
@@ -270,6 +358,15 @@ export function buildModelFaq(
       answer: `Kontrolujte servisní historii, stav motoru a převodovky, podvozek a interiér. U vyššího nájezdu ověřte poslední větší servisní úkony. Zkušební jízda a prověření VIN kódu vám pomohou vyhnout se nečekaným nákladům.`,
     },
   ];
+
+  if (priority?.faqQuestion) {
+    items.unshift({
+      question: priority.faqQuestion,
+      answer: `${priority.titleKeyword} najdete na NNAuto.cz v aktuálních inzerátech z celé České republiky. Nabídku můžete filtrovat podle ceny, roku, nájezdu, paliva, převodovky a regionu prodejce.`,
+    });
+  }
+
+  return items;
 }
 
 export const SIMILAR_BRAND_SLUGS = [

@@ -12,6 +12,17 @@ const POPULAR_BRANDS = [
   "jeep",
 ];
 
+const PRIORITY_MODEL_LINKS = [
+  { href: "/auta/renault/megane", label: "Renault Megane na prodej" },
+  { href: "/auta/renault/scenic", label: "Renault Scenic na prodej" },
+  { href: "/auta/skoda/kodiaq", label: "Škoda Kodiaq na prodej" },
+  { href: "/auta/skoda/octavia", label: "Škoda Octavia na prodej" },
+  { href: "/auta/volkswagen/golf-gti", label: "Golf GTI na prodej" },
+  { href: "/auta/mercedes-benz/c-class", label: "Mercedes C na prodej" },
+  { href: "/auta/suv", label: "SUV auta na prodej" },
+  { href: "/auta/automat", label: "Auta s automatem" },
+] as const;
+
 export function ListingsSeoFooter() {
   if (!isSeoTextsEnabled()) return null;
 
@@ -35,6 +46,30 @@ export function ListingsSeoFooter() {
                 className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
               >
                 {formatBrandDisplay(slug)}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section
+        aria-labelledby="listings-seo-priority"
+        className="container mx-auto max-w-6xl px-4 pb-8"
+      >
+        <h2
+          id="listings-seo-priority"
+          className="text-lg font-semibold mb-3"
+        >
+          Nejhledanější ojetá auta
+        </h2>
+        <ul className="flex flex-wrap gap-2">
+          {PRIORITY_MODEL_LINKS.map((link) => (
+            <li key={link.href}>
+              <a
+                href={link.href}
+                className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
+              >
+                {link.label}
               </a>
             </li>
           ))}

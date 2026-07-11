@@ -16,6 +16,7 @@ import {
   buildModelSeoIntro,
   buildModelWatchOut,
   buildModelWhyBuy,
+  getPriorityModelSeo,
   getSimilarModelLinks,
   getSimilarPriceLink,
 } from "@lib/seo/seo-content";
@@ -224,12 +225,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     price.min !== null && price.min > 0 ? ` od ${formatCzk(price.min)}` : "";
 
   const canonical = `${SITE_ORIGIN}/auta/${brandSlug}/${modelSlug}`;
-  const title = total
-    ? `${brandName} ${modelName} na prodej – ${total} ${inzeratWord(total)}${fromPart} | NNAuto`
-    : `${brandName} ${modelName} na prodej | NNAuto`;
-  const description = total
-    ? `Aktuálně ${total} ${inzeratWord(total)} ${brandName} ${modelName}${fromPart}. Ověřené ojeté vozy od soukromých prodejců i autobazarů v ČR – ceny, fotografie a parametry. Kontaktujte prodejce přímo.`
-    : `Nabídka ${brandName} ${modelName} na NNAuto – online autobazar v České republice.`;
+  const prioritySeo = getPriorityModelSeo(brandSlug, modelSlug);
+  const title = prioritySeo
+    ? total
+      ? `${prioritySeo.titleKeyword} – ${total} ${inzeratWord(total)}${fromPart} | NNAuto`
+      : `${prioritySeo.titleKeyword} | NNAuto`
+    : total
+      ? `${brandName} ${modelName} na prodej – ${total} ${inzeratWord(total)}${fromPart} | NNAuto`
+      : `${brandName} ${modelName} na prodej | NNAuto`;
+  const description = prioritySeo
+    ? total
+      ? `${prioritySeo.descriptionLead} ${total} ${inzeratWord(total)}${fromPart}, ceny, fotografie, výbava a kontakt přímo na prodejce.`
+      : `${prioritySeo.descriptionLead} Online autobazar NNAuto.cz.`
+    : total
+      ? `Aktuálně ${total} ${inzeratWord(total)} ${brandName} ${modelName}${fromPart}. Ověřené ojeté vozy od soukromých prodejců i autobazarů v ČR – ceny, fotografie a parametry. Kontaktujte prodejce přímo.`
+      : `Nabídka ${brandName} ${modelName} na NNAuto – online autobazar v České republice.`;
 
   const robots: Metadata["robots"] =
     total >= MIN_INDEX
@@ -265,6 +275,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     keywords: [
       `${brandName} ${modelName}`,
+      ...(prioritySeo
+        ? [prioritySeo.searchPhrase, prioritySeo.titleKeyword]
+        : []),
       `prodej ${brandName} ${modelName}`,
       `${brandName} ${modelName} bazar`,
       `ojeté ${brandName} ${modelName}`,

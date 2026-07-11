@@ -87,7 +87,13 @@ export function buildFacetTitle(
   brandName?: string,
 ): string {
   if (brandName) {
+    if (facet.slug === "suv") {
+      return `${brandName} SUV na prodej | Ojeté SUV vozy | NNAuto`;
+    }
     return `${brandName} ${facet.label} na prodej | NNAuto`;
+  }
+  if (facet.slug === "suv") {
+    return "SUV auta na prodej | Ojeté SUV vozy v ČR | NNAuto";
   }
   if (facet.kind === "fuel" || facet.kind === "body" || facet.kind === "drive") {
     return `Auta ${facet.label} na prodej | Ojeté vozy | NNAuto`;
@@ -103,8 +109,10 @@ export function buildFacetTitle(
 
 export function buildFacetH1(facet: FacetDefinition, brandName?: string): string {
   if (brandName) {
+    if (facet.slug === "suv") return `${brandName} SUV na prodej`;
     return `${brandName} ${facet.label} na prodej`;
   }
+  if (facet.slug === "suv") return "SUV auta na prodej";
   if (facet.kind === "year") return `Auta ${facet.value} na prodej`;
   if (facet.kind === "priceMax") return `Auta ${facet.shortLabel}`;
   return `Auta ${facet.label} na prodej`;
@@ -115,6 +123,10 @@ export function buildFacetDescription(
   total: number,
   brandName?: string,
 ): string {
+  if (facet.slug === "suv") {
+    const scope = brandName ? `${brandName} SUV` : "SUV auta";
+    return `Prohlédněte si ${total} inzerátů ${scope} na prodej v ČR. Aktuální ceny, fotografie, výbava a parametry ojetých SUV vozů od ověřených prodejců na NNAuto.cz.`;
+  }
   const scope = brandName ? `${brandName} ` : "";
   return `Prohlédněte si ${total} inzerátů ${scope}${facet.label.toLowerCase()} na NNAuto.cz. Aktuální ceny, fotografie a parametry ojetých vozů od ověřených prodejců.`;
 }
