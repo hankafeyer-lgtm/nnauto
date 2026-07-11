@@ -3377,6 +3377,54 @@ function TopovaniTab({
   const pricePerListing = duration === "7" ? 39 : duration === "14" ? 69 : 99;
   const totalPrice = pricePerListing * selectedIds.size;
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const topPayment = params.get("top_payment");
+    if (!topPayment) return;
+
+    if (topPayment === "cancelled") {
+      toast({
+        title: "Topování bylo zrušeno",
+        description: "Platba nebyla dokončena.",
+      });
+      window.history.replaceState(null, "", "/dealer?tab=topovani");
+      return;
+    }
+
+    const sessionId = params.get("session_id");
+    if (topPayment !== "success" || !sessionId) return;
+    const marker = `nnauto_dealer_top_session_${sessionId}`;
+    if (sessionStorage.getItem(marker) === "done") return;
+
+    (async () => {
+      try {
+        const res = await apiRequest("POST", "/api/dealer/top-listing/complete", {
+          sessionId,
+        });
+        const data = await res.json();
+        sessionStorage.setItem(marker, "done");
+        window.history.replaceState(null, "", "/dealer?tab=topovani");
+        await queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+        toast({
+          title: t("dealer.topovani.success"),
+          description: t("dealer.topovani.successDescription").replace(
+            "{{count}}",
+            String(data?.updatedCount ?? 0),
+          ),
+        });
+      } catch (err) {
+        const { message } = parseApiError(err);
+        toast({
+          title: t("dealer.topovani.error"),
+          description: message,
+          variant: "destructive",
+        });
+      }
+    })();
+  }, [t, toast]);
+
   const toggleListing = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -3389,31 +3437,22 @@ function TopovaniTab({
   const topMutation = useMutation({
     mutationFn: async () => {
       if (selectedIds.size === 0) throw new Error("no listings selected");
-      const expiresAt = new Date(Date.now() + Number(duration) * 24 * 60 * 60 * 1000).toISOString();
-      await Promise.all(
-        Array.from(selectedIds).map((id) =>
-          apiRequest("PUT", `/api/listings/${id}`, {
-            isTopListing: true,
-            topListingExpiresAt: expiresAt,
-          }),
-        ),
-      );
+      const res = await apiRequest("POST", "/api/dealer/top-listing/checkout", {
+        listingIds: Array.from(selectedIds),
+        duration,
+      });
+      const data = await res.json();
+      if (!data?.url) throw new Error("Stripe checkout URL missing");
+      window.location.href = data.url;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
-      toast({
-        title: t("dealer.topovani.success"),
-        description: t("dealer.topovani.successDescription").replace(
-          "{{count}}",
-          String(selectedIds.size),
-        ),
-      });
-      setSelectedIds(new Set());
+      // Redirecting to Stripe; success toast is shown after return and verification.
     },
-    onError: () => {
+    onError: (err) => {
+      const { message } = parseApiError(err);
       toast({
         title: t("dealer.topovani.error"),
+        description: message,
         variant: "destructive",
       });
     },
