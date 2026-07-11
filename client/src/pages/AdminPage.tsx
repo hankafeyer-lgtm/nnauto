@@ -499,6 +499,31 @@ type DeletedListingItem = {
   deleted_by_username: string | null;
 };
 
+type AdminDealerInvoice = {
+  id: string;
+  dealerId: string;
+  userId: string;
+  number: string;
+  issuedAt: string;
+  paidAt: string;
+  packageId: string;
+  description: string;
+  amountKc: number;
+  currency: string;
+  status: string;
+  buyerCompanyName: string;
+  buyerIco: string | null;
+  buyerDic: string | null;
+  buyerAddress: string | null;
+  buyerEmail: string | null;
+  paymentMethod: string;
+  hasHtml: boolean;
+  hasPdf: boolean;
+  adminUrl: string;
+  pdfUrl: string;
+  createdAt: string;
+};
+
 export default function AdminPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const t = useTranslation();
@@ -589,6 +614,15 @@ export default function AdminPage() {
     ...adminRealtimeQueryOptions,
   });
 
+  const {
+    data: dealerInvoicesData,
+    isLoading: dealerInvoicesLoading,
+    error: dealerInvoicesError,
+  } = useQuery<{ invoices: AdminDealerInvoice[] }>({
+    queryKey: ["/api/admin/dealer-invoices"],
+    ...adminRealtimeQueryOptions,
+  });
+
   const byCreatedAtDesc = <
     T extends {
       createdAt?: string | Date | null;
@@ -627,6 +661,10 @@ export default function AdminPage() {
     () => deletedListingsData?.items || [],
     [deletedListingsData],
   );
+  const dealerInvoices = useMemo(
+    () => byCreatedAtDesc(dealerInvoicesData?.invoices || []),
+    [dealerInvoicesData],
+  );
   const listingAnalyticsMap = useMemo(() => {
     const map = new Map<string, AdminListingAnalyticsItem>();
     for (const item of listingAnalyticsData?.items || []) {
@@ -640,12 +678,14 @@ export default function AdminPage() {
   const hasPaymentsError = !!paymentsError;
   const hasCebiaReportsError = !!cebiaReportsError;
   const hasDealersError = !!dealersError;
+  const hasDealerInvoicesError = !!dealerInvoicesError;
   const hasAnyAdminDataError =
     hasUsersError ||
     hasListingsError ||
     hasPaymentsError ||
     hasCebiaReportsError ||
-    hasDealersError;
+    hasDealersError ||
+    hasDealerInvoicesError;
 
   const downloadFromAuthorizedApi = async (
     url: string,
@@ -838,6 +878,7 @@ export default function AdminPage() {
                   hasPaymentsError ? "payments" : null,
                   hasCebiaReportsError ? "cebia" : null,
                   hasDealersError ? "dealers" : null,
+                  hasDealerInvoicesError ? "dealer invoices" : null,
                 ]
                   .filter(Boolean)
                   .join(", ")}
@@ -865,6 +906,7 @@ export default function AdminPage() {
                 listings: listings.length,
                 users: users.length,
                 dealers: dealers.length,
+                "dealer-invoices": dealerInvoices.length,
                 payments: payments.length,
                 cebia: cebiaReports.length,
                 deleted: deletedListings.length,
@@ -1239,6 +1281,124 @@ export default function AdminPage() {
                 ) : (
                   <p className="text-center py-8 text-muted-foreground">
                     {t("admin.noPayments")}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="dealer-invoices" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Faktury dealerů</CardTitle>
+                <CardDescription>
+                  Všechny faktury vystavené po platbě dealerských balíčků.
+                  Slouží jako interní archiv pro NNAuto.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dealerInvoicesLoading ? (
+                  <p className="text-center py-8 text-muted-foreground">
+                    {t("admin.loading")}
+                  </p>
+                ) : dealerInvoices.length > 0 ? (
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Datum</TableHead>
+                          <TableHead>Číslo</TableHead>
+                          <TableHead>Dealer</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Balíček</TableHead>
+                          <TableHead>Částka</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Doklad</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {dealerInvoices.map((invoice) => (
+                          <TableRow
+                            key={invoice.id}
+                            data-testid={`row-dealer-invoice-${invoice.id}`}
+                          >
+                            <TableCell className="whitespace-nowrap">
+                              {format(new Date(invoice.issuedAt), "dd.MM.yyyy HH:mm")}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {invoice.number}
+                            </TableCell>
+                            <TableCell className="max-w-[220px]">
+                              <div className="flex flex-col">
+                                <span className="truncate font-medium">
+                                  {invoice.buyerCompanyName}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  IČO: {invoice.buyerIco || "-"}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="max-w-[220px] truncate">
+                              {invoice.buyerEmail || "-"}
+                            </TableCell>
+                            <TableCell className="uppercase">
+                              {invoice.packageId}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap font-medium">
+                              {new Intl.NumberFormat("cs-CZ").format(invoice.amountKc)}{" "}
+                              {invoice.currency}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant={
+                                  invoice.status === "paid" ? "default" : "secondary"
+                                }
+                              >
+                                {invoice.status === "paid" ? "Zaplaceno" : invoice.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    window.open(
+                                      invoice.adminUrl,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    )
+                                  }
+                                  disabled={!invoice.hasHtml}
+                                  data-testid={`button-dealer-invoice-html-${invoice.id}`}
+                                >
+                                  HTML
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    window.open(
+                                      invoice.pdfUrl,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    )
+                                  }
+                                  disabled={!invoice.hasPdf}
+                                  data-testid={`button-dealer-invoice-pdf-${invoice.id}`}
+                                >
+                                  PDF
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <p className="text-center py-8 text-muted-foreground">
+                    Zatím nejsou uložené žádné faktury dealerů.
                   </p>
                 )}
               </CardContent>

@@ -1,6 +1,12 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
-import { getDealerStripe, syncDealerSubscriptionFromStripe } from "@lib/dealerPackages";
+import {
+  activateDealerPackageFromCheckoutSession,
+  getDealerStripe,
+  isDealerPackageId,
+  syncDealerSubscriptionFromStripe,
+} from "@lib/dealerPackages";
+import { ensureDealerInvoiceForPackageCheckout } from "@lib/dealerInvoice";
 import Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -40,14 +46,7 @@ export async function POST(req: NextRequest) {
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.metadata?.type === "dealer_vehicle_package" && session.id) {
-        const full = await stripe.checkout.sessions.retrieve(session.id, {
-          expand: ["subscription"],
-        });
-        const subscription =
-          typeof full.subscription === "string"
-            ? await stripe.subscriptions.retrieve(full.subscription)
-            : full.subscription;
-        if (subscription) await syncDealerSubscriptionFromStripe(subscription);
+        await activateDealerPackageFromCheckoutSession(session.id);
       }
     }
 
@@ -56,6 +55,36 @@ export async function POST(req: NextRequest) {
       event.type === "customer.subscription.deleted"
     ) {
       await syncDealerSubscriptionFromStripe(event.data.object as Stripe.Subscription);
+    }
+
+    if (event.type === "invoice.payment_succeeded") {
+      const invoice = event.data.object as Stripe.Invoice & {
+        subscription?: string | Stripe.Subscription | null;
+      };
+      const subscriptionId =
+        typeof invoice.subscription === "string"
+          ? invoice.subscription
+          : invoice.subscription?.id;
+      if (subscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        const row = await syncDealerSubscriptionFromStripe(subscription);
+        if (!isDealerPackageId(row.packageId)) {
+          throw new Error("Dealer package invoice has invalid packageId");
+        }
+        await ensureDealerInvoiceForPackageCheckout({
+          dealerId: row.dealerId,
+          userId: row.userId,
+          packageId: row.packageId,
+          subscriptionId: row.id,
+          stripeInvoiceId: invoice.id,
+          amountKc: invoice.amount_paid
+            ? Math.round(invoice.amount_paid / 100)
+            : row.amountKc,
+          issuedAt: invoice.status_transitions?.paid_at
+            ? new Date(invoice.status_transitions.paid_at * 1000)
+            : new Date(),
+        });
+      }
     }
 
     if (event.type === "invoice.payment_failed") {

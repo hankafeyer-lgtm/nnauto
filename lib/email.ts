@@ -1,4 +1,10 @@
-import { MailerSend, EmailParams, Sender, Recipient } from "mailersend";
+import {
+  MailerSend,
+  EmailParams,
+  Sender,
+  Recipient,
+  Attachment,
+} from "mailersend";
 
 /**
  * Generic e-mail sender used by the messaging inbox (dealer ↔ buyer email
@@ -22,6 +28,11 @@ export async function sendEmail(args: {
   fromName?: string;
   /** Extra RFC 5322 headers (e.g. `In-Reply-To`, `References`). */
   headers?: Array<{ name: string; value: string }>;
+  attachments?: Array<{
+    filename: string;
+    contentBase64: string;
+    disposition?: "attachment" | "inline";
+  }>;
 }): Promise<{ ok: boolean; externalId?: string | null }> {
   const apiKey = (process.env.MAILERSEND_API_KEY || "").trim();
   if (!apiKey) {
@@ -46,6 +57,18 @@ export async function sendEmail(args: {
 
   if (args.html) params = params.setHtml(args.html);
   if (args.text) params = params.setText(args.text);
+  if (args.attachments?.length) {
+    params = params.setAttachments(
+      args.attachments.map(
+        (a) =>
+          new Attachment(
+            a.contentBase64,
+            a.filename,
+            a.disposition ?? "attachment",
+          ),
+      ),
+    );
+  }
   if (args.replyTo) {
     params = params.setReplyTo(new Sender(args.replyTo, args.fromName || "NNAuto"));
   } else {

@@ -16,8 +16,14 @@ import {
   formatInvoiceWeb,
   renderDealerInvoiceDocument,
 } from "@lib/dealerInvoiceTemplate";
-import { dealerInvoices, dealers, type DealerInvoice } from "@shared/schema";
+import {
+  dealerInvoices,
+  dealers,
+  users,
+  type DealerInvoice,
+} from "@shared/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
+import { sendEmail } from "@lib/email";
 
 export {
   NN_AUTO_INVOICE_SUPPLIER as NN_AUTO_SUPPLIER,
@@ -30,6 +36,13 @@ const require = createRequire(import.meta.url);
 const PDFDocument = require("pdfkit") as typeof import("pdfkit");
 
 const INVOICE_NUMBER_WIDTH = 6;
+
+function getInvoiceAdminEmail(): string {
+  return (
+    process.env.NN_AUTO_INVOICE_ADMIN_EMAIL ||
+    "info@nnauto.cz"
+  ).trim();
+}
 
 async function nextInvoiceNumber(issuedAt: Date): Promise<string> {
   const year = issuedAt.getFullYear();
@@ -70,13 +83,16 @@ export function packageInvoiceDescription(packageId: DealerPackageId): string {
   return `Roční balíček vozidel ${pkg.name} (${pkg.cars} vozidel)`;
 }
 
-function buyerSnapshotFromDealer(dealer: typeof dealers.$inferSelect) {
+function buyerSnapshotFromDealer(
+  dealer: typeof dealers.$inferSelect,
+  fallbackEmail?: string | null,
+) {
   return {
     buyerCompanyName: dealer.companyName,
     buyerIco: dealer.ico ?? null,
     buyerDic: dealer.dic ?? null,
     buyerAddress: dealer.address ?? dealer.region ?? null,
-    buyerEmail: dealer.email ?? null,
+    buyerEmail: dealer.email || fallbackEmail || null,
   };
 }
 
@@ -89,11 +105,12 @@ function baseInvoiceValues(args: {
   description: string;
   amountKc: number;
   dealer: typeof dealers.$inferSelect;
+  userEmail?: string | null;
   subscriptionId?: string | null;
   stripeCheckoutSessionId?: string | null;
   stripeInvoiceId?: string | null;
 }) {
-  const buyer = buyerSnapshotFromDealer(args.dealer);
+  const buyer = buyerSnapshotFromDealer(args.dealer, args.userEmail);
   return {
     dealerId: args.dealerId,
     userId: args.userId,
@@ -290,9 +307,116 @@ async function persistDealerInvoiceArtifacts(invoice: DealerInvoice): Promise<De
 
 async function insertAndFinalizeInvoice(
   values: ReturnType<typeof baseInvoiceValues>,
+  opts: { notifyByEmail?: boolean } = {},
 ): Promise<DealerInvoice> {
   const [row] = await db.insert(dealerInvoices).values(values).returning();
-  return persistDealerInvoiceArtifacts(row);
+  const invoice = await persistDealerInvoiceArtifacts(row);
+  if (opts.notifyByEmail) {
+    await sendDealerInvoiceEmails(invoice).catch((err) => {
+      console.error("[DEALER_INVOICE] invoice email notification failed:", {
+        invoiceId: invoice.id,
+        number: invoice.number,
+        error: err instanceof Error ? err.message : err,
+      });
+    });
+  }
+  return invoice;
+}
+
+export async function sendDealerInvoiceEmails(invoice: DealerInvoice): Promise<void> {
+  const pdf = await getDealerInvoicePdfBuffer(invoice);
+  const pdfBase64 = pdf.toString("base64");
+  const invoiceUrl = `${NN_AUTO_INVOICE_SUPPLIER.web}${dealerInvoicePublicPath(invoice.number)}`;
+  const adminEmail = getInvoiceAdminEmail();
+  const buyerEmail = invoice.buyerEmail?.trim();
+  const subject = `Faktura ${invoice.number} | NNAuto`;
+  const amount = formatInvoiceKc(invoice.amountKc);
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #1f2937;">
+      <h2 style="color: #B65A3A;">Faktura ${invoice.number}</h2>
+      <p>Dobrý den,</p>
+      <p>děkujeme za platbu. V příloze posíláme fakturu za službu <strong>${invoice.description}</strong>.</p>
+      <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+        <tr><td style="padding:8px 0; color:#6b7280;">Částka</td><td style="padding:8px 0; text-align:right;"><strong>${amount}</strong></td></tr>
+        <tr><td style="padding:8px 0; color:#6b7280;">Datum vystavení</td><td style="padding:8px 0; text-align:right;">${formatInvoiceDateCs(invoice.issuedAt)}</td></tr>
+        <tr><td style="padding:8px 0; color:#6b7280;">Stav</td><td style="padding:8px 0; text-align:right;">Zaplaceno</td></tr>
+      </table>
+      <p>
+        Fakturu najdete také ve svém dealerském účtu:
+        <a href="${invoiceUrl}" style="color:#B65A3A;">${invoiceUrl}</a>
+      </p>
+      <p style="color:#6b7280; font-size:12px;">NNAuto.cz</p>
+    </div>
+  `;
+  const text =
+    `Faktura ${invoice.number}\n\n` +
+    `Děkujeme za platbu. V příloze posíláme fakturu za službu ${invoice.description}.\n` +
+    `Částka: ${amount}\n` +
+    `Datum vystavení: ${formatInvoiceDateCs(invoice.issuedAt)}\n` +
+    `Stav: Zaplaceno\n\n` +
+    `Faktura v účtu: ${invoiceUrl}\n\nNNAuto.cz`;
+
+  const attachment = {
+    filename: `${invoice.number}.pdf`,
+    contentBase64: pdfBase64,
+  };
+
+  if (buyerEmail) {
+    const sent = await sendEmail({
+      to: buyerEmail,
+      toName: invoice.buyerCompanyName,
+      subject,
+      html,
+      text,
+      attachments: [attachment],
+    });
+    if (!sent.ok) {
+      console.error("[DEALER_INVOICE] buyer invoice email failed:", {
+        invoiceId: invoice.id,
+        number: invoice.number,
+        to: buyerEmail,
+      });
+    }
+  }
+
+  const adminHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #1f2937;">
+      <h2 style="color:#B65A3A;">Nová faktura dealera ${invoice.number}</h2>
+      <p>Dealer zaplatil balíček a faktura byla uložena v systému.</p>
+      <ul>
+        <li><strong>Odběratel:</strong> ${invoice.buyerCompanyName}</li>
+        <li><strong>Email:</strong> ${invoice.buyerEmail || "-"}</li>
+        <li><strong>Položka:</strong> ${invoice.description}</li>
+        <li><strong>Částka:</strong> ${amount}</li>
+        <li><strong>Číslo:</strong> ${invoice.number}</li>
+      </ul>
+      <p><a href="${invoiceUrl}" style="color:#B65A3A;">Otevřít fakturu</a></p>
+    </div>
+  `;
+  const adminText =
+    `Nová faktura dealera ${invoice.number}\n\n` +
+    `Odběratel: ${invoice.buyerCompanyName}\n` +
+    `Email: ${invoice.buyerEmail || "-"}\n` +
+    `Položka: ${invoice.description}\n` +
+    `Částka: ${amount}\n` +
+    `Otevřít: ${invoiceUrl}`;
+
+  const adminSent = await sendEmail({
+    to: adminEmail,
+    toName: "NNAuto",
+    subject: `Nová dealer faktura ${invoice.number}`,
+    html: adminHtml,
+    text: adminText,
+    attachments: [attachment],
+  });
+  if (!adminSent.ok) {
+    console.error("[DEALER_INVOICE] admin invoice email failed:", {
+      invoiceId: invoice.id,
+      number: invoice.number,
+      to: adminEmail,
+    });
+  }
 }
 
 export async function createAdminTestDealerInvoice(
@@ -302,6 +426,7 @@ export async function createAdminTestDealerInvoice(
 ): Promise<DealerInvoice> {
   const [dealer] = await db.select().from(dealers).where(eq(dealers.id, dealerId));
   if (!dealer) throw new Error("Dealer not found");
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
 
   const issuedAt = new Date();
   const amountKc = DEALER_PACKAGES[packageId].amountKc;
@@ -317,6 +442,7 @@ export async function createAdminTestDealerInvoice(
       description: `[TEST] ${packageInvoiceDescription(packageId)}`,
       amountKc,
       dealer,
+      userEmail: user?.email ?? null,
     }),
   );
 }
@@ -343,9 +469,22 @@ export async function ensureDealerInvoiceForPackageCheckout(args: {
       return existing;
     }
   }
+  if (args.stripeInvoiceId) {
+    const [existing] = await db
+      .select()
+      .from(dealerInvoices)
+      .where(eq(dealerInvoices.stripeInvoiceId, args.stripeInvoiceId));
+    if (existing) {
+      if (!existing.htmlContent || !existing.pdfBase64) {
+        return persistDealerInvoiceArtifacts(existing);
+      }
+      return existing;
+    }
+  }
 
   const [dealer] = await db.select().from(dealers).where(eq(dealers.id, args.dealerId));
   if (!dealer) throw new Error("Dealer not found");
+  const [user] = await db.select().from(users).where(eq(users.id, args.userId));
 
   const issuedAt = args.issuedAt ?? new Date();
   const amountKc = args.amountKc ?? DEALER_PACKAGES[args.packageId].amountKc;
@@ -361,10 +500,12 @@ export async function ensureDealerInvoiceForPackageCheckout(args: {
       description: packageInvoiceDescription(args.packageId),
       amountKc,
       dealer,
+      userEmail: user?.email ?? null,
       subscriptionId: args.subscriptionId,
       stripeCheckoutSessionId: args.stripeCheckoutSessionId,
       stripeInvoiceId: args.stripeInvoiceId,
     }),
+    { notifyByEmail: true },
   );
 }
 
