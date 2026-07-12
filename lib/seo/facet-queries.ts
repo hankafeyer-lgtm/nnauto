@@ -19,6 +19,19 @@ export type CollectionStats = {
 
 export type FacetListingRow = typeof listings.$inferSelect;
 
+function facetValues(facet: FacetDefinition): string[] {
+  return Array.isArray(facet.value)
+    ? facet.value.map(String)
+    : [String(facet.value)];
+}
+
+function lowerIn(columnSql: SQL, values: string[]): SQL {
+  return sql`lower(${columnSql}) in (${sql.join(
+    values.map((value) => sql`${value.toLowerCase()}`),
+    sql`, `,
+  )})`;
+}
+
 function facetWhere(facet: FacetDefinition, brandSlug?: string): SQL | undefined {
   const parts: SQL[] = [eq(listings.isSold, false)];
 
@@ -31,7 +44,10 @@ function facetWhere(facet: FacetDefinition, brandSlug?: string): SQL | undefined
       parts.push(
         sql`exists (
           select 1 from unnest(${listings.fuelType}) as f
-          where lower(f) = ${String(facet.value)}
+          where lower(f) in (${sql.join(
+            facetValues(facet).map((value) => sql`${value.toLowerCase()}`),
+            sql`, `,
+          )})
         )`,
       );
       break;
@@ -39,12 +55,15 @@ function facetWhere(facet: FacetDefinition, brandSlug?: string): SQL | undefined
       parts.push(
         sql`exists (
           select 1 from unnest(${listings.transmission}) as t
-          where lower(t) = ${String(facet.value)}
+          where lower(t) in (${sql.join(
+            facetValues(facet).map((value) => sql`${value.toLowerCase()}`),
+            sql`, `,
+          )})
         )`,
       );
       break;
     case "body":
-      parts.push(sql`lower(${listings.bodyType}) = ${String(facet.value)}`);
+      parts.push(lowerIn(sql`${listings.bodyType}`, facetValues(facet)));
       break;
     case "drive":
       if (facet.value === "4x4") {
@@ -58,13 +77,31 @@ function facetWhere(facet: FacetDefinition, brandSlug?: string): SQL | undefined
         parts.push(
           sql`exists (
             select 1 from unnest(${listings.driveType}) as d
-            where lower(d) = ${String(facet.value)}
+            where lower(d) in (${sql.join(
+              facetValues(facet).map((value) => sql`${value.toLowerCase()}`),
+              sql`, `,
+            )})
           )`,
         );
       }
       break;
     case "priceMax":
       parts.push(sql`${listings.price}::numeric <= ${Number(facet.value)}`);
+      break;
+    case "priceRange":
+      if (facet.minValue == null || facet.maxValue == null) return undefined;
+      parts.push(
+        sql`${listings.price}::numeric >= ${facet.minValue} AND ${listings.price}::numeric <= ${facet.maxValue}`,
+      );
+      break;
+    case "priceMin":
+      parts.push(sql`${listings.price}::numeric >= ${Number(facet.value)}`);
+      break;
+    case "mileageMax":
+      parts.push(sql`${listings.mileage} <= ${Number(facet.value)}`);
+      break;
+    case "region":
+      parts.push(lowerIn(sql`${listings.region}`, facetValues(facet)));
       break;
     case "year":
       parts.push(eq(listings.year, Number(facet.value)));
@@ -402,7 +439,7 @@ export async function queryIndexableFacetUrls(
       ORDER BY brand NULLS FIRST, slug
     `)) as { rows?: { brand: string | null; slug: string; total: number }[] };
 
-    return (result.rows ?? []).flatMap((row) => {
+    const fastPathRows = (result.rows ?? []).flatMap((row) => {
       if (!row.brand) {
         if (!globalFacets.some((facet) => facet.slug === row.slug)) return [];
         return [
@@ -421,6 +458,31 @@ export async function queryIndexableFacetUrls(
         },
       ];
     });
+
+    const indexedFastGlobalSlugs = new Set(
+      fastPathRows
+        .map((entry) => entry.url.replace(`${SITE_ORIGIN}/auta/`, ""))
+        .filter((slug) => !slug.includes("/")),
+    );
+    const fallbackGlobalRows = await Promise.all(
+      globalFacets
+        .filter((facet) => !indexedFastGlobalSlugs.has(facet.slug))
+        .map(async (facet) => {
+          const total = await countFacetListings(facet);
+          if (total < min) return null;
+          return {
+            url: `${SITE_ORIGIN}${buildGlobalFacetPath(facet.slug)}`,
+            lastModified: now,
+          };
+        }),
+    );
+
+    return [
+      ...fastPathRows,
+      ...fallbackGlobalRows.filter(
+        (entry): entry is { url: string; lastModified: Date } => Boolean(entry),
+      ),
+    ];
   } catch (err) {
     console.error("[facet] queryIndexableFacetUrls failed:", err);
     return [];

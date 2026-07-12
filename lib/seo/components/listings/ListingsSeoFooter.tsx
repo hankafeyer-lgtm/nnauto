@@ -21,6 +21,10 @@ const PRIORITY_MODEL_LINKS = [
   { href: "/auta/mercedes-benz/c-class", label: "Mercedes C na prodej" },
   { href: "/auta/suv", label: "SUV auta na prodej" },
   { href: "/auta/automat", label: "Auta s automatem" },
+  { href: "/auta/nejlepsi-rodinna-auta", label: "Nejlepší rodinná auta" },
+  { href: "/auta/auto-pro-zacatecnika", label: "Auto pro začátečníka" },
+  { href: "/auta/auto-pro-velkou-rodinu", label: "Auto pro velkou rodinu" },
+  { href: "/porovnani/golf-vs-octavia", label: "Golf vs Octavia" },
 ] as const;
 
 export function ListingsSeoFooter() {

@@ -5,6 +5,7 @@ import { normalizeSlug } from "@lib/seo/slug";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { dedupeSitemapEntries } from "@lib/seo/sitemap-utils";
 import { queryIndexableFacetUrls } from "@lib/seo/facet-queries";
+import { AUTA_GUIDE_PAGES, COMPARISON_PAGES } from "@lib/seo/editorial-pages";
 import { listings } from "@shared/schema";
 import { desc, eq, sql } from "drizzle-orm";
 
@@ -189,8 +190,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.65,
   }));
 
+  const guidePages: MetadataRoute.Sitemap = AUTA_GUIDE_PAGES.map((page) => ({
+    url: `${SITE_ORIGIN}/auta/${page.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly" as const,
+    priority: 0.64,
+  }));
+
+  const comparisonPages: MetadataRoute.Sitemap = COMPARISON_PAGES.map((page) => ({
+    url: `${SITE_ORIGIN}/porovnani/${page.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.55,
+  }));
+
   return dedupeSitemapEntries([
     ...staticPages,
+    ...guidePages,
+    ...comparisonPages,
     ...facetPages,
     ...brandPages,
     ...modelPages,

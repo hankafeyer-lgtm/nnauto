@@ -25,6 +25,10 @@ const PRIORITY_SEARCH_LINKS = [
   { href: "/auta/suv", label: "SUV auta na prodej" },
   { href: "/auta/automat", label: "Auta s automatem" },
   { href: "/auta/diesel", label: "Diesel auta na prodej" },
+  { href: "/auta/nejlepsi-rodinna-auta", label: "Nejlepší rodinná auta" },
+  { href: "/auta/auto-do-200000", label: "Auto do 200 000 Kč" },
+  { href: "/auta/nejlepsi-suv", label: "Nejlepší SUV" },
+  { href: "/porovnani/skoda-octavia-vs-superb", label: "Octavia vs Superb" },
 ] as const;
 
 type TopModel = {

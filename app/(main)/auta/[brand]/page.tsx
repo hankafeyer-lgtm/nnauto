@@ -55,6 +55,12 @@ import { BrandNewestCars } from "@lib/seo/components/brand/BrandNewestCars";
 import { BrandTopSearches } from "@lib/seo/components/brand/BrandTopSearches";
 import { BrandCategories } from "@lib/seo/components/brand/BrandCategories";
 import { BrandSimilarBrands } from "@lib/seo/components/brand/BrandSimilarBrands";
+import {
+  buildAutaGuideMetadata,
+  getAutaGuidePage,
+  guideJsonLd,
+  type AutaGuidePage,
+} from "@lib/seo/editorial-pages";
 
 /**
  * SEO landing page per brand (e.g. /auta/bmw, /auta/audi).
@@ -145,6 +151,8 @@ async function queryBrandStats(brandSlug: string) {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { brand } = await params;
   const brandSlug = decodeURIComponent(brand).toLowerCase();
+  const guidePage = getAutaGuidePage(brandSlug);
+  if (guidePage) return buildAutaGuideMetadata(guidePage);
 
   if (isGlobalFacetSlug(brandSlug)) {
     if (!isSeoFeatureEnabled("facetPages")) notFound();
@@ -217,6 +225,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function BrandLandingPage({ params }: Props) {
   const { brand } = await params;
   const brandSlug = decodeURIComponent(brand).toLowerCase();
+  const guidePage = getAutaGuidePage(brandSlug);
+  if (guidePage) return <AutaGuideLandingPage page={guidePage} />;
 
   if (isGlobalFacetSlug(brandSlug)) {
     if (!isSeoFeatureEnabled("facetPages")) notFound();
@@ -226,7 +236,7 @@ export default async function BrandLandingPage({ params }: Props) {
       queryFacetListings(facet, undefined, 30),
       queryFacetStats(facet),
     ]);
-    if (stats.total === 0) notFound();
+    if (stats.total === 0 && facet.brandLevel) notFound();
     return (
       <FacetCollectionPage
         facet={facet}
@@ -431,6 +441,92 @@ export default async function BrandLandingPage({ params }: Props) {
       />
       <BrandCategories brandName={brandName} links={brandFacetLinks} />
       <BrandSimilarBrands links={similarBrands} />
+    </main>
+  );
+}
+
+function AutaGuideLandingPage({ page }: { page: AutaGuidePage }) {
+  const jsonLd = guideJsonLd(page);
+
+  return (
+    <main className="container mx-auto max-w-5xl px-4 py-8">
+      <JsonLd data={jsonLd.breadcrumb} />
+      <JsonLd data={jsonLd.faq} />
+      <JsonLd data={jsonLd.itemList} />
+
+      <nav
+        className="text-sm text-muted-foreground mb-4 flex flex-wrap gap-1"
+        aria-label="Breadcrumb"
+      >
+        <a href="/" className="hover:underline">
+          NNAuto
+        </a>
+        <span>/</span>
+        <a href="/auta" className="hover:underline">
+          Auta
+        </a>
+        <span>/</span>
+        <span className="text-foreground font-medium">{page.h1}</span>
+      </nav>
+
+      <h1 className="text-3xl md:text-4xl font-bold mb-4">{page.h1}</h1>
+      <p className="text-muted-foreground max-w-3xl mb-8">
+        {page.description}
+      </p>
+
+      <section className="prose max-w-none text-muted-foreground space-y-4">
+        <h2 className="text-2xl font-semibold text-foreground">{page.h2}</h2>
+        <p>{page.intro}</p>
+        <p>{page.focus}</p>
+        <p>
+          Při výběru ojetého auta vždy porovnejte několik nabídek ve stejné
+          cenové kategorii. Sledujte rok výroby, nájezd, servisní historii,
+          počet majitelů, stav karoserie, pneumatik a brzd. U dražších nebo
+          starších vozů doporučujeme prověření VIN kódu a zkušební jízdu.
+          NNAuto propojuje katalog aktuálních inzerátů s přehlednými
+          kategoriemi, takže se rychle dostanete k vozům, které odpovídají
+          vašemu rozpočtu a způsobu používání.
+        </p>
+        <p>
+          Nabídka na NNAuto.cz se průběžně mění podle nově přidaných inzerátů.
+          Stránky s kategoriemi, modely a cenovými rozsahy se automaticky
+          aktualizují, takže Google i uživatelé vidí aktuální dostupné vozy.
+          Níže najdete související stránky s živým výpisem inzerátů.
+        </p>
+      </section>
+
+      <section className="mt-10" aria-labelledby="guide-links">
+        <h2 id="guide-links" className="text-xl font-semibold mb-3">
+          Související nabídka
+        </h2>
+        <ul className="flex flex-wrap gap-2">
+          {page.links.map((link) => (
+            <li key={link.href}>
+              <a
+                href={link.href}
+                className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
+              >
+                {link.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-10" aria-labelledby="guide-faq">
+        <h2 id="guide-faq" className="text-xl font-semibold mb-4">
+          Časté dotazy
+        </h2>
+        <dl className="space-y-4">
+          {page.faq.map((item) => (
+            <div key={item.question}>
+              <dt className="font-medium text-foreground">{item.question}</dt>
+              <dd className="mt-1 text-muted-foreground">{item.answer}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
     </main>
   );
 }
