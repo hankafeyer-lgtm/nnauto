@@ -317,6 +317,32 @@ export const dealerFeeds = pgTable(
 
 export type DealerFeed = typeof dealerFeeds.$inferSelect;
 
+export const dealerFeedSyncJobs = pgTable(
+  "dealer_feed_sync_jobs",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    dealerId: varchar("dealer_id").notNull(),
+    userId: varchar("user_id").notNull(),
+    feedId: varchar("feed_id").notNull(),
+    feedUrl: text("feed_url").notNull(),
+    status: varchar("status", { length: 20 }).default("pending").notNull(),
+    trigger: varchar("trigger", { length: 20 }).default("manual").notNull(),
+    startedAt: timestamp("started_at"),
+    finishedAt: timestamp("finished_at"),
+    summary: jsonb("summary"),
+    error: text("error"),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    index("dealer_feed_sync_jobs_dealer_id_idx").on(t.dealerId),
+    index("dealer_feed_sync_jobs_status_idx").on(t.status),
+    index("dealer_feed_sync_jobs_created_at_idx").on(t.createdAt),
+  ],
+);
+
+export type DealerFeedSyncJob = typeof dealerFeedSyncJobs.$inferSelect;
+
 // ── Dealer webhooks ──────────────────────────────────────────────────────────
 // One webhook endpoint per dealer. We sign every delivery with HMAC-SHA256
 // using `secret`, and only send the events selected in `events`.

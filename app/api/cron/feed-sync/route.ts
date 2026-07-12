@@ -1,6 +1,9 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
-import { syncAllFeeds } from "@lib/feed/syncFeed";
+import {
+  enqueueEnabledFeedSyncJobs,
+  processPendingFeedSyncJobs,
+} from "@lib/feed/syncJobs";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -24,6 +27,11 @@ export async function GET(req: NextRequest) {
     if (provided !== secret) return error("Unauthorized", 401);
   }
 
-  const results = await syncAllFeeds();
-  return json({ processed: results.length, results });
+  const limit = Math.min(
+    10,
+    Math.max(1, Number(req.nextUrl.searchParams.get("limit") || "3") || 3),
+  );
+  const queued = await enqueueEnabledFeedSyncJobs();
+  const results = await processPendingFeedSyncJobs(limit);
+  return json({ queued: queued.length, processed: results.length, results });
 }

@@ -2,8 +2,8 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireDealer } from "@lib/auth";
 import { db } from "@lib/db";
-import { dealers, dealerFeeds } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { dealers, dealerFeedSyncJobs, dealerFeeds } from "@shared/schema";
+import { desc, eq } from "drizzle-orm";
 import { validateFeedUrl } from "@lib/feed/syncFeed";
 
 function mapAuthError(e: unknown) {
@@ -39,10 +39,18 @@ export async function GET() {
           lastError: null,
           errors: null,
         },
+        latestJob: null,
       });
     }
 
-    return json({ feed });
+    const [latestJob] = await db
+      .select()
+      .from(dealerFeedSyncJobs)
+      .where(eq(dealerFeedSyncJobs.feedId, feed.id))
+      .orderBy(desc(dealerFeedSyncJobs.createdAt))
+      .limit(1);
+
+    return json({ feed, latestJob: latestJob ?? null });
   } catch (e) {
     return mapAuthError(e);
   }

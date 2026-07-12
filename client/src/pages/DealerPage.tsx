@@ -8123,6 +8123,7 @@ type IntegraceState = {
   xmlUrl: string;
   xmlSavedUrl: string;
   xmlVerified: boolean;
+  xmlStatus: string;
   lastSyncAt: string | null;
   vehicleCount: number;
   createdCount: number;
@@ -8315,6 +8316,7 @@ function ImportSyncTab({
     xmlUrl: "",
     xmlSavedUrl: "",
     xmlVerified: false,
+    xmlStatus: "idle",
     lastSyncAt: null,
     vehicleCount: 0,
     createdCount: 0,
@@ -8387,6 +8389,7 @@ function ImportSyncTab({
           xmlUrl: feed.feedUrl || prev.xmlUrl,
           xmlSavedUrl: feed.feedUrl || "",
           xmlVerified: feed.status === "ok" || feed.status === "syncing",
+          xmlStatus: feed.status || prev.xmlStatus,
           lastSyncAt: feed.lastSyncAt || prev.lastSyncAt,
           vehicleCount: feed.vehicleCount ?? prev.vehicleCount,
           createdCount: feed.createdCount ?? prev.createdCount,
@@ -8402,6 +8405,44 @@ function ImportSyncTab({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!["queued", "syncing"].includes(state.xmlStatus)) return;
+    let cancelled = false;
+    const refreshFeed = async () => {
+      try {
+        const res = await apiRequest("GET", "/api/dealer/feed");
+        const data = await res.json();
+        const feed = data?.feed;
+        if (!feed || cancelled) return;
+        setState((prev) => ({
+          ...prev,
+          xmlStatus: feed.status || prev.xmlStatus,
+          lastSyncAt: feed.lastSyncAt || prev.lastSyncAt,
+          vehicleCount: feed.vehicleCount ?? prev.vehicleCount,
+          createdCount: feed.createdCount ?? prev.createdCount,
+          updatedCount: feed.updatedCount ?? prev.updatedCount,
+          deactivatedCount: feed.deactivatedCount ?? prev.deactivatedCount,
+          errorCount: feed.errorCount ?? prev.errorCount,
+        }));
+        if (feed.status === "ok") {
+          queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
+          queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
+          queryClient.removeQueries({
+            predicate: (query) => query.queryKey[0] === "/api/listings",
+          });
+        }
+      } catch {
+        // ignore transient polling failures
+      }
+    };
+    const interval = window.setInterval(refreshFeed, 8_000);
+    void refreshFeed();
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [state.xmlStatus]);
 
   // Load the dealer's stored API key (server is the source of truth).
   useEffect(() => {
@@ -8521,26 +8562,18 @@ function ImportSyncTab({
     try {
       const res = await apiRequest("POST", "/api/dealer/feed/sync", { feedUrl: url });
       const data = await res.json();
-      const s = data?.summary ?? {};
       persist((prev) => ({
         ...prev,
         xmlSavedUrl: url,
         xmlVerified: true,
-        lastSyncAt: new Date().toISOString(),
-        vehicleCount: s.itemCount ?? prev.vehicleCount,
-        createdCount: s.created ?? 0,
-        updatedCount: s.updated ?? 0,
-        deactivatedCount: s.deactivated ?? 0,
-        errorCount: s.failed ?? 0,
+        xmlStatus: "syncing",
       }));
-      queryClient.invalidateQueries({ queryKey: ["/api/dealer/listings"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dealer/stats"] });
-      queryClient.removeQueries({
-        predicate: (query) => query.queryKey[0] === "/api/listings",
-      });
+      void queryClient.invalidateQueries({ queryKey: ["/api/dealer/feed"] });
       toast({
-        title: "Synchronizace dokončena",
-        description: `Nové: ${s.created ?? 0}, aktualizované: ${s.updated ?? 0}, deaktivované: ${s.deactivated ?? 0}, chyby: ${s.failed ?? 0}`,
+        title: "Synchronizace spuštěna",
+        description: data?.job?.id
+          ? `Import běží na pozadí. Job: ${data.job.id}`
+          : "Import běží na pozadí a výsledky se zobrazí po dokončení.",
       });
     } catch (err) {
       const { message } = parseApiError(err);
@@ -8804,7 +8837,11 @@ function ImportSyncTab({
               <IntegraceStat label="Poslední synchronizace" value={lastSyncLabel} />
               <IntegraceStat label="Počet vozidel" value={String(state.vehicleCount)} />
               <IntegraceStat label="Nové / aktualizované" value={`${state.createdCount} / ${state.updatedCount}`} />
-              <IntegraceStat label="Chyby" value={String(state.errorCount)} tone={state.errorCount > 0 ? "danger" : "default"} />
+              <IntegraceStat
+                label="Stav / chyby"
+                value={`${state.xmlStatus || "idle"} / ${state.errorCount}`}
+                tone={state.errorCount > 0 || state.xmlStatus === "error" ? "danger" : "default"}
+              />
             </div>
           </CardContent>
         </Card>

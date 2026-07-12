@@ -1,9 +1,8 @@
 import { db } from "@lib/db";
 import { dealers, listings, dealerFeeds, insertListingSchema } from "@shared/schema";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { parseFeedXml, type MappedVehicle } from "./xmlImport";
 import { dispatchVehicleWebhook } from "@lib/webhooks";
-import { getActiveDealerPackageSubscription } from "@lib/dealerPackages";
 import dns from "node:dns/promises";
 import net from "node:net";
 
@@ -18,7 +17,6 @@ export interface FeedDealerCtx {
   phone?: string | null;
   maxListings: number;
 }
-
 export interface SyncSummary {
   itemCount: number;
   created: number;
@@ -29,7 +27,6 @@ export interface SyncSummary {
   coverage: Record<string, number>;
   warnings: string[];
 }
-
 export interface PreviewSummary {
   itemCount: number;
   coverage: Record<string, number>;
@@ -459,59 +456,4 @@ export async function runFeedSync(ctx: FeedDealerCtx, feedUrl: string): Promise<
       .where(eq(dealers.id, ctx.dealerId));
     throw e;
   }
-}
-
-/**
- * Sync every enabled dealer feed that has a URL. Shared by the cron route and
- * the in-process scheduler (instrumentation). Each feed is isolated so one
- * failure never aborts the batch.
- */
-export async function syncAllFeeds(): Promise<
-  Array<{ dealerId: string; ok: boolean; detail: unknown }>
-> {
-  const feeds = await db
-    .select()
-    .from(dealerFeeds)
-    .where(and(eq(dealerFeeds.enabled, true), ne(dealerFeeds.feedUrl, "")));
-
-  const results: Array<{ dealerId: string; ok: boolean; detail: unknown }> = [];
-
-  for (const feed of feeds) {
-    try {
-      const [dealer] = await db
-        .select()
-        .from(dealers)
-        .where(eq(dealers.id, feed.dealerId));
-      if (!dealer) {
-        results.push({ dealerId: feed.dealerId, ok: false, detail: "dealer not found" });
-        continue;
-      }
-      const activePackage = await getActiveDealerPackageSubscription(feed.dealerId);
-      if (!activePackage) {
-        results.push({
-          dealerId: feed.dealerId,
-          ok: false,
-          detail: "dealer_package_required",
-        });
-        continue;
-      }
-      const ctx: FeedDealerCtx = {
-        userId: feed.userId,
-        dealerId: feed.dealerId,
-        region: dealer.region,
-        phone: dealer.phone,
-        maxListings: activePackage.maxListings,
-      };
-      const summary = await runFeedSync(ctx, feed.feedUrl);
-      results.push({ dealerId: feed.dealerId, ok: true, detail: summary });
-    } catch (e) {
-      results.push({
-        dealerId: feed.dealerId,
-        ok: false,
-        detail: e instanceof Error ? e.message : "sync failed",
-      });
-    }
-  }
-
-  return results;
 }

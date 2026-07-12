@@ -4,7 +4,8 @@ import { requireDealer } from "@lib/auth";
 import { db } from "@lib/db";
 import { dealers, dealerFeeds } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { runFeedSync, type FeedDealerCtx } from "@lib/feed/syncFeed";
+import { getOrCreateFeed, type FeedDealerCtx } from "@lib/feed/syncFeed";
+import { enqueueFeedSyncJob, processPendingFeedSyncJobs } from "@lib/feed/syncJobs";
 import {
   isDealerPackageRequiredError,
   requireActiveDealerPackage,
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
       .where(eq(dealers.id, user.dealerId));
     if (!dealer) return error("Dealer not found", 404);
 
-    const activePackage = await requireActiveDealerPackage(user.dealerId, {
+    await requireActiveDealerPackage(user.dealerId, {
       isAdmin: user.isAdmin,
     });
 
@@ -59,17 +60,28 @@ export async function POST(req: NextRequest) {
       dealerId: user.dealerId,
       region: dealer.region,
       phone: dealer.phone || user.phone,
-      maxListings: activePackage?.maxListings ?? dealer.maxListings,
+      maxListings: dealer.maxListings,
     };
 
-    let summary;
-    try {
-      summary = await runFeedSync(ctx, feedUrl);
-    } catch (e) {
-      return error(e instanceof Error ? e.message : "Sync failed", 422);
-    }
+    const feed = await getOrCreateFeed(ctx, feedUrl);
+    await db
+      .update(dealerFeeds)
+      .set({ feedUrl, status: "queued", updatedAt: new Date() })
+      .where(eq(dealerFeeds.id, feed.id));
 
-    return json({ summary });
+    const job = await enqueueFeedSyncJob({
+      dealerId: user.dealerId,
+      userId: user.id,
+      feedId: feed.id,
+      feedUrl,
+      trigger: "manual",
+    });
+
+    void processPendingFeedSyncJobs(1).catch((e) => {
+      console.error("[DEALER_FEED_SYNC] Background job failed:", e);
+    });
+
+    return json({ job: { id: job.id, status: job.status, queued: true } }, 202);
   } catch (e) {
     return mapAuthError(e);
   }

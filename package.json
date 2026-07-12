@@ -10,6 +10,7 @@
     "check": "tsc",
     "seo:check": "node scripts/seo-check.mjs",
     "seo:score": "node scripts/seo-score.mjs",
+    "db:migrate:sql": "node scripts/run-sql-migrations.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "db:push": "drizzle-kit push",
