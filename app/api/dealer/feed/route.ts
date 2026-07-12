@@ -4,6 +4,7 @@ import { requireDealer } from "@lib/auth";
 import { db } from "@lib/db";
 import { dealers, dealerFeeds } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { validateFeedUrl } from "@lib/feed/syncFeed";
 
 function mapAuthError(e: unknown) {
   const msg = e instanceof Error ? e.message : "Server error";
@@ -59,12 +60,12 @@ export async function POST(req: NextRequest) {
 
     if (feedUrl) {
       try {
-        const u = new URL(feedUrl);
-        if (u.protocol !== "http:" && u.protocol !== "https:") {
-          return error("Feed musí používat http(s) / Фід має бути http(s)", 400);
-        }
-      } catch {
-        return error("Neplatná URL feedu / Невалідна URL фіду", 400);
+        await validateFeedUrl(feedUrl);
+      } catch (e) {
+        return error(
+          e instanceof Error ? e.message : "Neplatná URL feedu / Невалідна URL фіду",
+          400,
+        );
       }
     }
 

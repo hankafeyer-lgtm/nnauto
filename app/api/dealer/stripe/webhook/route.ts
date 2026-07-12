@@ -6,6 +6,7 @@ import {
   isDealerPackageId,
   syncDealerSubscriptionFromStripe,
 } from "@lib/dealerPackages";
+import { processDealerTopListingCheckoutSession } from "@lib/dealerTopListing";
 import { ensureDealerInvoiceForPackageCheckout } from "@lib/dealerInvoice";
 import Stripe from "stripe";
 
@@ -47,6 +48,9 @@ export async function POST(req: NextRequest) {
       const session = event.data.object as Stripe.Checkout.Session;
       if (session.metadata?.type === "dealer_vehicle_package" && session.id) {
         await activateDealerPackageFromCheckoutSession(session.id);
+      }
+      if (session.metadata?.type === "dealer_top_listing" && session.id) {
+        await processDealerTopListingCheckoutSession(session, stripe);
       }
     }
 

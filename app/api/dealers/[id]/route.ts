@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { db } from "@lib/db";
-import { dealers } from "@shared/schema";
+import { dealerSettings, dealers } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export async function GET(
@@ -16,6 +16,10 @@ export async function GET(
       .from(dealers)
       .where(eq(dealers.id, id));
     if (!dealer) return error("Dealer not found", 404);
+    const [settingsRow] = await db
+      .select({ settings: dealerSettings.settings })
+      .from(dealerSettings)
+      .where(eq(dealerSettings.dealerId, id));
 
     return json({
       dealer: {
@@ -30,6 +34,7 @@ export async function GET(
         region: dealer.region,
         isVerified: dealer.isVerified,
       },
+      settings: settingsRow?.settings ?? null,
     });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";

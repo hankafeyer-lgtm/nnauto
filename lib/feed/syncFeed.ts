@@ -4,9 +4,12 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { parseFeedXml, type MappedVehicle } from "./xmlImport";
 import { dispatchVehicleWebhook } from "@lib/webhooks";
 import { getActiveDealerPackageSubscription } from "@lib/dealerPackages";
+import dns from "node:dns/promises";
+import net from "node:net";
 
 const FETCH_TIMEOUT_MS = 25_000;
 const MAX_FEED_BYTES = 30 * 1024 * 1024; // 30 MB
+const MAX_FEED_REDIRECTS = 5;
 
 export interface FeedDealerCtx {
   userId: string;
@@ -36,8 +39,47 @@ export interface PreviewSummary {
   invalidCount: number;
 }
 
-/** Fetch the feed body with a timeout and a hard size cap. */
-export async function fetchFeed(url: string): Promise<string> {
+function isPrivateIpv4(ip: string): boolean {
+  const parts = ip.split(".").map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part))) return true;
+  const [a, b] = parts;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 198 && (b === 18 || b === 19)) ||
+    a >= 224
+  );
+}
+
+function isPrivateIpv6(ip: string): boolean {
+  const normalized = ip.toLowerCase();
+  return (
+    normalized === "::1" ||
+    normalized === "::" ||
+    normalized.startsWith("fc") ||
+    normalized.startsWith("fd") ||
+    normalized.startsWith("fe80") ||
+    normalized.startsWith("::ffff:127.") ||
+    normalized.startsWith("::ffff:10.") ||
+    normalized.startsWith("::ffff:192.168.") ||
+    /^::ffff:172\.(1[6-9]|2\d|3[01])\./.test(normalized)
+  );
+}
+
+function isBlockedIp(ip: string): boolean {
+  if (ip === "169.254.169.254") return true;
+  const version = net.isIP(ip);
+  if (version === 4) return isPrivateIpv4(ip);
+  if (version === 6) return isPrivateIpv6(ip);
+  return true;
+}
+
+export async function validateFeedUrl(url: string): Promise<URL> {
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -47,29 +89,55 @@ export async function fetchFeed(url: string): Promise<string> {
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error("Feed musí používat http(s) / Фід має бути http(s)");
   }
-  // Basic SSRF guard against obvious internal targets.
   const host = parsed.hostname.toLowerCase();
   if (
     host === "localhost" ||
     host === "0.0.0.0" ||
+    host === "[::1]" ||
     host.endsWith(".local") ||
-    /^127\./.test(host) ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+    host.endsWith(".localhost")
   ) {
     throw new Error("Tato adresa není povolena / Ця адреса недоступна");
   }
 
+  const hostForIp = host.replace(/^\[|\]$/g, "");
+  const literalIp = net.isIP(hostForIp) ? hostForIp : null;
+  if (literalIp && isBlockedIp(literalIp)) {
+    throw new Error("Tato adresa není povolena / Ця адреса недоступна");
+  }
+
+  if (!literalIp) {
+    const records = await dns.lookup(host, { all: true, verbatim: true });
+    if (!records.length || records.some((record) => isBlockedIp(record.address))) {
+      throw new Error("Tato adresa není povolena / Ця адреса недоступна");
+    }
+  }
+
+  return parsed;
+}
+
+/** Fetch the feed body with a timeout and a hard size cap. */
+export async function fetchFeed(url: string): Promise<string> {
+  let currentUrl = url;
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { "User-Agent": "NNAuto-FeedImporter/1.0", Accept: "application/xml, text/xml, */*" },
-      redirect: "follow",
-    });
+    let res: Response | null = null;
+    for (let redirectCount = 0; redirectCount <= MAX_FEED_REDIRECTS; redirectCount++) {
+      const parsed = await validateFeedUrl(currentUrl);
+      res = await fetch(parsed.toString(), {
+        signal: controller.signal,
+        headers: { "User-Agent": "NNAuto-FeedImporter/1.0", Accept: "application/xml, text/xml, */*" },
+        redirect: "manual",
+      });
+      if (![301, 302, 303, 307, 308].includes(res.status)) break;
+      const location = res.headers.get("location");
+      if (!location) throw new Error("Feed redirect bez cíle / Redirect без URL");
+      currentUrl = new URL(location, parsed).toString();
+      res = null;
+    }
+    if (!res) throw new Error("Příliš mnoho redirectů / Забагато redirectів");
     if (!res.ok) {
       throw new Error(`Feed vrátil HTTP ${res.status} / Фід повернув HTTP ${res.status}`);
     }

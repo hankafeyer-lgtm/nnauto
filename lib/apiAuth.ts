@@ -18,6 +18,13 @@ export function generateApiKey(): string {
   return `nn_live_${crypto.randomBytes(24).toString("hex")}`;
 }
 
+export function maskApiKey(key: string | null | undefined): string {
+  if (!key) return "";
+  const prefix = key.startsWith("nn_live_") ? "nn_live_" : "";
+  const suffix = key.slice(-4);
+  return `${prefix}********${suffix}`;
+}
+
 function extractBearer(req: NextRequest): string {
   const header = req.headers.get("authorization") || "";
   if (header.startsWith("Bearer ")) return header.slice(7).trim();
@@ -40,6 +47,7 @@ export async function getApiDealer(req: NextRequest): Promise<ApiDealerCtx | nul
     .where(and(eq(dealers.apiKey, key), eq(dealers.apiEnabled, true)));
 
   if (!dealer) return null;
+  if (dealer.status === "blocked") return null;
 
   return {
     dealerId: dealer.id,

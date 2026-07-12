@@ -97,12 +97,34 @@ function useDealerLocalSettings(dealerId: string) {
   const [settings, setSettings] = useState<DealerLocalSettings>({});
 
   useEffect(() => {
+    let cancelled = false;
     try {
       const saved = localStorage.getItem(`nnauto_dealer_settings_${dealerId}`);
       setSettings(saved ? JSON.parse(saved) : {});
     } catch {
       setSettings({});
     }
+    (async () => {
+      try {
+        const res = await fetch(`/api/dealers/${encodeURIComponent(dealerId)}`, {
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !data?.settings) return;
+        setSettings(data.settings);
+        try {
+          localStorage.setItem(`nnauto_dealer_settings_${dealerId}`, JSON.stringify(data.settings));
+        } catch {
+          // ignore
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [dealerId]);
 
   return settings;

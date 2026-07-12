@@ -1,9 +1,12 @@
 import { json, error } from "@lib/api-helpers";
 import { getCurrentUser } from "@lib/auth";
+import { db } from "@lib/db";
 import {
   countDealerUsedListingSlots,
   getActiveDealerPackageSubscription,
 } from "@lib/dealerPackages";
+import { dealers } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export async function GET() {
   try {
@@ -11,6 +14,22 @@ export async function GET() {
     if (!user) return error("Unauthorized", 401);
     if (!user.isDealer || !user.dealerId) {
       return json({ isDealer: false, active: true });
+    }
+    const [dealer] = await db
+      .select({ status: dealers.status, ownerId: dealers.ownerId })
+      .from(dealers)
+      .where(eq(dealers.id, user.dealerId));
+    if (!dealer || dealer.ownerId !== user.id || dealer.status === "blocked") {
+      return json({
+        isDealer: true,
+        active: false,
+        blocked: dealer?.status === "blocked",
+        package: null,
+        usedListings: 0,
+        maxListings: 0,
+        remainingListings: 0,
+        limitReached: true,
+      });
     }
     if (user.isAdmin) {
       return json({

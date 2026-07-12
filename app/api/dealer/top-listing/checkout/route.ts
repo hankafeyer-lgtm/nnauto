@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireDealer } from "@lib/auth";
+import { getDealerTopStripe } from "@lib/dealerTopListing";
 import { storage } from "@lib/storage";
 import Stripe from "stripe";
 
@@ -11,12 +12,6 @@ const TOP_PRICES_KC = {
 } as const;
 
 type TopDuration = keyof typeof TOP_PRICES_KC;
-
-function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY || process.env.DEALER_STRIPE_SECRET_KEY;
-  if (!key) throw new Error("Stripe not configured");
-  return new Stripe(key);
-}
 
 function getBaseUrl(req: NextRequest): string {
   if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
@@ -89,7 +84,7 @@ export async function POST(req: NextRequest) {
       if (listing.isTopListing) return error("Listing is already TOP", 400);
     }
 
-    const stripe = getStripe();
+    const stripe = getDealerTopStripe();
     const baseUrl = getBaseUrl(req);
     const stripePriceId = getTopPriceId(duration);
     const sessionParams: Stripe.Checkout.SessionCreateParams = {

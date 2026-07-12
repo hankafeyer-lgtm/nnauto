@@ -27,6 +27,20 @@ function normalizeEvents(value: unknown): WebhookEvent[] {
   return selected.length ? selected : ["vehicle.created", "vehicle.updated", "vehicle.sold"];
 }
 
+function maskSecret(secret: string | null | undefined): string {
+  if (!secret) return "";
+  return `whsec_********${secret.slice(-4)}`;
+}
+
+function serializeWebhook(webhook: typeof dealerWebhooks.$inferSelect, revealSecret = false) {
+  return {
+    ...webhook,
+    secret: revealSecret ? webhook.secret : maskSecret(webhook.secret),
+    secretMasked: maskSecret(webhook.secret),
+    hasSecret: !!webhook.secret,
+  };
+}
+
 export async function GET() {
   try {
     const user = await requireDealer();
@@ -38,9 +52,11 @@ export async function GET() {
       .where(eq(dealerWebhooks.dealerId, user.dealerId));
 
     return json({
-      webhook: webhook ?? {
+      webhook: webhook ? serializeWebhook(webhook) : {
         webhookUrl: "",
         secret: "",
+        secretMasked: "",
+        hasSecret: false,
         enabled: true,
         events: ["vehicle.created", "vehicle.updated", "vehicle.sold"],
         status: "idle",
@@ -74,6 +90,7 @@ export async function POST(req: NextRequest) {
       .where(eq(dealerWebhooks.dealerId, user.dealerId));
 
     let webhook;
+    let created = false;
     if (existing) {
       [webhook] = await db
         .update(dealerWebhooks)
@@ -86,6 +103,7 @@ export async function POST(req: NextRequest) {
         .where(eq(dealerWebhooks.id, existing.id))
         .returning();
     } else {
+      created = true;
       [webhook] = await db
         .insert(dealerWebhooks)
         .values({
@@ -99,7 +117,7 @@ export async function POST(req: NextRequest) {
         .returning();
     }
 
-    return json({ webhook });
+    return json({ webhook: serializeWebhook(webhook, created) });
   } catch (e) {
     return mapAuthError(e);
   }

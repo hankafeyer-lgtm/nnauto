@@ -221,9 +221,42 @@ export const insertDealerSchema = createInsertSchema(dealers).omit({
 
 export const updateDealerSchema = insertDealerSchema.partial();
 
+export const dealerProfileUpdateSchema = z
+  .object({
+    companyName: z.string().min(2, "Company name is required").optional(),
+    ico: z.string().optional().nullable(),
+    dic: z.string().optional().nullable(),
+    description: z.string().optional().nullable(),
+    logoUrl: z.string().optional().nullable(),
+    website: z.string().optional().nullable(),
+    phone: z.string().optional().nullable(),
+    email: z.string().email("Invalid email").optional().or(z.literal("")),
+    address: z.string().optional().nullable(),
+    region: z.string().optional().nullable(),
+  })
+  .strict();
+
 export type Dealer = typeof dealers.$inferSelect;
 export type InsertDealer = z.infer<typeof insertDealerSchema>;
 export type UpdateDealer = z.infer<typeof updateDealerSchema>;
+
+export const dealerSettings = pgTable(
+  "dealer_settings",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    dealerId: varchar("dealer_id").notNull(),
+    userId: varchar("user_id").notNull(),
+    settings: jsonb("settings").notNull(),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (t) => [
+    uniqueIndex("dealer_settings_dealer_id_unique").on(t.dealerId),
+    index("dealer_settings_user_id_idx").on(t.userId),
+  ],
+);
+
+export type DealerSettings = typeof dealerSettings.$inferSelect;
 
 // ── Bulk import jobs ─────────────────────────────────────────────────────────
 

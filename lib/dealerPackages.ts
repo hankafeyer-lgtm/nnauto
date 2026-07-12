@@ -165,6 +165,7 @@ export async function activateDealerPackageFromCheckoutSession(sessionId: string
   if (!isDealerPackageId(packageId) || !dealerId || !userId) {
     throw new Error("Missing checkout metadata");
   }
+  await assertDealerIsActive(dealerId);
 
   const subscription =
     typeof session.subscription === "string"
@@ -287,6 +288,16 @@ export class DealerPackageLimitReachedError extends Error {
   }
 }
 
+export async function assertDealerIsActive(dealerId: string): Promise<void> {
+  const [dealer] = await db
+    .select({ status: dealers.status })
+    .from(dealers)
+    .where(eq(dealers.id, dealerId));
+  if (!dealer || dealer.status === "blocked") {
+    throw new Error("Forbidden");
+  }
+}
+
 export async function countDealerUsedListingSlots(userId: string): Promise<number> {
   const result = (await db.execute(sql`
     SELECT
@@ -306,6 +317,7 @@ export async function requireActiveDealerPackage(
   dealerId: string,
   opts?: { isAdmin?: boolean },
 ) {
+  await assertDealerIsActive(dealerId);
   if (opts?.isAdmin) return null;
   const sub = await getActiveDealerPackageSubscription(dealerId);
   if (!sub) throw new DealerPackageRequiredError();
@@ -318,6 +330,7 @@ export async function assertDealerCanCreateListings(args: {
   requested?: number;
   isAdmin?: boolean;
 }) {
+  await assertDealerIsActive(args.dealerId);
   if (args.isAdmin) {
     return {
       subscription: null,
@@ -328,6 +341,7 @@ export async function assertDealerCanCreateListings(args: {
   }
 
   const subscription = await requireActiveDealerPackage(args.dealerId);
+  if (!subscription) throw new DealerPackageRequiredError();
   const used = await countDealerUsedListingSlots(args.userId);
   const max = subscription.maxListings;
   const requested = Math.max(1, args.requested ?? 1);

@@ -1,7 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { db } from "./db";
 import { getJwtSecret } from "./jwtSecret";
-import { users } from "@shared/schema";
+import { dealers, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 function verifyJwt(token: string): { userId: string } | null {
@@ -86,5 +86,18 @@ export async function requireSuperAdmin() {
 export async function requireDealer() {
   const user = await requireAuth();
   if (!user.isDealer) throw new Error("Forbidden");
+  if (!user.dealerId) throw new Error("Forbidden");
+
+  const [dealer] = await db
+    .select({
+      id: dealers.id,
+      ownerId: dealers.ownerId,
+      status: dealers.status,
+    })
+    .from(dealers)
+    .where(eq(dealers.id, user.dealerId));
+
+  if (!dealer || dealer.ownerId !== user.id) throw new Error("Forbidden");
+  if (dealer.status === "blocked") throw new Error("Forbidden");
   return user;
 }

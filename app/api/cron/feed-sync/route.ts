@@ -13,6 +13,10 @@ export const maxDuration = 300;
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
+  if (process.env.NODE_ENV === "production" && !secret) {
+    console.error("[CRON] CRON_SECRET is missing in production");
+    return error("Cron not configured", 503);
+  }
   if (secret) {
     const auth = req.headers.get("authorization") || "";
     const keyParam = req.nextUrl.searchParams.get("key") || "";

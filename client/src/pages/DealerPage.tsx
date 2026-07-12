@@ -226,6 +226,24 @@ type DealerTab =
   | "reviews"
   | "microsite"
   | "billing";
+
+const DEALER_TABS = new Set<DealerTab>([
+  "dashboard",
+  "mylistings",
+  "topovani",
+  "promotion",
+  "import",
+  "integrace",
+  "leady",
+  "settings",
+  "reviews",
+  "microsite",
+  "billing",
+]);
+
+function isDealerTab(value: string | null): value is DealerTab {
+  return !!value && DEALER_TABS.has(value as DealerTab);
+}
 type DealerProfileSubTab = "info" | "web" | "account";
 type SettingsTarget =
   | "companyName"
@@ -4668,22 +4686,13 @@ function DealerSettingsTab({
   }, [initialForm]);
 
   useEffect(() => {
+    let cancelled = false;
     try {
       const saved = localStorage.getItem(localSettingsKey);
       if (saved) {
         const defaults = createDefaultDealerLocalSettings(dealer);
         const parsed = JSON.parse(saved) as Partial<DealerLocalSettings>;
-        setLocalSettings({
-          ...defaults,
-          ...parsed,
-          addressDetails: { ...defaults.addressDetails, ...(parsed.addressDetails || {}) },
-          workingHours: { ...defaults.workingHours, ...(parsed.workingHours || {}) },
-          socialLinks: { ...defaults.socialLinks, ...(parsed.socialLinks || {}) },
-          notifications: { ...defaults.notifications, ...(parsed.notifications || {}) },
-          integrations: { ...defaults.integrations, ...(parsed.integrations || {}) },
-          autoReplies: { ...defaults.autoReplies, ...(parsed.autoReplies || {}) },
-          security: { ...defaults.security, ...(parsed.security || {}) },
-        });
+        setLocalSettings(mergeDealerLocalSettings(defaults, parsed));
       } else {
         setLocalSettings(createDefaultDealerLocalSettings(dealer));
       }
@@ -4691,6 +4700,23 @@ function DealerSettingsTab({
     } catch {
       setLocalSettings(createDefaultDealerLocalSettings(dealer));
     }
+    (async () => {
+      try {
+        const res = await apiRequest("GET", "/api/dealer/settings");
+        const data = await res.json();
+        if (cancelled || !data?.settings) return;
+        const defaults = createDefaultDealerLocalSettings(dealer);
+        const next = mergeDealerLocalSettings(defaults, data.settings as Partial<DealerLocalSettings>);
+        setLocalSettings(next);
+        localStorage.setItem(localSettingsKey, JSON.stringify(next));
+        setSettingsSaveState("saved");
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [dealer, localSettingsKey]);
 
   useEffect(() => {
@@ -4765,7 +4791,12 @@ function DealerSettingsTab({
     if (settingsSaveState !== "dirty") return;
     const timer = window.setTimeout(() => {
       setSettingsSaveState("saving");
-      localStorage.setItem(localSettingsKey, JSON.stringify(localSettings));
+      try {
+        localStorage.setItem(localSettingsKey, JSON.stringify(localSettings));
+      } catch {
+        // ignore
+      }
+      saveDealerSettingsToServer(localSettings);
       window.setTimeout(() => setSettingsSaveState("saved"), 350);
     }, 900);
     return () => window.clearTimeout(timer);
@@ -5122,7 +5153,7 @@ function DealerSettingsTab({
                   )}
                   <div className="mt-3 flex flex-wrap gap-2">
                     {connected && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">{t("dealer.settings.connected")}</Badge>}
-                    <Badge variant="secondary">{item.modal === "billing" ? t("dealer.premium.nextPhase") : t("dealer.settings.configure")}</Badge>
+                    <Badge variant="secondary">{(item.modal as string) === "billing" ? t("dealer.premium.nextPhase") : t("dealer.settings.configure")}</Badge>
                   </div>
               </div>
             );
@@ -5904,6 +5935,33 @@ function DashboardPeriodCompare({
   );
 }
 
+function mergeDealerLocalSettings(
+  defaults: DealerLocalSettings,
+  parsed: Partial<DealerLocalSettings>,
+): DealerLocalSettings {
+  return {
+    ...defaults,
+    ...parsed,
+    addressDetails: { ...defaults.addressDetails, ...(parsed.addressDetails || {}) },
+    workingHours: { ...defaults.workingHours, ...(parsed.workingHours || {}) },
+    socialLinks: { ...defaults.socialLinks, ...(parsed.socialLinks || {}) },
+    notifications: { ...defaults.notifications, ...(parsed.notifications || {}) },
+    integrations: { ...defaults.integrations, ...(parsed.integrations || {}) },
+    autoReplies: { ...defaults.autoReplies, ...(parsed.autoReplies || {}) },
+    security: { ...defaults.security, ...(parsed.security || {}) },
+    microsite: { ...defaults.microsite, ...(parsed.microsite || {}) },
+    reviews: { ...defaults.reviews, ...(parsed.reviews || {}) },
+    billing: { ...defaults.billing, ...(parsed.billing || {}) },
+  };
+}
+
+function saveDealerSettingsToServer(settings: DealerLocalSettings) {
+  const { billing: _billing, ...serverSettings } = settings;
+  void apiRequest("PUT", "/api/dealer/settings", { settings: serverSettings }).catch(() => {
+    // Local cache still keeps the UI responsive; the next explicit save retries.
+  });
+}
+
 function useDealerLocalStore(dealer: Dealer) {
   const key = `nnauto_dealer_settings_${dealer.id}`;
   const [settings, setSettings] = useState<DealerLocalSettings>(() =>
@@ -5917,17 +5975,35 @@ function useDealerLocalStore(dealer: Dealer) {
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<DealerLocalSettings>;
         const defaults = createDefaultDealerLocalSettings(dealer);
-        setSettings({
-          ...defaults,
-          ...parsed,
-          microsite: { ...defaults.microsite, ...(parsed.microsite || {}) },
-          reviews: { ...defaults.reviews, ...(parsed.reviews || {}) },
-          billing: { ...defaults.billing, ...(parsed.billing || {}) },
-        });
+        setSettings(mergeDealerLocalSettings(defaults, parsed));
       }
     } catch {
       // ignore
     }
+  }, [key, dealer]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiRequest("GET", "/api/dealer/settings");
+        const data = await res.json();
+        if (cancelled || !data?.settings) return;
+        const defaults = createDefaultDealerLocalSettings(dealer);
+        const next = mergeDealerLocalSettings(defaults, data.settings as Partial<DealerLocalSettings>);
+        setSettings(next);
+        try {
+          localStorage.setItem(key, JSON.stringify(next));
+        } catch {
+          // ignore
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [key, dealer]);
 
   const update = useCallback(
@@ -5942,6 +6018,7 @@ function useDealerLocalStore(dealer: Dealer) {
         } catch {
           // ignore
         }
+        saveDealerSettingsToServer(next);
         return next;
       });
     },
@@ -7057,6 +7134,7 @@ function BillingTab({
         sessionStorage.setItem(marker, "done");
         window.history.replaceState(null, "", "/dealer?tab=billing");
         await queryClient.refetchQueries({ queryKey: ["/api/dealer/stats"] });
+        await queryClient.invalidateQueries({ queryKey: ["/api/dealer/package-status"] });
         await queryClient.invalidateQueries({ queryKey: ["/api/dealer/invoices"] });
         toast({
           title: t("dealer.billing.paymentSuccessTitle"),
@@ -7662,15 +7740,23 @@ export default function DealerPage() {
   const [importSub, setImportSub] = useState<ImportSyncSubTab>("csv");
   const [profileSubTab, setProfileSubTab] = useState<DealerProfileSubTab>("info");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const selectDealerTab = useCallback((next: DealerTab) => {
+    const normalized = next === "promotion" ? "topovani" : next;
+    setActiveTab(normalized);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("tab", normalized);
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }, []);
   const openImportSync = useCallback((next: ImportSyncSubTab) => {
     setImportSub(next);
-    setActiveTab("import");
-  }, []);
+    selectDealerTab("import");
+  }, [selectDealerTab]);
   const openWebProfile = useCallback(() => {
     setProfileSubTab("web");
     setSettingsTarget(null);
-    setActiveTab("settings");
-  }, []);
+    selectDealerTab("settings");
+  }, [selectDealerTab]);
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -7678,8 +7764,8 @@ export default function DealerPage() {
     if (tab === "web-profile" || tab === "web") {
       setProfileSubTab("web");
       setActiveTab("settings");
-    } else if (tab === "billing") {
-      setActiveTab("billing");
+    } else if (isDealerTab(tab)) {
+      setActiveTab(tab === "promotion" ? "topovani" : tab);
     }
   }, []);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget | null>(null);
@@ -7714,9 +7800,9 @@ export default function DealerPage() {
   const usedDealerListingSlots =
     packageStatus?.usedListings ?? stats?.totalListings ?? 0;
   const openSettingsTarget = useCallback((target: SettingsTarget) => {
-    setActiveTab("settings");
+    selectDealerTab("settings");
     setSettingsTarget(target);
-  }, []);
+  }, [selectDealerTab]);
   const openPublicProfile = useCallback(() => {
     if (!dealer?.id) return;
     window.open(`/dealer/${dealer.id}?from=cabinet`, "_blank", "noopener,noreferrer");
@@ -7745,7 +7831,7 @@ export default function DealerPage() {
     setAddVehicleDialogOpen(false);
     if (mode === "bulk") {
       setImportSub("csv");
-      setActiveTab("import");
+      selectDealerTab("import");
       window.setTimeout(() => {
         document
           .getElementById("dealer-bulk-import-upload")
@@ -7754,7 +7840,7 @@ export default function DealerPage() {
       return;
     }
     navigate("/add-listing");
-  }, [navigate]);
+  }, [navigate, selectDealerTab]);
 
   if (authLoading) {
     return (
@@ -7797,13 +7883,13 @@ export default function DealerPage() {
                 onProfileTask={openSettingsTarget}
                 onAddVehicle={openAddVehicleDialog}
                 onOpenImport={openImportSync}
-                onOpenBilling={() => setActiveTab("billing")}
+                onOpenBilling={() => selectDealerTab("billing")}
               />
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <button
                 type="button"
-                onClick={() => setActiveTab("dashboard")}
+                onClick={() => selectDealerTab("dashboard")}
                 className="group flex w-full min-w-0 items-center gap-2.5 rounded-2xl border border-amber-300 bg-amber-50/70 px-2.5 py-2 text-left shadow-sm transition hover:bg-amber-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2 motion-safe:animate-attention sm:w-auto sm:gap-3 sm:px-3 sm:py-1.5"
                 aria-label={activeTab === "dashboard" ? t("dealer.cabinet") : t("dealer.backToCabinet")}
               >
@@ -7841,7 +7927,7 @@ export default function DealerPage() {
               </div>
             </div>
 
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DealerTab)}>
+          <Tabs value={activeTab} onValueChange={(value) => selectDealerTab(value as DealerTab)}>
             <div
               className={`grid gap-6 md:items-start 2xl:gap-8 ${
                 sidebarCollapsed
@@ -7856,7 +7942,7 @@ export default function DealerPage() {
                 onAddVehicle={openAddVehicleDialog}
                 onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
                 onOpenPublicProfile={openPublicProfile}
-                onSelect={setActiveTab}
+                onSelect={selectDealerTab}
               />
               <div className="min-w-0 space-y-5">
             <TabsContent value="dashboard" className="mt-0">
@@ -7864,7 +7950,7 @@ export default function DealerPage() {
                 stats={stats}
                 dealer={dealer}
                 t={t}
-                onOpenTab={setActiveTab}
+                onOpenTab={selectDealerTab}
                 onFocusSettings={openSettingsTarget}
               onAddVehicle={openAddVehicleDialog}
               />
@@ -7873,7 +7959,7 @@ export default function DealerPage() {
               <MyListingsTab
                 t={t}
                 dealer={dealer}
-                onOpenTab={setActiveTab}
+                onOpenTab={selectDealerTab}
                 onAddVehicle={openAddVehicleDialog}
               />
             </TabsContent>
@@ -7891,7 +7977,7 @@ export default function DealerPage() {
                 sub={importSub}
                 onSubChange={setImportSub}
                 hasActivePackage={hasActiveDealerPackage}
-                onOpenBilling={() => setActiveTab("billing")}
+                onOpenBilling={() => selectDealerTab("billing")}
               />
             </TabsContent>
             <TabsContent value="integrace" className="mt-0">
@@ -7902,7 +7988,7 @@ export default function DealerPage() {
                 sub={importSub === "csv" ? "xml" : importSub}
                 onSubChange={setImportSub}
                 hasActivePackage={hasActiveDealerPackage}
-                onOpenBilling={() => setActiveTab("billing")}
+                onOpenBilling={() => selectDealerTab("billing")}
               />
             </TabsContent>
             <TabsContent value="leady" className="mt-0">
@@ -7952,7 +8038,7 @@ export default function DealerPage() {
                 openAddVehicleDialog();
                 return;
               }
-              setActiveTab(tab as DealerTab);
+              selectDealerTab(tab as DealerTab);
             }}
           />
           <Dialog open={addVehicleDialogOpen} onOpenChange={setAddVehicleDialogOpen}>
@@ -8010,7 +8096,7 @@ export default function DealerPage() {
                   t={t}
                   onOpenBilling={() => {
                     setAddVehicleDialogOpen(false);
-                    setActiveTab("billing");
+                    selectDealerTab("billing");
                   }}
                 />
               )}
@@ -8142,7 +8228,7 @@ function DealerImportPackagePaywall({
                 onClick={() => startCheckout(pkg)}
                 disabled={isDisabled}
                 className={`rounded-2xl border p-4 text-left transition-all duration-200 ${
-                  pkg.popular
+                  "popular" in pkg && pkg.popular
                     ? "border-amber-300 bg-amber-50/70"
                     : "border-amber-100 bg-white"
                 } ${
@@ -8151,7 +8237,7 @@ function DealerImportPackagePaywall({
                     : "cursor-pointer hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
                 }`}
               >
-                {pkg.popular ? (
+                {"popular" in pkg && pkg.popular ? (
                   <Badge className="mb-2 bg-amber-700 text-white hover:bg-amber-700">
                     {t("dealer.billing.mostPopular")}
                   </Badge>
@@ -9578,6 +9664,13 @@ function DealerCabinetSideNav({
       hint: unread > 0 ? t("messages.shortcut.openInbox") : t("messages.shortcut.idle"),
       section: "Komunikace",
     },
+    {
+      id: "leady",
+      Icon: Users,
+      label: t("dealer.nav.leady"),
+      hint: newLeads > 0 ? `${newLeads} nových poptávek` : "CRM pipeline poptávek",
+      section: "Komunikace",
+    },
     // — Marketing & prezentace —
     {
       id: "publicProfile",
@@ -9742,6 +9835,7 @@ function DealerMobileNav({
   }> = [
     { id: "import", label: t("dealer.nav.importSync"), Icon: RotateCcw, hint: t("dealer.nav.importSyncHint"), section: "Inzeráty" },
     { id: "topovani", label: t("dealer.topovani.menu"), Icon: Crown, hint: t("dealer.topovani.menuHint"), section: "Inzeráty" },
+    { id: "leady", label: t("dealer.nav.leady"), Icon: Users, hint: "CRM pipeline poptávek", section: "Komunikace" },
     { id: "publicProfile", label: t("dealer.dashboard.publicProfile"), Icon: Eye, hint: t("dealer.premium.previewPublicProfile"), section: "Marketing & prezentace" },
     { id: "settings", label: t("dealer.nav.dealerProfile"), Icon: Building2, hint: t("dealer.nav.dealerProfileHint"), section: "Účet" },
     { id: "billing", label: t("dealer.billing.tab"), Icon: CreditCard, hint: t("dealer.billing.subtitle"), section: "Účet" },
@@ -9794,7 +9888,7 @@ function DealerMobileNav({
           type="button"
           onClick={() => setMoreOpen(true)}
           className={`flex min-h-14 flex-col items-center justify-center rounded-2xl px-1 text-[10px] font-bold transition active:scale-95 ${
-            ["integrace", "import", "topovani", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab)
+            ["integrace", "import", "topovani", "leady", "reviews", "microsite", "billing", "settings", "promotion"].includes(activeTab)
               ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200"
               : "text-muted-foreground hover:bg-amber-50 hover:text-amber-800"
           }`}

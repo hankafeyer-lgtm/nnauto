@@ -3,7 +3,7 @@ import { requireDealer } from "@lib/auth";
 import { db } from "@lib/db";
 import { dealers } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { generateApiKey } from "@lib/apiAuth";
+import { generateApiKey, maskApiKey } from "@lib/apiAuth";
 
 function mapAuthError(e: unknown) {
   const msg = e instanceof Error ? e.message : "Server error";
@@ -24,7 +24,12 @@ export async function GET() {
       .where(eq(dealers.id, user.dealerId));
     if (!dealer) return error("Dealer not found", 404);
 
-    return json({ apiKey: dealer.apiKey || "", apiEnabled: dealer.apiEnabled });
+    return json({
+      apiKey: dealer.apiKey ? maskApiKey(dealer.apiKey) : "",
+      apiKeyMasked: dealer.apiKey ? maskApiKey(dealer.apiKey) : "",
+      hasApiKey: !!dealer.apiKey,
+      apiEnabled: dealer.apiEnabled,
+    });
   } catch (e) {
     return mapAuthError(e);
   }
@@ -43,7 +48,12 @@ export async function POST() {
       .where(eq(dealers.id, user.dealerId))
       .returning({ apiKey: dealers.apiKey, apiEnabled: dealers.apiEnabled });
 
-    return json({ apiKey: dealer.apiKey, apiEnabled: dealer.apiEnabled });
+    return json({
+      apiKey: dealer.apiKey,
+      apiKeyMasked: dealer.apiKey ? maskApiKey(dealer.apiKey) : "",
+      hasApiKey: !!dealer.apiKey,
+      apiEnabled: dealer.apiEnabled,
+    });
   } catch (e) {
     return mapAuthError(e);
   }

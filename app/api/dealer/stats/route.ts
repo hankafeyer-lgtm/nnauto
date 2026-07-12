@@ -6,13 +6,38 @@ import { dealers } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { getActiveDealerPackageSubscription, getAdminDealerPackageBypass } from "@lib/dealerPackages";
 
+const dealerStatsSelect = {
+  id: dealers.id,
+  ownerId: dealers.ownerId,
+  companyName: dealers.companyName,
+  ico: dealers.ico,
+  dic: dealers.dic,
+  description: dealers.description,
+  logoUrl: dealers.logoUrl,
+  website: dealers.website,
+  phone: dealers.phone,
+  email: dealers.email,
+  address: dealers.address,
+  region: dealers.region,
+  isVerified: dealers.isVerified,
+  maxListings: dealers.maxListings,
+  plan: dealers.plan,
+  status: dealers.status,
+  verificationStatus: dealers.verificationStatus,
+  xmlFeedUrl: dealers.xmlFeedUrl,
+  xmlFeedStatus: dealers.xmlFeedStatus,
+  lastSyncAt: dealers.lastSyncAt,
+  createdAt: dealers.createdAt,
+  updatedAt: dealers.updatedAt,
+};
+
 export async function GET(_req: NextRequest) {
   try {
     const user = await requireDealer();
     if (!user.dealerId) return error("Dealer not found", 404);
 
     const [dealer] = await db
-      .select()
+      .select(dealerStatsSelect)
       .from(dealers)
       .where(eq(dealers.id, user.dealerId));
     if (!dealer) return error("Dealer not found", 404);
@@ -71,7 +96,7 @@ export async function GET(_req: NextRequest) {
     const perListing = perListingResult?.rows || [];
     let dealerPackage = await getActiveDealerPackageSubscription(user.dealerId);
     if (!dealerPackage && user.isAdmin) {
-      dealerPackage = getAdminDealerPackageBypass() as typeof dealerPackage;
+      dealerPackage = getAdminDealerPackageBypass() as unknown as typeof dealerPackage;
     }
 
     return json({
