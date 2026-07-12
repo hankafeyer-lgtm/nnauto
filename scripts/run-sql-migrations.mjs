@@ -26,6 +26,42 @@ const files = fs
   .filter((file) => file.endsWith(".sql"))
   .sort();
 
+async function tableExists(tableName) {
+  const result = await client.query(
+    "SELECT to_regclass($1) AS table_name",
+    [`public.${tableName}`],
+  );
+  return !!result.rows[0]?.table_name;
+}
+
+async function baselineExistingDatabase() {
+  const migrationCount = await client.query("SELECT COUNT(*)::int AS total FROM app_migrations");
+  if (migrationCount.rows[0]?.total > 0) return;
+
+  const hasExistingSchema =
+    (await tableExists("users")) &&
+    (await tableExists("listings")) &&
+    (await tableExists("dealers"));
+  if (!hasExistingSchema) return;
+
+  await client.query("BEGIN");
+  try {
+    for (const file of files) {
+      await client.query(
+        "INSERT INTO app_migrations (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING",
+        [file],
+      );
+    }
+    await client.query("COMMIT");
+    console.log(
+      `Baseline detected existing schema; marked ${files.length} migrations as applied.`,
+    );
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  }
+}
+
 const client = new Client({
   connectionString,
   ssl: { rejectUnauthorized: process.env.PGSSL_REJECT_UNAUTHORIZED !== "false" },
@@ -39,6 +75,7 @@ try {
       applied_at timestamp NOT NULL DEFAULT now()
     )
   `);
+  await baselineExistingDatabase();
 
   for (const file of files) {
     const alreadyApplied = await client.query(
