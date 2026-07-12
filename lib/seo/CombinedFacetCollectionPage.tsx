@@ -20,6 +20,10 @@ import { isSeoTextsEnabled } from "@lib/seo/features";
 import type { CollectionStats, FacetListingRow } from "@lib/seo/facet-queries";
 import type { FacetDefinition } from "@lib/seo/facets";
 import { MIN_FACET_LISTINGS } from "@lib/seo/facets";
+import {
+  CollectionInternalLinkBlocks,
+  CollectionVehicleJsonLd,
+} from "@lib/seo/CollectionInternalLinkBlocks";
 
 export type CombinedFacetScope =
   | { type: "facetPair"; facets: readonly [FacetDefinition, FacetDefinition] }
@@ -127,6 +131,29 @@ function faqItems(scope: CombinedFacetScope, stats: CollectionStats) {
   ];
 }
 
+function seoParagraphs(scope: CombinedFacetScope, stats: CollectionStats) {
+  const names = scopeNames(scope);
+  if (scope.type === "modelFacet") {
+    const brandName = formatBrandDisplay(scope.brandSlug);
+    const modelName = formatModelDisplay(scope.modelSlug);
+    return [
+      `Výběr ${brandName} ${modelName} ${scope.facet.label.toLowerCase()} kombinuje konkrétní model s nejdůležitějším parametrem pro nákup. Díky tomu se nemusíte probírat obecnými výsledky a rychleji najdete auta, která odpovídají přesnějšímu záměru hledání.`,
+      stats.total >= MIN_FACET_LISTINGS
+        ? `Stránka aktuálně pracuje s ${stats.total} aktivními inzeráty. U každého vozu doporučujeme porovnat cenu, nájezd, rok výroby, servisní historii a výbavu s podobnými nabídkami stejného modelu.`
+        : `Nabídka je zatím užší, proto je stránka dostupná pro uživatele a interní odkazy, ale vyhledávačům říkáme noindex/follow, dokud inventory nedosáhne dostatečné kvality.`,
+    ];
+  }
+
+  const [primary, secondary] = scope.facets;
+  return [
+    `Kombinace ${primary.label.toLowerCase()} a ${secondary.label.toLowerCase()} pomáhá najít auta podle dvou praktických kritérií najednou. Je vhodná pro uživatele, kteří nehledají jen značku, ale konkrétní typ nabídky, cenu, palivo, lokalitu nebo ročník.`,
+    stats.total >= MIN_FACET_LISTINGS
+      ? `Aktuální výběr obsahuje ${stats.total} aktivních inzerátů. Porovnávejte hlavně cenu vůči nájezdu, stav karoserie, výbavu, původ vozu a dostupnost prohlídky u prodejce.`
+      : `Pokud je nabídka v této kombinaci malá, stránka zůstává technicky dostupná, ale není zařazená do indexu. Jakmile přibude dost aut, automaticky začne fungovat jako plnohodnotná SEO landing page.`,
+    `Níže najdete související auta, populární modely, značky a podobná vyhledávání, která pomáhají rychle přejít na širší nebo přesnější výběr než ${names.shortName}.`,
+  ];
+}
+
 export function CombinedFacetCollectionPage({
   scope,
   rows,
@@ -165,6 +192,7 @@ export function CombinedFacetCollectionPage({
         })}
       />
       <JsonLd data={buildItemListJsonLd(names.h1, itemEntries, stats.total)} />
+      <CollectionVehicleJsonLd rows={rows} />
       {(() => {
         const aggregate = buildAggregateOfferJsonLd({ name: names.h1, stats });
         return aggregate ? <JsonLd data={aggregate} /> : null;
@@ -262,18 +290,9 @@ export function CombinedFacetCollectionPage({
           <h2 className="text-2xl font-semibold text-foreground">
             Jak vybrat {names.shortName}
           </h2>
-          <p>
-            Stránka kombinuje více důležitých filtrů, aby uživatelé i vyhledávače
-            viděli přesnější výběr než v obecném katalogu. Díky tomu můžete
-            rychle porovnat auta podle ceny, nájezdu, roku výroby, výbavy a
-            lokality prodejce.
-          </p>
-          <p>
-            Nabídka se aktualizuje automaticky podle aktivních inzerátů. Pokud je
-            v kombinaci málo vozů, stránka zůstává dostupná pro uživatele, ale je
-            označená jako noindex/follow a do sitemap se dostane až po dosažení
-            dostatečného počtu inzerátů.
-          </p>
+          {seoParagraphs(scope, stats).map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
         </section>
       ) : null}
 
@@ -291,25 +310,12 @@ export function CombinedFacetCollectionPage({
         </dl>
       </section>
 
-      {relatedLinks.length ? (
-        <section className="mt-10" aria-labelledby="related-searches">
-          <h2 id="related-searches" className="text-xl font-semibold mb-3">
-            Související vyhledávání
-          </h2>
-          <ul className="flex flex-wrap gap-2">
-            {relatedLinks.map((link) => (
-              <li key={link.href}>
-                <a
-                  href={link.href}
-                  className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
-                >
-                  {link.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <CollectionInternalLinkBlocks
+        rows={rows}
+        brandSlug={scope.type === "modelFacet" ? scope.brandSlug : undefined}
+        modelSlug={scope.type === "modelFacet" ? scope.modelSlug : undefined}
+        relatedLinks={relatedLinks}
+      />
     </main>
   );
 }

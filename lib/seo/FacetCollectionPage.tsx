@@ -27,6 +27,10 @@ import type { CollectionStats } from "@lib/seo/facet-queries";
 import type { listings } from "@shared/schema";
 import { SeoHubLinks } from "./SeoHubLinks";
 import { isSeoFeatureEnabled, isSeoTextsConfigured, isSeoTextsEnabled } from "@lib/seo/features";
+import {
+  CollectionInternalLinkBlocks,
+  CollectionVehicleJsonLd,
+} from "@lib/seo/CollectionInternalLinkBlocks";
 
 type ListingRow = typeof listings.$inferSelect;
 
@@ -103,6 +107,7 @@ export function FacetCollectionPage({
         })}
       />
       <JsonLd data={buildItemListJsonLd(collectionName, itemEntries, stats.total)} />
+      <CollectionVehicleJsonLd rows={rows} />
       {(() => {
         const agg = buildAggregateOfferJsonLd({
           name: collectionName,
@@ -253,7 +258,7 @@ export function FacetCollectionPage({
 
       {isSeoFeatureEnabled("brandCategories") && relatedFacets.length ? (
         <section className="mt-10">
-          <h2 className="text-xl font-semibold mb-3">Související kategorie</h2>
+          <h2 className="text-xl font-semibold mb-3">Související vyhledávání</h2>
           <SeoHubLinks links={relatedFacets} />
         </section>
       ) : null}
@@ -266,6 +271,11 @@ export function FacetCollectionPage({
           <SeoHubLinks links={brandClusters} />
         </section>
       ) : null}
+
+      <CollectionInternalLinkBlocks
+        rows={rows}
+        brandSlug={brandSlug}
+      />
     </main>
   );
 }
