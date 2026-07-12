@@ -33,7 +33,7 @@ export {
 } from "@lib/dealerInvoiceTemplate";
 
 const require = createRequire(import.meta.url);
-const PDFDocument = require("pdfkit") as typeof import("pdfkit");
+const PDFDocument = require("pdfkit") as any;
 
 const INVOICE_NUMBER_WIDTH = 6;
 
@@ -83,6 +83,17 @@ export function packageInvoiceDescription(packageId: DealerPackageId): string {
   return `Roční balíček vozidel ${pkg.name} (${pkg.cars} vozidel)`;
 }
 
+export function topListingInvoiceDescription(args: {
+  durationDays: number;
+  listingCount: number;
+}): string {
+  const listingLabel =
+    args.listingCount === 1
+      ? "1 inzerátu"
+      : `${args.listingCount} inzerátů`;
+  return `TOPování ${listingLabel} na ${args.durationDays} dní`;
+}
+
 function buyerSnapshotFromDealer(
   dealer: typeof dealers.$inferSelect,
   fallbackEmail?: string | null,
@@ -99,7 +110,7 @@ function buyerSnapshotFromDealer(
 function baseInvoiceValues(args: {
   dealerId: string;
   userId: string;
-  packageId: DealerPackageId;
+  packageId: string;
   number: string;
   issuedAt: Date;
   description: string;
@@ -383,7 +394,7 @@ export async function sendDealerInvoiceEmails(invoice: DealerInvoice): Promise<v
   const adminHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #1f2937;">
       <h2 style="color:#B65A3A;">Nová faktura dealera ${invoice.number}</h2>
-      <p>Dealer zaplatil balíček a faktura byla uložena v systému.</p>
+      <p>Dealer zaplatil službu na NNAuto a faktura byla uložena v systému.</p>
       <ul>
         <li><strong>Odběratel:</strong> ${invoice.buyerCompanyName}</li>
         <li><strong>Email:</strong> ${invoice.buyerEmail || "-"}</li>
@@ -504,6 +515,53 @@ export async function ensureDealerInvoiceForPackageCheckout(args: {
       subscriptionId: args.subscriptionId,
       stripeCheckoutSessionId: args.stripeCheckoutSessionId,
       stripeInvoiceId: args.stripeInvoiceId,
+    }),
+    { notifyByEmail: true },
+  );
+}
+
+export async function ensureDealerInvoiceForTopListingCheckout(args: {
+  dealerId: string;
+  userId: string;
+  stripeCheckoutSessionId: string;
+  amountKc: number;
+  durationDays: number;
+  listingCount: number;
+  issuedAt?: Date;
+}): Promise<DealerInvoice> {
+  const [existing] = await db
+    .select()
+    .from(dealerInvoices)
+    .where(eq(dealerInvoices.stripeCheckoutSessionId, args.stripeCheckoutSessionId));
+  if (existing) {
+    if (!existing.htmlContent || !existing.pdfBase64) {
+      return persistDealerInvoiceArtifacts(existing);
+    }
+    return existing;
+  }
+
+  const [dealer] = await db.select().from(dealers).where(eq(dealers.id, args.dealerId));
+  if (!dealer) throw new Error("Dealer not found");
+  const [user] = await db.select().from(users).where(eq(users.id, args.userId));
+
+  const issuedAt = args.issuedAt ?? new Date();
+  const number = await nextInvoiceNumber(issuedAt);
+
+  return insertAndFinalizeInvoice(
+    baseInvoiceValues({
+      dealerId: args.dealerId,
+      userId: args.userId,
+      packageId: "top_listing",
+      number,
+      issuedAt,
+      description: topListingInvoiceDescription({
+        durationDays: args.durationDays,
+        listingCount: args.listingCount,
+      }),
+      amountKc: args.amountKc,
+      dealer,
+      userEmail: user?.email ?? null,
+      stripeCheckoutSessionId: args.stripeCheckoutSessionId,
     }),
     { notifyByEmail: true },
   );

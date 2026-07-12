@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     if (!user.dealerId) return error("Dealer not found", 404);
 
     const body = await req.json().catch(() => ({}));
-    const listingIds = Array.isArray(body.listingIds)
+    const listingIds: string[] = Array.isArray(body.listingIds)
       ? body.listingIds.filter((id: unknown): id is string => typeof id === "string" && !!id)
       : [];
     const duration = isTopDuration(body.duration) ? body.duration : "30";

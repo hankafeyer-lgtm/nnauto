@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireDealer } from "@lib/auth";
+import { ensureDealerInvoiceForTopListingCheckout } from "@lib/dealerInvoice";
 import { storage } from "@lib/storage";
 import Stripe from "stripe";
 
@@ -80,12 +81,29 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const amountKc =
+      typeof session.amount_total === "number"
+        ? Math.round(session.amount_total / 100)
+        : TOP_PRICES_KC[duration] * listingIds.length;
+    const invoice = await ensureDealerInvoiceForTopListingCheckout({
+      dealerId: user.dealerId,
+      userId: user.id,
+      stripeCheckoutSessionId: sessionId,
+      amountKc,
+      durationDays: Number(duration),
+      listingCount: listingIds.length,
+    });
+
     return json({
       ok: true,
       duration,
       expiresAt,
       updatedCount: updated.length,
       listings: updated,
+      invoice: {
+        id: invoice.id,
+        number: invoice.number,
+      },
     });
   } catch (e: any) {
     if (e.message === "Unauthorized") return error("Unauthorized", 401);
