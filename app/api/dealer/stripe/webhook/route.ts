@@ -13,7 +13,8 @@ import Stripe from "stripe";
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const webhookSecret = process.env.DEALER_STRIPE_WEBHOOK_SECRET;
+  const webhookSecret =
+    process.env.DEALER_STRIPE_WEBHOOK_SECRET || process.env.STRIPE_WEBHOOK_SECRET;
   const isProduction = process.env.NODE_ENV === "production";
 
   if (isProduction && !webhookSecret) {

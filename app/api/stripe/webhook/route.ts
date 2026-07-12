@@ -3,6 +3,13 @@ import { json, error } from "@lib/api-helpers";
 import { storage } from "@lib/storage";
 import { mergeRawResponse } from "@lib/cebiaHelpers";
 import { generateAndDeliverCebiaPdf } from "@lib/cebiaGenerate";
+import {
+  activateDealerPackageFromCheckoutSession,
+  isDealerPackageId,
+  syncDealerSubscriptionFromStripe,
+} from "@lib/dealerPackages";
+import { ensureDealerInvoiceForPackageCheckout } from "@lib/dealerInvoice";
+import { processDealerTopListingCheckoutSession } from "@lib/dealerTopListing";
 import Stripe from "stripe";
 
 export const runtime = "nodejs";
@@ -119,7 +126,70 @@ export async function POST(req: NextRequest) {
         console.error("[STRIPE WEBHOOK] Cebia handling error:", e);
       }
     }
-    // TODO: migrate remaining webhook handling (promote listing, etc.)
+    if (session.metadata?.type === "dealer_vehicle_package" && session.id) {
+      try {
+        await activateDealerPackageFromCheckoutSession(session.id);
+      } catch (e) {
+        console.error("[STRIPE WEBHOOK] Dealer package handling error:", e);
+      }
+    }
+    if (session.metadata?.type === "dealer_top_listing" && session.id) {
+      try {
+        await processDealerTopListingCheckoutSession(session, stripe);
+      } catch (e) {
+        console.error("[STRIPE WEBHOOK] Dealer TOP handling error:", e);
+      }
+    }
+  }
+
+  if (event.type === "invoice.payment_succeeded") {
+    const invoice = event.data.object as Stripe.Invoice & {
+      subscription?: string | Stripe.Subscription | null;
+    };
+    const subscriptionId =
+      typeof invoice.subscription === "string"
+        ? invoice.subscription
+        : invoice.subscription?.id;
+    if (subscriptionId) {
+      try {
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        if (subscription.metadata?.type === "dealer_vehicle_package") {
+          const row = await syncDealerSubscriptionFromStripe(subscription);
+          if (!isDealerPackageId(row.packageId)) {
+            throw new Error("Dealer package invoice has invalid packageId");
+          }
+          await ensureDealerInvoiceForPackageCheckout({
+            dealerId: row.dealerId,
+            userId: row.userId,
+            packageId: row.packageId,
+            subscriptionId: row.id,
+            stripeInvoiceId: invoice.id,
+            amountKc: invoice.amount_paid
+              ? Math.round(invoice.amount_paid / 100)
+              : row.amountKc,
+            issuedAt: invoice.status_transitions?.paid_at
+              ? new Date(invoice.status_transitions.paid_at * 1000)
+              : new Date(),
+          });
+        }
+      } catch (e) {
+        console.error("[STRIPE WEBHOOK] Dealer invoice handling error:", e);
+      }
+    }
+  }
+
+  if (
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    try {
+      const subscription = event.data.object as Stripe.Subscription;
+      if (subscription.metadata?.type === "dealer_vehicle_package") {
+        await syncDealerSubscriptionFromStripe(subscription);
+      }
+    } catch (e) {
+      console.error("[STRIPE WEBHOOK] Dealer subscription handling error:", e);
+    }
   }
 
   return json({ received: true });

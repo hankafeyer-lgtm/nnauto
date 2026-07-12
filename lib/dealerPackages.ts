@@ -48,7 +48,7 @@ export function getDealerPackagePriceId(packageId: DealerPackageId): string {
 }
 
 export function getDealerStripe() {
-  const key = process.env.DEALER_STRIPE_SECRET_KEY;
+  const key = process.env.DEALER_STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("Dealer Stripe not configured");
   return new Stripe(key);
 }
