@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import JsonLd from "@lib/seo/JsonLd";
+import { buildBreadcrumbJsonLd } from "@lib/seo/structured-data";
 import AboutClient from "./about-client";
 
 const ABOUT_TITLE = "O nás – online autobazar NNAuto v ČR | NNAuto";
@@ -25,10 +27,17 @@ export const metadata: Metadata = {
 export default function About() {
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "NNAuto", url: "https://nnauto.cz/" },
+          { name: "O nás", url: "https://nnauto.cz/about" },
+        ])}
+      />
       {/* SSR-only SEO content for crawlers. Visible page is rendered by AboutClient
           (client component). This block does not affect user UX. */}
       <section className="sr-only" aria-hidden="true">
         <h1>O nás – online autobazar NNAuto</h1>
+        <h2>Jak NNAuto pomáhá při nákupu a prodeji aut</h2>
         <p>
           NNAuto je online autobazar pro prodej a nákup ojetých i nových
           automobilů, motocyklů a nákladních vozidel v České republice.
@@ -48,6 +57,12 @@ export default function About() {
           pravost najetých kilometrů, případnou havárii nebo zástavu vozu.
           Bezpečné nakupování ojetého auta začíná u kvalitních informací.
         </p>
+        <nav aria-label="Interní odkazy">
+          <a href="/auta">Katalog aut</a>
+          <a href="/listings">Aktuální inzeráty</a>
+          <a href="/prodat-auto">Prodat auto</a>
+          <a href="/pricing">Ceník služeb</a>
+        </nav>
       </section>
       <AboutClient />
     </>

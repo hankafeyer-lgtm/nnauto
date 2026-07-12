@@ -8,7 +8,7 @@ import {
   listGlobalFacets,
   type FacetDefinition,
 } from "./facets";
-import { slugVariants } from "./slug";
+import { normalizeSlug, slugVariants } from "./slug";
 
 export type CollectionStats = {
   total: number;
@@ -25,9 +25,13 @@ function facetValues(facet: FacetDefinition): string[] {
     : [String(facet.value)];
 }
 
-function lowerIn(columnSql: SQL, values: string[]): SQL {
-  return sql`lower(${columnSql}) in (${sql.join(
-    values.map((value) => sql`${value.toLowerCase()}`),
+function slugSql(valueSql: SQL): SQL {
+  return sql`trim(both '-' from regexp_replace(lower(translate(${valueSql}::text, 'áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ', 'acdeeinorstuuyzACDEEINORSTUUYZ')), '[^a-z0-9]+', '-', 'g'))`;
+}
+
+function slugIn(columnSql: SQL, values: string[]): SQL {
+  return sql`${slugSql(columnSql)} in (${sql.join(
+    values.map((value) => sql`${normalizeSlug(value)}`),
     sql`, `,
   )})`;
 }
@@ -37,32 +41,32 @@ function facetCondition(facet: FacetDefinition): SQL | undefined {
     case "fuel":
       return sql`exists (
           select 1 from unnest(${listings.fuelType}) as f
-          where lower(f) in (${sql.join(
-            facetValues(facet).map((value) => sql`${value.toLowerCase()}`),
+          where ${slugSql(sql`f`)} in (${sql.join(
+            facetValues(facet).map((value) => sql`${normalizeSlug(value)}`),
             sql`, `,
           )})
         )`;
     case "transmission":
       return sql`exists (
           select 1 from unnest(${listings.transmission}) as t
-          where lower(t) in (${sql.join(
-            facetValues(facet).map((value) => sql`${value.toLowerCase()}`),
+          where ${slugSql(sql`t`)} in (${sql.join(
+            facetValues(facet).map((value) => sql`${normalizeSlug(value)}`),
             sql`, `,
           )})
         )`;
     case "body":
-      return lowerIn(sql`${listings.bodyType}`, facetValues(facet));
+      return slugIn(sql`${listings.bodyType}`, facetValues(facet));
     case "drive":
       if (facet.value === "4x4") {
         return sql`exists (
             select 1 from unnest(${listings.driveType}) as d
-            where lower(d) in ('awd', '4x4')
+            where ${slugSql(sql`d`)} in ('awd', '4x4')
           )`;
       }
       return sql`exists (
             select 1 from unnest(${listings.driveType}) as d
-            where lower(d) in (${sql.join(
-              facetValues(facet).map((value) => sql`${value.toLowerCase()}`),
+            where ${slugSql(sql`d`)} in (${sql.join(
+              facetValues(facet).map((value) => sql`${normalizeSlug(value)}`),
               sql`, `,
             )})
           )`;
@@ -76,7 +80,7 @@ function facetCondition(facet: FacetDefinition): SQL | undefined {
     case "mileageMax":
       return sql`${listings.mileage} <= ${Number(facet.value)}`;
     case "region":
-      return lowerIn(sql`${listings.region}`, facetValues(facet));
+      return slugIn(sql`${listings.region}`, facetValues(facet));
     case "year":
       return eq(listings.year, Number(facet.value));
     default:
@@ -91,7 +95,7 @@ function facetWhere(facet: FacetDefinition, brandSlug?: string): SQL | undefined
   const parts: SQL[] = [eq(listings.isSold, false), condition];
 
   if (brandSlug) {
-    parts.push(sql`lower(${listings.brand}) = ${brandSlug.toLowerCase()}`);
+    parts.push(sql`${slugSql(sql`${listings.brand}`)} = ${normalizeSlug(brandSlug)}`);
   }
 
   return and(...parts);
@@ -104,13 +108,13 @@ function combinedFacetWhere(
   const parts: SQL[] = [eq(listings.isSold, false)];
 
   if (opts.brandSlug) {
-    parts.push(sql`lower(${listings.brand}) = ${opts.brandSlug.toLowerCase()}`);
+    parts.push(sql`${slugSql(sql`${listings.brand}`)} = ${normalizeSlug(opts.brandSlug)}`);
   }
 
   if (opts.modelSlug) {
-    const variants = slugVariants(opts.modelSlug);
+    const variants = slugVariants(opts.modelSlug).map(normalizeSlug);
     if (!variants.length) return undefined;
-    parts.push(sql`lower(${listings.model}) in (${sql.join(
+    parts.push(sql`${slugSql(sql`${listings.model}`)} in (${sql.join(
       variants.map((variant) => sql`${variant}`),
       sql`, `,
     )})`);

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import JsonLd from "@lib/seo/JsonLd";
+import { buildBreadcrumbJsonLd } from "@lib/seo/structured-data";
 import PricingClient from "./pricing-client";
 
 const PRICING_TITLE = "Ceník služeb NNAuto – TOP inzeráty a Cebia | NNAuto";
@@ -25,9 +27,16 @@ export const metadata: Metadata = {
 export default function Pricing() {
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "NNAuto", url: "https://nnauto.cz/" },
+          { name: "Ceník", url: "https://nnauto.cz/pricing" },
+        ])}
+      />
       {/* SSR-only SEO content for crawlers. Visible page is rendered by PricingClient. */}
       <section className="sr-only" aria-hidden="true">
         <h1>Ceník služeb NNAuto</h1>
+        <h2>TOP inzeráty, Cebia prověření a online prodej auta</h2>
         <p>
           NNAuto nabízí transparentní ceník pro prodejce i kupce ojetých a
           nových vozů. Základní vložení inzerátu je zdarma. Pro rychlejší
@@ -46,6 +55,12 @@ export default function Pricing() {
           přes platební bránu. NNAuto si neúčtuje žádné skryté provize z
           prodejní ceny vozu – platíte pouze za zvolené doplňkové služby.
         </p>
+        <nav aria-label="Interní odkazy">
+          <a href="/add-listing">Přidat inzerát</a>
+          <a href="/prodat-auto">Prodat auto</a>
+          <a href="/listings">Aktuální inzeráty</a>
+          <a href="/tips">Tipy pro nákup a prodej</a>
+        </nav>
       </section>
       <PricingClient />
     </>

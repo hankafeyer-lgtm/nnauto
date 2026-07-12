@@ -428,6 +428,7 @@ export default async function BrandModelLandingPage({ params }: Props) {
       id: l.id,
       brand: l.brand,
       model: l.model,
+      year: l.year,
     })}`,
   }));
 

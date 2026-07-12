@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import JsonLd from "@lib/seo/JsonLd";
+import { buildBreadcrumbJsonLd } from "@lib/seo/structured-data";
 import PrivacyClient from "./privacy-client";
 
 const PRIVACY_TITLE = "Ochrana osobních údajů – GDPR zásady | NNAuto";
@@ -23,5 +25,34 @@ export const metadata: Metadata = {
 };
 
 export default function Privacy() {
-  return <PrivacyClient />;
+  return (
+    <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "NNAuto", url: "https://nnauto.cz/" },
+          { name: "Ochrana osobních údajů", url: "https://nnauto.cz/privacy" },
+        ])}
+      />
+      <section className="sr-only" aria-hidden="true">
+        <h1>Ochrana osobních údajů NNAuto</h1>
+        <h2>GDPR zásady a zpracování osobních údajů</h2>
+        <p>
+          NNAuto zpracovává osobní údaje za účelem provozu online autobazaru,
+          správy uživatelských účtů, komunikace mezi kupujícími a prodejci,
+          bezpečnosti služeb a splnění zákonných povinností.
+        </p>
+        <p>
+          Uživatelé mají právo na přístup ke svým údajům, opravu, výmaz,
+          omezení zpracování a přenositelnost údajů podle pravidel GDPR.
+        </p>
+        <nav aria-label="Interní odkazy">
+          <a href="/about">O NNAuto</a>
+          <a href="/pricing">Ceník služeb</a>
+          <a href="/tips">Tipy a rady</a>
+          <a href="/listings">Aktuální inzeráty</a>
+        </nav>
+      </section>
+      <PrivacyClient />
+    </>
+  );
 }

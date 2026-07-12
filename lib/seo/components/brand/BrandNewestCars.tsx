@@ -27,6 +27,7 @@ export function BrandNewestCars({
                 id: l.id,
                 brand: l.brand,
                 model: l.model,
+                year: l.year,
               })}
               className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent"
             >

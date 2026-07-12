@@ -230,6 +230,7 @@ export default async function ShortModelLandingPage({ params }: Props) {
         id: l.id,
         brand: l.brand,
         model: l.model,
+        year: l.year,
       })}`,
       name: formatVehicleTitle(l.brand, l.model, l.year),
     })),
@@ -322,6 +323,7 @@ export default async function ShortModelLandingPage({ params }: Props) {
                   id: l.id,
                   brand: l.brand,
                   model: l.model,
+                  year: l.year,
                 })}
                 className="block group"
               >

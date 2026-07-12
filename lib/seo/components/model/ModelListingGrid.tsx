@@ -37,6 +37,7 @@ export function ModelListingGrid({ rows }: { rows: ListingRow[] }) {
                 id: l.id,
                 brand: l.brand,
                 model: l.model,
+                year: l.year,
               })}
               className="block group"
             >

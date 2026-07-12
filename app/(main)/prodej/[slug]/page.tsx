@@ -124,7 +124,12 @@ export default async function ProdejLandingPage({ params }: Props) {
     itemListElement: rows.map((l, i) => ({
       "@type": "ListItem",
       position: i + 1,
-      url: `${SITE_ORIGIN}${buildListingUrl({ id: l.id, brand: l.brand, model: l.model })}`,
+      url: `${SITE_ORIGIN}${buildListingUrl({
+        id: l.id,
+        brand: l.brand,
+        model: l.model,
+        year: l.year,
+      })}`,
       name: getListingMainTitleFromRow(l),
     })),
   };
@@ -192,7 +197,12 @@ export default async function ProdejLandingPage({ params }: Props) {
                 {rows.map((l) => {
                   const photo = l.photos?.[0];
                   const price = Number(l.price).toLocaleString("cs-CZ");
-                  const href = buildListingUrl({ id: l.id, brand: l.brand, model: l.model });
+                  const href = buildListingUrl({
+                    id: l.id,
+                    brand: l.brand,
+                    model: l.model,
+                    year: l.year,
+                  });
                   const title = getListingMainTitleFromRow(l);
                   return (
                     <a

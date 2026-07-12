@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import JsonLd from "@lib/seo/JsonLd";
+import { buildBreadcrumbJsonLd } from "@lib/seo/structured-data";
 import TipsClient from "./tips-client";
 
 const TIPS_TITLE = "Tipy a rady při nákupu a prodeji ojetého auta | NNAuto";
@@ -25,9 +27,16 @@ export const metadata: Metadata = {
 export default function Tips() {
   return (
     <>
+      <JsonLd
+        data={buildBreadcrumbJsonLd([
+          { name: "NNAuto", url: "https://nnauto.cz/" },
+          { name: "Tipy a rady", url: "https://nnauto.cz/tips" },
+        ])}
+      />
       {/* SSR-only SEO content for crawlers. Visible page is rendered by TipsClient. */}
       <section className="sr-only" aria-hidden="true">
         <h1>Tipy a rady při nákupu a prodeji ojetého auta</h1>
+        <h2>Jak bezpečně koupit, prověřit a prodat ojeté auto</h2>
         <p>
           Nákup ojetého auta je velké rozhodnutí. Před prohlídkou si vždy
           připravte kontrolní seznam – stav karoserie, koroze pod prahy,
@@ -51,6 +60,12 @@ export default function Tips() {
           případné vady. Bezpečné platby probíhají bankovním převodem nebo
           v ověřené hotovosti – vyhněte se zaslání zálohy předem.
         </p>
+        <nav aria-label="Interní odkazy">
+          <a href="/listings">Aktuální nabídka aut</a>
+          <a href="/auta">SEO katalog aut</a>
+          <a href="/pricing">Ceník služeb</a>
+          <a href="/about">O NNAuto</a>
+        </nav>
       </section>
       <TipsClient />
     </>

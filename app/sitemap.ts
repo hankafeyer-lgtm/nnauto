@@ -271,7 +271,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             .slice(0, 5)
             .map(
               (p) =>
-                `${SITE_ORIGIN}/img/${String(p).replace(/^\/+/, "")}?w=1200&q=80&f=webp`,
+                `${SITE_ORIGIN}/img/${String(p).replace(/^\/+/, "")}?w=1200&amp;q=80&amp;f=webp`,
             )
         : undefined;
     return {

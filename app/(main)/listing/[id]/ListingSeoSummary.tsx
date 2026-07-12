@@ -97,9 +97,9 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
         />
       ) : null}
 
-      <p className="font-semibold" id="listing-primary-heading">
+      <h1 className="font-semibold" id="listing-primary-heading">
         {heading}
-      </p>
+      </h1>
       {listing.isSold ? <p>Tento inzerát je označen jako prodaný.</p> : null}
       <p>Cena: {price} Kč</p>
 
