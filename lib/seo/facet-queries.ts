@@ -32,82 +32,94 @@ function lowerIn(columnSql: SQL, values: string[]): SQL {
   )})`;
 }
 
-function facetWhere(facet: FacetDefinition, brandSlug?: string): SQL | undefined {
-  const parts: SQL[] = [eq(listings.isSold, false)];
-
-  if (brandSlug) {
-    parts.push(sql`lower(${listings.brand}) = ${brandSlug.toLowerCase()}`);
-  }
-
+function facetCondition(facet: FacetDefinition): SQL | undefined {
   switch (facet.kind) {
     case "fuel":
-      parts.push(
-        sql`exists (
+      return sql`exists (
           select 1 from unnest(${listings.fuelType}) as f
           where lower(f) in (${sql.join(
             facetValues(facet).map((value) => sql`${value.toLowerCase()}`),
             sql`, `,
           )})
-        )`,
-      );
-      break;
+        )`;
     case "transmission":
-      parts.push(
-        sql`exists (
+      return sql`exists (
           select 1 from unnest(${listings.transmission}) as t
           where lower(t) in (${sql.join(
             facetValues(facet).map((value) => sql`${value.toLowerCase()}`),
             sql`, `,
           )})
-        )`,
-      );
-      break;
+        )`;
     case "body":
-      parts.push(lowerIn(sql`${listings.bodyType}`, facetValues(facet)));
-      break;
+      return lowerIn(sql`${listings.bodyType}`, facetValues(facet));
     case "drive":
       if (facet.value === "4x4") {
-        parts.push(
-          sql`exists (
+        return sql`exists (
             select 1 from unnest(${listings.driveType}) as d
             where lower(d) in ('awd', '4x4')
-          )`,
-        );
-      } else {
-        parts.push(
-          sql`exists (
+          )`;
+      }
+      return sql`exists (
             select 1 from unnest(${listings.driveType}) as d
             where lower(d) in (${sql.join(
               facetValues(facet).map((value) => sql`${value.toLowerCase()}`),
               sql`, `,
             )})
-          )`,
-        );
-      }
-      break;
+          )`;
     case "priceMax":
-      parts.push(sql`${listings.price}::numeric <= ${Number(facet.value)}`);
-      break;
+      return sql`${listings.price}::numeric <= ${Number(facet.value)}`;
     case "priceRange":
       if (facet.minValue == null || facet.maxValue == null) return undefined;
-      parts.push(
-        sql`${listings.price}::numeric >= ${facet.minValue} AND ${listings.price}::numeric <= ${facet.maxValue}`,
-      );
-      break;
+      return sql`${listings.price}::numeric >= ${facet.minValue} AND ${listings.price}::numeric <= ${facet.maxValue}`;
     case "priceMin":
-      parts.push(sql`${listings.price}::numeric >= ${Number(facet.value)}`);
-      break;
+      return sql`${listings.price}::numeric >= ${Number(facet.value)}`;
     case "mileageMax":
-      parts.push(sql`${listings.mileage} <= ${Number(facet.value)}`);
-      break;
+      return sql`${listings.mileage} <= ${Number(facet.value)}`;
     case "region":
-      parts.push(lowerIn(sql`${listings.region}`, facetValues(facet)));
-      break;
+      return lowerIn(sql`${listings.region}`, facetValues(facet));
     case "year":
-      parts.push(eq(listings.year, Number(facet.value)));
-      break;
+      return eq(listings.year, Number(facet.value));
     default:
       return undefined;
+  }
+}
+
+function facetWhere(facet: FacetDefinition, brandSlug?: string): SQL | undefined {
+  const condition = facetCondition(facet);
+  if (!condition) return undefined;
+
+  const parts: SQL[] = [eq(listings.isSold, false), condition];
+
+  if (brandSlug) {
+    parts.push(sql`lower(${listings.brand}) = ${brandSlug.toLowerCase()}`);
+  }
+
+  return and(...parts);
+}
+
+function combinedFacetWhere(
+  facets: readonly FacetDefinition[],
+  opts: { brandSlug?: string; modelSlug?: string } = {},
+): SQL | undefined {
+  const parts: SQL[] = [eq(listings.isSold, false)];
+
+  if (opts.brandSlug) {
+    parts.push(sql`lower(${listings.brand}) = ${opts.brandSlug.toLowerCase()}`);
+  }
+
+  if (opts.modelSlug) {
+    const variants = slugVariants(opts.modelSlug);
+    if (!variants.length) return undefined;
+    parts.push(sql`lower(${listings.model}) in (${sql.join(
+      variants.map((variant) => sql`${variant}`),
+      sql`, `,
+    )})`);
+  }
+
+  for (const facet of facets) {
+    const condition = facetCondition(facet);
+    if (!condition) return undefined;
+    parts.push(condition);
   }
 
   return and(...parts);
@@ -173,6 +185,54 @@ export async function queryFacetStats(
       avgPrice: row?.avgPrice ?? 0,
     };
   } catch {
+    return { total: 0, minPrice: 0, maxPrice: 0, avgPrice: 0 };
+  }
+}
+
+export async function queryCombinedFacetListings(
+  facets: readonly FacetDefinition[],
+  opts: { brandSlug?: string; modelSlug?: string } = {},
+  limit = 30,
+): Promise<FacetListingRow[]> {
+  const where = combinedFacetWhere(facets, opts);
+  if (!where) return [];
+  try {
+    return await db
+      .select()
+      .from(listings)
+      .where(where)
+      .orderBy(desc(listings.updatedAt))
+      .limit(limit);
+  } catch (err) {
+    console.error("[facet] queryCombinedFacetListings failed:", err);
+    return [];
+  }
+}
+
+export async function queryCombinedFacetStats(
+  facets: readonly FacetDefinition[],
+  opts: { brandSlug?: string; modelSlug?: string } = {},
+): Promise<CollectionStats> {
+  const where = combinedFacetWhere(facets, opts);
+  if (!where) return { total: 0, minPrice: 0, maxPrice: 0, avgPrice: 0 };
+  try {
+    const [row] = await db
+      .select({
+        total: sql<number>`count(*)::int`,
+        minPrice: sql<number>`coalesce(min(${listings.price}::numeric), 0)::int`,
+        maxPrice: sql<number>`coalesce(max(${listings.price}::numeric), 0)::int`,
+        avgPrice: sql<number>`coalesce(avg(${listings.price}::numeric), 0)::int`,
+      })
+      .from(listings)
+      .where(where);
+    return {
+      total: row?.total ?? 0,
+      minPrice: row?.minPrice ?? 0,
+      maxPrice: row?.maxPrice ?? 0,
+      avgPrice: row?.avgPrice ?? 0,
+    };
+  } catch (err) {
+    console.error("[facet] queryCombinedFacetStats failed:", err);
     return { total: 0, minPrice: 0, maxPrice: 0, avgPrice: 0 };
   }
 }

@@ -6,6 +6,13 @@ import { buildListingUrl } from "@lib/seo/listing-url";
 import { dedupeSitemapEntries } from "@lib/seo/sitemap-utils";
 import { queryIndexableFacetUrls } from "@lib/seo/facet-queries";
 import { AUTA_GUIDE_PAGES, COMPARISON_PAGES } from "@lib/seo/editorial-pages";
+import { listGlobalFacets, type FacetDefinition } from "@lib/seo/facets";
+import {
+  facetPairPath,
+  getFacetPairBySlugs,
+  isModelFacet,
+  modelFacetPath,
+} from "@lib/seo/seo-combinations";
 import { listings } from "@shared/schema";
 import { desc, eq, sql } from "drizzle-orm";
 
@@ -26,6 +33,142 @@ const MIN_MODEL_LISTINGS_FOR_SITEMAP = 3;
 const brandKey = sql<string>`lower(trim(${listings.brand}))`;
 const modelKey = sql<string>`lower(trim(${listings.model}))`;
 
+type SitemapListing = {
+  id: string;
+  brand: string | null;
+  model: string | null;
+  year: number | null;
+  price: unknown;
+  mileage: number | null;
+  fuelType: string[] | null;
+  transmission: string[] | null;
+  bodyType: string | null;
+  driveType: string[] | null;
+  region: string | null;
+  photos: string[] | null;
+  updatedAt: Date | null;
+  createdAt: Date | null;
+};
+
+function facetValues(facet: FacetDefinition): string[] {
+  return Array.isArray(facet.value)
+    ? facet.value.map(String)
+    : [String(facet.value)];
+}
+
+function normalizeValue(value: unknown) {
+  return normalizeSlug(String(value ?? ""));
+}
+
+function includesFacetValue(values: unknown, facet: FacetDefinition) {
+  const expected = new Set(facetValues(facet).map(normalizeValue));
+  const current = Array.isArray(values) ? values : [values];
+  return current.some((value) => expected.has(normalizeValue(value)));
+}
+
+function numberValue(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function listingMatchesFacet(listing: SitemapListing, facet: FacetDefinition) {
+  switch (facet.kind) {
+    case "fuel":
+      return includesFacetValue(listing.fuelType, facet);
+    case "transmission":
+      return includesFacetValue(listing.transmission, facet);
+    case "body":
+      return includesFacetValue(listing.bodyType, facet);
+    case "drive":
+      return facet.value === "4x4"
+        ? includesFacetValue(listing.driveType, {
+            ...facet,
+            value: ["4x4", "awd"],
+          })
+        : includesFacetValue(listing.driveType, facet);
+    case "priceMax":
+      return numberValue(listing.price) > 0 && numberValue(listing.price) <= Number(facet.value);
+    case "priceRange":
+      return (
+        facet.minValue != null &&
+        facet.maxValue != null &&
+        numberValue(listing.price) >= facet.minValue &&
+        numberValue(listing.price) <= facet.maxValue
+      );
+    case "priceMin":
+      return numberValue(listing.price) >= Number(facet.value);
+    case "mileageMax":
+      return Number(listing.mileage ?? 0) > 0 && Number(listing.mileage) <= Number(facet.value);
+    case "region":
+      return includesFacetValue(listing.region, facet);
+    case "year":
+      return Number(listing.year) === Number(facet.value);
+    default:
+      return false;
+  }
+}
+
+function buildInventoryCombinationPages(allListings: SitemapListing[]): MetadataRoute.Sitemap {
+  const globalFacets = listGlobalFacets();
+  const canonicalPairMap = new Map<string, readonly [FacetDefinition, FacetDefinition]>();
+
+  for (const first of globalFacets) {
+    for (const second of globalFacets) {
+      const pair = getFacetPairBySlugs(first.slug, second.slug);
+      if (!pair) continue;
+      canonicalPairMap.set(facetPairPath(pair), pair);
+    }
+  }
+
+  const counts = new Map<string, { count: number; lastModified: Date; url: string; priority: number }>();
+
+  function bump(url: string, listing: SitemapListing, priority: number) {
+    const lastModified = listing.updatedAt || listing.createdAt || new Date();
+    const existing = counts.get(url);
+    if (!existing) {
+      counts.set(url, { count: 1, lastModified, url, priority });
+      return;
+    }
+    existing.count += 1;
+    if (lastModified > existing.lastModified) existing.lastModified = lastModified;
+  }
+
+  for (const listing of allListings) {
+    const brandSlug = normalizeSlug(listing.brand);
+    const modelSlug = normalizeSlug(listing.model);
+    if (!brandSlug) continue;
+
+    const matchingFacets = globalFacets.filter((facet) => listingMatchesFacet(listing, facet));
+
+    for (const facet of matchingFacets) {
+      if (facet.brandLevel) {
+        bump(`${SITE_ORIGIN}/auta/${brandSlug}/${facet.slug}`, listing, 0.62);
+      }
+      if (modelSlug && isModelFacet(facet)) {
+        bump(`${SITE_ORIGIN}${modelFacetPath(brandSlug, modelSlug, facet)}`, listing, 0.6);
+      }
+    }
+
+    for (const [path, pair] of canonicalPairMap) {
+      if (
+        matchingFacets.some((facet) => facet.slug === pair[0].slug) &&
+        matchingFacets.some((facet) => facet.slug === pair[1].slug)
+      ) {
+        bump(`${SITE_ORIGIN}${path}`, listing, 0.58);
+      }
+    }
+  }
+
+  return [...counts.values()]
+    .filter((entry) => entry.count >= MIN_MODEL_LISTINGS_FOR_SITEMAP)
+    .map((entry) => ({
+      url: entry.url,
+      lastModified: entry.lastModified,
+      changeFrequency: "daily" as const,
+      priority: entry.priority,
+    }));
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const allListings = await db
     .select({
@@ -33,6 +176,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       brand: listings.brand,
       model: listings.model,
       year: listings.year,
+      price: listings.price,
+      mileage: listings.mileage,
+      fuelType: listings.fuelType,
+      transmission: listings.transmission,
+      bodyType: listings.bodyType,
+      driveType: listings.driveType,
+      region: listings.region,
       photos: listings.photos,
       updatedAt: listings.updatedAt,
       createdAt: listings.createdAt,
@@ -190,6 +340,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.65,
   }));
 
+  const inventoryCombinationPages = buildInventoryCombinationPages(allListings);
+
   const guidePages: MetadataRoute.Sitemap = AUTA_GUIDE_PAGES.map((page) => ({
     url: `${SITE_ORIGIN}/auta/${page.slug}`,
     lastModified: new Date(),
@@ -209,6 +361,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...guidePages,
     ...comparisonPages,
     ...facetPages,
+    ...inventoryCombinationPages,
     ...brandPages,
     ...modelPages,
     ...sellerModelPages,

@@ -29,11 +29,14 @@ import { normalizeSlug, slugVariants } from "@lib/seo/slug";
 import { inzeratWord, formatCzk } from "@lib/seo/czech-format";
 import {
   getFacetBySlug,
+  isGlobalFacetSlug,
   isBrandFacetSlug,
   getBrandFacetClusterLinks,
 } from "@lib/seo/facets";
 import {
   countModelListingsWithVariants,
+  queryCombinedFacetListings,
+  queryCombinedFacetStats,
   queryFacetListings,
   queryFacetStats,
   queryModelCollectionStats,
@@ -42,6 +45,15 @@ import {
   FacetCollectionPage,
   buildFacetPageMetadata,
 } from "@lib/seo/FacetCollectionPage";
+import {
+  CombinedFacetCollectionPage,
+  buildCombinedFacetMetadata,
+} from "@lib/seo/CombinedFacetCollectionPage";
+import {
+  buildFacetPairRelatedLinks,
+  facetPairPath,
+  getFacetPairBySlugs,
+} from "@lib/seo/seo-combinations";
 import { buildAggregateOfferJsonLd } from "@lib/seo/structured-data";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { isSeoFeatureEnabled, shouldEmitFaqJsonLd } from "@lib/seo/features";
@@ -195,6 +207,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const brandSlug = decodeAndNormalize(brand);
   const modelSlug = decodeAndNormalize(model);
 
+  const facetPair = getFacetPairBySlugs(brandSlug, modelSlug);
+  if (facetPair) {
+    if (!isSeoFeatureEnabled("facetPages")) notFound();
+    const canonicalPath = facetPairPath(facetPair);
+    if (canonicalPath !== `/auta/${brandSlug}/${modelSlug}`) notFound();
+    const stats = await queryCombinedFacetStats(facetPair);
+    return buildCombinedFacetMetadata(
+      { type: "facetPair", facets: facetPair },
+      stats,
+      `${SITE_ORIGIN}${canonicalPath}`,
+    );
+  }
+  if (isGlobalFacetSlug(brandSlug)) notFound();
+
   if (isBrandFacetSlug(modelSlug)) {
     if (!isSeoFeatureEnabled("facetPages")) notFound();
     const modelCount = await countModelListingsWithVariants(brandSlug, modelSlug);
@@ -297,6 +323,27 @@ export default async function BrandModelLandingPage({ params }: Props) {
   const modelSlug = decodeAndNormalize(model);
   if (!brandSlug || !modelSlug) notFound();
 
+  const facetPair = getFacetPairBySlugs(brandSlug, modelSlug);
+  if (facetPair) {
+    if (!isSeoFeatureEnabled("facetPages")) notFound();
+    const canonicalPath = facetPairPath(facetPair);
+    if (canonicalPath !== `/auta/${brandSlug}/${modelSlug}`) notFound();
+    const [rows, stats] = await Promise.all([
+      queryCombinedFacetListings(facetPair, {}, 30),
+      queryCombinedFacetStats(facetPair),
+    ]);
+    return (
+      <CombinedFacetCollectionPage
+        scope={{ type: "facetPair", facets: facetPair }}
+        rows={rows}
+        stats={stats}
+        canonical={`${SITE_ORIGIN}${canonicalPath}`}
+        relatedLinks={buildFacetPairRelatedLinks(facetPair)}
+      />
+    );
+  }
+  if (isGlobalFacetSlug(brandSlug)) notFound();
+
   if (isBrandFacetSlug(modelSlug)) {
     if (!isSeoFeatureEnabled("facetPages")) notFound();
     const modelCount = await countModelListingsWithVariants(brandSlug, modelSlug);
@@ -307,7 +354,6 @@ export default async function BrandModelLandingPage({ params }: Props) {
           queryFacetListings(facet, brandSlug, 30),
           queryFacetStats(facet, brandSlug),
         ]);
-        if (stats.total === 0) notFound();
         return (
           <FacetCollectionPage
             facet={facet}

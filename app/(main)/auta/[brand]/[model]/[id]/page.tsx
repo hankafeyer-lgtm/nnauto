@@ -22,7 +22,22 @@
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
 import { normalizeSlug } from "@lib/seo/slug";
+import { SITE_ORIGIN } from "@lib/seo/constants";
 import { buildListingUrl } from "@lib/seo/listing-url";
+import { getFacetBySlug } from "@lib/seo/facets";
+import {
+  queryCombinedFacetListings,
+  queryCombinedFacetStats,
+} from "@lib/seo/facet-queries";
+import {
+  CombinedFacetCollectionPage,
+  buildCombinedFacetMetadata,
+} from "@lib/seo/CombinedFacetCollectionPage";
+import {
+  buildModelFacetRelatedLinks,
+  isModelFacet,
+  modelFacetPath,
+} from "@lib/seo/seo-combinations";
 import {
   getDealerInventoryForListing,
   getDealerProfileForListing,
@@ -60,8 +75,25 @@ function appendSearchParams(
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { id } = await params;
-  const listing = await getListingBySlugId(safeDecodeURIComponent(id));
+  const { brand, model, id } = await params;
+  const brandSlug = normalizeSlug(safeDecodeURIComponent(brand));
+  const modelSlug = normalizeSlug(safeDecodeURIComponent(model));
+  const slugOrId = safeDecodeURIComponent(id);
+  const facet = getFacetBySlug(normalizeSlug(slugOrId));
+  if (isModelFacet(facet)) {
+    const stats = await queryCombinedFacetStats([facet], {
+      brandSlug,
+      modelSlug,
+    });
+    const canonicalPath = modelFacetPath(brandSlug, modelSlug, facet);
+    return buildCombinedFacetMetadata(
+      { type: "modelFacet", brandSlug, modelSlug, facet },
+      stats,
+      `${SITE_ORIGIN}${canonicalPath}`,
+    );
+  }
+
+  const listing = await getListingBySlugId(slugOrId);
   return buildListingMetadata(listing, id);
 }
 
@@ -72,9 +104,33 @@ export default async function ListingDetailSeo({
   searchParams,
 }: Props) {
   const { brand: urlBrand, model: urlModel, id: rawId } = await params;
+  const brandSlug = normalizeSlug(safeDecodeURIComponent(urlBrand));
+  const modelSlug = normalizeSlug(safeDecodeURIComponent(urlModel));
   const slugOrId = safeDecodeURIComponent(rawId);
   const resolvedSearchParams = await searchParams;
   const isEmbedded = resolvedSearchParams?.embedded === "1";
+  const facet = getFacetBySlug(normalizeSlug(slugOrId));
+
+  if (isModelFacet(facet)) {
+    const canonicalPath = modelFacetPath(brandSlug, modelSlug, facet);
+    if (canonicalPath !== `/auta/${brandSlug}/${modelSlug}/${facet.slug}`) {
+      permanentRedirect(canonicalPath);
+    }
+    const [rows, stats] = await Promise.all([
+      queryCombinedFacetListings([facet], { brandSlug, modelSlug }, 30),
+      queryCombinedFacetStats([facet], { brandSlug, modelSlug }),
+    ]);
+    return (
+      <CombinedFacetCollectionPage
+        scope={{ type: "modelFacet", brandSlug, modelSlug, facet }}
+        rows={rows}
+        stats={stats}
+        canonical={`${SITE_ORIGIN}${canonicalPath}`}
+        relatedLinks={buildModelFacetRelatedLinks(brandSlug, modelSlug, facet)}
+      />
+    );
+  }
+
   const listing = await getListingBySlugId(slugOrId);
 
   if (!listing) return renderListingNotFound();
