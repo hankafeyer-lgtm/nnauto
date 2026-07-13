@@ -39,7 +39,6 @@ export const TOP_MODEL_SLUGS: readonly string[] = [
   "peugeot-508",
   "citroen-c5",
   "dacia-duster",
-  "fiat-500",
 ] as const;
 
 const TOP_SET = new Set(TOP_MODEL_SLUGS);

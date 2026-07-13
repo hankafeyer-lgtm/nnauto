@@ -22,6 +22,7 @@ pnpm-debug.log*
 # local tooling
 .vscode/
 .idea/
+private/
 
 # OS
 .DS_Store

@@ -236,7 +236,6 @@ export default async function BrandLandingPage({ params }: Props) {
       queryFacetListings(facet, undefined, 30),
       queryFacetStats(facet),
     ]);
-    if (stats.total === 0 && facet.brandLevel) notFound();
     return (
       <FacetCollectionPage
         facet={facet}

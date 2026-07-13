@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@lib/db";
 import { listings } from "@shared/schema";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql, type SQL } from "drizzle-orm";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 import JsonLd from "@lib/seo/JsonLd";
 import {
@@ -96,6 +96,10 @@ const LIST_LIMIT = 30;
 type Params = { brand: string; model: string };
 type Props = { params: Promise<Params> };
 
+function slugSql(valueSql: SQL): SQL {
+  return sql`trim(both '-' from regexp_replace(lower(translate(${valueSql}::text, 'áčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ', 'acdeeinorstuuyzACDEEINORSTUUYZ')), '[^a-z0-9]+', '-', 'g'))`;
+}
+
 function decodeAndNormalize(raw: string): string {
   try {
     return normalizeSlug(decodeURIComponent(raw));
@@ -110,7 +114,7 @@ async function queryModelListings(
   limit = LIST_LIMIT,
 ) {
   if (!brandSlug || !modelSlug) return [];
-  const variants = slugVariants(modelSlug);
+  const variants = slugVariants(modelSlug).map(normalizeSlug);
   if (!variants.length) return [];
   return db
     .select()
@@ -118,8 +122,8 @@ async function queryModelListings(
     .where(
       and(
         eq(listings.isSold, false),
-        sql`lower(${listings.brand}) = ${brandSlug}`,
-        sql`lower(${listings.model}) in (${sql.join(
+        sql`${slugSql(sql`${listings.brand}`)} = ${normalizeSlug(brandSlug)}`,
+        sql`${slugSql(sql`${listings.model}`)} in (${sql.join(
           variants.map((v) => sql`${v}`),
           sql`, `,
         )})`,
@@ -141,6 +145,8 @@ async function priceRange(
   modelSlug: string,
 ): Promise<{ min: number | null; max: number | null }> {
   if (!brandSlug || !modelSlug) return { min: null, max: null };
+  const variants = slugVariants(modelSlug).map(normalizeSlug);
+  if (!variants.length) return { min: null, max: null };
   const rows = await db
     .select({
       min: sql<number | null>`min(${listings.price})::int`,
@@ -150,8 +156,11 @@ async function priceRange(
     .where(
       and(
         eq(listings.isSold, false),
-        sql`lower(${listings.brand}) = ${brandSlug}`,
-        sql`lower(${listings.model}) = ${modelSlug}`,
+        sql`${slugSql(sql`${listings.brand}`)} = ${normalizeSlug(brandSlug)}`,
+        sql`${slugSql(sql`${listings.model}`)} in (${sql.join(
+          variants.map((v) => sql`${v}`),
+          sql`, `,
+        )})`,
       ),
     );
   return { min: rows[0]?.min ?? null, max: rows[0]?.max ?? null };
@@ -162,6 +171,8 @@ async function yearRange(
   modelSlug: string,
 ): Promise<{ min: number | null; max: number | null }> {
   if (!brandSlug || !modelSlug) return { min: null, max: null };
+  const variants = slugVariants(modelSlug).map(normalizeSlug);
+  if (!variants.length) return { min: null, max: null };
   const rows = await db
     .select({
       min: sql<number | null>`min(${listings.year})::int`,
@@ -171,8 +182,11 @@ async function yearRange(
     .where(
       and(
         eq(listings.isSold, false),
-        sql`lower(${listings.brand}) = ${brandSlug}`,
-        sql`lower(${listings.model}) = ${modelSlug}`,
+        sql`${slugSql(sql`${listings.brand}`)} = ${normalizeSlug(brandSlug)}`,
+        sql`${slugSql(sql`${listings.model}`)} in (${sql.join(
+          variants.map((v) => sql`${v}`),
+          sql`, `,
+        )})`,
       ),
     );
   return { min: rows[0]?.min ?? null, max: rows[0]?.max ?? null };
@@ -193,8 +207,8 @@ async function querySiblingModels(
     .where(
       and(
         eq(listings.isSold, false),
-        sql`lower(${listings.brand}) = ${brandSlug}`,
-        sql`lower(${listings.model}) != ${excludeModelSlug}`,
+        sql`${slugSql(sql`${listings.brand}`)} = ${normalizeSlug(brandSlug)}`,
+        sql`${slugSql(sql`${listings.model}`)} != ${normalizeSlug(excludeModelSlug)}`,
       ),
     )
     .groupBy(sql`lower(${listings.model})`)

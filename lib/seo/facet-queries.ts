@@ -36,6 +36,27 @@ function slugIn(columnSql: SQL, values: string[]): SQL {
   )})`;
 }
 
+function facetValueSlugRows(
+  facets: FacetDefinition[],
+  kind: FacetDefinition["kind"],
+): { valueSlug: string; facetSlug: string }[] {
+  return facets
+    .filter((facet) => facet.kind === kind)
+    .flatMap((facet) =>
+      facetValues(facet).map((value) => ({
+        valueSlug: normalizeSlug(value),
+        facetSlug: facet.slug,
+      })),
+    );
+}
+
+function facetValueMapSql(rows: { valueSlug: string; facetSlug: string }[]): SQL {
+  return sql.join(
+    rows.map((row) => sql`(${row.valueSlug}, ${row.facetSlug})`),
+    sql`, `,
+  );
+}
+
 function facetCondition(facet: FacetDefinition): SQL | undefined {
   switch (facet.kind) {
     case "fuel":
@@ -245,7 +266,7 @@ export async function countModelListingsWithVariants(
   brandSlug: string,
   modelSlug: string,
 ): Promise<number> {
-  const variants = slugVariants(modelSlug);
+  const variants = slugVariants(modelSlug).map(normalizeSlug);
   if (!variants.length) return 0;
   try {
     const [row] = await db
@@ -254,8 +275,8 @@ export async function countModelListingsWithVariants(
       .where(
         and(
           eq(listings.isSold, false),
-          sql`lower(${listings.brand}) = ${brandSlug.toLowerCase()}`,
-          sql`lower(${listings.model}) in (${sql.join(
+          sql`${slugSql(sql`${listings.brand}`)} = ${normalizeSlug(brandSlug)}`,
+          sql`${slugSql(sql`${listings.model}`)} in (${sql.join(
             variants.map((v) => sql`${v}`),
             sql`, `,
           )})`,
@@ -300,7 +321,7 @@ export async function queryModelCollectionStats(
   brandSlug: string,
   modelSlug: string,
 ): Promise<CollectionStats> {
-  const variants = slugVariants(modelSlug);
+  const variants = slugVariants(modelSlug).map(normalizeSlug);
   if (!variants.length) {
     return { total: 0, minPrice: 0, maxPrice: 0, avgPrice: 0 };
   }
@@ -316,8 +337,8 @@ export async function queryModelCollectionStats(
       .where(
         and(
           eq(listings.isSold, false),
-          sql`lower(${listings.brand}) = ${brandSlug.toLowerCase()}`,
-          sql`lower(${listings.model}) in (${sql.join(
+          sql`${slugSql(sql`${listings.brand}`)} = ${normalizeSlug(brandSlug)}`,
+          sql`${slugSql(sql`${listings.model}`)} in (${sql.join(
             variants.map((v) => sql`${v}`),
             sql`, `,
           )})`,
@@ -342,15 +363,12 @@ export async function queryIndexableFacetUrls(
   const now = new Date();
   const globalFacets = listGlobalFacets();
   const brandFacets = listBrandFacets();
-  const fuelSlugs = globalFacets
-    .filter((facet) => facet.kind === "fuel")
-    .map((facet) => String(facet.value));
-  const transmissionSlugs = globalFacets
-    .filter((facet) => facet.kind === "transmission")
-    .map((facet) => String(facet.value));
-  const bodySlugs = globalFacets
-    .filter((facet) => facet.kind === "body")
-    .map((facet) => String(facet.value));
+  const globalFuelMap = facetValueSlugRows(globalFacets, "fuel");
+  const brandFuelMap = facetValueSlugRows(brandFacets, "fuel");
+  const globalTransmissionMap = facetValueSlugRows(globalFacets, "transmission");
+  const brandTransmissionMap = facetValueSlugRows(brandFacets, "transmission");
+  const globalBodyMap = facetValueSlugRows(globalFacets, "body");
+  const brandBodyMap = facetValueSlugRows(brandFacets, "body");
   const yearValues = globalFacets
     .filter((facet) => facet.kind === "year")
     .map((facet) => Number(facet.value));
@@ -360,68 +378,71 @@ export async function queryIndexableFacetUrls(
       WITH active AS (
         SELECT
           ${listings.id} AS id,
-          lower(trim(${listings.brand})) AS brand,
+          ${slugSql(sql`${listings.brand}`)} AS brand,
           ${listings.fuelType} AS fuel_type,
           ${listings.transmission} AS transmission,
-          lower(${listings.bodyType}) AS body_type,
+          ${slugSql(sql`${listings.bodyType}`)} AS body_type,
           ${listings.driveType} AS drive_type,
           ${listings.price}::numeric AS price,
           ${listings.year} AS year
         FROM ${listings}
         WHERE ${listings.isSold} = false
       ),
+      global_fuel_map(value_slug, facet_slug) AS (
+        VALUES ${facetValueMapSql(globalFuelMap)}
+      ),
+      brand_fuel_map(value_slug, facet_slug) AS (
+        VALUES ${facetValueMapSql(brandFuelMap)}
+      ),
+      global_transmission_map(value_slug, facet_slug) AS (
+        VALUES ${facetValueMapSql(globalTransmissionMap)}
+      ),
+      brand_transmission_map(value_slug, facet_slug) AS (
+        VALUES ${facetValueMapSql(brandTransmissionMap)}
+      ),
+      global_body_map(value_slug, facet_slug) AS (
+        VALUES ${facetValueMapSql(globalBodyMap)}
+      ),
+      brand_body_map(value_slug, facet_slug) AS (
+        VALUES ${facetValueMapSql(brandBodyMap)}
+      ),
       facet_hits AS (
-        SELECT NULL::text AS brand, lower(f) AS slug, id
+        SELECT NULL::text AS brand, m.facet_slug AS slug, id
         FROM active, unnest(fuel_type) AS f
-        WHERE lower(f) IN (${sql.join(fuelSlugs.map((slug) => sql`${slug}`), sql`, `)})
+        JOIN global_fuel_map m ON ${slugSql(sql`f`)} = m.value_slug
 
         UNION ALL
 
-        SELECT brand, lower(f) AS slug, id
+        SELECT brand, m.facet_slug AS slug, id
         FROM active, unnest(fuel_type) AS f
+        JOIN brand_fuel_map m ON ${slugSql(sql`f`)} = m.value_slug
         WHERE brand <> ''
-          AND lower(f) IN (${sql.join(
-            brandFacets
-              .filter((facet) => facet.kind === "fuel")
-              .map((facet) => sql`${String(facet.value)}`),
-            sql`, `,
-          )})
 
         UNION ALL
 
-        SELECT NULL::text AS brand, lower(t) AS slug, id
+        SELECT NULL::text AS brand, m.facet_slug AS slug, id
         FROM active, unnest(transmission) AS t
-        WHERE lower(t) IN (${sql.join(transmissionSlugs.map((slug) => sql`${slug}`), sql`, `)})
+        JOIN global_transmission_map m ON ${slugSql(sql`t`)} = m.value_slug
 
         UNION ALL
 
-        SELECT brand, lower(t) AS slug, id
+        SELECT brand, m.facet_slug AS slug, id
         FROM active, unnest(transmission) AS t
+        JOIN brand_transmission_map m ON ${slugSql(sql`t`)} = m.value_slug
         WHERE brand <> ''
-          AND lower(t) IN (${sql.join(
-            brandFacets
-              .filter((facet) => facet.kind === "transmission")
-              .map((facet) => sql`${String(facet.value)}`),
-            sql`, `,
-          )})
 
         UNION ALL
 
-        SELECT NULL::text AS brand, body_type AS slug, id
+        SELECT NULL::text AS brand, m.facet_slug AS slug, id
         FROM active
-        WHERE body_type IN (${sql.join(bodySlugs.map((slug) => sql`${slug}`), sql`, `)})
+        JOIN global_body_map m ON body_type = m.value_slug
 
         UNION ALL
 
-        SELECT brand, body_type AS slug, id
+        SELECT brand, m.facet_slug AS slug, id
         FROM active
+        JOIN brand_body_map m ON body_type = m.value_slug
         WHERE brand <> ''
-          AND body_type IN (${sql.join(
-            brandFacets
-              .filter((facet) => facet.kind === "body")
-              .map((facet) => sql`${String(facet.value)}`),
-            sql`, `,
-          )})
 
         UNION ALL
 
