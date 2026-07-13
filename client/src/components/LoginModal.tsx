@@ -26,6 +26,7 @@ interface LoginModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialTab?: "login" | "register";
+  initialRegisterType?: "private" | "dealer";
 }
 
 const TURNSTILE_SITE_KEY =
@@ -45,6 +46,7 @@ export default function LoginModal({
   open,
   onOpenChange,
   initialTab = "login",
+  initialRegisterType = "private",
 }: LoginModalProps) {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [email, setEmail] = useState("");
@@ -55,7 +57,7 @@ export default function LoginModal({
   const [registerLastName, setRegisterLastName] = useState("");
   const [registerPhone, setRegisterPhone] = useState("");
   const [registerType, setRegisterType] = useState<"private" | "dealer">(
-    "private",
+    initialRegisterType,
   );
   const [dealerCompanyName, setDealerCompanyName] = useState("");
   const [dealerIco, setDealerIco] = useState("");
@@ -138,6 +140,7 @@ export default function LoginModal({
   useEffect(() => {
     if (open) {
       setActiveTab(initialTab);
+      setRegisterType(initialRegisterType);
     } else {
       setLoginTurnstileToken("");
       setRegisterTurnstileToken("");
@@ -146,12 +149,12 @@ export default function LoginModal({
       setRegisterVerified(false);
       setDealerVerified(false);
       setLoginErrorMessage(null);
-      setRegisterType("private");
+      setRegisterType(initialRegisterType);
       loginTurnstileRef.current?.reset();
       registerTurnstileRef.current?.reset();
       dealerTurnstileRef.current?.reset();
     }
-  }, [open, initialTab]);
+  }, [open, initialTab, initialRegisterType]);
 
   useEffect(() => {
     if (activeTab !== "login" && loginErrorMessage) {

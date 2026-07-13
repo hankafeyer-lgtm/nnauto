@@ -10179,7 +10179,11 @@ function DealerAuthPromptPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("register") === "1" || params.get("auth") === "register") {
+    if (
+      window.location.pathname === "/dealer/register" ||
+      params.get("register") === "1" ||
+      params.get("auth") === "register"
+    ) {
       openAuthModal("register");
     }
   }, []);
@@ -10221,6 +10225,7 @@ function DealerAuthPromptPage() {
         open={authModalOpen}
         onOpenChange={setAuthModalOpen}
         initialTab={authModalTab}
+        initialRegisterType="dealer"
       />
     </div>
   );
