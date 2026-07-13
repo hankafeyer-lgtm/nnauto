@@ -169,6 +169,13 @@ export default function LoginModal({
     window.history.replaceState(null, "", "/dealer/register");
   }, [open, activeTab, registerType]);
 
+  const selectDealerRegisterType = useCallback(() => {
+    if (typeof window !== "undefined" && window.location.pathname !== "/dealer/register") {
+      window.history.replaceState(null, "", "/dealer/register");
+    }
+    setRegisterType("dealer");
+  }, []);
+
   const handleLoginTurnstileSuccess = useCallback((token: string) => {
     setLoginTurnstileToken(token);
     setLoginVerified(true);
@@ -732,7 +739,7 @@ export default function LoginModal({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRegisterType("dealer")}
+                  onClick={selectDealerRegisterType}
                   aria-pressed={registerType === "dealer"}
                   className={`relative flex flex-col items-start rounded-xl border-2 p-3 pr-8 text-left transition ${
                     registerType === "dealer"
