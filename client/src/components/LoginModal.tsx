@@ -162,6 +162,13 @@ export default function LoginModal({
     }
   }, [activeTab, loginErrorMessage]);
 
+  useEffect(() => {
+    if (!open || activeTab !== "register" || registerType !== "dealer") return;
+    if (typeof window === "undefined") return;
+    if (window.location.pathname === "/dealer/register") return;
+    window.history.replaceState(null, "", "/dealer/register");
+  }, [open, activeTab, registerType]);
+
   const handleLoginTurnstileSuccess = useCallback((token: string) => {
     setLoginTurnstileToken(token);
     setLoginVerified(true);
