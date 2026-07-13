@@ -10176,6 +10176,14 @@ function DealerAuthPromptPage() {
     setAuthModalOpen(true);
   };
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("register") === "1" || params.get("auth") === "register") {
+      openAuthModal("register");
+    }
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col">
       <SEO title={t("dealer.registerTitle")} noindex />
