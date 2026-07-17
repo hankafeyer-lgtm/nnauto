@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import ModelHeader from "./model-header";
+import ModelCatalogClient from "./model-catalog-client";
+import ModelFooter from "./model-footer";
 import { db } from "@lib/db";
 import { listings } from "@shared/schema";
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
@@ -60,7 +61,6 @@ import { buildAggregateOfferJsonLd } from "@lib/seo/structured-data";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { isSeoFeatureEnabled, shouldEmitFaqJsonLd } from "@lib/seo/features";
 import { ModelBreadcrumb } from "@lib/seo/helpers/breadcrumb";
-import { ModelListingGrid } from "@lib/seo/components/model/ModelListingGrid";
 import {
   ModelSeoIntroParagraphs,
   ModelWhyBuy,
@@ -492,116 +492,62 @@ export default async function BrandModelLandingPage({ params }: Props) {
   });
   const brandFacetLinks = getBrandFacetClusterLinks(brandSlug, brandName);
 
-  const formatPrice = (n: number | null) =>
-    n !== null ? `${n.toLocaleString("cs-CZ")} Kč` : null;
-
   return (
     <>
-      <ModelHeader />
-      <main className="container mx-auto max-w-6xl px-4 py-8">
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={collectionJsonLd} />
       <JsonLd data={itemListJsonLd} />
       {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
       {modelAggregateJsonLd ? <JsonLd data={modelAggregateJsonLd} /> : null}
 
-      <ModelBreadcrumb
-        brandName={brandName}
-        brandSlug={brandSlug}
-        modelName={modelName}
-      />
+      <ModelCatalogClient brandSlug={brandSlug} modelSlug={modelSlug} />
 
-      <h1 className="text-3xl md:text-4xl font-bold mb-3">
-        {brandName} {modelName} na prodej
-      </h1>
+      <section className="container mx-auto max-w-6xl px-4 pb-12 pt-4">
+        <ModelBreadcrumb
+          brandName={brandName}
+          brandSlug={brandSlug}
+          modelName={modelName}
+        />
+        <ModelSeoIntroParagraphs paragraphs={introParagraphs} />
+        <ModelWhyBuy brandName={brandName} modelName={modelName} paragraphs={whyBuy} />
+        <ModelWatchOut brandName={brandName} modelName={modelName} paragraphs={watchOut} />
+        <ModelFaq brandName={brandName} modelName={modelName} items={faqItems} />
+        <ModelLegacySeoBlock
+          brandName={brandName}
+          modelName={modelName}
+          brandSlug={brandSlug}
+          modelSlug={modelSlug}
+        />
+        <ModelSiblingModels
+          brandSlug={brandSlug}
+          brandName={brandName}
+          siblings={siblingModels.map((s) => ({
+            model: s.model,
+            slug: normalizeSlug(s.model),
+            total: s.total,
+          }))}
+        />
+        <ModelSimilarModels links={similarModelLinks} />
+        <ModelSimilarPrice link={similarPriceLink} />
+        <ModelCategories brandName={brandName} links={brandFacetLinks} />
+        <ModelFacetSearchLinks
+          brandName={brandName}
+          modelName={modelName}
+          brandSlug={brandSlug}
+          modelSlug={modelSlug}
+        />
+        <ModelRelatedNav brandSlug={brandSlug} brandName={brandName} />
 
-      {/* Intro block — different from /listings UI: short summary with concrete
-          numbers (price range, year range, count). Helps Google understand
-          this page is unique. */}
-      <p className="text-muted-foreground max-w-3xl mb-4">
-        Aktuálně máme na NNAuto <strong>{total}</strong>{" "}
-        {total === 1 ? "inzerát" : total < 5 ? "inzeráty" : "inzerátů"}{" "}
-        modelu <strong>{brandName} {modelName}</strong>
-        {price.min !== null && price.max !== null
-          ? ` v cenovém rozpětí ${formatPrice(price.min)} – ${formatPrice(price.max)}`
-          : ""}
-        {year.min !== null && year.max !== null
-          ? `, ročníky ${year.min}–${year.max}`
-          : ""}
-        . Inzeráty pocházejí od soukromých prodejců i ověřených autobazarů.
-        Kontaktujte prodejce přímo, bez mezičlánků.
-      </p>
+        {isThin ? (
+          <p className="mt-8 text-xs text-muted-foreground">
+            Tato stránka má momentálně omezený inventář a není v současné
+            chvíli zařazena do indexu vyhledávačů. Pravidelně doplňujeme
+            nové inzeráty.
+          </p>
+        ) : null}
+      </section>
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        <a
-          href={`/listings?brand=${encodeURIComponent(brandSlug)}&model=${encodeURIComponent(modelSlug)}`}
-          className="rounded-md bg-[#B8860B] text-white px-4 py-2 text-sm font-medium"
-        >
-          Otevřít kompletní filtr
-        </a>
-        <a
-          href={`/auta/${brandSlug}`}
-          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
-        >
-          Všechny modely {brandName}
-        </a>
-        <a
-          href={`/prodat-auto/${brandSlug}-${modelSlug}`}
-          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
-        >
-          Prodat {brandName} {modelName}
-        </a>
-        <a
-          href="/listings"
-          className="rounded-md border px-4 py-2 text-sm hover:bg-accent"
-        >
-          Všechny inzeráty
-        </a>
-      </div>
-
-      <h2 className="text-xl font-semibold mb-3">
-        Aktuální nabídka {brandName} {modelName}
-      </h2>
-      <ModelListingGrid rows={rows} />
-
-      <ModelSeoIntroParagraphs paragraphs={introParagraphs} />
-      <ModelWhyBuy brandName={brandName} modelName={modelName} paragraphs={whyBuy} />
-      <ModelWatchOut brandName={brandName} modelName={modelName} paragraphs={watchOut} />
-      <ModelFaq brandName={brandName} modelName={modelName} items={faqItems} />
-      <ModelLegacySeoBlock
-        brandName={brandName}
-        modelName={modelName}
-        brandSlug={brandSlug}
-        modelSlug={modelSlug}
-      />
-      <ModelSiblingModels
-        brandSlug={brandSlug}
-        brandName={brandName}
-        siblings={siblingModels.map((s) => ({
-          model: s.model,
-          slug: normalizeSlug(s.model),
-          total: s.total,
-        }))}
-      />
-      <ModelSimilarModels links={similarModelLinks} />
-      <ModelSimilarPrice link={similarPriceLink} />
-      <ModelCategories brandName={brandName} links={brandFacetLinks} />
-      <ModelFacetSearchLinks
-        brandName={brandName}
-        modelName={modelName}
-        brandSlug={brandSlug}
-        modelSlug={modelSlug}
-      />
-      <ModelRelatedNav brandSlug={brandSlug} brandName={brandName} />
-
-      {isThin ? (
-        <p className="mt-8 text-xs text-muted-foreground">
-          Tato stránka má momentálně omezený inventář a není v současné
-          chvíli zařazena do indexu vyhledávačů. Pravidelně doplňujeme
-          nové inzeráty.
-        </p>
-      ) : null}
-      </main>
+      <ModelFooter />
     </>
   );
 }

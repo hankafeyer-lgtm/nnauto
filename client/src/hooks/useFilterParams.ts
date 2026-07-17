@@ -478,6 +478,66 @@ export interface FilterParams {
 
 const FILTERS_URL_CHANGE_EVENT = "nnauto:filters-url-change";
 
+declare global {
+  interface Window {
+    __NNAUTO_DEFAULT_FILTERS__?: FilterParams;
+  }
+}
+
+const getDefaultFilters = (): FilterParams => {
+  if (typeof window === "undefined") return {};
+  return window.__NNAUTO_DEFAULT_FILTERS__ ?? {};
+};
+
+const isEmptyFilterValue = (value: unknown) =>
+  value === undefined ||
+  value === null ||
+  (typeof value === "string" && value.trim() === "") ||
+  (Array.isArray(value) && value.length === 0);
+
+const mergeWithDefaultFilters = (parsed: FilterParams): FilterParams => {
+  const defaults = getDefaultFilters();
+  const merged: FilterParams = { ...defaults };
+
+  for (const [key, value] of Object.entries(parsed) as [
+    keyof FilterParams,
+    FilterParams[keyof FilterParams],
+  ][]) {
+    if (!isEmptyFilterValue(value)) {
+      merged[key] = value as never;
+    }
+  }
+
+  return merged;
+};
+
+const isDefaultFilterValue = (
+  key: keyof FilterParams,
+  value: FilterParams[keyof FilterParams],
+) => {
+  const defaultValue = getDefaultFilters()[key];
+  if (isEmptyFilterValue(defaultValue)) return false;
+  if (Array.isArray(value) || Array.isArray(defaultValue)) {
+    return (
+      Array.isArray(value) &&
+      Array.isArray(defaultValue) &&
+      value.length === defaultValue.length &&
+      value.every((item, index) => item === defaultValue[index])
+    );
+  }
+  return value === defaultValue;
+};
+
+const setUrlParamUnlessDefault = (
+  params: URLSearchParams,
+  key: keyof FilterParams,
+  value: FilterParams[keyof FilterParams],
+  serialized: string,
+) => {
+  if (isEmptyFilterValue(value) || isDefaultFilterValue(key, value)) return;
+  params.set(key, serialized);
+};
+
 /**
  * Lock the current scroll position for the next ~600ms.
  *
@@ -639,7 +699,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
   const parseFiltersFromURL = useCallback((): FilterParams => {
     const params = new URLSearchParams(window.location.search);
 
-    return {
+    return mergeWithDefaultFilters({
       search: params.get("search") || undefined,
       // Legacy category filter is no longer used in UI filtering flow.
       category: undefined,
@@ -733,7 +793,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       stkValidUntil: params.get("stkValidUntil") || undefined,
       hasServiceBook:
         params.get("hasServiceBook") === "true" ? true : undefined,
-    };
+    });
   }, []);
 
   const initialFilters = parseFiltersFromURL();
@@ -784,9 +844,14 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       );
       if (normalizedVehicleType)
         params.set("vehicleType", normalizedVehicleType);
-      if (newFilters.brand) params.set("brand", newFilters.brand);
-      if (newFilters.model) params.set("model", newFilters.model);
-      if (newFilters.generation) params.set("generation", newFilters.generation);
+      setUrlParamUnlessDefault(params, "brand", newFilters.brand, newFilters.brand ?? "");
+      setUrlParamUnlessDefault(params, "model", newFilters.model, newFilters.model ?? "");
+      setUrlParamUnlessDefault(
+        params,
+        "generation",
+        newFilters.generation,
+        newFilters.generation ?? "",
+      );
       if (newFilters.priceMin !== undefined && !isNaN(newFilters.priceMin))
         params.set("priceMin", String(newFilters.priceMin));
       if (newFilters.priceMax !== undefined && !isNaN(newFilters.priceMax))
@@ -890,8 +955,9 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       shouldDebounce = false,
     ) => {
       const prevFilters = latestFiltersRef.current;
-      const newFilters =
+      const nextFilters =
         typeof updater === "function" ? updater(prevFilters) : updater;
+      const newFilters = mergeWithDefaultFilters(nextFilters);
       latestFiltersRef.current = newFilters;
       setFiltersState(newFilters);
       if (!autoNavigate) return;

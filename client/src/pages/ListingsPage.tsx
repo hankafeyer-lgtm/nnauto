@@ -3118,7 +3118,15 @@ const hasListingsRestoreIntent = (w: Window) => {
 
 
 /* ---------------- component ---------------- */
-export default function ListingsPage() {
+type ListingsPageProps = {
+  suppressSeo?: boolean;
+  suppressFooter?: boolean;
+};
+
+export default function ListingsPage({
+  suppressSeo = false,
+  suppressFooter = false,
+}: ListingsPageProps = {}) {
   const t = useTranslation();
   const { language } = useLanguage();
   const localizedOptions = useLocalizedOptions();
@@ -4507,28 +4515,30 @@ export default function ListingsPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <SEO
-        title={seoTitles[language as keyof typeof seoTitles] || seoTitles.cs}
-        description={
-          seoDescriptions[language as keyof typeof seoDescriptions] ||
-          seoDescriptions.cs
-        }
-        keywords={
-          seoKeywords[language as keyof typeof seoKeywords] || seoKeywords.cs
-        }
-        url={listingsSeo.canonical}
-        noindex={listingsSeo.noindex}
-        locale={
-          language === "cs"
-            ? "cs_CZ"
-            : language === "uk"
-              ? "uk_UA"
-              : language === "de"
-                ? "de_DE"
-                : "en_US"
-        }
-        structuredData={listingsSeo.noindex ? undefined : listingsSchema}
-      />
+      {!suppressSeo ? (
+        <SEO
+          title={seoTitles[language as keyof typeof seoTitles] || seoTitles.cs}
+          description={
+            seoDescriptions[language as keyof typeof seoDescriptions] ||
+            seoDescriptions.cs
+          }
+          keywords={
+            seoKeywords[language as keyof typeof seoKeywords] || seoKeywords.cs
+          }
+          url={listingsSeo.canonical}
+          noindex={listingsSeo.noindex}
+          locale={
+            language === "cs"
+              ? "cs_CZ"
+              : language === "uk"
+                ? "uk_UA"
+                : language === "de"
+                  ? "de_DE"
+                  : "en_US"
+          }
+          structuredData={listingsSeo.noindex ? undefined : listingsSchema}
+        />
+      ) : null}
 
       <Header />
 
@@ -4981,7 +4991,7 @@ export default function ListingsPage() {
         </div>
       </div>
 
-      <Footer />
+      {!suppressFooter ? <Footer /> : null}
 
       {openListingId ? (
         <div className="fixed inset-0 z-[100] bg-background overscroll-none overflow-x-hidden w-full max-w-[100vw] touch-pan-y">
