@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import ModelHeader from "./model-header";
 import { db } from "@lib/db";
 import { listings } from "@shared/schema";
 import { and, desc, eq, sql, type SQL } from "drizzle-orm";
@@ -485,7 +486,9 @@ export default async function BrandModelLandingPage({ params }: Props) {
     n !== null ? `${n.toLocaleString("cs-CZ")} Kč` : null;
 
   return (
-    <main className="container mx-auto max-w-6xl px-4 py-8">
+    <>
+      <ModelHeader />
+      <main className="container mx-auto max-w-6xl px-4 py-8">
       <JsonLd data={breadcrumbJsonLd} />
       <JsonLd data={collectionJsonLd} />
       <JsonLd data={itemListJsonLd} />
@@ -588,6 +591,7 @@ export default async function BrandModelLandingPage({ params }: Props) {
           nové inzeráty.
         </p>
       ) : null}
-    </main>
+      </main>
+    </>
   );
 }
