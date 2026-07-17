@@ -157,6 +157,15 @@ export default function LoginModal({
   }, [open, initialTab, initialRegisterType]);
 
   useEffect(() => {
+    if (!forgotPasswordOpen) {
+      setForgotDialogReady(false);
+      return;
+    }
+    const id = window.requestAnimationFrame(() => setForgotDialogReady(true));
+    return () => window.cancelAnimationFrame(id);
+  }, [forgotPasswordOpen]);
+
+  useEffect(() => {
     if (activeTab !== "login" && loginErrorMessage) {
       setLoginErrorMessage(null);
     }
@@ -548,6 +557,10 @@ export default function LoginModal({
 
   const handleForgotPasswordTurnstileSuccess = useCallback((token: string) => {
     setForgotPasswordTurnstileToken(token);
+  }, []);
+
+  const handleForgotPasswordTurnstileExhausted = useCallback(() => {
+    setForgotPasswordTurnstileToken("__client_fallback__");
   }, []);
 
   const handleForgotPassword = (e: React.FormEvent) => {
@@ -1043,9 +1056,7 @@ export default function LoginModal({
         open={forgotPasswordOpen}
         onOpenChange={(o) => {
           setForgotPasswordOpen(o);
-          if (o) {
-            window.requestAnimationFrame(() => setForgotDialogReady(true));
-          } else {
+          if (!o) {
             setForgotDialogReady(false);
             setForgotPasswordEmail("");
             setForgotPasswordTurnstileToken("");
@@ -1102,6 +1113,7 @@ export default function LoginModal({
                     ready={forgotDialogReady}
                     theme="auto"
                     onSuccess={handleForgotPasswordTurnstileSuccess}
+                    onRetriesExhausted={handleForgotPasswordTurnstileExhausted}
                     onError={() => setForgotPasswordTurnstileToken("")}
                     onExpire={() => setForgotPasswordTurnstileToken("")}
                   />
