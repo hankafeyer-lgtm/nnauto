@@ -287,7 +287,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const robots: Metadata["robots"] =
     total >= MIN_INDEX
-      ? { index: true, follow: true }
+      ? {
+          index: true,
+          follow: true,
+          googleBot: {
+            index: true,
+            follow: true,
+            "max-image-preview": "large",
+            "max-snippet": -1,
+            "max-video-preview": -1,
+          },
+        }
       : { index: false, follow: true };
 
   return {

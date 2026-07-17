@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { db } from "@lib/db";
 import { SITE_ORIGIN } from "@lib/seo/constants";
 import { normalizeSlug } from "@lib/seo/slug";
+import { isTopModel } from "@lib/seo/top-models";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { dedupeSitemapEntries } from "@lib/seo/sitemap-utils";
 import { queryIndexableFacetUrls } from "@lib/seo/facet-queries";
@@ -302,11 +303,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .map((row) => {
       const brandSlug = normalizeSlug(String(row.brand));
       const modelSlug = normalizeSlug(String(row.model));
+      const priority = isTopModel(brandSlug, modelSlug) ? 0.86 : 0.7;
       return {
         url: `${SITE_ORIGIN}/auta/${brandSlug}/${modelSlug}`,
         lastModified: row.lastUpdate ? new Date(row.lastUpdate) : new Date(),
         changeFrequency: "daily" as const,
-        priority: 0.7,
+        priority,
       };
     })
     .filter((entry) => {
