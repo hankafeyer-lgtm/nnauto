@@ -26,6 +26,7 @@ import {
   formatVehicleTitle,
 } from "@lib/seo/brand-format";
 import { normalizeSlug, slugVariants } from "@lib/seo/slug";
+import { getModelMetadataOverride } from "@lib/seo/model-metadata-overrides";
 import { inzeratWord, formatCzk } from "@lib/seo/czech-format";
 import {
   getFacetBySlug,
@@ -265,18 +266,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     price.min !== null && price.min > 0 ? ` od ${formatCzk(price.min)}` : "";
 
   const canonical = `${SITE_ORIGIN}/auta/${brandSlug}/${modelSlug}`;
-  const prioritySeo = getPriorityModelSeo(brandSlug, modelSlug);
-  const title = prioritySeo
+  const metadataSeo =
+    getModelMetadataOverride(brandSlug, modelSlug) ??
+    getPriorityModelSeo(brandSlug, modelSlug);
+  const title = metadataSeo
     ? total
-      ? `${prioritySeo.titleKeyword} – ${total} ${inzeratWord(total)}${fromPart} | NNAuto`
-      : `${prioritySeo.titleKeyword} | NNAuto`
+      ? `${metadataSeo.titleKeyword} – ${total} ${inzeratWord(total)}${fromPart} | NNAuto`
+      : `${metadataSeo.titleKeyword} | NNAuto`
     : total
       ? `${brandName} ${modelName} na prodej – ${total} ${inzeratWord(total)}${fromPart} | NNAuto`
       : `${brandName} ${modelName} na prodej | NNAuto`;
-  const description = prioritySeo
+  const description = metadataSeo
     ? total
-      ? `${prioritySeo.descriptionLead} ${total} ${inzeratWord(total)}${fromPart}, ceny, fotografie, výbava a kontakt přímo na prodejce.`
-      : `${prioritySeo.descriptionLead} Online autobazar NNAuto.cz.`
+      ? `${metadataSeo.descriptionLead} ${total} ${inzeratWord(total)}${fromPart}, fotografie, výbava a kontakt přímo na prodejce.`
+      : `${metadataSeo.descriptionLead} Online autobazar NNAuto.cz.`
     : total
       ? `Aktuálně ${total} ${inzeratWord(total)} ${brandName} ${modelName}${fromPart}. Ověřené ojeté vozy od soukromých prodejců i autobazarů v ČR – ceny, fotografie a parametry. Kontaktujte prodejce přímo.`
       : `Nabídka ${brandName} ${modelName} na NNAuto – online autobazar v České republice.`;
@@ -315,8 +318,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     keywords: [
       `${brandName} ${modelName}`,
-      ...(prioritySeo
-        ? [prioritySeo.searchPhrase, prioritySeo.titleKeyword]
+      ...(metadataSeo
+        ? [metadataSeo.searchPhrase, metadataSeo.titleKeyword]
         : []),
       `prodej ${brandName} ${modelName}`,
       `${brandName} ${modelName} bazar`,
