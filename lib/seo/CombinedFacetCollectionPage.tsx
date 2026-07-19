@@ -11,8 +11,6 @@ import {
 import {
   formatBrandDisplay,
   formatModelDisplay,
-  formatVehicleCardHeading,
-  formatVehicleTitle,
 } from "@lib/seo/brand-format";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { getListingMainTitleFromRow } from "@lib/seo/listing-title";
@@ -24,14 +22,13 @@ import {
   CollectionInternalLinkBlocks,
   CollectionVehicleJsonLd,
 } from "@lib/seo/CollectionInternalLinkBlocks";
+import SeoCatalogClient from "@lib/seo/components/SeoCatalogClient";
+import SeoCatalogFooter from "@lib/seo/components/SeoCatalogFooter";
+import { filtersForFacet, mergeCatalogFilters } from "@lib/seo/catalog-filter-defaults";
 
 export type CombinedFacetScope =
   | { type: "facetPair"; facets: readonly [FacetDefinition, FacetDefinition] }
   | { type: "modelFacet"; brandSlug: string; modelSlug: string; facet: FacetDefinition };
-
-function titleCaseRegion(value: string) {
-  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
-}
 
 function scopeNames(scope: CombinedFacetScope) {
   if (scope.type === "modelFacet") {
@@ -178,9 +175,16 @@ export function CombinedFacetCollectionPage({
       year: listing.year,
     })}`,
   }));
+  const defaultFilters =
+    scope.type === "modelFacet"
+      ? mergeCatalogFilters(
+          { brand: scope.brandSlug, model: scope.modelSlug },
+          filtersForFacet(scope.facet),
+        )
+      : mergeCatalogFilters(...scope.facets.map((facet) => filtersForFacet(facet)));
 
   return (
-    <main className="container mx-auto max-w-6xl px-4 py-8">
+    <>
       <JsonLd data={buildBreadcrumbJsonLd(names.breadcrumbs)} />
       <JsonLd
         data={buildCollectionPageJsonLd({
@@ -199,6 +203,9 @@ export function CombinedFacetCollectionPage({
       })()}
       <JsonLd data={buildFaqPageJsonLd(faqs)} />
 
+      <SeoCatalogClient defaultFilters={defaultFilters} />
+
+      <section className="container mx-auto max-w-6xl px-4 pb-12 pt-4">
       <nav className="text-sm text-muted-foreground mb-4 flex flex-wrap gap-1" aria-label="Breadcrumb">
         {names.breadcrumbs.map((item, index) => (
           <span key={`${item.name}-${index}`} className="contents">
@@ -228,62 +235,6 @@ export function CombinedFacetCollectionPage({
         ) : null}
         .
       </p>
-
-      <section className="mt-6">
-        <h2 className="text-xl font-semibold mb-3">Aktuální nabídka</h2>
-        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {rows.map((listing) => {
-            const photo = listing.photos?.[0];
-            const img = photo
-              ? `${SITE_ORIGIN}/img/${photo.replace(/^\/+/, "")}?w=800&q=75&f=webp`
-              : null;
-            return (
-              <li key={listing.id} className="rounded-lg border bg-card overflow-hidden">
-                <a
-                  href={buildListingUrl({
-                    id: listing.id,
-                    brand: listing.brand,
-                    model: listing.model,
-                    year: listing.year,
-                  })}
-                  className="block group"
-                >
-                  {img ? (
-                    <img
-                      src={img}
-                      alt={formatVehicleTitle(listing.brand, listing.model, listing.year)}
-                      className="w-full h-48 object-cover"
-                      loading="lazy"
-                      decoding="async"
-                      width={800}
-                      height={480}
-                    />
-                  ) : (
-                    <div className="w-full h-48 bg-muted" aria-hidden="true" />
-                  )}
-                  <div className="p-3 space-y-1">
-                    <h3 className="font-semibold group-hover:underline">
-                      {formatVehicleCardHeading(listing.brand, listing.model)}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {[
-                        listing.year,
-                        listing.mileage ? `${listing.mileage.toLocaleString("cs-CZ")} km` : "",
-                        listing.region ? titleCaseRegion(String(listing.region)) : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                    <p className="font-semibold text-[#B8860B]">
-                      {Number(listing.price).toLocaleString("cs-CZ")} Kč
-                    </p>
-                  </div>
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
 
       {isSeoTextsEnabled() ? (
         <section className="mt-10 prose max-w-none text-muted-foreground space-y-4">
@@ -316,6 +267,9 @@ export function CombinedFacetCollectionPage({
         modelSlug={scope.type === "modelFacet" ? scope.modelSlug : undefined}
         relatedLinks={relatedLinks}
       />
-    </main>
+      </section>
+
+      <SeoCatalogFooter />
+    </>
   );
 }

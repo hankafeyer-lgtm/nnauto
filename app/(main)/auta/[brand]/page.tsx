@@ -61,6 +61,8 @@ import {
   guideJsonLd,
   type AutaGuidePage,
 } from "@lib/seo/editorial-pages";
+import SeoCatalogClient from "@lib/seo/components/SeoCatalogClient";
+import SeoCatalogFooter from "@lib/seo/components/SeoCatalogFooter";
 
 /**
  * SEO landing page per brand (e.g. /auta/bmw, /auta/audi).
@@ -449,11 +451,16 @@ function AutaGuideLandingPage({ page }: { page: AutaGuidePage }) {
   const jsonLd = guideJsonLd(page);
 
   return (
-    <main className="container mx-auto max-w-5xl px-4 py-8">
+    <>
       <JsonLd data={jsonLd.breadcrumb} />
       <JsonLd data={jsonLd.faq} />
       <JsonLd data={jsonLd.itemList} />
 
+      {page.catalogFilters ? (
+        <SeoCatalogClient defaultFilters={page.catalogFilters} />
+      ) : null}
+
+      <section className="container mx-auto max-w-5xl px-4 pb-12 pt-4">
       <nav
         className="text-sm text-muted-foreground mb-4 flex flex-wrap gap-1"
         aria-label="Breadcrumb"
@@ -527,6 +534,9 @@ function AutaGuideLandingPage({ page }: { page: AutaGuidePage }) {
         </dl>
       </section>
 
-    </main>
+      </section>
+
+      {page.catalogFilters ? <SeoCatalogFooter /> : null}
+    </>
   );
 }

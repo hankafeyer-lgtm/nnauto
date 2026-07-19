@@ -7,7 +7,7 @@ import {
   buildAggregateOfferJsonLd,
   buildItemListJsonLd,
 } from "@lib/seo/structured-data";
-import { formatBrandDisplay, formatVehicleTitle, formatVehicleCardHeading } from "@lib/seo/brand-format";
+import { formatBrandDisplay } from "@lib/seo/brand-format";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { getListingMainTitleFromRow } from "@lib/seo/listing-title";
 import {
@@ -31,11 +31,11 @@ import {
   CollectionInternalLinkBlocks,
   CollectionVehicleJsonLd,
 } from "@lib/seo/CollectionInternalLinkBlocks";
+import SeoCatalogClient from "@lib/seo/components/SeoCatalogClient";
+import SeoCatalogFooter from "@lib/seo/components/SeoCatalogFooter";
+import { filtersForFacet } from "@lib/seo/catalog-filter-defaults";
 
 type ListingRow = typeof listings.$inferSelect;
-
-const titleCaseRegion = (s: string) =>
-  s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
 export type FacetCollectionPageProps = {
   facet: FacetDefinition;
@@ -93,9 +93,13 @@ export function FacetCollectionPage({
   const collectionName = brandName
     ? `${brandName} ${facet.label} na prodej`
     : buildFacetH1(facet);
+  const defaultFilters = {
+    ...filtersForFacet(facet),
+    ...(brandSlug ? { brand: brandSlug } : {}),
+  };
 
   return (
-    <main className="container mx-auto max-w-6xl px-4 py-8">
+    <>
       <JsonLd data={buildBreadcrumbJsonLd(breadcrumbs)} />
       <JsonLd
         data={buildCollectionPageJsonLd({
@@ -119,6 +123,9 @@ export function FacetCollectionPage({
         <JsonLd data={buildFaqPageJsonLd(faq)} />
       ) : null}
 
+      <SeoCatalogClient defaultFilters={defaultFilters} />
+
+      <section className="container mx-auto max-w-6xl px-4 pb-12 pt-4">
       <nav
         className="text-sm text-muted-foreground mb-4 flex flex-wrap gap-1"
         aria-label="Breadcrumb"
@@ -176,62 +183,6 @@ export function FacetCollectionPage({
         ]}
       />
 
-      <h2 className="text-xl font-semibold mb-3 mt-6">Aktuální nabídka</h2>
-      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {rows.map((l) => {
-          const img = l.photos?.[0]
-            ? `${SITE_ORIGIN}/img/${l.photos[0].replace(/^\/+/, "")}?w=800&q=75&f=webp`
-            : null;
-          const price = l.price
-            ? `${Number(l.price).toLocaleString("cs-CZ")} Kč`
-            : "";
-          return (
-            <li key={l.id} className="rounded-lg border bg-card overflow-hidden">
-              <a
-                href={buildListingUrl({
-                  id: l.id,
-                  brand: l.brand,
-                  model: l.model,
-                  year: l.year,
-                })}
-                className="block group"
-              >
-                {img ? (
-                  <img
-                    src={img}
-                    alt={formatVehicleTitle(l.brand, l.model, l.year)}
-                    className="w-full h-48 object-cover"
-                    loading="lazy"
-                    decoding="async"
-                    width={800}
-                    height={480}
-                  />
-                ) : (
-                  <div className="w-full h-48 bg-muted" aria-hidden="true" />
-                )}
-                <div className="p-3 space-y-1">
-                  <h3 className="font-semibold group-hover:underline">
-                    {formatVehicleCardHeading(l.brand, l.model)}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {[
-                      l.year,
-                      l.mileage
-                        ? `${l.mileage.toLocaleString("cs-CZ")} km`
-                        : "",
-                      l.region ? titleCaseRegion(String(l.region)) : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                  <p className="font-semibold text-[#B8860B]">{price}</p>
-                </div>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
-
       {isSeoTextsEnabled() ? (
         <section className="mt-10 prose max-w-none text-muted-foreground space-y-4">
           {intro.map((p, i) => (
@@ -276,7 +227,10 @@ export function FacetCollectionPage({
         rows={rows}
         brandSlug={brandSlug}
       />
-    </main>
+      </section>
+
+      <SeoCatalogFooter />
+    </>
   );
 }
 
