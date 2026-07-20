@@ -81,7 +81,16 @@ export async function POST(req: NextRequest) {
     for (const listing of listings) {
       if (!listing) return error("Listing not found", 404);
       if (listing.userId !== user.id) return error("Cannot promote another user's listing", 403);
-      if (listing.isTopListing) return error("Listing is already TOP", 400);
+      const activeTopExpiresAt = listing.topListingExpiresAt
+        ? new Date(listing.topListingExpiresAt)
+        : null;
+      if (
+        listing.isTopListing &&
+        activeTopExpiresAt &&
+        activeTopExpiresAt.getTime() > Date.now()
+      ) {
+        return error("Listing is already TOP", 400);
+      }
     }
 
     const stripe = getDealerTopStripe();

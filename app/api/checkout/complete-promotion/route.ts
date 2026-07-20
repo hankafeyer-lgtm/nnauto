@@ -5,6 +5,7 @@ import { storage } from "@lib/storage";
 import Stripe from "stripe";
 
 const TOP_LISTING_PRICE = 9900;
+const TOP_LISTING_DURATION_DAYS = 30;
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -80,13 +81,24 @@ export async function POST(req: NextRequest) {
       return error("Cannot promote another user's listing", 403);
     }
 
-    if (listing.isTopListing) {
+    const activeTopExpiresAt = listing.topListingExpiresAt
+      ? new Date(listing.topListingExpiresAt)
+      : null;
+    if (
+      listing.isTopListing &&
+      activeTopExpiresAt &&
+      activeTopExpiresAt.getTime() > Date.now()
+    ) {
       console.log(`Listing ${listingId} already TOP - returning success`);
       return json(listing);
     }
 
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + TOP_LISTING_DURATION_DAYS);
+
     const updatedListing = await storage.updateListing(listingId, {
       isTopListing: true,
+      topListingExpiresAt: expiresAt,
     });
 
     await storage.createPayment({
