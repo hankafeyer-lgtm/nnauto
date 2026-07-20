@@ -6,7 +6,6 @@ import Stripe from "stripe";
 import { pendingTopListings } from "@lib/pending-top-listings";
 
 const TOP_LISTING_PRICE = 9900;
-const TOP_LISTING_DURATION_DAYS = 30;
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -64,13 +63,9 @@ export async function POST(req: NextRequest) {
 
     pendingTopListings.delete(stripeSessionId);
 
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + TOP_LISTING_DURATION_DAYS);
-
     const listing = await storage.createListing({
       ...pendingData.listingData,
       isTopListing: true,
-      topListingExpiresAt: expiresAt,
     });
 
     await storage.createPayment({
