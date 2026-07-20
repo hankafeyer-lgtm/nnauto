@@ -2590,6 +2590,7 @@ export default function HomePage() {
     if (!pagination) return;
     if (currentPage >= totalPages) return;
 
+    let cancelled = false;
     const nextPage = currentPage + 1;
     const sp = new URLSearchParams();
     sp.set("page", String(nextPage));
@@ -2597,18 +2598,43 @@ export default function HomePage() {
     sp.set("sort", "top");
     const nextUrl = `/api/listings?${sp.toString()}`;
 
-    queryClient.prefetchQuery({
-      queryKey: ["listings", nextUrl],
-      queryFn: async () => {
-        const res = await fetch(nextUrl, {
-          credentials: "include",
-          headers: listingsFetchHeaders({ Accept: "application/json" }),
-        });
-        if (!res.ok) throw new Error("prefetch failed");
-        return res.json();
-      },
-      staleTime: 30_000,
-    });
+    const prefetchNextPage = () => {
+      if (cancelled) return;
+      queryClient.prefetchQuery({
+        queryKey: ["listings", nextUrl],
+        queryFn: async () => {
+          const res = await fetch(nextUrl, {
+            credentials: "include",
+            headers: listingsFetchHeaders({ Accept: "application/json" }),
+          });
+          if (!res.ok) throw new Error("prefetch failed");
+          return res.json();
+        },
+        staleTime: 30_000,
+      });
+    };
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      idleId = idleWindow.requestIdleCallback(prefetchNextPage, { timeout: 4000 });
+    } else {
+      timeoutId = window.setTimeout(prefetchNextPage, 2500);
+    }
+
+    return () => {
+      cancelled = true;
+      if (idleId !== undefined && typeof idleWindow.cancelIdleCallback === "function") {
+        idleWindow.cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+      }
+    };
   }, [pagination, currentPage, totalPages]);
 
   const deleteMutation = useMutation({
@@ -3467,7 +3493,7 @@ export default function HomePage() {
                               key={c.props.id}
                               {...c.props}
                               onOpenListing={openListingOverlay}
-                              priority={index < 4}
+                              priority={index === 0}
                               onDelete={handleDelete}
                               onEdit={
                                 c.props.isOwner ? handleEditListing : undefined
@@ -3608,7 +3634,7 @@ export default function HomePage() {
                           key={c.props.id}
                           {...c.props}
                           onOpenListing={openListingOverlay}
-                          priority={index < 4}
+                          priority={index === 0}
                           onDelete={handleDelete}
                           onEdit={
                             c.props.isOwner ? handleEditListing : undefined

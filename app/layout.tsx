@@ -452,7 +452,7 @@ export default function RootLayout({
         {/* Google Analytics 4 + Google Ads — deferred via next/script so they
             don't block the main thread before LCP. `afterInteractive` still
             fires PageView right after hydration, so ad bounces are tracked. */}
-        <Script id="ga-init" strategy="afterInteractive">
+        <Script id="ga-init" strategy="lazyOnload">
           {`
             (window.__nnRunWhenConsent || function(c,f){f();})('analytics', function () {
               var s = document.createElement('script');
@@ -481,7 +481,7 @@ export default function RootLayout({
           `}
         </Script>
         {/* Meta Pixel — same as before, only the load strategy changes. */}
-        <Script id="meta-pixel" strategy="afterInteractive">
+        <Script id="meta-pixel" strategy="lazyOnload">
           {`
             (window.__nnRunWhenConsent || function(c,f){f();})('marketing', function () {
               !function(f,b,e,v,n,t,s){
@@ -498,7 +498,7 @@ export default function RootLayout({
           `}
         </Script>
         {/* TikTok Pixel — same as before, only the load strategy changes. */}
-        <Script id="tiktok-pixel" strategy="afterInteractive">
+        <Script id="tiktok-pixel" strategy="lazyOnload">
           {`
             (window.__nnRunWhenConsent || function(c,f){f();})('marketing', function () {
               !function (w, d, t) {
