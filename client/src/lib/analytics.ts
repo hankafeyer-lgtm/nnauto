@@ -2,13 +2,9 @@
  * Centralized analytics layer for GA4 + Meta Pixel + TikTok Pixel.
  *
  * Goals:
- *  - Never lose events when a vendor script is still loading: queue and replay.
- *  - Preserve UTM parameters for the lifetime of the session, even if the URL
- *    is rewritten (history.replaceState in modal/openListing flows can wipe them).
- *  - Fire a single consistent API for SPA pageviews and key business events.
- *
- * The vendor scripts themselves are loaded immediately in `app/layout.tsx`.
- * If a vendor isn't configured (e.g. Meta Pixel ID missing), the calls become no-ops.
+ *  - Count every site visit (GA Consent Mode cookieless pings + durable queues).
+ *  - Never drop pageviews while consent/scripts are pending.
+ *  - Preserve UTM/click-ids for the session and re-attach them to events.
  */
 
 type GtagFn = (...args: unknown[]) => void;
@@ -29,13 +25,22 @@ declare global {
     __nn_landing_referrer?: string;
     __nnLastGaPageViewKey?: string;
     __nnLastGaPageViewAt?: number;
+    __nnLastMetaPageViewKey?: string;
+    __nnLastMetaPageViewAt?: number;
+    __nnLastTtPageViewKey?: string;
+    __nnLastTtPageViewAt?: number;
+    __nnConsent?: {
+      analytics?: boolean;
+      marketing?: boolean;
+    } | null;
   }
 }
 
 const UTM_STORAGE_KEY = "nn_utm_v1";
 const LANDING_REFERRER_KEY = "nn_landing_referrer_v1";
+const VISIT_SENT_KEY = "nn_visit_beacon_v1";
 
-const UTM_KEYS = [
+export const ATTRIBUTION_PARAM_KEYS = [
   "utm_source",
   "utm_medium",
   "utm_campaign",
@@ -46,16 +51,28 @@ const UTM_KEYS = [
   "fbclid",
   "ttclid",
   "msclkid",
-];
+  "wbraid",
+  "gbraid",
+  "igshid",
+] as const;
+
+const UTM_KEYS = [...ATTRIBUTION_PARAM_KEYS];
 
 let initialized = false;
+let consentListenersBound = false;
+
+type QueuedTask = {
+  id: string;
+  trySend: () => boolean;
+};
+
+const pendingTasks: QueuedTask[] = [];
+let drainTimer: number | null = null;
 
 /**
  * Capture UTM/click-id params from the URL once and persist them.
  * Called as early as possible (in the layout inline script) so that they
  * survive any subsequent history.replaceState that strips query params.
- *
- * Idempotent: safe to call multiple times — only writes if nothing stored yet.
  */
 export function captureLandingAttribution(): void {
   if (typeof window === "undefined") return;
@@ -70,7 +87,9 @@ export function captureLandingAttribution(): void {
     }
 
     if (Object.keys(found).length > 0) {
-      const search = new URLSearchParams(found).toString();
+      const existing = getStoredUtm();
+      const merged = { ...existing, ...found };
+      const search = new URLSearchParams(merged).toString();
       try {
         sessionStorage.setItem(UTM_STORAGE_KEY, search);
       } catch {
@@ -128,58 +147,198 @@ export function getStoredUtm(): Record<string, string> {
   }
 }
 
-/**
- * Retry-safe wrapper around vendor SDKs. We retry up to ~6s while the script
- * is still loading; after that the event is dropped (vendor most likely failed
- * to load and re-trying forever would leak memory).
- */
-function retry(fn: () => boolean, attempts = 20, intervalMs = 300): void {
+/** Rebuild a URL that keeps campaign params even after SPA strips the query. */
+export function buildAttributedUrl(pathWithOptionalQuery?: string): {
+  pagePath: string;
+  pageLocation: string;
+} {
+  const utm = getStoredUtm();
+  const basePath =
+    pathWithOptionalQuery && pathWithOptionalQuery.startsWith("/")
+      ? pathWithOptionalQuery
+      : `${window.location.pathname}${window.location.search}`;
+
+  const [pathnamePart, queryPart = ""] = basePath.split("?");
+  const params = new URLSearchParams(queryPart);
+  for (const [k, v] of Object.entries(utm)) {
+    if (!params.has(k)) params.set(k, v);
+  }
+  const qs = params.toString();
+  const pagePath = qs ? `${pathnamePart}?${qs}` : pathnamePart;
+
+  try {
+    const url = new URL(window.location.href);
+    url.pathname = pathnamePart;
+    url.search = qs ? `?${qs}` : "";
+    url.hash = "";
+    return { pagePath, pageLocation: url.toString() };
+  } catch {
+    return {
+      pagePath,
+      pageLocation: `${window.location.origin}${pagePath}`,
+    };
+  }
+}
+
+function campaignEventParams(): Record<string, string> {
+  const utm = getStoredUtm();
+  const out: Record<string, string> = {};
+  if (utm.utm_source) out.campaign_source = utm.utm_source;
+  if (utm.utm_medium) out.campaign_medium = utm.utm_medium;
+  if (utm.utm_campaign) out.campaign_name = utm.utm_campaign;
+  if (utm.utm_term) out.campaign_term = utm.utm_term;
+  if (utm.utm_content) out.campaign_content = utm.utm_content;
+  if (utm.utm_id) out.campaign_id = utm.utm_id;
+  if (utm.gclid) out.gclid = utm.gclid;
+  if (utm.fbclid) out.fbclid = utm.fbclid;
+  if (utm.ttclid) out.ttclid = utm.ttclid;
+  if (utm.msclkid) out.msclkid = utm.msclkid;
+  if (window.__nn_landing_referrer) {
+    out.page_referrer = window.__nn_landing_referrer;
+  }
+  return out;
+}
+
+function scheduleDrain(): void {
   if (typeof window === "undefined") return;
-  let left = attempts;
-  const tick = () => {
-    if (fn()) return;
-    if (--left <= 0) return;
-    window.setTimeout(tick, intervalMs);
-  };
-  tick();
+  if (drainTimer != null) return;
+  drainTimer = window.setTimeout(() => {
+    drainTimer = null;
+    drainQueue();
+  }, 400);
+}
+
+function drainQueue(): void {
+  if (pendingTasks.length === 0) return;
+  const still: QueuedTask[] = [];
+  for (const task of pendingTasks) {
+    try {
+      if (!task.trySend()) still.push(task);
+    } catch {
+      still.push(task);
+    }
+  }
+  pendingTasks.length = 0;
+  pendingTasks.push(...still);
+  if (pendingTasks.length > 0) scheduleDrain();
+}
+
+/**
+ * Keep retrying until the vendor is ready (and consent allows the send).
+ * Pageviews must not be dropped after a few seconds of delay.
+ */
+function enqueue(id: string, trySend: () => boolean): void {
+  if (typeof window === "undefined") return;
+  if (trySend()) return;
+  // Replace older duplicate of the same logical event (e.g. rapid SPA nav).
+  const idx = pendingTasks.findIndex((t) => t.id === id);
+  if (idx >= 0) pendingTasks.splice(idx, 1);
+  pendingTasks.push({ id, trySend });
+  if (!consentListenersBound) {
+    consentListenersBound = true;
+    window.addEventListener("nn-consent-changed", ((event: Event) => {
+      drainQueue();
+      const detail = (event as CustomEvent).detail as
+        | { analytics?: boolean; marketing?: boolean }
+        | undefined;
+      if (detail?.analytics || detail?.marketing) {
+        trackPageView(
+          `${window.location.pathname}${window.location.search}`,
+          { force: true },
+        );
+      }
+    }) as EventListener);
+  }
+  scheduleDrain();
+}
+
+function hasAnalyticsConsent(): boolean {
+  // Google Consent Mode: always send page_view/events; storage grant is separate.
+  return true;
+}
+
+function hasMarketingConsent(): boolean {
+  const c = window.__nnConsent;
+  return !!(c && c.marketing);
+}
+
+function abandonMarketing(): boolean {
+  const c = window.__nnConsent;
+  return !!(c && c.marketing === false);
+}
+
+/** First-party beacon so every landing is counted even if ad pixels are blocked. */
+function sendFirstPartyVisitBeacon(): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (sessionStorage.getItem(VISIT_SENT_KEY) === "1") return;
+    sessionStorage.setItem(VISIT_SENT_KEY, "1");
+  } catch {
+    /* continue anyway once per page load */
+  }
+
+  const { pagePath, pageLocation } = buildAttributedUrl();
+  const utm = getStoredUtm();
+  const payload = JSON.stringify({
+    path: pagePath,
+    location: pageLocation,
+    referrer: window.__nn_landing_referrer || document.referrer || null,
+    utm,
+    ts: Date.now(),
+  });
+
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: "application/json" });
+      navigator.sendBeacon("/api/analytics/visit", blob);
+      return;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  try {
+    void fetch("/api/analytics/visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: payload,
+      keepalive: true,
+      credentials: "same-origin",
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 export function ensureInitialized(): void {
   if (initialized) return;
   initialized = true;
   captureLandingAttribution();
+  sendFirstPartyVisitBeacon();
 }
 
 /**
  * Fire a SPA pageview to GA4, Meta Pixel and TikTok Pixel.
- * Each vendor is queued independently so a slow vendor never blocks others.
  */
-export function trackPageView(path?: string): void {
+export function trackPageView(
+  path?: string,
+  opts?: { force?: boolean },
+): void {
   if (typeof window === "undefined") return;
   ensureInitialized();
 
-  const pagePath =
-    path && path.startsWith("/")
-      ? path
-      : `${window.location.pathname}${window.location.search}`;
-  const pageLocation = (() => {
-    try {
-      const url = new URL(window.location.href);
-      url.pathname = pagePath.split("?")[0];
-      const qs = pagePath.split("?")[1];
-      url.search = qs ? `?${qs}` : "";
-      return url.toString();
-    } catch {
-      return window.location.href;
-    }
-  })();
+  const { pagePath, pageLocation } = buildAttributedUrl(path);
   const pageTitle =
     typeof document !== "undefined" ? document.title : undefined;
+  const campaign = campaignEventParams();
+  const force = !!opts?.force;
 
-  retry(() => {
+  enqueue(`ga:page_view:${pagePath}`, () => {
+    if (!hasAnalyticsConsent()) return false;
     if (typeof window.gtag !== "function") return false;
     const now = Date.now();
     if (
+      !force &&
       window.__nnLastGaPageViewKey === pagePath &&
       now - (window.__nnLastGaPageViewAt || 0) < 2_000
     ) {
@@ -191,18 +350,43 @@ export function trackPageView(path?: string): void {
       page_path: pagePath,
       page_location: pageLocation,
       page_title: pageTitle,
+      ...campaign,
     });
     return true;
   });
 
-  retry(() => {
+  enqueue(`meta:PageView:${pagePath}`, () => {
+    if (abandonMarketing()) return true;
+    if (!hasMarketingConsent()) return false;
     if (typeof window.fbq !== "function") return false;
+    const now = Date.now();
+    if (
+      !force &&
+      window.__nnLastMetaPageViewKey === pagePath &&
+      now - (window.__nnLastMetaPageViewAt || 0) < 2_000
+    ) {
+      return true;
+    }
+    window.__nnLastMetaPageViewKey = pagePath;
+    window.__nnLastMetaPageViewAt = now;
     window.fbq("track", "PageView");
     return true;
   });
 
-  retry(() => {
+  enqueue(`tt:page:${pagePath}`, () => {
+    if (abandonMarketing()) return true;
+    if (!hasMarketingConsent()) return false;
     if (!window.ttq || typeof window.ttq.page !== "function") return false;
+    const now = Date.now();
+    if (
+      !force &&
+      window.__nnLastTtPageViewKey === pagePath &&
+      now - (window.__nnLastTtPageViewAt || 0) < 2_000
+    ) {
+      return true;
+    }
+    window.__nnLastTtPageViewKey = pagePath;
+    window.__nnLastTtPageViewAt = now;
     window.ttq.page();
     return true;
   });
@@ -213,10 +397,13 @@ export function trackEvent(
   params: Record<string, unknown> = {},
 ): void {
   if (typeof window === "undefined") return;
+  ensureInitialized();
+  const campaign = campaignEventParams();
 
-  retry(() => {
+  enqueue(`ga:event:${name}:${Date.now()}`, () => {
+    if (!hasAnalyticsConsent()) return false;
     if (typeof window.gtag !== "function") return false;
-    window.gtag("event", name, params);
+    window.gtag("event", name, { ...campaign, ...params });
     return true;
   });
 }
@@ -236,6 +423,7 @@ export type ViewContentParams = {
  */
 export function trackViewContent(p: ViewContentParams = {}): void {
   if (typeof window === "undefined") return;
+  ensureInitialized();
 
   trackEvent("view_item", {
     item_id: p.contentId,
@@ -245,7 +433,9 @@ export function trackViewContent(p: ViewContentParams = {}): void {
     currency: p.currency || "CZK",
   });
 
-  retry(() => {
+  enqueue(`meta:ViewContent:${p.contentId || ""}`, () => {
+    if (abandonMarketing()) return true;
+    if (!hasMarketingConsent()) return false;
     if (typeof window.fbq !== "function") return false;
     window.fbq("track", "ViewContent", {
       content_ids: p.contentId ? [p.contentId] : undefined,
@@ -258,7 +448,9 @@ export function trackViewContent(p: ViewContentParams = {}): void {
     return true;
   });
 
-  retry(() => {
+  enqueue(`tt:ViewContent:${p.contentId || ""}`, () => {
+    if (abandonMarketing()) return true;
+    if (!hasMarketingConsent()) return false;
     if (!window.ttq || typeof window.ttq.track !== "function") return false;
     window.ttq.track("ViewContent", {
       content_id: p.contentId,
@@ -285,6 +477,7 @@ export function trackContact(
   params: { listingId?: string; listingName?: string } = {},
 ): void {
   if (typeof window === "undefined") return;
+  ensureInitialized();
 
   trackEvent("contact", {
     method,
@@ -292,7 +485,9 @@ export function trackContact(
     item_name: params.listingName,
   });
 
-  retry(() => {
+  enqueue(`meta:Contact:${params.listingId || ""}:${method}`, () => {
+    if (abandonMarketing()) return true;
+    if (!hasMarketingConsent()) return false;
     if (typeof window.fbq !== "function") return false;
     window.fbq("track", "Contact", {
       content_ids: params.listingId ? [params.listingId] : undefined,
@@ -302,7 +497,9 @@ export function trackContact(
     return true;
   });
 
-  retry(() => {
+  enqueue(`tt:Contact:${params.listingId || ""}:${method}`, () => {
+    if (abandonMarketing()) return true;
+    if (!hasMarketingConsent()) return false;
     if (!window.ttq || typeof window.ttq.track !== "function") return false;
     window.ttq.track("Contact", {
       content_id: params.listingId,
@@ -322,6 +519,7 @@ export function trackLead(
   } = {},
 ): void {
   if (typeof window === "undefined") return;
+  ensureInitialized();
 
   trackEvent("generate_lead", {
     item_id: params.listingId,
@@ -330,7 +528,9 @@ export function trackLead(
     currency: params.currency || "CZK",
   });
 
-  retry(() => {
+  enqueue(`meta:Lead:${params.listingId || ""}`, () => {
+    if (abandonMarketing()) return true;
+    if (!hasMarketingConsent()) return false;
     if (typeof window.fbq !== "function") return false;
     window.fbq("track", "Lead", {
       content_ids: params.listingId ? [params.listingId] : undefined,
@@ -341,7 +541,9 @@ export function trackLead(
     return true;
   });
 
-  retry(() => {
+  enqueue(`tt:SubmitForm:${params.listingId || ""}`, () => {
+    if (abandonMarketing()) return true;
+    if (!hasMarketingConsent()) return false;
     if (!window.ttq || typeof window.ttq.track !== "function") return false;
     window.ttq.track("SubmitForm", {
       content_id: params.listingId,

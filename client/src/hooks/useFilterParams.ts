@@ -837,6 +837,37 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
 
       // Restore non-filter params first
       if (userId) params.set("userId", userId);
+      for (const key of [
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
+        "utm_id",
+        "gclid",
+        "fbclid",
+        "ttclid",
+        "msclkid",
+        "wbraid",
+        "gbraid",
+        "igshid",
+      ] as const) {
+        const value = currentParams.get(key);
+        if (value) params.set(key, value);
+      }
+      // Also restore attribution captured on landing if the URL already lost it.
+      try {
+        const stored =
+          window.__nn_utm || sessionStorage.getItem("nn_utm_v1") || "";
+        if (stored) {
+          const storedParams = new URLSearchParams(stored);
+          storedParams.forEach((value, key) => {
+            if (!params.has(key)) params.set(key, value);
+          });
+        }
+      } catch {
+        /* ignore */
+      }
 
       if (newFilters.search) params.set("search", newFilters.search);
       const normalizedVehicleType = normalizeSingleVehicleType(

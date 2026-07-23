@@ -254,10 +254,9 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* Cookie-consent bootstrap: keeps analytics/marketing trackers from
-            firing until the visitor grants consent. Trackers below register via
-            window.__nnRunWhenConsent and are flushed by the consent banner's
-            `nn-consent-changed` event. Must run before any tracker script. */}
+        {/* Cookie-consent bootstrap + Google Consent Mode defaults.
+            GA can still receive cookieless page_view hits before accept.
+            Marketing pixels wait for explicit marketing consent. */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -278,6 +277,27 @@ export default function RootLayout({
                   };
                   window.addEventListener('nn-consent-changed', handler);
                 };
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){ dataLayer.push(arguments); }
+                window.gtag = gtag;
+                gtag('consent', 'default', {
+                  ad_storage: 'denied',
+                  ad_user_data: 'denied',
+                  ad_personalization: 'denied',
+                  analytics_storage: 'denied',
+                  wait_for_update: 1500
+                });
+                window.addEventListener('nn-consent-changed', function () {
+                  try {
+                    var c = window.__nnConsent || {};
+                    gtag('consent', 'update', {
+                      analytics_storage: c.analytics ? 'granted' : 'denied',
+                      ad_storage: c.marketing ? 'granted' : 'denied',
+                      ad_user_data: c.marketing ? 'granted' : 'denied',
+                      ad_personalization: c.marketing ? 'granted' : 'denied'
+                    });
+                  } catch (e) {}
+                });
               })();
             `,
           }}
@@ -406,7 +426,7 @@ export default function RootLayout({
                 try {
                   var KEY = 'nn_utm_v1';
                   var REF_KEY = 'nn_landing_referrer_v1';
-                  var KEYS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id','gclid','fbclid','ttclid','msclkid'];
+                  var KEYS = ['utm_source','utm_medium','utm_campaign','utm_term','utm_content','utm_id','gclid','fbclid','ttclid','msclkid','wbraid','gbraid','igshid'];
                   var search = window.location.search || '';
                   var found = {};
                   if (search) {
@@ -417,7 +437,16 @@ export default function RootLayout({
                     }
                   }
                   if (Object.keys(found).length > 0) {
-                    var enc = new URLSearchParams(found).toString();
+                    var merged = {};
+                    try {
+                      var prev = sessionStorage.getItem(KEY);
+                      if (prev) {
+                        var prevSp = new URLSearchParams(prev);
+                        prevSp.forEach(function (val, key) { merged[key] = val; });
+                      }
+                    } catch (e) {}
+                    for (var k in found) merged[k] = found[k];
+                    var enc = new URLSearchParams(merged).toString();
                     try { sessionStorage.setItem(KEY, enc); } catch (e) {}
                     window.__nn_utm = enc;
                   } else {
@@ -449,39 +478,61 @@ export default function RootLayout({
             `,
           }}
         />
-        {/* Google Analytics 4 + Google Ads — deferred via next/script so they
-            don't block the main thread before LCP. `afterInteractive` still
-            fires PageView right after hydration, so ad bounces are tracked. */}
-        <Script id="ga-init" strategy="lazyOnload">
+        {/* Google Analytics 4 + Google Ads — always load (Consent Mode).
+            Cookieless page_view is sent for every visit; cookies unlock after accept. */}
+        <Script id="ga-init" strategy="afterInteractive">
           {`
-            (window.__nnRunWhenConsent || function(c,f){f();})('analytics', function () {
+            (function () {
               var s = document.createElement('script');
               s.async = true;
               s.src = 'https://www.googletagmanager.com/gtag/js?id=G-1VPRCXDLKP';
               document.head.appendChild(s);
               window.dataLayer = window.dataLayer || [];
               function gtag(){ dataLayer.push(arguments); }
-              window.gtag = gtag;
+              window.gtag = window.gtag || gtag;
+              var c = window.__nnConsent;
+              if (c) {
+                gtag('consent', 'update', {
+                  analytics_storage: c.analytics ? 'granted' : 'denied',
+                  ad_storage: c.marketing ? 'granted' : 'denied',
+                  ad_user_data: c.marketing ? 'granted' : 'denied',
+                  ad_personalization: c.marketing ? 'granted' : 'denied'
+                });
+              }
               gtag('js', new Date());
-              gtag('config', 'G-1VPRCXDLKP', { send_page_view: false });
+              gtag('config', 'G-1VPRCXDLKP', { send_page_view: false, anonymize_ip: true });
               gtag('config', 'AW-17794544456');
               gtag('config', 'AW-17768541644');
-              var pagePath = window.location.pathname + window.location.search;
+              function attributedPath() {
+                var path = window.location.pathname + window.location.search;
+                try {
+                  var utm = window.__nn_utm || '';
+                  if (!utm) return path;
+                  var parts = path.split('?');
+                  var params = new URLSearchParams(parts[1] || '');
+                  var utmParams = new URLSearchParams(utm);
+                  utmParams.forEach(function (v, k) { if (!params.has(k)) params.set(k, v); });
+                  var qs = params.toString();
+                  return qs ? parts[0] + '?' + qs : parts[0];
+                } catch (e) { return path; }
+              }
+              var pagePath = attributedPath();
+              var pageLocation = window.location.origin + pagePath;
               var now = Date.now();
               if (window.__nnLastGaPageViewKey !== pagePath || now - (window.__nnLastGaPageViewAt || 0) >= 2000) {
                 window.__nnLastGaPageViewKey = pagePath;
                 window.__nnLastGaPageViewAt = now;
                 gtag('event', 'page_view', {
                   page_path: pagePath,
-                  page_location: window.location.href,
+                  page_location: pageLocation,
                   page_title: document.title
                 });
               }
-            });
+            })();
           `}
         </Script>
-        {/* Meta Pixel — same as before, only the load strategy changes. */}
-        <Script id="meta-pixel" strategy="lazyOnload">
+        {/* Meta Pixel — afterInteractive so paid landings are not lost to lazy load. */}
+        <Script id="meta-pixel" strategy="afterInteractive">
           {`
             (window.__nnRunWhenConsent || function(c,f){f();})('marketing', function () {
               !function(f,b,e,v,n,t,s){
@@ -497,8 +548,8 @@ export default function RootLayout({
             });
           `}
         </Script>
-        {/* TikTok Pixel — same as before, only the load strategy changes. */}
-        <Script id="tiktok-pixel" strategy="lazyOnload">
+        {/* TikTok Pixel — afterInteractive + marketing consent. */}
+        <Script id="tiktok-pixel" strategy="afterInteractive">
           {`
             (window.__nnRunWhenConsent || function(c,f){f();})('marketing', function () {
               !function (w, d, t) {
