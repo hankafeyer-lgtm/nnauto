@@ -16,6 +16,7 @@ import {
   type InsertUser,
   type InsertCebiaReport,
   type UpdateCebiaReport,
+  type UpdateListing,
   type Dealer,
   type PasswordResetToken,
   type Conversation,
@@ -116,7 +117,7 @@ export const storage = {
 
   async updateListing(
     id: string,
-    updateData: Partial<InsertListing>,
+    updateData: UpdateListing,
   ): Promise<Listing | undefined> {
     const [listing] = await db
       .update(listings)

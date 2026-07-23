@@ -91,7 +91,7 @@ export async function processDealerTopListingCheckoutSession(
     const updatedListing = await storage.updateListing(id, {
       isTopListing: true,
       topListingExpiresAt: expiresAt,
-    } as any);
+    });
     if (updatedListing) updated.push(updatedListing);
 
     try {

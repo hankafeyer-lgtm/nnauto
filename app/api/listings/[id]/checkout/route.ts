@@ -47,7 +47,14 @@ export async function POST(
       return error("Cannot promote another user's listing", 403);
     }
 
-    if (listing.isTopListing) {
+    const activeTopExpiresAt = listing.topListingExpiresAt
+      ? new Date(listing.topListingExpiresAt)
+      : null;
+    if (
+      listing.isTopListing &&
+      activeTopExpiresAt &&
+      activeTopExpiresAt.getTime() > Date.now()
+    ) {
       return error("Listing is already a TOP listing", 400);
     }
 

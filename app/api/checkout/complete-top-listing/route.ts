@@ -6,6 +6,7 @@ import Stripe from "stripe";
 import { pendingTopListings } from "@lib/pending-top-listings";
 
 const TOP_LISTING_PRICE = 9900;
+const TOP_LISTING_DURATION_DAYS = 30;
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -63,9 +64,15 @@ export async function POST(req: NextRequest) {
 
     pendingTopListings.delete(stripeSessionId);
 
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + TOP_LISTING_DURATION_DAYS);
+
     const listing = await storage.createListing({
       ...pendingData.listingData,
       isTopListing: true,
+    });
+    const updatedListing = await storage.updateListing(listing.id, {
+      topListingExpiresAt: expiresAt,
     });
 
     await storage.createPayment({
@@ -82,7 +89,7 @@ export async function POST(req: NextRequest) {
       `TOP listing ${listing.id} created after successful payment (session: ${stripeSessionId})`,
     );
 
-    return json(listing);
+    return json(updatedListing ?? listing);
   } catch (e: any) {
     if (e.message === "Unauthorized") return error("Unauthorized", 401);
     console.error("Error completing TOP listing:", e);

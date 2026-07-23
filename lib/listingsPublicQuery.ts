@@ -5,39 +5,49 @@ import * as H from "./listingsQueryHelpers";
 import { listings, type Listing } from "@shared/schema";
 import { ensureSearchExtensions } from "./ensureSearchExtensions";
 
+/**
+ * Active TOP = paid flag on, and not past expiry.
+ * Legacy rows often have `top_listing_expires_at = NULL` — still treat as active TOP
+ * so rotation works without wiping existing promotions.
+ */
+const ACTIVE_TOP_SQL = `(is_top_listing = true AND (top_listing_expires_at IS NULL OR top_listing_expires_at > NOW()))`;
+
+/** Stable chaotic order within the current UTC hour (same for all users until the hour flips). */
+const TOP_HOUR_ROTATION_SQL = `md5(id::text || ':' || to_char(date_trunc('hour', NOW()), 'YYYY-MM-DD"T"HH24'))`;
+
 /** Safe ORDER BY fragments (sort key is server-validated only). */
 const ORDER_SQL: Record<H.SortKey, string> = {
-  newest: `is_top_listing DESC,
-    CASE WHEN is_top_listing THEN updated_at END DESC NULLS LAST,
-    CASE WHEN NOT is_top_listing THEN created_at END DESC NULLS LAST,
+  newest: `${ACTIVE_TOP_SQL} DESC,
+    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
+    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN created_at END DESC NULLS LAST,
     created_at DESC`,
-  oldest: `is_top_listing DESC,
-    CASE WHEN is_top_listing THEN updated_at END DESC NULLS LAST,
-    CASE WHEN NOT is_top_listing THEN created_at END ASC NULLS LAST,
+  oldest: `${ACTIVE_TOP_SQL} DESC,
+    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
+    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN created_at END ASC NULLS LAST,
     created_at ASC`,
-  "price-asc": `is_top_listing DESC,
-    CASE WHEN is_top_listing THEN updated_at END DESC NULLS LAST,
-    CASE WHEN NOT is_top_listing THEN price::numeric END ASC NULLS LAST,
+  "price-asc": `${ACTIVE_TOP_SQL} DESC,
+    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
+    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN price::numeric END ASC NULLS LAST,
     created_at DESC`,
-  "price-desc": `is_top_listing DESC,
-    CASE WHEN is_top_listing THEN updated_at END DESC NULLS LAST,
-    CASE WHEN NOT is_top_listing THEN price::numeric END DESC NULLS LAST,
+  "price-desc": `${ACTIVE_TOP_SQL} DESC,
+    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
+    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN price::numeric END DESC NULLS LAST,
     created_at DESC`,
-  "year-asc": `is_top_listing DESC,
-    CASE WHEN is_top_listing THEN updated_at END DESC NULLS LAST,
-    CASE WHEN NOT is_top_listing THEN year END ASC NULLS LAST,
+  "year-asc": `${ACTIVE_TOP_SQL} DESC,
+    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
+    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN year END ASC NULLS LAST,
     created_at DESC`,
-  "year-desc": `is_top_listing DESC,
-    CASE WHEN is_top_listing THEN updated_at END DESC NULLS LAST,
-    CASE WHEN NOT is_top_listing THEN year END DESC NULLS LAST,
+  "year-desc": `${ACTIVE_TOP_SQL} DESC,
+    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
+    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN year END DESC NULLS LAST,
     created_at DESC`,
-  "mileage-asc": `is_top_listing DESC,
-    CASE WHEN is_top_listing THEN updated_at END DESC NULLS LAST,
-    CASE WHEN NOT is_top_listing THEN mileage END ASC NULLS LAST,
+  "mileage-asc": `${ACTIVE_TOP_SQL} DESC,
+    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
+    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN mileage END ASC NULLS LAST,
     created_at DESC`,
-  "mileage-desc": `is_top_listing DESC,
-    CASE WHEN is_top_listing THEN updated_at END DESC NULLS LAST,
-    CASE WHEN NOT is_top_listing THEN mileage END DESC NULLS LAST,
+  "mileage-desc": `${ACTIVE_TOP_SQL} DESC,
+    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
+    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN mileage END DESC NULLS LAST,
     created_at DESC`,
 };
 
@@ -310,6 +320,22 @@ function buildWhereParts(
   return parts;
 }
 
+/** Legacy TOP (null expiry) stays active; only past expiry drops the badge. */
+function isActiveTopListing(listing: Listing): boolean {
+  if (!listing.isTopListing) return false;
+  if (!listing.topListingExpiresAt) return true;
+  return new Date(listing.topListingExpiresAt).getTime() > Date.now();
+}
+
+function normalizeTopListingStatus(rows: Listing[]): Listing[] {
+  return rows.map((listing) => {
+    const activeTop = isActiveTopListing(listing);
+    return activeTop === listing.isTopListing
+      ? listing
+      : { ...listing, isTopListing: activeTop };
+  });
+}
+
 /**
  * Normalized brand+model expression used both for the trigram GIN index and
  * for the fuzzy-fallback WHERE clause.  Must be identical to the expression
@@ -330,7 +356,7 @@ export async function queryListingsFromDb(
   totalPages: number;
 }> {
   const parts = buildWhereParts(params, ctx);
-  const where = parts.length ? and(...parts) : sql`true`;
+  const where = (parts.length ? and(...parts) : undefined) ?? sql`true`;
 
   const sort = H.normalizeSort(params.get("sort"));
   const limitNum = Math.min(100, Math.max(1, H.toInt(params.get("limit")) ?? 20));
@@ -345,7 +371,13 @@ export async function queryListingsFromDb(
         db.select().from(listings).where(w).orderBy(sql.raw(orderSql)).limit(limitNum).offset(offset),
       ]);
       const total = Number(countRows[0]?.c ?? 0);
-      return { rows, total, page: 1, limit: limitNum, totalPages: Math.max(1, Math.ceil(total / limitNum)) };
+      return {
+        rows: normalizeTopListingStatus(rows),
+        total,
+        page: 1,
+        limit: limitNum,
+        totalPages: Math.max(1, Math.ceil(total / limitNum)),
+      };
     }
     const [countRow] = await db.select({ c: count() }).from(listings).where(w);
     const total = Number(countRow?.c ?? 0);
@@ -354,7 +386,13 @@ export async function queryListingsFromDb(
     const safeOffset = (safePage - 1) * limitNum;
     if (opts?.countOnly) return { rows: [] as Listing[], total, page: safePage, limit: limitNum, totalPages };
     const rows = await db.select().from(listings).where(w).orderBy(sql.raw(orderSql)).limit(limitNum).offset(safeOffset);
-    return { rows, total, page: safePage, limit: limitNum, totalPages };
+    return {
+      rows: normalizeTopListingStatus(rows),
+      total,
+      page: safePage,
+      limit: limitNum,
+      totalPages,
+    };
   };
 
   const primary = await runQuery(where);
@@ -398,7 +436,7 @@ export async function queryListingsFromDb(
         .limit(limitNum);
       if (fuzzyRows.length > 0) {
         return {
-          rows: fuzzyRows,
+          rows: normalizeTopListingStatus(fuzzyRows),
           total: fuzzyRows.length,
           page: 1,
           limit: limitNum,
