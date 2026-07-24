@@ -25,6 +25,7 @@ import { normalizeSlug } from "@lib/seo/slug";
 import { inzeratWord, formatCzk } from "@lib/seo/czech-format";
 import { buildListingUrl } from "@lib/seo/listing-url";
 import { getTopModelLinksForBrand, isTopModel } from "@lib/seo/top-models";
+import { getBrandMetadataOverride } from "@lib/seo/brand-metadata-overrides";
 import {
   getFacetBySlug,
   isGlobalFacetSlug,
@@ -173,12 +174,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const hasAny = stats.total > 0;
   const fromPart =
     stats.minPrice && stats.minPrice > 0 ? ` od ${formatCzk(stats.minPrice)}` : "";
-  const title = hasAny
-    ? `${brandName} na prodej – ${stats.total} ${inzeratWord(stats.total)}${fromPart} | NNAuto`
-    : `${brandName} na prodej | NNAuto`;
-  const description = hasAny
-    ? `Aktuálně ${stats.total} ${inzeratWord(stats.total)} ${brandName}${fromPart}. Ojeté vozy ${brandName} od soukromých prodejců i autobazarů v ČR – ceny, fotografie a parametry na NNAuto.cz.`
-    : `Aktuální nabídka ${brandName} na NNAuto – prémiovém marketplace automobilů v ČR.`;
+  const brandMeta = getBrandMetadataOverride(brandSlug);
+  const title = brandMeta
+    ? hasAny
+      ? `${brandMeta.titleKeyword} – ${stats.total} ${inzeratWord(stats.total)}${fromPart} | NNAuto`
+      : `${brandMeta.titleKeyword} | NNAuto`
+    : hasAny
+      ? `${brandName} na prodej – ${stats.total} ${inzeratWord(stats.total)}${fromPart} | NNAuto`
+      : `${brandName} na prodej | NNAuto`;
+  const description = brandMeta
+    ? hasAny
+      ? `${brandMeta.descriptionLead} Aktuálně ${stats.total} ${inzeratWord(stats.total)}${fromPart}.`
+      : brandMeta.descriptionLead
+    : hasAny
+      ? `Aktuálně ${stats.total} ${inzeratWord(stats.total)} ${brandName}${fromPart}. Ojeté vozy ${brandName} od soukromých prodejců i autobazarů v ČR – ceny, fotografie a parametry na NNAuto.cz.`
+      : `Aktuální nabídka ${brandName} na NNAuto – prémiovém marketplace automobilů v ČR.`;
   const canonical = `${SITE_ORIGIN}/auta/${encodeURIComponent(brand.toLowerCase())}`;
 
   return {
@@ -217,6 +227,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       `${brandName} Praha`,
       `${brandName} Brno`,
       `${brandName} Ostrava`,
+      ...(brandMeta
+        ? [
+            `${brandName} ojetá auta`,
+            `bazar ${brandName}`,
+            `${brandName} na prodej ČR`,
+          ]
+        : []),
       "autobazar",
       "prodej aut",
       "NNAuto",
@@ -330,6 +347,7 @@ export default async function BrandLandingPage({ params }: Props) {
   const introParagraphs = buildBrandSeoIntro(brandSlug, seoStats);
   const faqItems = buildBrandFaq(brandSlug, seoStats);
   const similarBrands = getSimilarBrandLinks(brandSlug);
+  const brandPageLead = getBrandMetadataOverride(brandSlug)?.pageLead;
 
   const itemListEntries = rows.map((l) => ({
     name: getListingMainTitleFromRow(l),
@@ -391,11 +409,17 @@ export default async function BrandLandingPage({ params }: Props) {
         {brandName} na prodej
       </h1>
       <p className="text-muted-foreground max-w-3xl mb-6">
-        Ověřené inzeráty značky <strong>{brandName}</strong> na NNAuto –
-        prémiovém marketplace automobilů v ČR. Máme aktuálně{" "}
-        <strong>{rows.length}+</strong> vozů {brandName} od soukromých prodejců
-        i autobazarů. Filtrujte podle roku, ceny, najetých km, paliva nebo
-        regionu a kontaktujte prodejce přímo bez mezičlánků.
+        {brandPageLead ? (
+          brandPageLead
+        ) : (
+          <>
+            Ověřené inzeráty značky <strong>{brandName}</strong> na NNAuto –
+            prémiovém marketplace automobilů v ČR. Máme aktuálně{" "}
+            <strong>{rows.length}+</strong> vozů {brandName} od soukromých prodejců
+            i autobazarů. Filtrujte podle roku, ceny, najetých km, paliva nebo
+            regionu a kontaktujte prodejce přímo bez mezičlánků.
+          </>
+        )}
       </p>
 
       <div className="mb-6 flex flex-wrap gap-2">

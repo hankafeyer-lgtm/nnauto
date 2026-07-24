@@ -53,31 +53,31 @@ type PriorityModelSeo = {
 
 const PRIORITY_MODEL_SEO: Record<string, PriorityModelSeo> = {
   "renault-megane": {
-    titleKeyword: "Renault Megane na prodej",
+    titleKeyword: "Renault Megane bazar – na prodej",
     searchPhrase: "renault megane prodej",
     descriptionLead:
-      "Aktuální nabídka vozů Renault Megane na prodej v ČR.",
+      "Renault Megane bazar: ojeté vozy Megane na prodej v ČR.",
     introLead:
-      "Hledáte Renault Megane na prodej? Na NNAuto.cz porovnáte aktuální inzeráty Renault Megane z celé České republiky podle ceny, roku výroby, nájezdu, paliva a regionu prodejce.",
-    faqQuestion: "Kde koupit Renault Megane na prodej?",
+      "Hledáte Renault Megane na prodej nebo Megane bazar? Na NNAuto.cz porovnáte aktuální inzeráty z celé ČR podle ceny, roku, nájezdu, paliva i regionu a spojíte se přímo s prodejcem.",
+    faqQuestion: "Kde koupit Renault Megane na prodej / bazar?",
   },
   "renault-scenic": {
-    titleKeyword: "Renault Scenic na prodej",
+    titleKeyword: "Renault Scenic bazar – rodinné auto",
     searchPhrase: "renault scenic prodej",
     descriptionLead:
-      "Aktuální nabídka vozů Renault Scenic na prodej v ČR.",
+      "Renault Scenic bazar: rodinné vozy Scenic na prodej v ČR.",
     introLead:
-      "Hledáte Renault Scenic na prodej? Na NNAuto.cz najdete rodinné vozy Renault Scenic od soukromých prodejců i autobazarů, včetně cen, fotografií a parametrů konkrétních inzerátů.",
-    faqQuestion: "Kde najít Renault Scenic na prodej?",
+      "Hledáte Renault Scenic na prodej? NNAuto.cz nabízí rodinné a vícemístné Scenic od soukromých prodejců i autobazarů – s cenami, fotografiemi a parametry konkrétních inzerátů.",
+    faqQuestion: "Kde najít Renault Scenic bazar / na prodej?",
   },
   "skoda-kodiaq": {
-    titleKeyword: "Škoda Kodiaq na prodej",
-    searchPhrase: "skoda kodiaq prodej",
+    titleKeyword: "Škoda Kodiaq bazar – SUV na prodej",
+    searchPhrase: "skoda kodiaq bazar",
     descriptionLead:
-      "Aktuální nabídka SUV Škoda Kodiaq na prodej v ČR.",
+      "Škoda Kodiaq bazar: 7místné SUV na prodej v ČR.",
     introLead:
-      "Hledáte Škoda Kodiaq na prodej? NNAuto.cz soustředí aktuální inzeráty oblíbeného rodinného SUV Škoda Kodiaq s možností porovnání ceny, ročníku, nájezdu a výbavy.",
-    faqQuestion: "Kde koupit Škoda Kodiaq na prodej?",
+      "Hledáte Škoda Kodiaq na prodej nebo Kodiaq bazar? Na NNAuto.cz porovnáte ojetá rodinná SUV včetně 7místných variant podle ceny, ročníku, nájezdu a výbavy a kontaktujete prodejce napřímo.",
+    faqQuestion: "Kde koupit Škoda Kodiaq bazar / na prodej?",
   },
   "skoda-octavia": {
     titleKeyword: "Škoda Octavia na prodej",
@@ -98,13 +98,13 @@ const PRIORITY_MODEL_SEO: Record<string, PriorityModelSeo> = {
     faqQuestion: "Kde koupit Volkswagen Golf na prodej?",
   },
   "volkswagen-golf-gti": {
-    titleKeyword: "Golf GTI na prodej",
+    titleKeyword: "Golf GTI bazar – na prodej",
     searchPhrase: "golf gti na prodej",
     descriptionLead:
-      "Aktuální nabídka vozů Volkswagen Golf GTI na prodej v ČR.",
+      "Golf GTI bazar: sportovní VW Golf GTI na prodej v ČR.",
     introLead:
-      "Hledáte Golf GTI na prodej? NNAuto.cz pomáhá porovnat sportovní verze Volkswagen Golf GTI podle roku výroby, výkonu, nájezdu, ceny a technického stavu.",
-    faqQuestion: "Kde najít Golf GTI na prodej?",
+      "Hledáte Golf GTI na prodej? Na NNAuto.cz porovnáte sportovní Volkswagen Golf GTI bazar podle roku, výkonu, nájezdu, ceny a technického stavu – bez zprostředkovatele.",
+    faqQuestion: "Kde najít Golf GTI bazar / na prodej?",
   },
   "mercedes-benz-c-class": {
     titleKeyword: "Mercedes C na prodej",
@@ -159,9 +159,18 @@ export function buildBrandSeoIntro(
 ): string[] {
   const brand = formatBrandDisplay(brandSlug);
   const paragraphs: string[] = [];
+  const slug = normalizeSlug(brandSlug);
+
+  const brandOpeners: Record<string, string> = {
+    skoda: `Hledáte Škoda bazar nebo ojetou Škodu na prodej? Na NNAuto.cz najdete Octavia, Kodiaq, Superb, Fabia a další vozy od soukromých prodejců i autobazarů. Prohlížíte fotografie, parametry a kontaktujete prodejce přímo.`,
+    volkswagen: `Hledáte Volkswagen bazar? Na NNAuto.cz jsou ojeté Golf, Golf GTI, Passat, Tiguan a další VW na prodej – s fotografiemi, cenami a přímým kontaktem na majitele nebo autobazar.`,
+    renault: `Hledáte Renault bazar nebo Megane / Scenic na prodej? NNAuto.cz soustředí ojeté Renaulty z celé ČR. Porovnejte ceny a volejte prodejci bez zprostředkovatele.`,
+    bmw: `Hledáte BMW bazar? Na NNAuto.cz najdete ojeté řady 3, X5 a další BMW na prodej od soukromých prodejců i dealerů – s přehledem cen, nájezdu a výbavy.`,
+  };
 
   paragraphs.push(
-    `Hledáte ojetý nebo zánovní vůz značky ${brand}? Na NNAuto.cz najdete aktuální nabídku vozů ${brand} od soukromých prodejců i ověřených autobazarů. Prohlížíte fotografie, technické parametry a kontaktujete prodejce přímo, bez zprostředkovatelů.`,
+    brandOpeners[slug] ??
+      `Hledáte ojetý nebo zánovní vůz značky ${brand}? Na NNAuto.cz najdete aktuální nabídku vozů ${brand} od soukromých prodejců i ověřených autobazarů. Prohlížíte fotografie, technické parametry a kontaktujete prodejce přímo, bez zprostředkovatelů.`,
   );
 
   if (stats.total > 0) {

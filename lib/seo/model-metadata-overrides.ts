@@ -8,10 +8,10 @@ export type ModelMetadataOverride = {
 
 const MODEL_METADATA_OVERRIDES: Record<string, ModelMetadataOverride> = {
   "skoda-kodiaq": {
-    titleKeyword: "Škoda Kodiaq na prodej",
-    searchPhrase: "skoda kodiaq prodej",
+    titleKeyword: "Škoda Kodiaq bazar – SUV na prodej",
+    searchPhrase: "skoda kodiaq bazar",
     descriptionLead:
-      "Porovnejte aktuální SUV Škoda Kodiaq na prodej v ČR podle ceny, roku výroby, nájezdu a výbavy.",
+      "Škoda Kodiaq bazar: 7místné SUV na prodej v ČR. Porovnejte ceny, ročníky, nájezd a výbavu ojetých Kodiaqů.",
   },
   "skoda-octavia": {
     titleKeyword: "Škoda Octavia na prodej",
@@ -26,22 +26,22 @@ const MODEL_METADATA_OVERRIDES: Record<string, ModelMetadataOverride> = {
       "Prohlédněte si aktuální vozy BMW X5 na prodej v ČR včetně cen, fotografií, ročníků a parametrů.",
   },
   "volkswagen-golf-gti": {
-    titleKeyword: "Golf GTI na prodej",
+    titleKeyword: "Golf GTI bazar – na prodej",
     searchPhrase: "golf gti na prodej",
     descriptionLead:
-      "Porovnejte sportovní Volkswagen Golf GTI na prodej podle ceny, výkonu, nájezdu a technického stavu.",
+      "Golf GTI bazar: sportovní Volkswagen Golf GTI na prodej. Ceny, výkon, nájezd a stav – porovnejte inzeráty v ČR.",
   },
   "renault-megane": {
-    titleKeyword: "Renault Megane na prodej",
+    titleKeyword: "Renault Megane bazar – na prodej",
     searchPhrase: "renault megane prodej",
     descriptionLead:
-      "Najděte Renault Megane na prodej v ČR a porovnejte aktuální inzeráty podle ceny, výbavy a regionu.",
+      "Renault Megane bazar a prodej v ČR: porovnejte ojeté Megane podle ceny, výbavy, paliva a regionu.",
   },
   "renault-scenic": {
-    titleKeyword: "Renault Scenic na prodej",
+    titleKeyword: "Renault Scenic bazar – rodinné auto",
     searchPhrase: "renault scenic prodej",
     descriptionLead:
-      "Prohlédněte si rodinné vozy Renault Scenic na prodej od soukromých prodejců i autobazarů.",
+      "Renault Scenic bazar: rodinné a 7místné vozy na prodej. Ceny, fotografie a přímý kontakt na prodejce.",
   },
   "mercedes-benz-c-class": {
     titleKeyword: "Mercedes C na prodej",
