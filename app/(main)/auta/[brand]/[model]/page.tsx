@@ -500,6 +500,20 @@ export default async function BrandModelLandingPage({ params }: Props) {
       {faqJsonLd ? <JsonLd data={faqJsonLd} /> : null}
       {modelAggregateJsonLd ? <JsonLd data={modelAggregateJsonLd} /> : null}
 
+      <header className="container mx-auto max-w-6xl px-4 pt-6 pb-2">
+        <h1 className="text-3xl md:text-4xl font-bold">
+          {brandName} {modelName} na prodej
+        </h1>
+        <p className="text-muted-foreground mt-2 max-w-3xl">
+          Aktuálně <strong>{total}</strong> {inzeratWord(total)} {brandName}{" "}
+          {modelName}
+          {price.min != null && price.min > 0
+            ? ` od ${formatCzk(price.min)}`
+            : ""}
+          . Porovnejte ceny, ročníky a výbavu a kontaktujte prodejce přímo.
+        </p>
+      </header>
+
       <ModelCatalogClient brandSlug={brandSlug} modelSlug={modelSlug} />
 
       <section className="container mx-auto max-w-6xl px-4 pb-12 pt-4">

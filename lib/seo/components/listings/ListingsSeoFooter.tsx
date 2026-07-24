@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatBrandDisplay } from "@lib/seo/brand-format";
 import { isSeoTextsEnabled } from "@lib/seo/features";
 
@@ -10,37 +11,64 @@ const POPULAR_BRANDS = [
   "volvo",
   "ford",
   "jeep",
+  "renault",
+  "hyundai",
 ];
 
-const PRIORITY_MODEL_LINKS = [
-  { href: "/auta/renault/megane", label: "Renault Megane na prodej" },
-  { href: "/auta/renault/scenic", label: "Renault Scenic na prodej" },
-  { href: "/auta/skoda/kodiaq", label: "Škoda Kodiaq na prodej" },
-  { href: "/auta/skoda/octavia", label: "Škoda Octavia na prodej" },
-  { href: "/auta/volkswagen/golf-gti", label: "Golf GTI na prodej" },
-  { href: "/auta/mercedes-benz/c-class", label: "Mercedes C na prodej" },
+/** Tutut-style internal link blocks: “Ojeté vozy …” + “Nejlevnější …” */
+const FOOTER_MODEL_LINKS = [
+  { href: "/auta/skoda/octavia", name: "Škoda Octavia" },
+  { href: "/auta/skoda/fabia", name: "Škoda Fabia" },
+  { href: "/auta/skoda/superb", name: "Škoda Superb" },
+  { href: "/auta/skoda/kodiaq", name: "Škoda Kodiaq" },
+  { href: "/auta/skoda/karoq", name: "Škoda Karoq" },
+  { href: "/auta/volkswagen/golf", name: "Volkswagen Golf" },
+  { href: "/auta/volkswagen/golf-gti", name: "Volkswagen Golf GTI" },
+  { href: "/auta/volkswagen/passat", name: "Volkswagen Passat" },
+  { href: "/auta/volkswagen/tiguan", name: "Volkswagen Tiguan" },
+  { href: "/auta/volkswagen/touran", name: "Volkswagen Touran" },
+  { href: "/auta/bmw/3-series", name: "BMW 3" },
+  { href: "/auta/bmw/x5", name: "BMW X5" },
+  { href: "/auta/bmw/5-series", name: "BMW 5" },
+  { href: "/auta/audi/a4", name: "Audi A4" },
+  { href: "/auta/audi/a6", name: "Audi A6" },
+  { href: "/auta/mercedes-benz/c-class", name: "Mercedes-Benz C" },
+  { href: "/auta/mercedes-benz/e-class", name: "Mercedes-Benz E" },
+  { href: "/auta/renault/megane", name: "Renault Megane" },
+  { href: "/auta/renault/scenic", name: "Renault Scenic" },
+  { href: "/auta/ford/focus", name: "Ford Focus" },
+  { href: "/auta/ford/mondeo", name: "Ford Mondeo" },
+  { href: "/auta/hyundai/i30", name: "Hyundai i30" },
+  { href: "/auta/hyundai/tucson", name: "Hyundai Tucson" },
+  { href: "/auta/kia/ceed", name: "Kia Ceed" },
+  { href: "/auta/kia/sportage", name: "Kia Sportage" },
+  { href: "/auta/toyota/corolla", name: "Toyota Corolla" },
+  { href: "/auta/opel/astra", name: "Opel Astra" },
+  { href: "/auta/volvo/v90", name: "Volvo V90" },
+] as const;
+
+const GUIDE_LINKS = [
   { href: "/auta/suv", label: "SUV auta na prodej" },
-  { href: "/auta/nejlepsi-suv", label: "Nejlepší SUV" },
-  { href: "/auta/rodinne-vozy-mpv", label: "Rodinné vozy MPV" },
   { href: "/auta/7-mistna-auta", label: "7 místná auta" },
-  { href: "/auta/rodinne-auto-s-velkym-kufrem", label: "Rodinné auto s velkým kufrem" },
-  { href: "/auta/velka-rodinna-auta", label: "Velká rodinná auta" },
-  { href: "/auta/sedmimistne-vozy", label: "Sedmimístné vozy" },
-  { href: "/auta/suv-pro-rodinu", label: "SUV pro rodinu" },
-  { href: "/auta/suv-auta-srovnani", label: "SUV auta srovnání" },
+  { href: "/auta/automat", label: "Auta s automatem" },
+  { href: "/auta/elektro-suv", label: "Elektro SUV" },
   { href: "/auta/ojeta-auta-ostrava", label: "Ojetá auta Ostrava" },
   { href: "/auta/auta-brno-na-prodej", label: "Auta Brno na prodej" },
-  { href: "/auta/volvo/4x4", label: "Volvo 4x4" },
-  { href: "/auta/coupe-auta", label: "Coupe auta" },
-  { href: "/auta/auto-pro-6-osob", label: "Auto pro 6 osob" },
-  { href: "/auta/elektro-suv", label: "Elektro SUV" },
-  { href: "/auta/male-auto-pro-zenu", label: "Malé auto pro ženu" },
-  { href: "/auta/automat", label: "Auta s automatem" },
   { href: "/auta/nejlepsi-rodinna-auta", label: "Nejlepší rodinná auta" },
-  { href: "/auta/auto-pro-zacatecnika", label: "Auto pro začátečníka" },
-  { href: "/auta/auto-pro-velkou-rodinu", label: "Auto pro velkou rodinu" },
   { href: "/porovnani/golf-vs-octavia", label: "Golf vs Octavia" },
+  { href: "/porovnani/kodiaq-vs-tiguan", label: "Kodiaq vs Tiguan" },
 ] as const;
+
+function LinkChip({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a
+      href={href}
+      className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
+    >
+      {children}
+    </a>
+  );
+}
 
 export function ListingsSeoFooter() {
   if (!isSeoTextsEnabled()) return null;
@@ -60,36 +88,66 @@ export function ListingsSeoFooter() {
         <ul className="flex flex-wrap gap-2">
           {POPULAR_BRANDS.map((slug) => (
             <li key={slug}>
-              <a
-                href={`/auta/${slug}`}
-                className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
-              >
+              <LinkChip href={`/auta/${slug}`}>
                 {formatBrandDisplay(slug)}
-              </a>
+              </LinkChip>
             </li>
           ))}
         </ul>
       </section>
 
       <section
-        aria-labelledby="listings-seo-priority"
+        aria-labelledby="listings-seo-ojete"
         className="container mx-auto max-w-6xl px-4 pb-8"
       >
         <h2
-          id="listings-seo-priority"
+          id="listings-seo-ojete"
           className="text-lg font-semibold mb-3"
         >
-          Nejhledanější ojetá auta
+          Ojetá auta na prodej
         </h2>
         <ul className="flex flex-wrap gap-2">
-          {PRIORITY_MODEL_LINKS.map((link) => (
+          {FOOTER_MODEL_LINKS.map((link) => (
+            <li key={`ojete-${link.href}`}>
+              <LinkChip href={link.href}>Ojeté vozy {link.name}</LinkChip>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section
+        aria-labelledby="listings-seo-nejlevnejsi"
+        className="container mx-auto max-w-6xl px-4 pb-8"
+      >
+        <h2
+          id="listings-seo-nejlevnejsi"
+          className="text-lg font-semibold mb-3"
+        >
+          Nejlevnější auta na prodej
+        </h2>
+        <ul className="flex flex-wrap gap-2">
+          {FOOTER_MODEL_LINKS.map((link) => (
+            <li key={`cheap-${link.href}`}>
+              <LinkChip href={link.href}>Nejlevnější {link.name}</LinkChip>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section
+        aria-labelledby="listings-seo-guides"
+        className="container mx-auto max-w-6xl px-4 pb-8"
+      >
+        <h2
+          id="listings-seo-guides"
+          className="text-lg font-semibold mb-3"
+        >
+          Průvodci a kategorie
+        </h2>
+        <ul className="flex flex-wrap gap-2">
+          {GUIDE_LINKS.map((link) => (
             <li key={link.href}>
-              <a
-                href={link.href}
-                className="inline-block rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition-colors"
-              >
-                {link.label}
-              </a>
+              <LinkChip href={link.href}>{link.label}</LinkChip>
             </li>
           ))}
         </ul>
@@ -109,16 +167,17 @@ export function ListingsSeoFooter() {
           <p>
             Aktuální nabídka <strong>ojetých i nových vozů</strong> na NNAuto
             pokrývá všechny populární kategorie – osobní auta, motocykly,
-            dodávky a nákladní vozidla.
+            dodávky a nákladní vozidla. Porovnejte ceny, ročníky a výbavu a
+            kontaktujte prodejce přímo.
           </p>
           <p>
             Mezi nejhledanější značky v ČR patří{" "}
             <a href="/auta/skoda" className="underline">
-              Škoda
+              Škoda bazar
             </a>
             ,{" "}
             <a href="/auta/volkswagen" className="underline">
-              Volkswagen
+              Volkswagen bazar
             </a>
             ,{" "}
             <a href="/auta/bmw" className="underline">
@@ -131,6 +190,18 @@ export function ListingsSeoFooter() {
             a{" "}
             <a href="/auta/mercedes-benz" className="underline">
               Mercedes-Benz
+            </a>
+            . Oblíbené modely:{" "}
+            <a href="/auta/skoda/kodiaq" className="underline">
+              Škoda Kodiaq
+            </a>
+            ,{" "}
+            <a href="/auta/volkswagen/golf-gti" className="underline">
+              Golf GTI
+            </a>
+            ,{" "}
+            <a href="/auta/renault/megane" className="underline">
+              Renault Megane
             </a>
             .
           </p>

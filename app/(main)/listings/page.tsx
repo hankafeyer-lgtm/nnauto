@@ -16,8 +16,8 @@ const LISTINGS_DESCRIPTION =
   "Prohlédněte si aktuální nabídku osobních aut, motocyklů a nákladních vozidel na NNAuto. Ověřené inzeráty od soukromých prodejců i autobazarů. Filtrujte podle značky, modelu, roku výroby, ceny, najetých kilometrů a regionu. Kontaktujte prodejce přímo.";
 
 /**
- * Plain /listings is indexable. Any /listings?… filter URL is noindex,follow
- * with canonical to /listings or the matching /auta/… SEO cluster.
+ * Plain /listings is indexable. /listings?page=2+ is noindex with canonical
+ * to /listings. Filter URLs are noindex with canonical to /listings or /auta/….
  */
 export async function generateMetadata({
   searchParams,

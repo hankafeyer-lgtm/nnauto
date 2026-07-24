@@ -6,8 +6,9 @@ import {
 } from "./canonical";
 
 /**
- * Any /listings?… filter URL is noindex,follow with canonical to the clean SEO cluster.
- * Plain /listings (no query) and /listings?page=N stay indexable with self-canonical.
+ * Plain /listings is indexable.
+ * /listings?page=2+ → noindex,follow + canonical to /listings (like Tutut).
+ * Any filter query → noindex,follow with canonical to /listings or /auta/….
  */
 export function listingsSeoFromSearch(search: string): {
   canonical: string;

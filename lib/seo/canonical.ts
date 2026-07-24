@@ -104,7 +104,7 @@ export function resolveAutaIndexCanonicalUrl(
   return absoluteUrl("/auta");
 }
 
-/** Listings canonical: filters → SEO cluster; pagination-only → self. */
+/** Listings canonical: filters → SEO cluster; pagination → plain /listings. */
 export function resolveListingsCanonicalUrl(
   params: Record<string, string | string[] | undefined>,
 ): string {
@@ -119,16 +119,32 @@ export function resolveListingsCanonicalUrl(
   if (brand && !hasTechnicalQueryParams(params)) {
     return absoluteUrl(`/auta/${normalizeSlug(brand)}`);
   }
+  // page=2+ consolidates to /listings (Tutut-style: only page 1 is canonical)
   if (isPaginationOnlyQuery(params)) {
-    return buildUrlWithParams("/listings", params);
+    return absoluteUrl("/listings");
   }
   return absoluteUrl("/listings");
+}
+
+/** True when ?page= is present and greater than 1. */
+export function isListingsPageBeyondFirst(
+  params: Record<string, string | string[] | undefined>,
+): boolean {
+  const page = firstParam(params.page)?.trim();
+  if (!page || page === "1") return false;
+  const n = Number(page);
+  return Number.isFinite(n) && n > 1;
 }
 
 export function shouldNoindexListings(
   params: Record<string, string | string[] | undefined>,
 ): boolean {
-  return hasFilterQueryParams(params);
+  if (hasFilterQueryParams(params)) return true;
+  // Paginated catalog copies must not compete with /listings
+  if (isPaginationOnlyQuery(params) && isListingsPageBeyondFirst(params)) {
+    return true;
+  }
+  return false;
 }
 
 export function shouldNoindexAutaIndex(
