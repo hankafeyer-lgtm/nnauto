@@ -4072,12 +4072,13 @@ export default function ListingsPage({
     return accumulated.filter((l) => l.id !== deletingListingId);
   }, [isFetching, listings, accumulated, deletingListingId]);
 
-  // якщо потрібно “TOP” завжди зверху — залишаємо
+  // TOP pin only for default newest; explicit sorts keep API order (price/year/mileage).
   const sortedListings = useMemo(() => {
+    if (sortBy !== "newest") return displayListings;
     const top = displayListings.filter((l) => l.isTopListing);
     const rest = displayListings.filter((l) => !l.isTopListing);
     return [...top, ...rest];
-  }, [displayListings]);
+  }, [displayListings, sortBy]);
 
   useEffect(() => {
     restoreDebug("listings", "list-mounted-or-data-updated", {

@@ -15,40 +15,23 @@ const ACTIVE_TOP_SQL = `(is_top_listing = true AND (top_listing_expires_at IS NU
 /** Stable chaotic order within the current UTC hour (same for all users until the hour flips). */
 const TOP_HOUR_ROTATION_SQL = `md5(id::text || ':' || to_char(date_trunc('hour', NOW()), 'YYYY-MM-DD"T"HH24'))`;
 
-/** Safe ORDER BY fragments (sort key is server-validated only). */
+/**
+ * Safe ORDER BY fragments (sort key is server-validated only).
+ * TOP pin + hourly rotation only for default `newest`.
+ * Explicit sorts (price/year/mileage/oldest) follow the chosen field for all ads.
+ */
 const ORDER_SQL: Record<H.SortKey, string> = {
   newest: `${ACTIVE_TOP_SQL} DESC,
     CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
     CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN created_at END DESC NULLS LAST,
     created_at DESC`,
-  oldest: `${ACTIVE_TOP_SQL} DESC,
-    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
-    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN created_at END ASC NULLS LAST,
-    created_at ASC`,
-  "price-asc": `${ACTIVE_TOP_SQL} DESC,
-    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
-    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN price::numeric END ASC NULLS LAST,
-    created_at DESC`,
-  "price-desc": `${ACTIVE_TOP_SQL} DESC,
-    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
-    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN price::numeric END DESC NULLS LAST,
-    created_at DESC`,
-  "year-asc": `${ACTIVE_TOP_SQL} DESC,
-    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
-    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN year END ASC NULLS LAST,
-    created_at DESC`,
-  "year-desc": `${ACTIVE_TOP_SQL} DESC,
-    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
-    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN year END DESC NULLS LAST,
-    created_at DESC`,
-  "mileage-asc": `${ACTIVE_TOP_SQL} DESC,
-    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
-    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN mileage END ASC NULLS LAST,
-    created_at DESC`,
-  "mileage-desc": `${ACTIVE_TOP_SQL} DESC,
-    CASE WHEN ${ACTIVE_TOP_SQL} THEN ${TOP_HOUR_ROTATION_SQL} END ASC NULLS LAST,
-    CASE WHEN NOT ${ACTIVE_TOP_SQL} THEN mileage END DESC NULLS LAST,
-    created_at DESC`,
+  oldest: `created_at ASC NULLS LAST, id ASC`,
+  "price-asc": `price::numeric ASC NULLS LAST, created_at DESC`,
+  "price-desc": `price::numeric DESC NULLS LAST, created_at DESC`,
+  "year-asc": `year ASC NULLS LAST, created_at DESC`,
+  "year-desc": `year DESC NULLS LAST, created_at DESC`,
+  "mileage-asc": `mileage ASC NULLS LAST, created_at DESC`,
+  "mileage-desc": `mileage DESC NULLS LAST, created_at DESC`,
 };
 
 const CZ_FROM =
