@@ -21,7 +21,12 @@ import {
   formatBrandDisplay,
   formatModelDisplay,
 } from "@lib/seo/brand-format";
-import { buildListingCarJsonLd, buildListingProductJsonLd } from "@lib/seo/structured-data";
+import { buildListingCarJsonLd, buildListingProductJsonLd, buildListingVideoJsonLd } from "@lib/seo/structured-data";
+import {
+  listingHasIndexableVideo,
+  listingVideoContentUrl,
+  listingVideoThumbnailUrl,
+} from "@lib/seo/listing-video";
 import {
   buildListingAbsoluteUrl,
 } from "@lib/seo/listing-url";
@@ -71,6 +76,10 @@ export function buildListingMetadata(
     ? `${SITE_ORIGIN}/img/${photo.replace(/^\/+/, "")}?w=1200&q=80&f=webp`
     : `${SITE_ORIGIN}/og-image.png`;
   const imageAlt = buildListingImageAlt(listing, 0);
+  const videoUrl = listingVideoContentUrl(listing.video);
+  const videoThumb = listingHasIndexableVideo(listing)
+    ? listingVideoThumbnailUrl(listing)
+    : null;
 
   const keywords = [
     brand,
@@ -107,6 +116,19 @@ export function buildListingMetadata(
       url: canonicalUrl,
       siteName: "NNAuto",
       images: [{ url: imageUrl, width: 1200, height: 630, alt: imageAlt }],
+      ...(videoUrl
+        ? {
+            videos: [
+              {
+                url: videoUrl,
+                secureUrl: videoUrl,
+                type: "video/mp4",
+                width: 1280,
+                height: 720,
+              },
+            ],
+          }
+        : {}),
       locale: "cs_CZ",
       type: "website",
     },
@@ -114,9 +136,18 @@ export function buildListingMetadata(
       card: "summary_large_image",
       title,
       description: desc,
-      images: [imageUrl],
+      images: [videoThumb || imageUrl],
     },
     alternates: { canonical: canonicalUrl },
+    other: videoUrl
+      ? {
+          "og:video": videoUrl,
+          "og:video:secure_url": videoUrl,
+          "og:video:type": "video/mp4",
+          "og:video:width": "1280",
+          "og:video:height": "720",
+        }
+      : undefined,
   };
 }
 
@@ -219,12 +250,14 @@ export function renderListingDetailPage({
   const internalLinks = buildListingInternalLinks(listing);
 
   const carJsonLd = buildListingCarJsonLd(listing);
+  const videoJsonLd = buildListingVideoJsonLd(listing);
 
   if (isEmbedded) {
     return (
       <>
         <JsonLd data={productJsonLd} />
         <JsonLd data={breadcrumbJsonLd} />
+        {videoJsonLd ? <JsonLd data={videoJsonLd} /> : null}
         <ListingDetailClient
           initialListing={initialListing}
           initialListingId={id}
@@ -241,6 +274,7 @@ export function renderListingDetailPage({
     <>
       <JsonLd data={productJsonLd} />
       {carJsonLd ? <JsonLd data={carJsonLd} /> : null}
+      {videoJsonLd ? <JsonLd data={videoJsonLd} /> : null}
       <JsonLd data={breadcrumbJsonLd} />
       {preloadImageDefault && preloadImageSrcSet ? (
         <link

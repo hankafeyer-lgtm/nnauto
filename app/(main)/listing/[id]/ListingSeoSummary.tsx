@@ -6,6 +6,12 @@ import {
   buildListingImageAlt,
 } from "@lib/seo/listing-meta";
 import { normalizeSlug } from "@lib/seo/slug";
+import {
+  listingHasIndexableVideo,
+  listingVideoContentUrl,
+  listingVideoDescription,
+  listingVideoTitle,
+} from "@lib/seo/listing-video";
 
 type ListingRow = typeof listings.$inferSelect;
 
@@ -56,6 +62,12 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
     ? `${SITE_ORIGIN}/img/${photos[0].replace(/^\/+/, "")}?w=960&q=80&f=webp`
     : null;
 
+  const videoSrc = listingHasIndexableVideo(listing)
+    ? listingVideoContentUrl(listing.video)
+    : null;
+  const videoTitle = videoSrc ? listingVideoTitle(listing) : null;
+  const videoDesc = videoSrc ? listingVideoDescription(listing) : null;
+
   const equipment = arr(listing.equipment);
   const extras = arr(listing.extras);
 
@@ -95,6 +107,24 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
           fetchPriority="high"
           decoding="async"
         />
+      ) : null}
+
+      {videoSrc ? (
+        <div>
+          <h2>{videoTitle}</h2>
+          {videoDesc ? <p>{videoDesc}</p> : null}
+          {/* Crawlable HTML5 video for Google video discovery (player is client-side). */}
+          <video
+            src={videoSrc}
+            poster={firstImgSrc || undefined}
+            controls
+            preload="metadata"
+            width={1280}
+            height={720}
+          >
+            <a href={videoSrc}>Přehrát video inzerátu</a>
+          </video>
+        </div>
       ) : null}
 
       <h1 className="font-semibold" id="listing-primary-heading">

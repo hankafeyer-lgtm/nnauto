@@ -30,7 +30,17 @@ const DISALLOW_COMMON = [
   "/*.json$",
 ];
 
-const PRIMARY_ALLOW = ["/", "/listings", "/listing/", "/auta", "/auta/", "/prodej/", "/prodat-auto"];
+const PRIMARY_ALLOW = [
+  "/",
+  "/listings",
+  "/listing/",
+  "/auta",
+  "/auta/",
+  "/prodej/",
+  "/prodat-auto",
+  "/objects/",
+  "/objects/videos/",
+];
 
 const MAIN_BOT_DISALLOW = [
   ...SEO_DISALLOW,
@@ -77,6 +87,6 @@ export default function robots(): MetadataRoute.Robots {
       { userAgent: "DotBot", disallow: "/" },
       { userAgent: "PetalBot", disallow: "/" },
     ],
-    sitemap: `${SITE_ORIGIN}/sitemap.xml`,
+    sitemap: [`${SITE_ORIGIN}/sitemap.xml`, `${SITE_ORIGIN}/sitemap-video.xml`],
   };
 }

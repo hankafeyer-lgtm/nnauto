@@ -6,6 +6,15 @@ import {
   buildListingSeoDescription,
   buildListingH1,
 } from "./listing-meta";
+import {
+  listingHasIndexableVideo,
+  listingVideoContentUrl,
+  listingVideoDescription,
+  listingVideoPageUrl,
+  listingVideoThumbnailUrl,
+  listingVideoTitle,
+  listingVideoUploadDate,
+} from "./listing-video";
 
 const fuelTypeMap: Record<string, string> = {
   benzin: "Gasoline",
@@ -223,6 +232,7 @@ export function buildListingCarJsonLd(listing: Listing) {
         : undefined),
     image: listingPhotoUrls(listing.photos),
     url,
+    video: buildListingVideoFields(listing) || undefined,
     offers: {
       "@type": "Offer",
       "@id": `${url}#offer`,
@@ -234,6 +244,37 @@ export function buildListingCarJsonLd(listing: Listing) {
         : "https://schema.org/InStock",
       itemCondition: conditionUrl,
     },
+  });
+}
+
+/** VideoObject fields (no @context) for nesting on Vehicle/Product. */
+function buildListingVideoFields(listing: Listing) {
+  if (!listingHasIndexableVideo(listing)) return null;
+  const contentUrl = listingVideoContentUrl(listing.video);
+  if (!contentUrl) return null;
+  const pageUrl = listingVideoPageUrl(listing);
+
+  return {
+    "@type": "VideoObject",
+    "@id": `${pageUrl}#video`,
+    name: listingVideoTitle(listing),
+    description: listingVideoDescription(listing),
+    thumbnailUrl: [listingVideoThumbnailUrl(listing)],
+    contentUrl,
+    embedUrl: pageUrl,
+    uploadDate: listingVideoUploadDate(listing),
+    mainEntityOfPage: pageUrl,
+    isFamilyFriendly: true,
+  };
+}
+
+/** Standalone VideoObject for Google video indexing / rich results. */
+export function buildListingVideoJsonLd(listing: Listing) {
+  const fields = buildListingVideoFields(listing);
+  if (!fields) return null;
+  return sanitizeJsonLd({
+    "@context": "https://schema.org",
+    ...fields,
   });
 }
 
@@ -270,6 +311,7 @@ export function buildListingProductJsonLd(
       ? { "@type": "Brand", name: listing.brand }
       : undefined,
     image: imageUrls,
+    video: buildListingVideoFields(listing) || undefined,
     offers: {
       "@type": "Offer",
       price: String(price),
