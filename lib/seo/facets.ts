@@ -127,18 +127,77 @@ export function buildBrandFacetPath(brandSlug: string, facetSlug: string): strin
   return `/auta/${brandSlug}/${facetSlug}`;
 }
 
+/** CTR-oriented phrasing for high-impression facet queries from GSC. */
+function facetSerpPhrase(facet: FacetDefinition, brandName?: string): {
+  title: string;
+  h1: string;
+  descSubject: string;
+} | null {
+  const brand = brandName?.trim();
+  if (facet.slug === "automat") {
+    return brand
+      ? {
+          title: `${brand} s automatem na prodej – ojetá auta | NNAuto`,
+          h1: `${brand} s automatem na prodej`,
+          descSubject: `ojetých ${brand} s automatickou převodovkou`,
+        }
+      : {
+          title: "Auta s automatem na prodej – ojeté vozy | NNAuto",
+          h1: "Auta s automatem na prodej",
+          descSubject: "ojetých aut s automatickou převodovkou",
+        };
+  }
+  if (facet.slug === "4x4" || facet.slug === "awd") {
+    return brand
+      ? {
+          title: `${brand} 4x4 na prodej – ojeté SUV a terénní | NNAuto`,
+          h1: `${brand} 4x4 na prodej`,
+          descSubject: `ojetých ${brand} 4x4 / AWD`,
+        }
+      : {
+          title: "Auta 4x4 na prodej – ojeté vozy s pohonem 4×4 | NNAuto",
+          h1: "Auta 4x4 na prodej",
+          descSubject: "ojetých aut 4x4",
+        };
+  }
+  if (facet.slug === "suv") {
+    return brand
+      ? {
+          title: `${brand} SUV na prodej | Ojeté SUV vozy | NNAuto`,
+          h1: `${brand} SUV na prodej`,
+          descSubject: `${brand} SUV`,
+        }
+      : {
+          title: "SUV auta na prodej | Ojeté SUV vozy v ČR | NNAuto",
+          h1: "SUV auta na prodej",
+          descSubject: "SUV aut",
+        };
+  }
+  if (facet.slug === "do-300000") {
+    return brand
+      ? {
+          title: `${brand} do 300 000 Kč – ojetá auta na prodej | NNAuto`,
+          h1: `${brand} do 300 000 Kč`,
+          descSubject: `ojetých ${brand} do 300 000 Kč`,
+        }
+      : {
+          title: "Auta do 300 000 Kč | Ojeté vozy v ČR | NNAuto",
+          h1: "Auta do 300 000 Kč",
+          descSubject: "ojetých aut do 300 000 Kč",
+        };
+  }
+  return null;
+}
+
 export function buildFacetTitle(
   facet: FacetDefinition,
   brandName?: string,
 ): string {
+  const custom = facetSerpPhrase(facet, brandName);
+  if (custom) return custom.title;
+
   if (brandName) {
-    if (facet.slug === "suv") {
-      return `${brandName} SUV na prodej | Ojeté SUV vozy | NNAuto`;
-    }
-    return `${brandName} ${facet.label} na prodej | NNAuto`;
-  }
-  if (facet.slug === "suv") {
-    return "SUV auta na prodej | Ojeté SUV vozy v ČR | NNAuto";
+    return `${brandName} ${facet.label} na prodej – ojetá auta | NNAuto`;
   }
   if (facet.kind === "fuel" || facet.kind === "body" || facet.kind === "drive") {
     return `Auta ${facet.label} na prodej | Ojeté vozy | NNAuto`;
@@ -158,20 +217,27 @@ export function buildFacetTitle(
   if (facet.kind === "priceRange" || facet.kind === "priceMin") {
     return `Auta ${facet.shortLabel} | Ojeté vozy v ČR | NNAuto`;
   }
+  if (facet.kind === "transmission") {
+    return `Auta s ${facet.label.toLowerCase()}em na prodej | Ojeté vozy | NNAuto`;
+  }
   return `Auta ${facet.label} na prodej | NNAuto`;
 }
 
 export function buildFacetH1(facet: FacetDefinition, brandName?: string): string {
+  const custom = facetSerpPhrase(facet, brandName);
+  if (custom) return custom.h1;
+
   if (brandName) {
-    if (facet.slug === "suv") return `${brandName} SUV na prodej`;
     return `${brandName} ${facet.label} na prodej`;
   }
-  if (facet.slug === "suv") return "SUV auta na prodej";
   if (facet.kind === "region") return `Auta ${facet.label} na prodej`;
   if (facet.kind === "mileageMax") return `Auta ${facet.shortLabel}`;
   if (facet.kind === "year") return `Auta ${facet.value} na prodej`;
   if (facet.kind === "priceMax") return `Auta ${facet.shortLabel}`;
   if (facet.kind === "priceRange" || facet.kind === "priceMin") return `Auta ${facet.shortLabel}`;
+  if (facet.kind === "transmission") {
+    return `Auta s ${facet.label.toLowerCase()}em na prodej`;
+  }
   return `Auta ${facet.label} na prodej`;
 }
 
@@ -180,9 +246,9 @@ export function buildFacetDescription(
   total: number,
   brandName?: string,
 ): string {
-  if (facet.slug === "suv") {
-    const scope = brandName ? `${brandName} SUV` : "SUV auta";
-    return `Prohlédněte si ${total} inzerátů ${scope} na prodej v ČR. Aktuální ceny, fotografie, výbava a parametry ojetých SUV vozů od ověřených prodejců na NNAuto.cz.`;
+  const custom = facetSerpPhrase(facet, brandName);
+  if (custom) {
+    return `Prohlédněte si ${total} inzerátů ${custom.descSubject} na NNAuto.cz. Aktuální ceny, fotografie, výbava a přímý kontakt na prodejce.`;
   }
   if (facet.kind === "region") {
     return `Prohlédněte si ${total} inzerátů aut v lokalitě ${facet.label}. Aktuální nabídka ojetých vozů v okolí, ceny, fotografie, výbava a kontakt přímo na prodejce.`;

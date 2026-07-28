@@ -158,11 +158,13 @@ export const AUTA_GUIDE_PAGES: AutaGuidePage[] = [
   },
   {
     slug: "7-mistna-auta",
-    title: "7 místná auta | Ojeté vozy se 7 sedadly | NNAuto",
-    description: "7 místná auta na prodej v ČR. Vyberte rodinné SUV, MPV nebo van se sedmi sedadly podle ceny, nájezdu, paliva a výbavy.",
-    h1: "7 místná auta",
+    title: "7 místná auta na prodej | 7 místné vozy a MPV | NNAuto",
+    description:
+      "7 místná auta a 7 místné vozy na prodej v ČR. Rodinné SUV, MPV a vany se 7 sedadly – ceny, nájezd, výbava a přímý kontakt.",
+    h1: "7 místná auta na prodej",
     h2: "Jak vybrat auto se 7 sedadly",
-    intro: "Sedmimístné auto je vhodné pro větší rodinu, cestování s dětmi nebo situace, kdy potřebujete občas převézt více pasažérů. Nejčastěji jde o MPV, van nebo větší SUV s třetí řadou sedadel.",
+    intro:
+      "Hledáte 7 místné auto nebo 7 místné vozy? Sedmimístné auto je vhodné pro větší rodinu, cestování s dětmi nebo situace, kdy potřebujete občas převézt více pasažérů. Nejčastěji jde o MPV, van nebo větší SUV s třetí řadou sedadel.",
     focus: "U 7 místných aut ověřte, zda jsou všechna sedadla plnohodnotná, kolik zůstává místa v kufru po rozložení třetí řady, stav bezpečnostních pásů, ISOFIX a klimatizaci pro zadní část vozu. Důležitá je také servisní historie a stav podvozku.",
     links: [
       { href: "/auta/mpv", label: "MPV na prodej" },
@@ -180,11 +182,13 @@ export const AUTA_GUIDE_PAGES: AutaGuidePage[] = [
   },
   {
     slug: "sedmimistne-vozy",
-    title: "Sedmimístné vozy | Ojetá auta se 7 sedadly | NNAuto",
-    description: "Sedmimístné vozy na prodej v ČR. Porovnejte MPV, vany a SUV se 7 sedadly podle ceny, nájezdu, výbavy a stavu.",
-    h1: "Sedmimístné vozy",
+    title: "7 místné vozy na prodej | Sedmimístná auta | NNAuto",
+    description:
+      "7 místné vozy a sedmimístná auta na prodej. Porovnejte MPV, vany a SUV se 7 sedadly podle ceny, nájezdu a výbavy.",
+    h1: "7 místné vozy na prodej",
     h2: "Výběr sedmimístného vozu",
-    intro: "Sedmimístné vozy jsou praktické pro větší rodiny i pro řidiče, kteří občas potřebují převézt více lidí. V nabídce bývají MPV, vany i větší SUV s třetí řadou sedadel.",
+    intro:
+      "7 místné vozy jsou praktické pro větší rodiny i pro řidiče, kteří občas potřebují převézt více lidí. V nabídce bývají MPV, vany i větší SUV s třetí řadou sedadel.",
     focus: "Před koupí zkontrolujte, zda je třetí řada pohodlně použitelná, kolik zůstává místa v kufru, stav bezpečnostních pásů, klimatizaci pro zadní část vozu a celkový stav interiéru. U větších aut je důležitý i servis podvozku a brzd.",
     links: [
       { href: "/auta/7-mistna-auta", label: "7 místná auta" },

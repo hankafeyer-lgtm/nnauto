@@ -14,10 +14,16 @@ const MODEL_METADATA_OVERRIDES: Record<string, ModelMetadataOverride> = {
       "Škoda Kodiaq bazar: 7místné SUV na prodej v ČR. Porovnejte ceny, ročníky, nájezd a výbavu ojetých Kodiaqů.",
   },
   "skoda-octavia": {
-    titleKeyword: "Škoda Octavia na prodej",
-    searchPhrase: "skoda octavia prodej",
+    titleKeyword: "Škoda Octavia bazar – koupit ojeté",
+    searchPhrase: "koupit skoda octavia",
     descriptionLead:
-      "Najděte aktuální nabídky Škoda Octavia na prodej od soukromých prodejců i autobazarů v ČR.",
+      "Koupit Škoda Octavia: aktuální bazar ojetých Octavií v ČR. Ceny, ročníky (včetně 2014+), nájezd a přímý kontakt.",
+  },
+  "skoda-superb": {
+    titleKeyword: "Škoda Superb na prodej – bazar",
+    searchPhrase: "superb na prodej",
+    descriptionLead:
+      "Škoda Superb na prodej a bazar v ČR. Porovnejte ojeté Superb podle ceny, ročníku, nájezdu a výbavy.",
   },
   "bmw-x5": {
     titleKeyword: "BMW X5 na prodej",
@@ -27,21 +33,33 @@ const MODEL_METADATA_OVERRIDES: Record<string, ModelMetadataOverride> = {
   },
   "volkswagen-golf-gti": {
     titleKeyword: "Golf GTI bazar – na prodej",
-    searchPhrase: "golf gti na prodej",
+    searchPhrase: "golf gti",
     descriptionLead:
       "Golf GTI bazar: sportovní Volkswagen Golf GTI na prodej. Ceny, výkon, nájezd a stav – porovnejte inzeráty v ČR.",
   },
+  "volkswagen-touareg": {
+    titleKeyword: "Touareg prodej – VW bazar",
+    searchPhrase: "touareg prodej",
+    descriptionLead:
+      "Volkswagen Touareg na prodej: ojeté SUV v bazaru NNAuto. Ceny, 4x4, výbava a kontakt na prodejce.",
+  },
   "renault-megane": {
-    titleKeyword: "Renault Megane bazar – na prodej",
+    titleKeyword: "Renault Megane prodej – bazar",
     searchPhrase: "renault megane prodej",
     descriptionLead:
-      "Renault Megane bazar a prodej v ČR: porovnejte ojeté Megane podle ceny, výbavy, paliva a regionu.",
+      "Renault Megane prodej a bazar v ČR: porovnejte ojeté Megane podle ceny, výbavy, paliva a regionu.",
   },
   "renault-scenic": {
-    titleKeyword: "Renault Scenic bazar – rodinné auto",
+    titleKeyword: "Renault Scenic prodej – bazar",
     searchPhrase: "renault scenic prodej",
     descriptionLead:
-      "Renault Scenic bazar: rodinné a 7místné vozy na prodej. Ceny, fotografie a přímý kontakt na prodejce.",
+      "Renault Scenic na prodej: rodinné a 7místné vozy v bazaru. Ceny, fotografie a přímý kontakt na prodejce.",
+  },
+  "toyota-rav4": {
+    titleKeyword: "Toyota RAV4 bazar – SUV na prodej",
+    searchPhrase: "toyota rav4 bazar",
+    descriptionLead:
+      "Toyota RAV4 bazar: ojeté SUV na prodej v ČR. Porovnejte ceny, hybridy, nájezd a výbavu.",
   },
   "mercedes-benz-c-class": {
     titleKeyword: "Mercedes C na prodej",
@@ -66,6 +84,12 @@ const MODEL_METADATA_OVERRIDES: Record<string, ModelMetadataOverride> = {
     searchPhrase: "ford kuga prodej",
     descriptionLead:
       "Porovnejte SUV Ford Kuga na prodej podle ceny, roku výroby, nájezdu, paliva a regionu prodejce.",
+  },
+  "genesis-g80": {
+    titleKeyword: "Genesis G80 na prodej – bazar",
+    searchPhrase: "genesis g80",
+    descriptionLead:
+      "Genesis G80 na prodej v ČR: aktuální inzeráty, ceny, ročníky a parametry ojetých G80.",
   },
 };
 

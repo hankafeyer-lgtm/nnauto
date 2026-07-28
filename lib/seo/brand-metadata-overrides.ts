@@ -42,6 +42,27 @@ const BRAND_METADATA_OVERRIDES: Record<string, BrandMetadataOverride> = {
     pageLead:
       "BMW bazar na NNAuto – ojeté sedaně, SUV i kupé. Filtrujte podle modelu, ceny a roku a domluvte prohlídku přímo s majitelem nebo autobazarem.",
   },
+  volvo: {
+    titleKeyword: "Volvo bazar – ojetá auta na prodej",
+    descriptionLead:
+      "Volvo bazar: XC60, V90, S60 a další ojetá Volvo na prodej. Automat, 4x4, ceny a přímý kontakt na prodejce.",
+    pageLead:
+      "Volvo bazar na NNAuto – bezpečná ojetá SUV i kombi. Porovnejte automaty, 4x4 a výbavu a volejte prodejci napřímo.",
+  },
+  "mercedes-benz": {
+    titleKeyword: "Mercedes bazar – ojetá auta na prodej",
+    descriptionLead:
+      "Mercedes-Benz bazar: třída C, E, SUV a další ojeté Mercedesy na prodej v ČR včetně aut do 300 000 Kč.",
+    pageLead:
+      "Mercedes bazar na NNAuto – ojeté sedaně i SUV. Filtrujte podle ceny, ročníku a výbavy a kontaktujte prodejce přímo.",
+  },
+  toyota: {
+    titleKeyword: "Toyota bazar – ojetá auta na prodej",
+    descriptionLead:
+      "Toyota bazar: RAV4, Corolla, Yaris a další ojeté Toyoty na prodej. Spolehlivé vozy, ceny a kontakt na prodejce.",
+    pageLead:
+      "Toyota bazar na NNAuto – ojeté SUV i hatchbacky. Porovnejte RAV4 a další modely podle ceny a nájezdu.",
+  },
 };
 
 export function getBrandMetadataOverride(
