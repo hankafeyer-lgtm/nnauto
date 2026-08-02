@@ -5,12 +5,12 @@ import { isSeoFeatureEnabled, isSeoTextsEnabled } from "@lib/seo/features";
 import { ExploreCatalog } from "./ExploreCatalog";
 
 const POPULAR_BRANDS = [
-  "bmw",
-  "audi",
   "skoda",
-  "mercedes-benz",
   "volkswagen",
   "volvo",
+  "bmw",
+  "audi",
+  "mercedes-benz",
   "ford",
   "jeep",
 ];
@@ -32,7 +32,10 @@ const PRIORITY_SEARCH_LINKS = [
   { href: "/auta/suv-auta-srovnani", label: "SUV auta srovnání" },
   { href: "/auta/ojeta-auta-ostrava", label: "Ojetá auta Ostrava" },
   { href: "/auta/auta-brno-na-prodej", label: "Auta Brno na prodej" },
+  { href: "/auta/volvo/automat", label: "Volvo automat" },
   { href: "/auta/volvo/4x4", label: "Volvo 4x4" },
+  { href: "/auta/volvo", label: "Volvo bazar" },
+  { href: "/auta/volvo/xc60", label: "Volvo XC60" },
   { href: "/auta/coupe-auta", label: "Coupe auta" },
   { href: "/auta/auto-pro-6-osob", label: "Auto pro 6 osob" },
   { href: "/auta/elektro-suv", label: "Elektro SUV" },

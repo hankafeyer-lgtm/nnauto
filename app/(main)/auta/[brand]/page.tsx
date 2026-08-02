@@ -232,6 +232,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             `${brandName} ojetá auta`,
             `bazar ${brandName}`,
             `${brandName} na prodej ČR`,
+            ...(brandMeta.extraKeywords ?? []),
           ]
         : []),
       "autobazar",
@@ -348,6 +349,8 @@ export default async function BrandLandingPage({ params }: Props) {
   const faqItems = buildBrandFaq(brandSlug, seoStats);
   const similarBrands = getSimilarBrandLinks(brandSlug);
   const brandPageLead = getBrandMetadataOverride(brandSlug)?.pageLead;
+  const brandH1 =
+    getBrandMetadataOverride(brandSlug)?.h1 ?? `${brandName} na prodej`;
 
   const itemListEntries = rows.map((l) => ({
     name: getListingMainTitleFromRow(l),
@@ -366,8 +369,11 @@ export default async function BrandLandingPage({ params }: Props) {
   ]);
 
   const collectionJsonLd = buildCollectionPageJsonLd({
-    name: `${brandName} na prodej`,
-    description: `Aktuální nabídka ojetých vozů ${brandName} na NNAuto.cz`,
+    name: brandH1,
+    description:
+      brandSlug === "volvo"
+        ? "Aktuální nabídka ojetých Volvo na NNAuto.cz – Volvo automat, 4x4, SUV XC60/XC90 a kombi V90/V60."
+        : `Aktuální nabídka ojetých vozů ${brandName} na NNAuto.cz`,
     url: canonical,
     items: itemListEntries,
   });
@@ -406,7 +412,7 @@ export default async function BrandLandingPage({ params }: Props) {
       <BrandBreadcrumb brandName={brandName} brandSlug={brandSlug} />
 
       <h1 className="text-3xl md:text-4xl font-bold mb-3">
-        {brandName} na prodej
+        {brandH1}
       </h1>
       <p className="text-muted-foreground max-w-3xl mb-6">
         {brandPageLead ? (

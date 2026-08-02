@@ -135,10 +135,18 @@ function facetSerpPhrase(facet: FacetDefinition, brandName?: string): {
 } | null {
   const brand = brandName?.trim();
   if (facet.slug === "automat") {
+    // Exact-match CTR for GSC head query «volvo automat» (+ other brands).
+    if (brand?.toLowerCase() === "volvo") {
+      return {
+        title: "Volvo automat na prodej – ojetá Volvo s automatem | NNAuto",
+        h1: "Volvo automat na prodej",
+        descSubject: "ojetých Volvo s automatickou převodovkou (Volvo automat)",
+      };
+    }
     return brand
       ? {
-          title: `${brand} s automatem na prodej – ojetá auta | NNAuto`,
-          h1: `${brand} s automatem na prodej`,
+          title: `${brand} automat na prodej – ojetá auta s automatem | NNAuto`,
+          h1: `${brand} automat na prodej`,
           descSubject: `ojetých ${brand} s automatickou převodovkou`,
         }
       : {
@@ -148,6 +156,13 @@ function facetSerpPhrase(facet: FacetDefinition, brandName?: string): {
         };
   }
   if (facet.slug === "4x4" || facet.slug === "awd") {
+    if (brand?.toLowerCase() === "volvo") {
+      return {
+        title: "Volvo 4x4 na prodej – ojeté Volvo AWD / SUV | NNAuto",
+        h1: "Volvo 4x4 na prodej",
+        descSubject: "ojetých Volvo 4x4 a AWD",
+      };
+    }
     return brand
       ? {
           title: `${brand} 4x4 na prodej – ojeté SUV a terénní | NNAuto`,
@@ -161,6 +176,13 @@ function facetSerpPhrase(facet: FacetDefinition, brandName?: string): {
         };
   }
   if (facet.slug === "suv") {
+    if (brand?.toLowerCase() === "volvo") {
+      return {
+        title: "Volvo SUV na prodej – XC60, XC90 a další | NNAuto",
+        h1: "Volvo SUV na prodej",
+        descSubject: "ojetých Volvo SUV (XC60, XC90)",
+      };
+    }
     return brand
       ? {
           title: `${brand} SUV na prodej | Ojeté SUV vozy | NNAuto`,

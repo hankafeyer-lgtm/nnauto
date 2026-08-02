@@ -91,6 +91,30 @@ const MODEL_METADATA_OVERRIDES: Record<string, ModelMetadataOverride> = {
     descriptionLead:
       "Genesis G80 na prodej v ČR: aktuální inzeráty, ceny, ročníky a parametry ojetých G80.",
   },
+  "volvo-xc60": {
+    titleKeyword: "Volvo XC60 bazar – SUV na prodej",
+    searchPhrase: "volvo xc60",
+    descriptionLead:
+      "Volvo XC60 bazar: ojeté SUV často s automatem a 4x4. Porovnejte ceny, nájezd a výbavu XC60 v ČR.",
+  },
+  "volvo-xc90": {
+    titleKeyword: "Volvo XC90 bazar – 7místné SUV",
+    searchPhrase: "volvo xc90",
+    descriptionLead:
+      "Volvo XC90 na prodej: velké SUV, často automat a 4x4. Aktuální bazar XC90 s cenami a kontaktem na prodejce.",
+  },
+  "volvo-v90": {
+    titleKeyword: "Volvo V90 bazar – kombi na prodej",
+    searchPhrase: "volvo v90",
+    descriptionLead:
+      "Volvo V90 na prodej: prémiové kombi, často s automatem. Porovnejte ojeté V90 podle ceny a nájezdu.",
+  },
+  "volvo-v60": {
+    titleKeyword: "Volvo V60 bazar – kombi na prodej",
+    searchPhrase: "volvo v60",
+    descriptionLead:
+      "Volvo V60 bazar: ojeté kombi na prodej v ČR. Ceny, automaty, výbava a přímý kontakt na prodejce.",
+  },
 };
 
 export function getModelMetadataOverride(

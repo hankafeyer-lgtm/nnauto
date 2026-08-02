@@ -166,6 +166,7 @@ export function buildBrandSeoIntro(
     volkswagen: `Hledáte Volkswagen bazar? Na NNAuto.cz jsou ojeté Golf, Golf GTI, Passat, Tiguan a další VW na prodej – s fotografiemi, cenami a přímým kontaktem na majitele nebo autobazar.`,
     renault: `Hledáte Renault bazar nebo Megane / Scenic na prodej? NNAuto.cz soustředí ojeté Renaulty z celé ČR. Porovnejte ceny a volejte prodejci bez zprostředkovatele.`,
     bmw: `Hledáte BMW bazar? Na NNAuto.cz najdete ojeté řady 3, X5 a další BMW na prodej od soukromých prodejců i dealerů – s přehledem cen, nájezdu a výbavy.`,
+    volvo: `Hledáte Volvo automat, Volvo 4x4 nebo Volvo bazar? Na NNAuto.cz najdete ojetá Volvo s automatickou převodovkou, SUV XC60 a XC90 i kombi V90 a V60. Porovnejte ceny, nájezd a výbavu a kontaktujte prodejce přímo – bez mezičlánku.`,
   };
 
   paragraphs.push(
@@ -223,6 +224,7 @@ export function buildBrandFaq(
   stats: BrandSeoStats,
 ): FaqItem[] {
   const brand = formatBrandDisplay(brandSlug);
+  const slug = normalizeSlug(brandSlug);
 
   const priceAnswer =
     stats.minPrice && stats.maxPrice && stats.total > 0
@@ -246,6 +248,20 @@ export function buildBrandFaq(
       question: `Jaké modely ${brand} jsou dostupné?`,
       answer: modelsAnswer,
     },
+    ...(slug === "volvo"
+      ? [
+          {
+            question: "Kde koupit Volvo s automatem?",
+            answer:
+              "Na NNAuto.cz otevřete filtr Volvo automat – najdete ojetá Volvo s automatickou převodovkou (včetně XC60, XC90, V90). Porovnejte ceny a volejte prodejci přímo.",
+          },
+          {
+            question: "Jaké Volvo 4x4 nebo SUV vybrat?",
+            answer:
+              "Mezi ojetými Volvo SUV a 4x4 patří k nejhledanějším XC60 a XC90. Na stránkách Volvo 4x4 a Volvo SUV porovnáte aktuální inzeráty podle ceny, nájezdu a výbavy.",
+          },
+        ]
+      : []),
     {
       question: `Na co si dát pozor při koupi vozu ${brand}?`,
       answer: `U vozů ${brand} kontrolujte servisní knihu, stav motoru a převodovky, koroze podvozku a historii vozu. Doporučujeme zkušební jízdu a u starších ročníků prověření přes Cebia report z VIN kódu.`,

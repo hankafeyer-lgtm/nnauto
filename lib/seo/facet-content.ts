@@ -13,12 +13,27 @@ export function buildFacetSeoIntro(
   stats: CollectionStats,
   brandName?: string,
 ): string[] {
-  const scope = brandName ? `${brandName} ` : "ojetá auta ";
   const paragraphs: string[] = [];
+  const isVolvoAutomat =
+    brandName?.toLowerCase() === "volvo" && facet.slug === "automat";
+  const isVolvo4x4 =
+    brandName?.toLowerCase() === "volvo" &&
+    (facet.slug === "4x4" || facet.slug === "awd");
 
-  paragraphs.push(
-    `Na NNAuto.cz najdete aktuální nabídku vozů ${scope}${facet.label.toLowerCase()}. Prohlížíte fotografie, technické parametry a kontaktujete prodejce přímo bez mezičlánků.`,
-  );
+  if (isVolvoAutomat) {
+    paragraphs.push(
+      `Hledáte Volvo automat? Na NNAuto.cz najdete ojetá Volvo s automatickou převodovkou – SUV XC60/XC90 i kombi V90/V60. Prohlížíte fotografie, ceny a kontaktujete prodejce přímo.`,
+    );
+  } else if (isVolvo4x4) {
+    paragraphs.push(
+      `Hledáte Volvo 4x4 nebo AWD? V bazaru NNAuto jsou ojetá Volvo s pohonem všech kol, ideální na zimu i delší trasy. Porovnejte XC60, XC90 a další modely.`,
+    );
+  } else {
+    const scope = brandName ? `${brandName} ` : "ojetá auta ";
+    paragraphs.push(
+      `Na NNAuto.cz najdete aktuální nabídku vozů ${scope}${facet.label.toLowerCase()}. Prohlížíte fotografie, technické parametry a kontaktujete prodejce přímo bez mezičlánků.`,
+    );
+  }
 
   if (stats.total > 0) {
     paragraphs.push(
@@ -31,7 +46,9 @@ export function buildFacetSeoIntro(
   }
 
   paragraphs.push(
-    `Filtrujte podle značky, modelu, roku výroby nebo regionu prodejce. Nabídka se průběžně obměňuje – nové inzeráty přibývají denně od soukromých prodejců i autobazarů z celé České republiky.`,
+    isVolvoAutomat
+      ? `Filtrujte Volvo automat podle modelu, roku, nájezdu a regionu. Nové inzeráty přibývají průběžně od soukromých prodejců i autobazarů.`
+      : `Filtrujte podle značky, modelu, roku výroby nebo regionu prodejce. Nabídka se průběžně obměňuje – nové inzeráty přibývají denně od soukromých prodejců i autobazarů z celé České republiky.`,
   );
 
   paragraphs.push(

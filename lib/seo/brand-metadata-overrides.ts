@@ -7,6 +7,10 @@ export type BrandMetadataOverride = {
   descriptionLead: string;
   /** Optional visible lead under H1 — same layout, stronger copy. */
   pageLead?: string;
+  /** Optional visible H1 override (defaults to «{Brand} na prodej»). */
+  h1?: string;
+  /** Extra keywords for metadata.keywords. */
+  extraKeywords?: string[];
 };
 
 /**
@@ -43,11 +47,24 @@ const BRAND_METADATA_OVERRIDES: Record<string, BrandMetadataOverride> = {
       "BMW bazar na NNAuto – ojeté sedaně, SUV i kupé. Filtrujte podle modelu, ceny a roku a domluvte prohlídku přímo s majitelem nebo autobazarem.",
   },
   volvo: {
-    titleKeyword: "Volvo bazar – ojetá auta na prodej",
+    titleKeyword: "Volvo automat a bazar – ojetá Volvo na prodej",
     descriptionLead:
-      "Volvo bazar: XC60, V90, S60 a další ojetá Volvo na prodej. Automat, 4x4, ceny a přímý kontakt na prodejce.",
+      "Volvo automat na prodej a Volvo bazar: XC60, XC90, V90, V60 s automatem i 4x4. Porovnejte ojetá Volvo v ČR – ceny, nájezd, výbava a přímý kontakt.",
     pageLead:
-      "Volvo bazar na NNAuto – bezpečná ojetá SUV i kombi. Porovnejte automaty, 4x4 a výbavu a volejte prodejci napřímo.",
+      "Hledáte Volvo automat nebo bezpečné ojeté Volvo? Na NNAuto najdete Volvo bazar s automatem, 4x4 a SUV (XC60, XC90) i kombi V90/V60. Filtrujte podle ceny a ročníku a volejte prodejci napřímo.",
+    h1: "Volvo automat a ojetá Volvo na prodej",
+    extraKeywords: [
+      "volvo automat",
+      "volvo automatická převodovka",
+      "volvo 4x4",
+      "volvo bazar",
+      "volvo na prodej",
+      "ojeté volvo",
+      "volvo xc60",
+      "volvo xc90",
+      "volvo v90",
+      "volvo suv",
+    ],
   },
   "mercedes-benz": {
     titleKeyword: "Mercedes bazar – ojetá auta na prodej",

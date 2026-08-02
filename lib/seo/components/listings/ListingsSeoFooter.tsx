@@ -3,15 +3,15 @@ import { formatBrandDisplay } from "@lib/seo/brand-format";
 import { isSeoTextsEnabled } from "@lib/seo/features";
 
 const POPULAR_BRANDS = [
-  "bmw",
-  "audi",
   "skoda",
-  "mercedes-benz",
   "volkswagen",
   "volvo",
+  "bmw",
+  "audi",
+  "mercedes-benz",
+  "renault",
   "ford",
   "jeep",
-  "renault",
   "hyundai",
 ];
 
@@ -45,12 +45,18 @@ const FOOTER_MODEL_LINKS = [
   { href: "/auta/toyota/corolla", name: "Toyota Corolla" },
   { href: "/auta/opel/astra", name: "Opel Astra" },
   { href: "/auta/volvo/v90", name: "Volvo V90" },
+  { href: "/auta/volvo/xc60", name: "Volvo XC60" },
+  { href: "/auta/volvo/xc90", name: "Volvo XC90" },
+  { href: "/auta/volvo/v60", name: "Volvo V60" },
 ] as const;
 
 const GUIDE_LINKS = [
   { href: "/auta/suv", label: "SUV auta na prodej" },
   { href: "/auta/7-mistna-auta", label: "7 místná auta" },
   { href: "/auta/automat", label: "Auta s automatem" },
+  { href: "/auta/volvo/automat", label: "Volvo automat" },
+  { href: "/auta/volvo/4x4", label: "Volvo 4x4" },
+  { href: "/auta/volvo", label: "Volvo bazar" },
   { href: "/auta/elektro-suv", label: "Elektro SUV" },
   { href: "/auta/ojeta-auta-ostrava", label: "Ojetá auta Ostrava" },
   { href: "/auta/auta-brno-na-prodej", label: "Auta Brno na prodej" },
