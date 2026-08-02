@@ -58,8 +58,9 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
   const photos = (listing.photos ?? []).filter(
     (p): p is string => typeof p === "string" && p.trim().length > 0,
   );
+  // Match carousel / <link rel=preload> sizes so crawlers and users share cache.
   const firstImgSrc = photos[0]
-    ? `${SITE_ORIGIN}/img/${photos[0].replace(/^\/+/, "")}?w=960&q=80&f=webp`
+    ? `${SITE_ORIGIN}/img/${photos[0].replace(/^\/+/, "")}?w=560&q=78&f=webp&v=wm4`
     : null;
 
   const videoSrc = listingHasIndexableVideo(listing)
@@ -102,9 +103,9 @@ export default function ListingSeoSummary({ listing }: { listing: ListingRow }) 
         <img
           src={firstImgSrc}
           alt={buildListingImageAlt(listing, 0)}
-          width={960}
-          height={640}
-          fetchPriority="high"
+          width={560}
+          height={373}
+          loading="lazy"
           decoding="async"
         />
       ) : null}

@@ -85,7 +85,9 @@ export function getOptimizedImageUrl(
 }
 
 export function getCardSrcSet(photoPath: string): string {
-  const widths = [320, 480];
+  // Match card `sizes` (~400px CSS / retina up to ~768). Same quality as
+  // getCardImageUrl so the browser can reuse one variant instead of refetching.
+  const widths = [320, 480, 640, 768];
   return widths
     .map(
       (w) =>
@@ -102,8 +104,13 @@ export function getThumbnailUrl(photoPath: string): string {
   return getOptimizedImageUrl(photoPath, { width: 64, quality: 50 });
 }
 
+/** Same as desktop carousel / lightbox-instant — keep one cache key. */
 export function getFullImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 960, quality: 76 });
+  return getOptimizedImageUrl(photoPath, {
+    width: 1120,
+    quality: 84,
+    format: "webp",
+  });
 }
 
 export function getLightboxImageUrl(photoPath: string): string {

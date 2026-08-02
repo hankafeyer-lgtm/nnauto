@@ -82,6 +82,7 @@ export async function GET(
         headers: {
           "Content-Type": cached.contentType,
           "Cache-Control": "public, max-age=31536000, immutable",
+          "CDN-Cache-Control": "public, max-age=31536000, immutable",
           "X-Image-Cache": "HIT",
         },
       });
@@ -112,6 +113,7 @@ export async function GET(
       return new NextResponse(originalBuffer, {
         headers: {
           "Cache-Control": "public, max-age=31536000, immutable",
+          "CDN-Cache-Control": "public, max-age=31536000, immutable",
         },
       });
     }
@@ -135,10 +137,11 @@ export async function GET(
     }
 
     let contentType = "image/webp";
+    // Lower effort = faster cold encode on miss; visual quality at same `q` is fine.
     if (format === "webp") {
-      pipeline = pipeline.webp({ quality, effort: 4, smartSubsample: true });
+      pipeline = pipeline.webp({ quality, effort: 2, smartSubsample: true });
     } else if (format === "avif") {
-      pipeline = pipeline.avif({ quality, effort: 4 });
+      pipeline = pipeline.avif({ quality, effort: 2 });
       contentType = "image/avif";
     } else {
       pipeline = pipeline.jpeg({ quality, mozjpeg: true });
@@ -157,12 +160,16 @@ export async function GET(
       ts: Date.now(),
     });
 
+    const cacheHeaders = {
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=31536000, immutable",
+      // Cloudflare / shared caches: long edge TTL without waiting on browser Cache-Control alone.
+      "CDN-Cache-Control": "public, max-age=31536000, immutable",
+      "X-Image-Cache": "MISS",
+    } as const;
+
     return new NextResponse(optimizedBuffer, {
-      headers: {
-        "Content-Type": contentType,
-        "Cache-Control": "public, max-age=31536000, immutable",
-        "X-Image-Cache": "MISS",
-      },
+      headers: cacheHeaders,
     });
   } catch (error: any) {
     if (error?.name === "NoSuchKey" || error?.$metadata?.httpStatusCode === 404) {

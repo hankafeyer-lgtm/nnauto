@@ -3823,9 +3823,10 @@ export default function ListingDetailPage({
 
     const isDesktop = isLgViewport();
     if (!isDesktop) return;
-    const preloadWidth = isDesktop ? 960 : 520;
-    const preloadQuality = isDesktop ? 76 : 64;
-    const preloadCount = Math.min(isDesktop ? 3 : 1, len);
+    // Same URLs as ResponsiveImage carousel — reuse HTTP cache / avoid 960 refetch.
+    const preloadWidth = 1120;
+    const preloadQuality = 84;
+    const preloadCount = Math.min(3, len);
 
     const preload = () => {
       for (let i = 0; i < preloadCount; i++) {

@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "./auth";
 
-export function json(data: unknown, status = 200) {
-  return NextResponse.json(data, { status });
+export function json(
+  data: unknown,
+  status = 200,
+  headers?: HeadersInit,
+) {
+  return NextResponse.json(data, { status, headers });
 }
 
 export function error(message: string, status = 400) {

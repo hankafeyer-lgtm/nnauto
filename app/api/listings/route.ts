@@ -83,7 +83,10 @@ export async function GET(req: NextRequest) {
     if (cacheKey) {
       const cachedPayload = getCachedPublicListings(cacheKey);
       if (cachedPayload) {
-        return json(cachedPayload);
+        return json(cachedPayload, 200, {
+          "Cache-Control":
+            "public, s-maxage=20, stale-while-revalidate=60",
+        });
       }
     }
 
@@ -114,7 +117,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    return json(payload);
+    return json(
+      payload,
+      200,
+      cacheKey
+        ? {
+            "Cache-Control":
+              "public, s-maxage=20, stale-while-revalidate=60",
+          }
+        : undefined,
+    );
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Server error";
     return error(message, 500);

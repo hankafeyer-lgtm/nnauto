@@ -35,7 +35,6 @@ import {
   getCardImageUrl,
   getThumbnailUrl,
   getCardSrcSet,
-  getOptimizedImageUrl,
 } from "@/lib/imageOptimizer";
 import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
@@ -461,11 +460,7 @@ function CarCard({
                   }`}
                 /> */}
                 <img
-                  src={getOptimizedImageUrl(image, {
-                    width: 768,
-                    quality: 84,
-                    format: "webp",
-                  })}
+                  src={getCardImageUrl(image)}
                   srcSet={getCardSrcSet(image)}
                   sizes="(max-width: 640px) 100vw, 320px"
                   alt={title}
@@ -473,8 +468,12 @@ function CarCard({
                   decoding="async"
                   onLoad={() => setImageLoaded(true)}
                   onError={() => setImageError(true)}
-                  className={`w-full h-full object-cover bg-muted transition-opacity duration-300 ${
-                    imageLoaded ? "opacity-100" : "opacity-0"
+                  className={`w-full h-full object-cover bg-muted ${
+                    priority
+                      ? "opacity-100"
+                      : `transition-opacity duration-300 ${
+                          imageLoaded ? "opacity-100" : "opacity-0"
+                        }`
                   }`}
                 />
                 {imageError && (
@@ -692,8 +691,12 @@ function CarCard({
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageError(true)}
-              className={`absolute inset-0 w-full h-full object-cover object-center bg-muted transition-opacity duration-100 ${
-                imageLoaded ? "opacity-100" : "opacity-0"
+              className={`absolute inset-0 w-full h-full object-cover object-center bg-muted ${
+                priority
+                  ? "opacity-100"
+                  : `transition-opacity duration-100 ${
+                      imageLoaded ? "opacity-100" : "opacity-0"
+                    }`
               } select-none pointer-events-none`}
               draggable={false}
             />

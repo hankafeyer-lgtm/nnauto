@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useLayoutEffect, useState } from "react";
 
 type ResponsiveImageProps = Omit<
   React.ImgHTMLAttributes<HTMLImageElement>,
@@ -14,6 +14,11 @@ type ResponsiveImageProps = Omit<
 
 const loadedDesktop = new Set<string>();
 
+function isDesktopViewport(minWidth: number): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia(`(min-width: ${minWidth}px)`).matches;
+}
+
 export function ResponsiveImage({
   mobileSrc,
   desktopSrc,
@@ -21,48 +26,24 @@ export function ResponsiveImage({
   upgrade = true,
   ...imgProps
 }: ResponsiveImageProps) {
-  // ✅ default: mobile first
+  // Always start on mobileSrc so SSR + hydration match. layoutEffect upgrades
+  // to desktop before paint — skips waiting on a second Image() preload.
   const [src, setSrc] = useState(mobileSrc);
 
-  // якщо картинка змінилась — знову стартуємо з mobile
-  useEffect(() => {
-    setSrc(mobileSrc);
-  }, [mobileSrc]);
-
-  const shouldUseDesktop = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia(`(min-width: ${desktopMinWidth}px)`).matches;
-  }, [desktopMinWidth]);
-
-  useEffect(() => {
-    if (!upgrade) return;
-    if (typeof window === "undefined") return;
-
-    // якщо не ПК — лишаємось на mobile
-    if (!shouldUseDesktop) return;
-
-    // якщо desktop вже кешований — просто ставимо
-    if (loadedDesktop.has(desktopSrc)) {
-      setSrc(desktopSrc);
+  useLayoutEffect(() => {
+    if (!upgrade) {
+      setSrc(mobileSrc);
       return;
     }
-
-    // ✅ preload desktop і лише після onload міняємо src
-    let cancelled = false;
-    const img = new Image();
-    img.decoding = "async";
-    img.src = desktopSrc;
-
-    img.onload = () => {
-      if (cancelled) return;
+    if (!isDesktopViewport(desktopMinWidth)) {
+      setSrc(mobileSrc);
+      return;
+    }
+    setSrc(desktopSrc);
+    if (!loadedDesktop.has(desktopSrc)) {
       loadedDesktop.add(desktopSrc);
-      setSrc(desktopSrc);
-    };
-
-    return () => {
-      cancelled = true;
-    };
-  }, [desktopSrc, shouldUseDesktop, upgrade]);
+    }
+  }, [mobileSrc, desktopSrc, desktopMinWidth, upgrade]);
 
   return <img {...imgProps} src={src} />;
 }

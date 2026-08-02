@@ -72,7 +72,11 @@ function OptimizedImage({
           decoding="async"
           onLoad={() => setLoaded(true)}
           onError={() => setError(true)}
-          className={`w-full h-full object-cover transition-opacity duration-200 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+          className={`w-full h-full object-cover ${
+            priority
+              ? "opacity-100"
+              : `transition-opacity duration-200 ${loaded ? "opacity-100" : "opacity-0"}`
+          }`}
           style={{ 
             backgroundImage: !loaded ? `url("${blurPlaceholder}")` : undefined,
             backgroundSize: 'cover'
