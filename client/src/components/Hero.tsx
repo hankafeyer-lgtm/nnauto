@@ -1843,6 +1843,10 @@ import { PowerRangeInput } from "@/components/PowerRangeInput";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useEffect, useState, useRef, useMemo, memo } from "react";
 import { useLocation } from "@/lib/navigation";
+import {
+  clearListingsRestoreState,
+} from "@/components/ScrollToTop";
+import { requestScrollToFirstListing } from "@/lib/listingsScroll";
 import heroImage from "@assets/generated_images/Hero_background_dealership_5896f308.png";
 import convertibleIcon from "@assets/28299981-16D7-4B57-8C0A-67EE5A345CA1_1763441678210.png";
 import crossoverIcon from "@assets/0B62266D-D955-409B-96CC-D4C08E304D2E_1763441985403.png";
@@ -2710,6 +2714,8 @@ function Hero() {
       params.set("equipment", currentFilters.equipment.join(","));
 
     const queryString = params.toString();
+    requestScrollToFirstListing();
+    clearListingsRestoreState();
     setLocation(queryString ? `/listings?${queryString}` : "/listings");
   };
 

@@ -2491,6 +2491,11 @@ import { PowerRangeInput } from "@/components/PowerRangeInput";
 import { ModelCombobox } from "@/components/ModelCombobox";
 import { BrandCombobox } from "@/components/BrandCombobox";
 import { RegionCombobox } from "@/components/RegionCombobox";
+import {
+  hasScrollToFirstListingRequest,
+  requestScrollToFirstListing,
+  scrollToFirstListingCard,
+} from "@/lib/listingsScroll";
 
 function ImgIcon({
   src,
@@ -2822,6 +2827,7 @@ function FilterSidebar() {
   );
 
   const firstRenderRef = useRef(true);
+  const skipNextAutoApplyRef = useRef(false);
   useEffect(() => {
     if (!AUTO_APPLY_FILTERS) return;
     if (firstRenderRef.current) {
@@ -2830,18 +2836,38 @@ function FilterSidebar() {
     }
 
     const id = window.setTimeout(() => {
+      // Desktop Vyhledat sets scroll-to-first; a trailing auto-apply must not
+      // lockScrollPosition() and yank the viewport back onto the 2nd card.
+      if (skipNextAutoApplyRef.current || hasScrollToFirstListingRequest()) {
+        skipNextAutoApplyRef.current = false;
+        applyRef.current({ scrollToResults: true });
+        return;
+      }
       applyRef.current();
-      // No scroll compensation: ListingsPage keeps the current scroll position
-      // when only query params change, so filter clicks feel stable on desktop.
     }, APPLY_DEBOUNCE_MS);
 
     return () => window.clearTimeout(id);
   }, [stableFiltersKey, AUTO_APPLY_FILTERS]);
 
   const handleApplyButtonClick = () => {
+    skipNextAutoApplyRef.current = true;
+    requestScrollToFirstListing();
     // Let pending state updates flush before applying URL filters.
     window.setTimeout(() => {
-      applyRef.current();
+      applyRef.current({ scrollToResults: true });
+      // Desktop homepage / listings: ensure first card is targeted even before
+      // the listings effect runs (sticky header can otherwise hide card #1).
+      window.requestAnimationFrame(() => {
+        scrollToFirstListingCard({ behavior: "smooth" });
+      });
+      window.setTimeout(
+        () => scrollToFirstListingCard({ behavior: "smooth" }),
+        150,
+      );
+      window.setTimeout(
+        () => scrollToFirstListingCard({ behavior: "smooth" }),
+        400,
+      );
     }, 0);
   };
 

@@ -2950,6 +2950,11 @@ import {
   saveScrollPosition,
   SCROLL_POSITION_KEY,
 } from "@/components/ScrollToTop";
+import {
+  clearScrollToFirstListingRequest,
+  hasScrollToFirstListingRequest,
+  scrollToFirstListingCard,
+} from "@/lib/listingsScroll";
 
 import { SEO, generateListingsSchema } from "@/components/SEO";
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
@@ -4088,6 +4093,27 @@ export default function ListingsPage({
       pendingRestore: pendingRestoreRef.current,
     });
   }, [currentPage, isFetching, sortedListings.length]);
+
+  // After Vyhledat / applyFilters: land on the first card once results are ready.
+  useEffect(() => {
+    if (!hasScrollToFirstListingRequest()) return;
+    if (isFetching || sortedListings.length === 0) return;
+    const w = safeWindow();
+    if (!w) return;
+    if (pendingRestoreRef.current || hasListingsRestoreIntent(w)) {
+      clearScrollToFirstListingRequest();
+      return;
+    }
+    clearScrollToFirstListingRequest();
+    const run = () => scrollToFirstListingCard({ behavior: "smooth" });
+    requestAnimationFrame(run);
+    const t1 = w.setTimeout(run, 120);
+    const t2 = w.setTimeout(run, 320);
+    return () => {
+      w.clearTimeout(t1);
+      w.clearTimeout(t2);
+    };
+  }, [isFetching, sortedListings.length, filterOnlyKey]);
 
   useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;

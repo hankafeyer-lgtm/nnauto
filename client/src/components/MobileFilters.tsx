@@ -4304,7 +4304,7 @@ function MobileFilters({
               <Button
                 className="w-full h-12 rounded-xl shadow-md"
                 onClick={() => {
-                  applyFilters();
+                  applyFilters({ scrollToResults: true });
                   setOpen(false);
                 }}
                 data-testid="button-apply-mobile-filters"

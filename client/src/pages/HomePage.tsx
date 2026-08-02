@@ -2034,6 +2034,7 @@ import {
   readListingsRestoreState,
   saveScrollPosition,
 } from "@/components/ScrollToTop";
+import { scrollToFirstListingCard } from "@/lib/listingsScroll";
 
 import {
   SEO,
@@ -2396,9 +2397,13 @@ export default function HomePage() {
     setCurrentPage(clamped);
     // Use pushState so browser Back returns to previous recommended page.
     setPageToUrl(clamped, "push");
-    recommendedSectionRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
+    // Align to the first card under the sticky header — scrolling the section
+    // title to the top often leaves the first card covered, so the 2nd looks first.
+    window.requestAnimationFrame(() => {
+      const rooted = recommendedSectionRef.current;
+      if (!scrollToFirstListingCard({ behavior: "smooth", root: rooted })) {
+        rooted?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     });
   };
   const openListingOverlay = useCallback((id: string) => {

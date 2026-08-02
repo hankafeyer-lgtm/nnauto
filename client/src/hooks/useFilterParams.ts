@@ -431,6 +431,12 @@
 // }
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useSearch } from "@/lib/navigation";
+import {
+  requestScrollToFirstListing,
+  scrollToFirstListingCard,
+  hasScrollToFirstListingRequest,
+} from "@/lib/listingsScroll";
+import { clearListingsRestoreState } from "@/components/ScrollToTop";
 
 export interface FilterParams {
   search?: string;
@@ -550,6 +556,9 @@ const setUrlParamUnlessDefault = (
  */
 function lockScrollPosition() {
   if (typeof window === "undefined") return;
+  // Vyhledat asked to land on the first card — do not fight that scroll
+  // (desktop FilterSidebar auto-apply used to snap back to the 2nd card).
+  if (hasScrollToFirstListingRequest()) return;
   try {
     if ("scrollRestoration" in window.history) {
       window.history.scrollRestoration = "manual";
@@ -565,6 +574,7 @@ function lockScrollPosition() {
 
   let rafId = 0;
   const tick = () => {
+    if (hasScrollToFirstListingRequest()) return;
     const elapsed = Date.now() - startAt;
     if (elapsed > GUARD_MS) return;
     const dx = Math.abs(window.scrollX - startX);
@@ -1263,7 +1273,8 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     setFilters({});
   }, [setFilters]);
 
-  const applyFilters = useCallback(() => {
+  const applyFilters = useCallback((opts?: { scrollToResults?: boolean }) => {
+    const scrollToResults = opts?.scrollToResults === true;
     const currentFilters = latestFiltersRef.current;
     const currentParams = new URLSearchParams(window.location.search);
     const userId = currentParams.get("userId");
@@ -1398,19 +1409,35 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
     const queryString = params.toString();
     const targetUrl = queryString ? `/listings?${queryString}` : "/listings";
     const currentPathWithSearch = `${window.location.pathname}${window.location.search}`;
+    const leavingToListings = window.location.pathname !== "/listings";
+    // Vyhledat button OR any navigation onto /listings from another page
+    // must land on the first card (homepage scroll used to carry over → 2nd card).
+    const shouldScrollToFirst = scrollToResults || leavingToListings;
+
+    if (shouldScrollToFirst) {
+      requestScrollToFirstListing();
+      clearListingsRestoreState();
+    }
+
     if (targetUrl === currentPathWithSearch) {
+      if (scrollToResults) {
+        scrollToFirstListingCard({ behavior: "smooth" });
+      }
       return;
     }
-    // If we are already on /listings we only change search params, and we
-    // want the user's scroll position to stay exactly where it is. Next.js
-    // App Router unconditionally scrolls to top on router.push even with
-    // { scroll: false } for some versions, so we prefer a raw history update
-    // here and nudge Next.js to pick it up via a popstate event.
+    // If we are already on /listings we only change search params.
     if (window.location.pathname === "/listings") {
-      lockScrollPosition();
+      if (!scrollToResults) {
+        lockScrollPosition();
+      }
       window.history.replaceState({}, "", targetUrl);
       window.dispatchEvent(new PopStateEvent("popstate"));
       window.dispatchEvent(new Event(FILTERS_URL_CHANGE_EVENT));
+      if (scrollToResults) {
+        window.requestAnimationFrame(() => {
+          scrollToFirstListingCard({ behavior: "smooth" });
+        });
+      }
       return;
     }
     setLocation(targetUrl);
