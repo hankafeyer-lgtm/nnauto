@@ -2039,6 +2039,7 @@ import {
   hasScrollToFirstListingRequest,
   requestScrollToFirstListing,
   scrollToFirstListingCard,
+  scrollToListingCardById,
 } from "@/lib/listingsScroll";
 
 import {
@@ -2792,29 +2793,53 @@ export default function HomePage() {
     });
   }, [cards.length, currentPage, isFetching]);
 
-  // Pagination / Vyhledat: land on the first car of the new page.
+  // Pagination: land on the first *visible* car of the new page (mobile grid,
+  // not the hidden desktop duplicate inside the same section).
   useEffect(() => {
     if (!hasScrollToFirstListingRequest()) return;
     if (isFetching || cards.length === 0) return;
+    if (pagination?.page != null && pagination.page !== currentPage) return;
     if (pendingRestoreRef.current || openListingId) {
       clearScrollToFirstListingRequest();
       return;
     }
-    clearScrollToFirstListingRequest();
+
+    const firstId = cards[0]?.props?.id ?? listings[0]?.id;
+    if (!firstId) return;
+
+    let cancelled = false;
     const rooted = recommendedSectionRef.current;
-    const run = () => {
-      if (!scrollToFirstListingCard({ behavior: "smooth", root: rooted })) {
-        rooted?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
+    const tryScroll = () => {
+      if (cancelled) return false;
+      const ok =
+        scrollToListingCardById(firstId, { root: rooted }) ||
+        scrollToFirstListingCard({ root: rooted });
+      if (ok) clearScrollToFirstListingRequest();
+      return ok;
     };
-    requestAnimationFrame(run);
-    const t1 = window.setTimeout(run, 120);
-    const t2 = window.setTimeout(run, 320);
+
+    const run = () => {
+      if (tryScroll()) return;
+      requestAnimationFrame(() => tryScroll());
+    };
+    run();
+    const t1 = window.setTimeout(run, 80);
+    const t2 = window.setTimeout(run, 200);
+    const t3 = window.setTimeout(run, 450);
     return () => {
+      cancelled = true;
       window.clearTimeout(t1);
       window.clearTimeout(t2);
+      window.clearTimeout(t3);
     };
-  }, [isFetching, cards.length, currentPage, openListingId]);
+  }, [
+    isFetching,
+    cards,
+    listings,
+    currentPage,
+    pagination?.page,
+    openListingId,
+  ]);
 
   // Owner / admin analytics for every card we are allowed to see numbers for.
   // Same shared hook as ListingsPage and the listing detail page — the numbers

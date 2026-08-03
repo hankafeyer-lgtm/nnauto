@@ -1,4 +1,6 @@
-/** Session flag: after Vyhledat / apply, land on the first listing card. */
+import { isMobileViewport } from "@/lib/viewport";
+
+/** Session flag: after Vyhledat / pagination, land on the first listing card. */
 export const LISTINGS_SCROLL_TO_FIRST_KEY = "nnauto_scroll_to_first_listing";
 
 export function requestScrollToFirstListing() {
@@ -28,8 +30,6 @@ export function clearScrollToFirstListingRequest() {
 function stickyChromeOffsetPx(): number {
   const header = document.querySelector("header");
   const headerH = header?.getBoundingClientRect().height ?? 72;
-  // Desktop listings also has a sort/filter chrome bar under the header.
-  // If it is still in view near the top, include it so card #1 is not hidden.
   let chromeH = 0;
   const sortChrome = document.querySelector<HTMLElement>(".border-b.bg-card");
   if (sortChrome) {
@@ -41,17 +41,79 @@ function stickyChromeOffsetPx(): number {
   return Math.round(headerH + chromeH + 12);
 }
 
-function findFirstListingCard(root: ParentNode): HTMLElement | null {
-  // Prefer real card nodes (desktop + mobile CarCard), skip any stray ids.
-  const byData = root.querySelector<HTMLElement>("[data-listing-id]");
-  if (byData) return byData;
-  return root.querySelector<HTMLElement>("[id^='listing-']");
+/** Skip desktop-only duplicates that stay in DOM with `hidden lg:flex`. */
+export function isVisibleListingCard(el: HTMLElement): boolean {
+  if (!el.isConnected) return false;
+  const style = window.getComputedStyle(el);
+  if (style.display === "none" || style.visibility === "hidden") return false;
+  if (style.opacity === "0") return false;
+  // Hidden ancestors (e.g. `.hidden.lg:flex`) → offsetParent null (except fixed).
+  if (el.offsetParent === null && style.position !== "fixed") {
+    // Still allow if a parent grid is visible — walk up for display:none.
+    let node: HTMLElement | null = el;
+    while (node) {
+      const s = window.getComputedStyle(node);
+      if (s.display === "none" || s.visibility === "hidden") return false;
+      node = node.parentElement;
+    }
+  }
+  const r = el.getBoundingClientRect();
+  return r.width > 0 && r.height > 0;
+}
+
+function findFirstVisibleListingCard(root: ParentNode): HTMLElement | null {
+  const candidates = root.querySelectorAll<HTMLElement>(
+    "[data-listing-id], [id^='listing-']",
+  );
+  for (const el of candidates) {
+    if (isVisibleListingCard(el)) return el;
+  }
+  return null;
+}
+
+function preferredScrollBehavior(
+  behavior?: ScrollBehavior,
+): ScrollBehavior {
+  if (behavior) return behavior;
+  // iOS Safari often ignores or fights `smooth` during layout swaps.
+  return isMobileViewport() ? "auto" : "smooth";
+}
+
+function scrollElementBelowChrome(
+  el: HTMLElement,
+  behavior?: ScrollBehavior,
+): void {
+  const y =
+    window.scrollY + el.getBoundingClientRect().top - stickyChromeOffsetPx();
+  window.scrollTo({
+    top: Math.max(0, y),
+    left: 0,
+    behavior: preferredScrollBehavior(behavior),
+  });
+}
+
+/** Scroll to a specific listing id, preferring a visible card node. */
+export function scrollToListingCardById(
+  listingId: string,
+  opts?: { behavior?: ScrollBehavior; root?: ParentNode | null },
+): boolean {
+  if (typeof window === "undefined" || !listingId) return false;
+  const root = opts?.root ?? document;
+  const nodes = root.querySelectorAll<HTMLElement>(
+    `[data-listing-id="${CSS.escape(listingId)}"], #listing-${CSS.escape(listingId)}`,
+  );
+  for (const el of nodes) {
+    if (!isVisibleListingCard(el)) continue;
+    scrollElementBelowChrome(el, opts?.behavior);
+    return true;
+  }
+  return false;
 }
 
 /**
- * Scroll so the first listing card sits just below sticky page chrome.
- * Using the section title (`block: "start"`) often leaves the first card
- * under the header on desktop, so the second card looks like the start.
+ * Scroll so the first *visible* listing card sits below sticky chrome.
+ * Home page renders desktop + mobile grids; without a visibility check
+ * mobile would target a `display:none` desktop card and appear broken.
  */
 export function scrollToFirstListingCard(opts?: {
   behavior?: ScrollBehavior;
@@ -59,16 +121,14 @@ export function scrollToFirstListingCard(opts?: {
 }): boolean {
   if (typeof window === "undefined") return false;
   const root = opts?.root ?? document;
-  const first = findFirstListingCard(root);
-  const behavior = opts?.behavior ?? "smooth";
+  const first = findFirstVisibleListingCard(root);
+  const behavior = preferredScrollBehavior(opts?.behavior);
 
   if (!first) {
     window.scrollTo({ top: 0, left: 0, behavior });
     return false;
   }
 
-  const y =
-    window.scrollY + first.getBoundingClientRect().top - stickyChromeOffsetPx();
-  window.scrollTo({ top: Math.max(0, y), left: 0, behavior });
+  scrollElementBelowChrome(first, behavior);
   return true;
 }

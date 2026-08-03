@@ -2954,7 +2954,7 @@ import {
   clearScrollToFirstListingRequest,
   hasScrollToFirstListingRequest,
   requestScrollToFirstListing,
-  scrollToFirstListingCard,
+  scrollToListingCardById,
 } from "@/lib/listingsScroll";
 
 import { SEO, generateListingsSchema } from "@/components/SEO";
@@ -4057,6 +4057,8 @@ export default function ListingsPage({
 
   const goToPage = useCallback((page: number) => {
     setIsLoadingMore(false);
+    // Drop stale cards so we don't keep scrolling to the previous page's first car.
+    setAccumulated([]);
     setCurrentPage(page);
 
     pushUrlParams((p) => {
@@ -4095,26 +4097,57 @@ export default function ListingsPage({
     });
   }, [currentPage, isFetching, sortedListings.length]);
 
-  // After Vyhledat / pagination: land on the first card once results are ready.
+  // After Vyhledat / pagination: land on the first card of the *fetched* page.
+  // Wait until placeholderData is gone (pagination.page matches) and the card
+  // is in the visible mobile/desktop grid — otherwise iOS scrolls to a stale
+  // or hidden node and looks like "nothing happened".
   useEffect(() => {
     if (!hasScrollToFirstListingRequest()) return;
-    if (isFetching || sortedListings.length === 0) return;
+    if (isFetching) return;
+    if (!listings.length) return;
+    if (pagination.page !== currentPage) return;
     const w = safeWindow();
     if (!w) return;
     if (pendingRestoreRef.current || hasListingsRestoreIntent(w)) {
       clearScrollToFirstListingRequest();
       return;
     }
-    clearScrollToFirstListingRequest();
-    const run = () => scrollToFirstListingCard({ behavior: "smooth" });
-    requestAnimationFrame(run);
-    const t1 = w.setTimeout(run, 120);
-    const t2 = w.setTimeout(run, 320);
+
+    const firstId = listings[0]?.id;
+    if (!firstId) return;
+
+    let cancelled = false;
+    const tryScroll = () => {
+      if (cancelled) return false;
+      const ok = scrollToListingCardById(firstId);
+      if (ok) clearScrollToFirstListingRequest();
+      return ok;
+    };
+
+    const run = () => {
+      if (tryScroll()) return;
+      // DOM may still show previous page for a frame after accumulate.
+      requestAnimationFrame(() => {
+        tryScroll();
+      });
+    };
+    run();
+    const t1 = w.setTimeout(run, 80);
+    const t2 = w.setTimeout(run, 200);
+    const t3 = w.setTimeout(run, 450);
     return () => {
+      cancelled = true;
       w.clearTimeout(t1);
       w.clearTimeout(t2);
+      w.clearTimeout(t3);
     };
-  }, [isFetching, sortedListings.length, filterOnlyKey, currentPage]);
+  }, [
+    isFetching,
+    listings,
+    pagination.page,
+    currentPage,
+    sortedListings,
+  ]);
 
   useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;
