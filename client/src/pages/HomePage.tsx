@@ -2034,7 +2034,12 @@ import {
   readListingsRestoreState,
   saveScrollPosition,
 } from "@/components/ScrollToTop";
-import { scrollToFirstListingCard } from "@/lib/listingsScroll";
+import {
+  clearScrollToFirstListingRequest,
+  hasScrollToFirstListingRequest,
+  requestScrollToFirstListing,
+  scrollToFirstListingCard,
+} from "@/lib/listingsScroll";
 
 import {
   SEO,
@@ -2397,14 +2402,8 @@ export default function HomePage() {
     setCurrentPage(clamped);
     // Use pushState so browser Back returns to previous recommended page.
     setPageToUrl(clamped, "push");
-    // Align to the first card under the sticky header — scrolling the section
-    // title to the top often leaves the first card covered, so the 2nd looks first.
-    window.requestAnimationFrame(() => {
-      const rooted = recommendedSectionRef.current;
-      if (!scrollToFirstListingCard({ behavior: "smooth", root: rooted })) {
-        rooted?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    });
+    // Scroll after the new page's cards load (see effect below).
+    requestScrollToFirstListing();
   };
   const openListingOverlay = useCallback((id: string) => {
     saveScrollPosition(id);
@@ -2792,6 +2791,30 @@ export default function HomePage() {
       pendingRestore: pendingRestoreRef.current,
     });
   }, [cards.length, currentPage, isFetching]);
+
+  // Pagination / Vyhledat: land on the first car of the new page.
+  useEffect(() => {
+    if (!hasScrollToFirstListingRequest()) return;
+    if (isFetching || cards.length === 0) return;
+    if (pendingRestoreRef.current || openListingId) {
+      clearScrollToFirstListingRequest();
+      return;
+    }
+    clearScrollToFirstListingRequest();
+    const rooted = recommendedSectionRef.current;
+    const run = () => {
+      if (!scrollToFirstListingCard({ behavior: "smooth", root: rooted })) {
+        rooted?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    };
+    requestAnimationFrame(run);
+    const t1 = window.setTimeout(run, 120);
+    const t2 = window.setTimeout(run, 320);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, [isFetching, cards.length, currentPage, openListingId]);
 
   // Owner / admin analytics for every card we are allowed to see numbers for.
   // Same shared hook as ListingsPage and the listing detail page — the numbers

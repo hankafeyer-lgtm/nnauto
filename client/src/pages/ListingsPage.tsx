@@ -2953,6 +2953,7 @@ import {
 import {
   clearScrollToFirstListingRequest,
   hasScrollToFirstListingRequest,
+  requestScrollToFirstListing,
   scrollToFirstListingCard,
 } from "@/lib/listingsScroll";
 
@@ -3332,7 +3333,7 @@ export default function ListingsPage({
     // Keep previous cards visible while new page/filter data is loading.
     setIsLoadingMore(false);
 
-    if (shouldScrollToCards) forceScrollToTop();
+    if (shouldScrollToCards) requestScrollToFirstListing();
   }, [searchStringForListState, restoreTick]);
 
   useEffect(() => {
@@ -3341,9 +3342,8 @@ export default function ListingsPage({
     const w = safeWindow();
     if (!w) return;
     if (pendingRestoreRef.current || hasListingsRestoreIntent(w)) return;
-    // No restore target -> keep old "page navigation starts at top" behavior,
-    // but do it once to avoid janky multi-jump scrolling.
-    forceScrollToTop();
+    // Browser back/forward between pages → first card of that page.
+    requestScrollToFirstListing();
   }, [currentPage]);
 
   useEffect(() => {
@@ -4064,7 +4064,8 @@ export default function ListingsPage({
       else p.set("page", String(page));
     });
 
-    scrollToTop();
+    // Land on the first car of the new page once results paint.
+    requestScrollToFirstListing();
   }, []);
 
   /* ----- UI helpers ----- */
@@ -4094,7 +4095,7 @@ export default function ListingsPage({
     });
   }, [currentPage, isFetching, sortedListings.length]);
 
-  // After Vyhledat / applyFilters: land on the first card once results are ready.
+  // After Vyhledat / pagination: land on the first card once results are ready.
   useEffect(() => {
     if (!hasScrollToFirstListingRequest()) return;
     if (isFetching || sortedListings.length === 0) return;
@@ -4113,7 +4114,7 @@ export default function ListingsPage({
       w.clearTimeout(t1);
       w.clearTimeout(t2);
     };
-  }, [isFetching, sortedListings.length, filterOnlyKey]);
+  }, [isFetching, sortedListings.length, filterOnlyKey, currentPage]);
 
   useEffect(() => {
     const pendingRestore = pendingRestoreRef.current;
