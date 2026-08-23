@@ -3415,7 +3415,6 @@ export default function ListingDetailPage({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [cebiaDialogOpen, setCebiaDialogOpen] = useState(false);
-  const tiktokTrackedListingRef = useRef<string | null>(null);
   const [cebiaGuest, setCebiaGuest] = useState<{ reportId: string; token: string } | null>(
     null,
   );
@@ -3609,23 +3608,6 @@ export default function ListingDetailPage({
     if (!initialDealerProfile?.id) return;
     setDealerLocalSettings(readDealerLocalSettings(initialDealerProfile.id));
   }, [initialDealerProfile?.id]);
-
-  useEffect(() => {
-    if (!listing?.id) return;
-    if (tiktokTrackedListingRef.current === listing.id) return;
-    if (typeof window === "undefined") return;
-
-    const ttq = (window as typeof window & { ttq?: { track?: Function } }).ttq;
-    if (typeof ttq === "undefined" || typeof ttq.track !== "function") return;
-
-    ttq.track("ViewContent", {
-      content_type: "product",
-      content_category: "car",
-      content_name: document.title,
-      currency: "CZK",
-    });
-    tiktokTrackedListingRef.current = listing.id;
-  }, [listing?.id]);
 
   const canSeeListingAnalytics =
     !!listing && !!user && (user.isAdmin || user.id === listing.userId);
@@ -4582,20 +4564,38 @@ export default function ListingDetailPage({
 
   useEffect(() => {
     if (!resolvedListingUuid || !listing) return;
+
     const sessionKey = `listing-analytics:view:${resolvedListingUuid}`;
-    if (sessionStorage.getItem(sessionKey)) return;
-    sessionStorage.setItem(sessionKey, "1");
-    void trackListingAnalyticsEvent("view");
-    try {
-      const priceNum = Number.parseFloat(String(listing.price ?? ""));
-      trackViewContent({
-        contentId: resolvedListingUuid,
-        contentName: getListingMainTitle(listing),
-        contentCategory: listing.bodyType || listing.category || undefined,
-        value: Number.isFinite(priceNum) ? priceNum : undefined,
-        currency: "CZK",
-      });
-    } catch { /* analytics must never break the app */ }
+    if (!sessionStorage.getItem(sessionKey)) {
+      sessionStorage.setItem(sessionKey, "1");
+      void trackListingAnalyticsEvent("view");
+    }
+
+    const priceNum = Number.parseFloat(String(listing.price ?? ""));
+    const payload = {
+      contentId: resolvedListingUuid,
+      contentName: getListingMainTitle(listing),
+      contentCategory: listing.bodyType || listing.category || undefined,
+      value: Number.isFinite(priceNum) ? priceNum : undefined,
+      currency: "CZK" as const,
+    };
+
+    const sendViewContent = () => {
+      try {
+        trackViewContent(payload);
+      } catch {
+        /* analytics must never break the app */
+      }
+    };
+
+    sendViewContent();
+
+    // Meta Pixel loads only after marketing cookie consent — retry when user accepts.
+    const onConsent = () => {
+      if (window.__nnConsent?.marketing) sendViewContent();
+    };
+    window.addEventListener("nn-consent-changed", onConsent);
+    return () => window.removeEventListener("nn-consent-changed", onConsent);
   }, [resolvedListingUuid, listing, trackListingAnalyticsEvent]);
 
   // ⚠️ CRITICAL UX LOGIC

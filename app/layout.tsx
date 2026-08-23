@@ -28,6 +28,10 @@ const poppins = Poppins({
 const SEZNAM_WMT_VERIFICATION =
   process.env.SEZNAM_WMT_VERIFICATION ?? "5DIH0UhkjhdZ3TA11ic0kBordkvfjcpH";
 
+/** Meta (Facebook) Pixel — also used in noscript fallback img. */
+const META_PIXEL_ID =
+  process.env.NEXT_PUBLIC_META_PIXEL_ID || "1382087426626332";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://nnauto.cz"),
   title: {
@@ -158,6 +162,16 @@ export default function RootLayout({
         />
       </head>
       <body className={`${poppins.className} font-sans antialiased bg-background text-foreground`}>
+        {/* Meta Pixel noscript fallback (PageView). ViewContent fires on listing pages via trackViewContent(). */}
+        <noscript>
+          <img
+            height="1"
+            width="1"
+            style={{ display: "none" }}
+            src={`https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1`}
+            alt=""
+          />
+        </noscript>
         {/* Remote diagnostics: capture real-device runtime errors and ship to /api/diag.
             This runs BEFORE any other app code so we see failures from iOS Safari, old Safari, etc. */}
         <script
@@ -543,7 +557,7 @@ export default function RootLayout({
                 t.src=v;s=b.getElementsByTagName(e)[0];
                 s.parentNode.insertBefore(t,s)
               }(window, document, 'script', 'https://connect.facebook.net/en_US/fbevents.js');
-              fbq('init', '${process.env.NEXT_PUBLIC_META_PIXEL_ID || "1382087426626332"}');
+              fbq('init', '${META_PIXEL_ID}');
               fbq('track', 'PageView');
             });
           `}
