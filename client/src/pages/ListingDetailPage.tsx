@@ -4582,6 +4582,12 @@ export default function ListingDetailPage({
       contentCategory: listing.bodyType || listing.category || undefined,
       value: Number.isFinite(priceNum) ? priceNum : undefined,
       currency: "CZK" as const,
+      contentUrl: buildListingAbsoluteUrl({
+        id: resolvedListingUuid,
+        brand: listing.brand,
+        model: listing.model,
+        year: listing.year,
+      }),
     };
 
     const sendViewContent = () => {
@@ -4593,13 +4599,17 @@ export default function ListingDetailPage({
     };
 
     sendViewContent();
+    const retryId = window.setTimeout(sendViewContent, 0);
 
     // Meta Pixel loads only after marketing cookie consent — retry when user accepts.
     const onConsent = () => {
       if (window.__nnConsent?.marketing) sendViewContent();
     };
     window.addEventListener("nn-consent-changed", onConsent);
-    return () => window.removeEventListener("nn-consent-changed", onConsent);
+    return () => {
+      window.clearTimeout(retryId);
+      window.removeEventListener("nn-consent-changed", onConsent);
+    };
   }, [resolvedListingUuid, listing, isEmbedded, trackListingAnalyticsEvent]);
 
   // ⚠️ CRITICAL UX LOGIC

@@ -414,25 +414,57 @@ export type ViewContentParams = {
   contentCategory?: string;
   value?: number;
   currency?: string;
+  /** Canonical listing URL (`https://nnauto.cz/auta/...`). */
+  contentUrl?: string;
 };
 
 /**
- * Meta attributes ViewContent to the address bar at send time. Only fire on a
- * standalone listing detail URL — never homepage, catalog, listings list, or
- * the homepage/listings iframe overlay (`?embedded=1`).
+ * Meta attributes ViewContent to the last PageView URL in SPA sessions.
+ * Only fire on a standalone listing detail URL — never homepage, catalog,
+ * listings list, or the iframe overlay (`?embedded=1`).
  */
-function canSendListingViewContent(): boolean {
+function canSendListingViewContent(
+  expectedUrl?: string,
+  contentId?: string,
+): boolean {
   if (typeof window === "undefined") return false;
   try {
     if (window.self !== window.top) return false;
   } catch {
-    // Cross-origin frame: treat as embedded and skip.
     return false;
   }
   const params = new URLSearchParams(window.location.search);
   if (params.get("embedded") === "1") return false;
   const path = window.location.pathname;
-  return /^\/(listing\/|auta\/[^/]+\/[^/]+\/)/.test(path);
+  if (!/^\/(listing\/|auta\/[^/]+\/[^/]+\/)/.test(path)) return false;
+  if (expectedUrl) {
+    try {
+      const expectedPath = new URL(expectedUrl, window.location.origin).pathname;
+      if (expectedPath && path !== expectedPath) {
+        const shortId = (contentId || "").split("-")[0];
+        if (!shortId || !path.toLowerCase().includes(shortId.toLowerCase())) {
+          return false;
+        }
+      }
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
+function listingEventSourceUrl(preferred?: string, contentId?: string): string | null {
+  if (!canSendListingViewContent(preferred, contentId)) return null;
+  try {
+    if (preferred) {
+      const u = new URL(preferred, window.location.origin);
+      return `${u.origin}${u.pathname}`;
+    }
+    const u = new URL(window.location.href);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -442,7 +474,7 @@ function canSendListingViewContent(): boolean {
  */
 export function trackViewContent(p: ViewContentParams = {}): void {
   if (typeof window === "undefined") return;
-  if (!canSendListingViewContent()) return;
+  if (!canSendListingViewContent(p.contentUrl, p.contentId)) return;
   ensureInitialized();
 
   trackEvent("view_item", {
@@ -455,11 +487,18 @@ export function trackViewContent(p: ViewContentParams = {}): void {
 
   enqueue(`meta:ViewContent:${p.contentId || ""}`, () => {
     if (abandonMarketing()) return true;
-    // Left the listing page while waiting for consent/fbq — drop, do not send
-    // ViewContent against homepage/catalog URL.
-    if (!canSendListingViewContent()) return true;
+    if (!canSendListingViewContent(p.contentUrl, p.contentId)) return true;
     if (!hasMarketingConsent()) return false;
     if (typeof window.fbq !== "function") return false;
+    const eventSourceUrl = listingEventSourceUrl(p.contentUrl, p.contentId);
+    if (!eventSourceUrl) return true;
+    const now = Date.now();
+    const pagePath = window.location.pathname;
+    // SPA: pixel otherwise keeps the landing URL (often `/`) and Events
+    // Manager attributes ViewContent to the homepage.
+    window.__nnLastMetaPageViewKey = pagePath;
+    window.__nnLastMetaPageViewAt = now;
+    window.fbq("track", "PageView");
     window.fbq("track", "ViewContent", {
       content_ids: p.contentId ? [p.contentId] : undefined,
       content_name: p.contentName,
@@ -467,13 +506,14 @@ export function trackViewContent(p: ViewContentParams = {}): void {
       content_type: "vehicle",
       value: p.value,
       currency: p.currency || "CZK",
+      content_url: eventSourceUrl,
     });
     return true;
   });
 
   enqueue(`tt:ViewContent:${p.contentId || ""}`, () => {
     if (abandonMarketing()) return true;
-    if (!canSendListingViewContent()) return true;
+    if (!canSendListingViewContent(p.contentUrl, p.contentId)) return true;
     if (!hasMarketingConsent()) return false;
     if (!window.ttq || typeof window.ttq.track !== "function") return false;
     window.ttq.track("ViewContent", {
