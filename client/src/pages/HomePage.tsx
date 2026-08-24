@@ -2042,11 +2042,7 @@ import {
   scrollToListingCardById,
 } from "@/lib/listingsScroll";
 
-import {
-  SEO,
-  generateOrganizationSchema,
-  generateWebsiteSchema,
-} from "@/components/SEO";
+import { SEO } from "@/components/SEO";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -3007,30 +3003,6 @@ export default function HomePage() {
     };
   }, [cards, isFetching, openListingId, restoreTick]);
 
-  const seoDescriptions = {
-    cs: "NNAuto je prémiový marketplace pro nákup a prodej automobilů, motocyklů a nákladních vozidel v České republice. Tisíce ověřených inzerátů, pokročilé filtry, snadné vyhledávání.",
-    uk: "NNAuto - преміальний маркетплейс для купівлі та продажу автомобілів, мотоциклів та вантажівок у Чеській Республіці. Тисячі перевірених оголошень, розширені фільтри, легкий пошук.",
-    en: "NNAuto is a premium marketplace for buying and selling cars, motorcycles and trucks in the Czech Republic. Thousands of verified listings, advanced filters, easy search.",
-    de: "NNAuto ist ein Premium-Marktplatz für den Kauf und Verkauf von Autos, Motorrädern und Nutzfahrzeugen in der Tschechischen Republik. Tausende verifizierte Inserate, erweiterte Filter und einfache Suche.",
-  };
-
-  const seoTitles = {
-    cs: "NNAuto - Prémiový Marketplace Aut | Prodej a Nákup Vozidel v ČR",
-    uk: "NNAuto - Преміальний Маркетплейс Авто | Продаж та Покупка Автомобілів",
-    en: "NNAuto - Premium Car Marketplace | Buy & Sell Vehicles in Czech Republic",
-    de: "NNAuto - Premium-Automarkt | Fahrzeuge in Tschechien kaufen und verkaufen",
-  };
-
-  const seoKeywords = {
-    cs: "prodej aut, nákup aut, bazar aut, ojetá auta, nová auta, automobily, motocykly, nákladní vozy, autobazar, Česká republika, NNAuto, autobazar online, auto inzeráty, výkup aut, prodej vozidel, auta na prodej",
-    uk: "продаж авто, купівля авто, авторинок, вживані авто, нові авто, автомобілі, мотоцикли, вантажівки, автобазар, Чехія, NNAuto",
-    en: "car sales, buy cars, used cars, new cars, automobiles, motorcycles, trucks, car market, Czech Republic, NNAuto, car listings",
-    de: "Autoverkauf, Auto kaufen, Gebrauchtwagen, Neuwagen, Automobile, Motorräder, Nutzfahrzeuge, Automarkt, Tschechien, NNAuto, Autoanzeigen",
-  };
-
-  const organizationSchema = generateOrganizationSchema();
-  const websiteSchema = generateWebsiteSchema();
-
   const toggleSidebar = useCallback(() => {
     setSidebarCollapsed((v) => !v);
   }, []);
@@ -3267,30 +3239,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col home-filters-page overflow-x-clip">
       {" "}
-      <SEO
-        title={seoTitles[language as keyof typeof seoTitles] || seoTitles.cs}
-        description={
-          seoDescriptions[language as keyof typeof seoDescriptions] ||
-          seoDescriptions.cs
-        }
-        keywords={
-          seoKeywords[language as keyof typeof seoKeywords] || seoKeywords.cs
-        }
-        url="https://nnauto.cz/"
-        locale={
-          language === "cs"
-            ? "cs_CZ"
-            : language === "uk"
-              ? "uk_UA"
-              : language === "de"
-                ? "de_DE"
-                : "en_US"
-        }
-        structuredData={{
-          "@context": "https://schema.org",
-          "@graph": [organizationSchema, websiteSchema],
-        }}
-      />
+      <SEO preserveServerHead />
       <Header />
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-2 sm:pt-3 lg:pt-4 pb-1 sm:pb-2">
         <div

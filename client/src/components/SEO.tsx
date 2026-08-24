@@ -16,6 +16,8 @@ interface SEOProps {
   alternateLanguages?: { lang: string; url: string }[];
   prevPage?: string;
   nextPage?: string;
+  /** When true, skip client head mutations — Next.js generateMetadata owns title/meta. */
+  preserveServerHead?: boolean;
 }
 
 const baseUrl = "https://nnauto.cz";
@@ -61,12 +63,15 @@ export function SEO({
   alternateLanguages,
   prevPage,
   nextPage,
+  preserveServerHead = false,
 }: SEOProps) {
   const fullTitle = title
     ? `${title} | ${siteName}`
     : `${siteName} - Prémiový Marketplace Aut v České Republice`;
 
   useEffect(() => {
+    if (preserveServerHead) return;
+
     document.title = fullTitle;
 
     setMeta("title", fullTitle);
@@ -118,6 +123,7 @@ export function SEO({
     locale,
     noindex,
     structuredData,
+    preserveServerHead,
   ]);
 
   return null;

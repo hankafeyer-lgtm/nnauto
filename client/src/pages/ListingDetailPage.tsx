@@ -4935,12 +4935,13 @@ export default function ListingDetailPage({
       }`}
     >
       <SEO
-        title={seoTitle}
-        description={seoDescription}
-        keywords={seoKeywords}
-        image={seoImage}
-        url={listingUrl}
-        type="product"
+        preserveServerHead={!isEmbedded}
+        title={isEmbedded ? seoTitle : undefined}
+        description={isEmbedded ? seoDescription : undefined}
+        keywords={isEmbedded ? seoKeywords : undefined}
+        image={isEmbedded ? seoImage : undefined}
+        url={isEmbedded ? listingUrl : undefined}
+        type={isEmbedded ? "product" : undefined}
         locale={
           language === "cs"
             ? "cs_CZ"
@@ -4950,12 +4951,16 @@ export default function ListingDetailPage({
                 ? "de_DE"
                 : "en_US"
         }
-        alternateLanguages={[
-          { lang: "cs", url: listingUrl },
-          { lang: "uk", url: listingUrl },
-          { lang: "en", url: listingUrl },
-          { lang: "de", url: listingUrl },
-        ]}
+        alternateLanguages={
+          isEmbedded
+            ? [
+                { lang: "cs", url: listingUrl },
+                { lang: "uk", url: listingUrl },
+                { lang: "en", url: listingUrl },
+                { lang: "de", url: listingUrl },
+              ]
+            : undefined
+        }
         structuredData={
           isEmbedded
             ? {

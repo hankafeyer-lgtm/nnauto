@@ -26,6 +26,7 @@ const PRIORITY_SEARCH_LINKS = [
   { href: "/auta/rodinne-vozy-mpv", label: "Rodinné vozy MPV" },
   { href: "/auta/7-mistna-auta", label: "7 místná auta" },
   { href: "/auta/rodinne-auto-s-velkym-kufrem", label: "Rodinné auto s velkým kufrem" },
+  { href: "/auta/nejlepsi-suv", label: "Jaké SUV koupit" },
   { href: "/auta/velka-rodinna-auta", label: "Velká rodinná auta" },
   { href: "/auta/sedmimistne-vozy", label: "Sedmimístné vozy" },
   { href: "/auta/suv-pro-rodinu", label: "SUV pro rodinu" },

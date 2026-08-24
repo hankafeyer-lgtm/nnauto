@@ -4,7 +4,7 @@
 // // // import SortBar from "@/components/SortBar";
 // // // import CarCard from "@/components/CarCard";
 // // // import Footer from "@/components/Footer";
-// // // import { SEO, generateListingsSchema } from "@/components/SEO";
+// // // import { SEO } from "@/components/SEO";
 // // // import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 // // // import { useQuery, useMutation } from "@tanstack/react-query";
 // // // import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -883,7 +883,7 @@
 // // import SortBar from "@/components/SortBar";
 // // import CarCard from "@/components/CarCard";
 // // import Footer from "@/components/Footer";
-// // import { SEO, generateListingsSchema } from "@/components/SEO";
+// // import { SEO } from "@/components/SEO";
 // // import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 // // import { useQuery, useMutation } from "@tanstack/react-query";
 // // import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -1897,7 +1897,7 @@
 // import CarCard from "@/components/CarCard";
 // import Footer from "@/components/Footer";
 
-// import { SEO, generateListingsSchema } from "@/components/SEO";
+// import { SEO } from "@/components/SEO";
 // import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 
 // import { useQuery, useMutation } from "@tanstack/react-query";
@@ -2957,7 +2957,7 @@ import {
   scrollToListingCardById,
 } from "@/lib/listingsScroll";
 
-import { SEO, generateListingsSchema } from "@/components/SEO";
+import { SEO } from "@/components/SEO";
 import { useTranslation, useLocalizedOptions } from "@/lib/translations";
 
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -3015,7 +3015,6 @@ import type { Listing } from "@shared/schema";
 
 import { getListingMainTitle } from "@/lib/listingTitle";
 import { buildListingPath } from "@/lib/listingUrl";
-import { listingsSeoFromSearch } from "@lib/seo/listings-metadata";
 import { isMobileViewport } from "@/lib/viewport";
 import { restoreDebug } from "@/lib/restoreDebug";
 
@@ -4516,22 +4515,6 @@ export default function ListingsPage({
     : "";
 
   const dynamicSuffix = [brandLabel, vtLabel].filter(Boolean).join(" - ");
-  const count = listingsCount || "";
-
-  const seoDescriptions = {
-    cs: dynamicSuffix
-      ? `${dynamicSuffix}: ${count} inzerátů na NNAuto.cz. Pokročilé filtry, ověřené nabídky, snadné vyhledávání.`
-      : `Prohlédněte si ${count} inzerátů aut, motocyklů a nákladních vozidel. Pokročilé filtry, snadné vyhledávání. NNAuto - prémiový marketplace vozidel.`,
-    uk: dynamicSuffix
-      ? `${dynamicSuffix}: ${count} оголошень на NNAuto.cz. Розширені фільтри, перевірені пропозиції.`
-      : `Перегляньте ${count} оголошень авто, мотоциклів та вантажівок. Розширені фільтри, легкий пошук. NNAuto - преміальний маркетплейс авто.`,
-    en: dynamicSuffix
-      ? `${dynamicSuffix}: ${count} listings on NNAuto.cz. Advanced filters, verified offers.`
-      : `Browse ${count} car, motorcycle and truck listings. Advanced filters, easy search. NNAuto - premium vehicle marketplace.`,
-    de: dynamicSuffix
-      ? `${dynamicSuffix}: ${count} Inserate auf NNAuto.cz. Erweiterte Filter, verifizierte Angebote.`
-      : `Entdecken Sie ${count} Inserate für Autos, Motorräder und Nutzfahrzeuge. Erweiterte Filter, einfache Suche. NNAuto - Premium-Fahrzeugmarktplatz.`,
-  };
 
   const seoTitles = {
     cs: dynamicSuffix
@@ -4548,58 +4531,9 @@ export default function ListingsPage({
       : "Fahrzeuginserate - Autos, Motorräder, Nutzfahrzeuge | NNAuto",
   };
 
-  const seoKeywords = {
-    cs: `${brandLabel ? brandLabel + " prodej, " + brandLabel + " bazar, " : ""}${vtLabel ? vtLabel.toLowerCase() + " inzeráty, " : ""}inzeráty aut, prodej aut, bazar aut, ojetá auta, NNAuto`,
-    uk: `${brandLabel ? brandLabel + " продаж, " + brandLabel + " авторинок, " : ""}${vtLabel ? vtLabel.toLowerCase() + " оголошення, " : ""}оголошення авто, продаж авто, NNAuto`,
-    en: `${brandLabel ? brandLabel + " for sale, " + brandLabel + " listings, " : ""}${vtLabel ? vtLabel.toLowerCase() + " listings, " : ""}car listings, car sales, NNAuto`,
-    de: `${brandLabel ? brandLabel + " kaufen, " + brandLabel + " Inserate, " : ""}${vtLabel ? vtLabel.toLowerCase() + " Inserate, " : ""}Autoanzeigen, Autoverkauf, NNAuto`,
-  };
-
-  const listingsSchema =
-    sortedListings.length > 0
-      ? generateListingsSchema(
-          sortedListings.slice(0, 20).map((l) => ({
-            id: l.id,
-            brand: l.brand,
-            model: l.model,
-            year: l.year,
-            price: Number(l.price),
-            photos: l.photos || undefined,
-          })),
-        )
-      : undefined;
-
-  const listingsSeo = useMemo(
-    () => listingsSeoFromSearch(searchString),
-    [searchString],
-  );
-
   return (
     <div className="min-h-screen flex flex-col">
-      {!suppressSeo ? (
-        <SEO
-          title={seoTitles[language as keyof typeof seoTitles] || seoTitles.cs}
-          description={
-            seoDescriptions[language as keyof typeof seoDescriptions] ||
-            seoDescriptions.cs
-          }
-          keywords={
-            seoKeywords[language as keyof typeof seoKeywords] || seoKeywords.cs
-          }
-          url={listingsSeo.canonical}
-          noindex={listingsSeo.noindex}
-          locale={
-            language === "cs"
-              ? "cs_CZ"
-              : language === "uk"
-                ? "uk_UA"
-                : language === "de"
-                  ? "de_DE"
-                  : "en_US"
-          }
-          structuredData={listingsSeo.noindex ? undefined : listingsSchema}
-        />
-      ) : null}
+      {!suppressSeo ? <SEO preserveServerHead /> : null}
 
       <Header />
 

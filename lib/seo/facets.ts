@@ -3,6 +3,13 @@
  * A page is only indexable when inventory >= MIN_FACET_LISTINGS.
  */
 
+import { formatCzk, inzeratWord } from "./czech-format";
+
+export type FacetSerpStats = {
+  total: number;
+  minPrice?: number;
+};
+
 export const MIN_FACET_LISTINGS = 3;
 
 export type FacetKind =
@@ -211,38 +218,57 @@ function facetSerpPhrase(facet: FacetDefinition, brandName?: string): {
   return null;
 }
 
+/** Append live inventory + min price before the NNAuto suffix (stronger SERP CTR). */
+function withSerpStats(baseTitle: string, stats?: FacetSerpStats): string {
+  if (!stats || stats.total <= 0) return baseTitle;
+  const fromPart =
+    stats.minPrice != null && stats.minPrice > 0
+      ? ` od ${formatCzk(stats.minPrice)}`
+      : "";
+  const statsPart = ` – ${stats.total} ${inzeratWord(stats.total)}${fromPart}`;
+  if (baseTitle.endsWith(" | NNAuto")) {
+    return baseTitle.replace(/ \| NNAuto$/, `${statsPart} | NNAuto`);
+  }
+  return `${baseTitle}${statsPart}`;
+}
+
 export function buildFacetTitle(
   facet: FacetDefinition,
   brandName?: string,
+  stats?: FacetSerpStats,
 ): string {
   const custom = facetSerpPhrase(facet, brandName);
-  if (custom) return custom.title;
-
+  if (custom) {
+    if (stats && stats.total > 0) {
+      const fromPart =
+        stats.minPrice != null && stats.minPrice > 0
+          ? ` od ${formatCzk(stats.minPrice)}`
+          : "";
+      return `${custom.h1} – ${stats.total} ${inzeratWord(stats.total)}${fromPart} | NNAuto`;
+    }
+    return custom.title;
+  }
+  let base: string;
   if (brandName) {
-    return `${brandName} ${facet.label} na prodej – ojetá auta | NNAuto`;
+    base = `${brandName} ${facet.label} na prodej – ojetá auta | NNAuto`;
+  } else if (facet.kind === "fuel" || facet.kind === "body" || facet.kind === "drive") {
+    base = `Auta ${facet.label} na prodej | Ojeté vozy | NNAuto`;
+  } else if (facet.kind === "priceMax") {
+    base = `Auta ${facet.shortLabel} | Ojeté vozy v ČR | NNAuto`;
+  } else if (facet.kind === "year") {
+    base = `Auta ${facet.value} na prodej | Ojeté vozy | NNAuto`;
+  } else if (facet.kind === "region") {
+    base = `Auta ${facet.label} na prodej | Ojeté vozy v okolí | NNAuto`;
+  } else if (facet.kind === "mileageMax") {
+    base = `Auta ${facet.shortLabel} | Ojeté vozy s nízkým nájezdem | NNAuto`;
+  } else if (facet.kind === "priceRange" || facet.kind === "priceMin") {
+    base = `Auta ${facet.shortLabel} | Ojeté vozy v ČR | NNAuto`;
+  } else if (facet.kind === "transmission") {
+    base = `Auta s ${facet.label.toLowerCase()}em na prodej | Ojeté vozy | NNAuto`;
+  } else {
+    base = `Auta ${facet.label} na prodej | NNAuto`;
   }
-  if (facet.kind === "fuel" || facet.kind === "body" || facet.kind === "drive") {
-    return `Auta ${facet.label} na prodej | Ojeté vozy | NNAuto`;
-  }
-  if (facet.kind === "priceMax") {
-    return `Auta ${facet.shortLabel} | Ojeté vozy v ČR | NNAuto`;
-  }
-  if (facet.kind === "year") {
-    return `Auta ${facet.value} na prodej | Ojeté vozy | NNAuto`;
-  }
-  if (facet.kind === "region") {
-    return `Auta ${facet.label} na prodej | Ojeté vozy v okolí | NNAuto`;
-  }
-  if (facet.kind === "mileageMax") {
-    return `Auta ${facet.shortLabel} | Ojeté vozy s nízkým nájezdem | NNAuto`;
-  }
-  if (facet.kind === "priceRange" || facet.kind === "priceMin") {
-    return `Auta ${facet.shortLabel} | Ojeté vozy v ČR | NNAuto`;
-  }
-  if (facet.kind === "transmission") {
-    return `Auta s ${facet.label.toLowerCase()}em na prodej | Ojeté vozy | NNAuto`;
-  }
-  return `Auta ${facet.label} na prodej | NNAuto`;
+  return withSerpStats(base, stats);
 }
 
 export function buildFacetH1(facet: FacetDefinition, brandName?: string): string {
@@ -267,10 +293,13 @@ export function buildFacetDescription(
   facet: FacetDefinition,
   total: number,
   brandName?: string,
+  minPrice?: number,
 ): string {
+  const fromPart =
+    minPrice != null && minPrice > 0 ? ` od ${formatCzk(minPrice)}` : "";
   const custom = facetSerpPhrase(facet, brandName);
   if (custom) {
-    return `Prohlédněte si ${total} inzerátů ${custom.descSubject} na NNAuto.cz. Aktuální ceny, fotografie, výbava a přímý kontakt na prodejce.`;
+    return `Prohlédněte si ${total} inzerátů ${custom.descSubject}${fromPart} na NNAuto.cz. Aktuální ceny, fotografie, výbava a přímý kontakt na prodejce.`;
   }
   if (facet.kind === "region") {
     return `Prohlédněte si ${total} inzerátů aut v lokalitě ${facet.label}. Aktuální nabídka ojetých vozů v okolí, ceny, fotografie, výbava a kontakt přímo na prodejce.`;

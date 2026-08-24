@@ -104,7 +104,12 @@ export function FacetCollectionPage({
       <JsonLd
         data={buildCollectionPageJsonLd({
           name: collectionName,
-          description: buildFacetDescription(facet, stats.total, brandName),
+          description: buildFacetDescription(
+            facet,
+            stats.total,
+            brandName,
+            stats.minPrice,
+          ),
           url: canonical,
           items: itemEntries,
           stats,
@@ -241,8 +246,13 @@ export function buildFacetPageMetadata(
   brandSlug?: string,
 ): import("next").Metadata {
   const brandName = brandSlug ? formatBrandDisplay(brandSlug) : undefined;
-  const title = buildFacetTitle(facet, brandName);
-  const description = buildFacetDescription(facet, stats.total, brandName);
+  const title = buildFacetTitle(facet, brandName, stats);
+  const description = buildFacetDescription(
+    facet,
+    stats.total,
+    brandName,
+    stats.minPrice,
+  );
   const indexable = stats.total >= MIN_FACET_LISTINGS;
 
   return {

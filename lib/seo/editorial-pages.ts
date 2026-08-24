@@ -114,9 +114,10 @@ export const AUTA_GUIDE_PAGES: AutaGuidePage[] = [
   },
   {
     slug: "nejlepsi-suv",
-    title: "Nejlepší SUV | Ojetá SUV auta na prodej | NNAuto",
-    description: "Nejlepší SUV pro rodinu, město i delší trasy. Porovnejte ojetá SUV podle ceny, nájezdu, paliva a pohonu.",
-    h1: "Nejlepší SUV",
+    title: "Jaké SUV koupit? | Nejlepší ojetá SUV auta v ČR | NNAuto",
+    description:
+      "Jaké SUV koupit v ČR? Porovnejte ojetá SUV podle ceny, nájezdu, paliva a pohonu 4x4. Aktuální inzeráty s fotografiemi a kontaktem na prodejce.",
+    h1: "Jaké SUV koupit",
     h2: "Jak vybrat nejlepší SUV",
     intro: "SUV patří mezi nejhledanější typy ojetých aut. Nabízí vyšší posez, pohodlné nastupování, dobrou praktičnost a často i pohon 4x4 nebo AWD. Při výběru sledujte spotřebu, prostor, stav podvozku a cenu servisu.",
     focus: "Pro město může stačit menší SUV s benzínovým motorem, pro rodinu větší SUV s prostorným kufrem a bezpečnostní výbavou. Pokud jezdíte často mimo město nebo v zimě do hor, zvažte pohon všech kol. Na NNAuto najdete SUV různých značek a cenových kategorií.",
@@ -158,9 +159,9 @@ export const AUTA_GUIDE_PAGES: AutaGuidePage[] = [
   },
   {
     slug: "7-mistna-auta",
-    title: "7 místná auta na prodej | 7 místné vozy a MPV | NNAuto",
+    title: "7 místné SUV a auta na prodej | 7 místná auta v ČR | NNAuto",
     description:
-      "7 místná auta a 7 místné vozy na prodej v ČR. Rodinné SUV, MPV a vany se 7 sedadly – ceny, nájezd, výbava a přímý kontakt.",
+      "7 místné SUV, MPV a vany na prodej v ČR. Sedmimístné auta pro rodinu – ceny od aktuální nabídky, nájezd, výbava a přímý kontakt.",
     h1: "7 místná auta na prodej",
     h2: "Jak vybrat auto se 7 sedadly",
     intro:
@@ -228,9 +229,10 @@ export const AUTA_GUIDE_PAGES: AutaGuidePage[] = [
   },
   {
     slug: "velka-rodinna-auta",
-    title: "Velká rodinná auta | Ojetá SUV, MPV a kombi | NNAuto",
-    description: "Velká rodinná auta na prodej v ČR. Porovnejte SUV, MPV, vany a kombi podle ceny, nájezdu, počtu sedadel a prostoru.",
-    h1: "Velká rodinná auta",
+    title: "Velká rodinná auta na prodej | Ojeté SUV, MPV a kombi | NNAuto",
+    description:
+      "Velká rodinná auta na prodej v ČR. Porovnejte ojetá SUV, MPV, vany a kombi podle ceny, nájezdu, počtu sedadel a prostoru v kufru.",
+    h1: "Velká rodinná auta na prodej",
     h2: "Pro koho jsou velká rodinná auta vhodná",
     intro: "Velká rodinná auta dávají smysl pro rodiny s více dětmi, časté cestování a převoz většího množství zavazadel. Vybírat můžete mezi SUV, kombi, MPV a vany.",
     focus: "Důležité je pohodlí na zadních sedadlech, velký kufr, bezpečnostní výbava, spolehlivost motoru a rozumné servisní náklady. U ojetých vozů vždy ověřte historii a stav interiéru, protože rodinná auta bývají intenzivně využívaná.",
