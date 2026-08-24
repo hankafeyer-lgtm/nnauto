@@ -4571,6 +4571,10 @@ export default function ListingDetailPage({
       void trackListingAnalyticsEvent("view");
     }
 
+    // Meta ViewContent must not fire from homepage/listings iframe overlays —
+    // Events Manager would attribute it to the parent URL (e.g. nnauto.cz/).
+    if (isEmbedded) return;
+
     const priceNum = Number.parseFloat(String(listing.price ?? ""));
     const payload = {
       contentId: resolvedListingUuid,
@@ -4596,7 +4600,7 @@ export default function ListingDetailPage({
     };
     window.addEventListener("nn-consent-changed", onConsent);
     return () => window.removeEventListener("nn-consent-changed", onConsent);
-  }, [resolvedListingUuid, listing, trackListingAnalyticsEvent]);
+  }, [resolvedListingUuid, listing, isEmbedded, trackListingAnalyticsEvent]);
 
   // ⚠️ CRITICAL UX LOGIC
   // Swipe/back + "zpět na inzeráty" must behave identically

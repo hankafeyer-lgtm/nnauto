@@ -417,12 +417,32 @@ export type ViewContentParams = {
 };
 
 /**
+ * Meta attributes ViewContent to the address bar at send time. Only fire on a
+ * standalone listing detail URL — never homepage, catalog, listings list, or
+ * the homepage/listings iframe overlay (`?embedded=1`).
+ */
+function canSendListingViewContent(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (window.self !== window.top) return false;
+  } catch {
+    // Cross-origin frame: treat as embedded and skip.
+    return false;
+  }
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("embedded") === "1") return false;
+  const path = window.location.pathname;
+  return /^\/(listing\/|auta\/[^/]+\/[^/]+\/)/.test(path);
+}
+
+/**
  * Fire a "user is looking at this listing" signal across all vendors so paid
  * platforms (Meta, TikTok) can build remarketing audiences and optimise
  * delivery for ViewContent.
  */
 export function trackViewContent(p: ViewContentParams = {}): void {
   if (typeof window === "undefined") return;
+  if (!canSendListingViewContent()) return;
   ensureInitialized();
 
   trackEvent("view_item", {
@@ -435,13 +455,16 @@ export function trackViewContent(p: ViewContentParams = {}): void {
 
   enqueue(`meta:ViewContent:${p.contentId || ""}`, () => {
     if (abandonMarketing()) return true;
+    // Left the listing page while waiting for consent/fbq — drop, do not send
+    // ViewContent against homepage/catalog URL.
+    if (!canSendListingViewContent()) return true;
     if (!hasMarketingConsent()) return false;
     if (typeof window.fbq !== "function") return false;
     window.fbq("track", "ViewContent", {
       content_ids: p.contentId ? [p.contentId] : undefined,
       content_name: p.contentName,
       content_category: p.contentCategory,
-      content_type: "product",
+      content_type: "vehicle",
       value: p.value,
       currency: p.currency || "CZK",
     });
@@ -450,13 +473,14 @@ export function trackViewContent(p: ViewContentParams = {}): void {
 
   enqueue(`tt:ViewContent:${p.contentId || ""}`, () => {
     if (abandonMarketing()) return true;
+    if (!canSendListingViewContent()) return true;
     if (!hasMarketingConsent()) return false;
     if (!window.ttq || typeof window.ttq.track !== "function") return false;
     window.ttq.track("ViewContent", {
       content_id: p.contentId,
       content_name: p.contentName,
       content_category: p.contentCategory,
-      content_type: "product",
+      content_type: "vehicle",
       value: p.value,
       currency: p.currency || "CZK",
     });
