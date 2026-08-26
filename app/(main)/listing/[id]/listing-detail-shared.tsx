@@ -211,7 +211,7 @@ export function renderListingDetailPage({
     : null;
   const PIPELINE_VERSION = "wm4";
   const preloadImageSrcSet = firstPhotoCleanKey
-    ? `/img/${firstPhotoCleanKey}?w=560&q=78&f=webp&v=${PIPELINE_VERSION} 560w, /img/${firstPhotoCleanKey}?w=1120&q=84&f=webp&v=${PIPELINE_VERSION} 1120w`
+    ? `/img/${firstPhotoCleanKey}?w=560&q=82&f=webp&v=${PIPELINE_VERSION} 560w, /img/${firstPhotoCleanKey}?w=1120&q=84&f=webp&v=${PIPELINE_VERSION} 1120w`
     : null;
   const preloadImageDefault = firstPhotoCleanKey
     ? `/img/${firstPhotoCleanKey}?w=1120&q=84&f=webp&v=${PIPELINE_VERSION}`

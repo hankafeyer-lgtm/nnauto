@@ -85,19 +85,19 @@ export function getOptimizedImageUrl(
 }
 
 export function getCardSrcSet(photoPath: string): string {
-  // Match card `sizes` (~400px CSS / retina up to ~768). Same quality as
-  // getCardImageUrl so the browser can reuse one variant instead of refetching.
-  const widths = [320, 480, 640, 768];
+  // Mobile cards render close to full viewport width, so include a sharper
+  // retina candidate without changing the card layout.
+  const widths = [480, 640, 768];
   return widths
     .map(
       (w) =>
-        `${getOptimizedImageUrl(photoPath, { width: w, quality: 60, format: "webp" })} ${w}w`,
+        `${getOptimizedImageUrl(photoPath, { width: w, quality: 66, format: "webp" })} ${w}w`,
     )
     .join(", ");
 }
 
 export function getCardImageUrl(photoPath: string): string {
-  return getOptimizedImageUrl(photoPath, { width: 400, quality: 60 });
+  return getOptimizedImageUrl(photoPath, { width: 480, quality: 66 });
 }
 
 export function getThumbnailUrl(photoPath: string): string {

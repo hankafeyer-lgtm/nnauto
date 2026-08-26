@@ -5039,8 +5039,8 @@ export default function ListingDetailPage({
                             >
                               <ResponsiveImage
                                 mobileSrc={getOptimizedImageUrl(key, {
-                                  width: isCurrentPhoto ? 560 : 240,
-                                  quality: isCurrentPhoto ? 78 : 58,
+                                  width: isCurrentPhoto ? 560 : 280,
+                                  quality: isCurrentPhoto ? 82 : 60,
                                   format: "webp",
                                 })}
                                 desktopSrc={getOptimizedImageUrl(key, {
