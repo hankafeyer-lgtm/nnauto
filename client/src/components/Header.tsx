@@ -44,6 +44,7 @@ import LoginModal from "@/components/LoginModal";
 import { useFilterParams } from "@/hooks/useFilterParams";
 import { useIsAndroidDevice } from "@/hooks/useIsAndroidDevice";
 import { carBrands, carModels } from "@shared/carDatabase";
+import { DEALER_BILLING_FREE_MODE } from "@shared/dealerBilling";
 const logoImage = "/logo-icon-only.png";
 
 const FavoritesModal = lazy(() =>
@@ -238,6 +239,10 @@ function HeaderContent({
 
   const openAddListing = (event?: MouseEvent<HTMLElement>) => {
     event?.preventDefault();
+    if (DEALER_BILLING_FREE_MODE) {
+      navigate("/add-listing");
+      return;
+    }
     if (user?.isDealer && dealerPackageStatus && !dealerPackageStatus.active) {
       toast({
         title: "Nejdříve aktivujte balíček",

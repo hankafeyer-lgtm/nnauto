@@ -11,6 +11,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "@/lib/translations";
 import type { Listing } from "@shared/schema";
+import { DEALER_BILLING_FREE_MODE } from "@shared/dealerBilling";
 
 const EditListingDialog = lazy(() => import("@/components/EditListingDialog"));
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -938,7 +939,7 @@ function DealerHero({
                 <>
                   {visibleInventoryCount}
                   <span className="ml-0.5 text-[10px] font-semibold text-[#8a641f]/70">
-                    /{maxListings}
+                    /{DEALER_BILLING_FREE_MODE ? "∞" : maxListings}
                   </span>
                 </>,
               )}
@@ -7164,14 +7165,27 @@ function BillingTab({
     : null;
   const effectiveMaxListings =
     dealerPackage?.maxListings ?? activePkg?.cars ?? dealer.maxListings;
-  const limitReached = (currentListings ?? 0) >= effectiveMaxListings;
+  const limitReached =
+    !DEALER_BILLING_FREE_MODE && (currentListings ?? 0) >= effectiveMaxListings;
 
   return (
     <div className="space-y-5">
       <Card className={`${premiumSurface} rounded-3xl overflow-hidden`}>
         <div className="bg-gradient-to-br from-amber-700 via-amber-800 to-stone-950 p-4 text-white sm:p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {activePkg && activePackageExpiresISO ? (
+            {DEALER_BILLING_FREE_MODE ? (
+              <div>
+                <Badge className="mb-2 bg-emerald-500/90 text-white hover:bg-emerald-500">
+                  {t("dealer.billing.freeModeBadge")}
+                </Badge>
+                <h2 className="text-2xl font-black sm:text-3xl">
+                  {t("dealer.billing.freeModeTitle")}
+                </h2>
+                <p className="mt-2 max-w-2xl text-sm text-amber-50/80">
+                  {t("dealer.billing.freeModeDesc")}
+                </p>
+              </div>
+            ) : activePkg && activePackageExpiresISO ? (
               <>
                 <div>
                   <Badge className="mb-2 bg-white/20 text-white hover:bg-white/30">
@@ -7244,7 +7258,11 @@ function BillingTab({
             <Crown className="h-5 w-5 text-amber-700" />
             {t("dealer.billing.packagesTitle")}
           </CardTitle>
-          <CardDescription>{t("dealer.billing.packagesDescription")}</CardDescription>
+          <CardDescription>
+            {DEALER_BILLING_FREE_MODE
+              ? t("dealer.billing.freeModeDesc")
+              : t("dealer.billing.packagesDescription")}
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
@@ -7255,13 +7273,14 @@ function BillingTab({
               return (
                 <div
                   key={pkg.id}
-                  role={isActive ? undefined : "button"}
-                  tabIndex={isActive ? undefined : 0}
+                  role={isActive || DEALER_BILLING_FREE_MODE ? undefined : "button"}
+                  tabIndex={isActive || DEALER_BILLING_FREE_MODE ? undefined : 0}
                   onClick={() => {
+                    if (DEALER_BILLING_FREE_MODE) return;
                     if (!isActive && !checkoutPackageId) startPackageCheckout(pkg);
                   }}
                   onKeyDown={(e) => {
-                    if (isActive || checkoutPackageId) return;
+                    if (DEALER_BILLING_FREE_MODE || isActive || checkoutPackageId) return;
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
                       startPackageCheckout(pkg);
@@ -7272,9 +7291,11 @@ function BillingTab({
                       ? "border-amber-300 bg-amber-50/50 shadow-[0_18px_55px_rgba(120,72,12,0.12)]"
                       : "border-amber-100 bg-white"
                   } ${
-                    isActive
-                      ? "ring-2 ring-amber-500 ring-offset-2"
-                      : "cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_22px_70px_rgba(120,72,12,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
+                    DEALER_BILLING_FREE_MODE
+                      ? "ring-1 ring-emerald-300"
+                      : isActive
+                        ? "ring-2 ring-amber-500 ring-offset-2"
+                        : "cursor-pointer hover:-translate-y-0.5 hover:shadow-[0_22px_70px_rgba(120,72,12,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
                   }`}
                 >
                   {pkg.popular && !isActive && (
@@ -7293,26 +7314,47 @@ function BillingTab({
                   <p className="text-sm font-black uppercase tracking-wide text-amber-800">{t(pkg.nameKey)}</p>
 
                   <div className="mt-3 flex items-end gap-1">
-                    <span className="text-3xl font-black text-[#5c3b10]">{formatKc(total)}</span>
-                    <span className="mb-1 text-xs font-semibold text-muted-foreground">/ {t("dealer.billing.perYear")}</span>
+                    {DEALER_BILLING_FREE_MODE ? (
+                      <span className="text-3xl font-black text-emerald-700">
+                        {t("dealer.billing.freeModePrice")}
+                      </span>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-black text-[#5c3b10]">{formatKc(total)}</span>
+                        <span className="mb-1 text-xs font-semibold text-muted-foreground">/ {t("dealer.billing.perYear")}</span>
+                      </>
+                    )}
                   </div>
 
                   <div className="mt-3 space-y-2 text-sm">
                     <p className="flex items-center gap-2 text-[#5c3b10]">
                       <Car className="h-4 w-4 text-amber-700" />
-                      <span><span className="font-black">{pkg.cars}</span> {t("dealer.billing.carsUnit")}</span>
+                      {DEALER_BILLING_FREE_MODE ? (
+                        <span className="font-black">{t("dealer.billing.freeModeUnlimited")}</span>
+                      ) : (
+                        <span><span className="font-black">{pkg.cars}</span> {t("dealer.billing.carsUnit")}</span>
+                      )}
                     </p>
-                    <p className="flex items-center gap-2 text-[#5c3b10]">
-                      <Wallet className="h-4 w-4 text-amber-700" />
-                      <span><span className="font-black">{formatKc(pricePerCar)}</span> / {t("dealer.billing.perCar")}</span>
-                    </p>
+                    {DEALER_BILLING_FREE_MODE ? null : (
+                      <p className="flex items-center gap-2 text-[#5c3b10]">
+                        <Wallet className="h-4 w-4 text-amber-700" />
+                        <span><span className="font-black">{formatKc(pricePerCar)}</span> / {t("dealer.billing.perCar")}</span>
+                      </p>
+                    )}
                     <p className="flex items-center gap-2 text-emerald-700">
                       <CalendarDays className="h-4 w-4" />
-                      {t("dealer.billing.activeOneYear")}
+                      {DEALER_BILLING_FREE_MODE
+                        ? t("dealer.billing.freeModeNoCharge")
+                        : t("dealer.billing.activeOneYear")}
                     </p>
                   </div>
 
-                  {isActive && activePackageExpiresISO ? (
+                  {DEALER_BILLING_FREE_MODE ? (
+                    <Button disabled className="mt-5 w-full rounded-2xl bg-emerald-600 text-white hover:bg-emerald-600">
+                      <Check className="mr-2 h-4 w-4" />
+                      {t("dealer.billing.freeModeCta")}
+                    </Button>
+                  ) : isActive && activePackageExpiresISO ? (
                     <Button disabled className="mt-5 w-full rounded-2xl bg-emerald-600 text-white hover:bg-emerald-600">
                       <Check className="mr-2 h-4 w-4" />
                       {t("dealer.billing.activeUntil")} {new Date(activePackageExpiresISO).toLocaleDateString("cs-CZ")}
@@ -7796,7 +7838,9 @@ export default function DealerPage() {
     staleTime: 60_000,
   });
   const hasActiveDealerPackage =
-    !!user?.isAdmin || Boolean(dealerPackage?.packageId || packageStatus?.active);
+    DEALER_BILLING_FREE_MODE ||
+    !!user?.isAdmin ||
+    Boolean(dealerPackage?.packageId || packageStatus?.active);
   const usedDealerListingSlots =
     packageStatus?.usedListings ?? stats?.totalListings ?? 0;
   const openSettingsTarget = useCallback((target: SettingsTarget) => {
@@ -7873,6 +7917,15 @@ export default function DealerPage() {
           <DealerLoadingSkeleton />
         ) : (
           <div className="space-y-5 sm:space-y-6">
+            {DEALER_BILLING_FREE_MODE ? (
+              <div className="flex items-start gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-900">
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                <p>
+                  <span className="font-black">{t("dealer.billing.freeModeTitle")}</span>{" "}
+                  {t("dealer.billing.freeModeDesc")}
+                </p>
+              </div>
+            ) : null}
             <div className={activeTab === "dashboard" ? "" : "hidden lg:block"}>
               <DealerHero
                 dealer={dealer}

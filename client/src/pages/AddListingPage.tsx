@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertListingSchema, type InsertListing } from "@shared/schema";
 import { carBrands, carModels } from "@shared/carDatabase";
+import { DEALER_BILLING_FREE_MODE } from "@shared/dealerBilling";
 import { useTranslation, useLocalizedOptions, vehicleTypeBrands, getModelsForVehicleType } from "@/lib/translations";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -1417,7 +1418,7 @@ export default function AddListingPage() {
     );
   }
 
-  if (user.isDealer && dealerPackageStatusLoading) {
+  if (!DEALER_BILLING_FREE_MODE && user.isDealer && dealerPackageStatusLoading) {
     return (
       <div className="min-h-screen flex flex-col">
         <Header />
@@ -1429,7 +1430,12 @@ export default function AddListingPage() {
     );
   }
 
-  if (user.isDealer && dealerPackageStatus && (!dealerPackageStatus.active || dealerPackageStatus.limitReached)) {
+  if (
+    !DEALER_BILLING_FREE_MODE &&
+    user.isDealer &&
+    dealerPackageStatus &&
+    (!dealerPackageStatus.active || dealerPackageStatus.limitReached)
+  ) {
     const limitReached = !!dealerPackageStatus.limitReached;
     return (
       <div className="min-h-screen flex flex-col">

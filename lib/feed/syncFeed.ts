@@ -1,4 +1,5 @@
 import { db } from "@lib/db";
+import { DEALER_BILLING_FREE_MODE } from "@shared/dealerBilling";
 import { dealers, listings, dealerFeeds, insertListingSchema } from "@shared/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { parseFeedXml, type MappedVehicle } from "./xmlImport";
@@ -376,7 +377,7 @@ export async function runFeedSync(ctx: FeedDealerCtx, feedUrl: string): Promise<
         });
         summary.updated++;
       } else {
-        if (currentCount >= ctx.maxListings) {
+        if (!DEALER_BILLING_FREE_MODE && currentCount >= ctx.maxListings) {
           summary.failed++;
           if (summary.errors.length < 50) {
             summary.errors.push({

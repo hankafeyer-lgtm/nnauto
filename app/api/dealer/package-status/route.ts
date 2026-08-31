@@ -5,6 +5,7 @@ import {
   countDealerUsedListingSlots,
   getActiveDealerPackageSubscription,
 } from "@lib/dealerPackages";
+import { DEALER_BILLING_FREE_MODE } from "@shared/dealerBilling";
 import { dealers } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -29,6 +30,19 @@ export async function GET() {
         maxListings: 0,
         remainingListings: 0,
         limitReached: true,
+      });
+    }
+    if (DEALER_BILLING_FREE_MODE) {
+      return json({
+        isDealer: true,
+        active: true,
+        isAdmin: !!user.isAdmin,
+        freeMode: true,
+        package: null,
+        usedListings: await countDealerUsedListingSlots(user.id),
+        maxListings: null,
+        remainingListings: null,
+        limitReached: false,
       });
     }
     if (user.isAdmin) {

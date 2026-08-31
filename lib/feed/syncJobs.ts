@@ -2,6 +2,10 @@ import { db } from "@lib/db";
 import { dealerFeedSyncJobs, dealerFeeds, dealers } from "@shared/schema";
 import { and, eq, ne, sql } from "drizzle-orm";
 import { getActiveDealerPackageSubscription } from "@lib/dealerPackages";
+import {
+  DEALER_BILLING_FREE_MODE,
+  DEALER_FREE_MODE_MAX_LISTINGS,
+} from "@shared/dealerBilling";
 import { runFeedSync, type FeedDealerCtx } from "./syncFeed";
 
 type FeedSyncTrigger = "manual" | "cron";
@@ -127,14 +131,18 @@ export async function processNextFeedSyncJob() {
     if (dealer.status === "blocked") throw new Error("Dealer blocked");
 
     const activePackage = await getActiveDealerPackageSubscription(job.dealerId);
-    if (!activePackage) throw new Error("dealer_package_required");
+    if (!DEALER_BILLING_FREE_MODE && !activePackage) {
+      throw new Error("dealer_package_required");
+    }
 
     const ctx: FeedDealerCtx = {
       userId: job.userId,
       dealerId: job.dealerId,
       region: dealer.region,
       phone: dealer.phone,
-      maxListings: activePackage.maxListings,
+      maxListings: DEALER_BILLING_FREE_MODE
+        ? DEALER_FREE_MODE_MAX_LISTINGS
+        : activePackage?.maxListings ?? 0,
     };
     const summary = await runFeedSync(ctx, job.feedUrl);
     await finishJob(job.id, { ok: true, summary });

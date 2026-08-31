@@ -1,6 +1,10 @@
 import Stripe from "stripe";
 import { db } from "@lib/db";
 import { ensureDealerInvoiceForPackageCheckout } from "@lib/dealerInvoice";
+import {
+  DEALER_BILLING_FREE_MODE,
+  DEALER_FREE_MODE_MAX_LISTINGS,
+} from "@shared/dealerBilling";
 import { dealerPackageSubscriptions, dealers } from "@shared/schema";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
@@ -318,7 +322,7 @@ export async function requireActiveDealerPackage(
   opts?: { isAdmin?: boolean },
 ) {
   await assertDealerIsActive(dealerId);
-  if (opts?.isAdmin) return null;
+  if (DEALER_BILLING_FREE_MODE || opts?.isAdmin) return null;
   const sub = await getActiveDealerPackageSubscription(dealerId);
   if (!sub) throw new DealerPackageRequiredError();
   return sub;
@@ -331,6 +335,14 @@ export async function assertDealerCanCreateListings(args: {
   isAdmin?: boolean;
 }) {
   await assertDealerIsActive(args.dealerId);
+  if (DEALER_BILLING_FREE_MODE) {
+    return {
+      subscription: null,
+      used: 0,
+      max: DEALER_FREE_MODE_MAX_LISTINGS,
+      remaining: DEALER_FREE_MODE_MAX_LISTINGS,
+    };
+  }
   if (args.isAdmin) {
     return {
       subscription: null,
