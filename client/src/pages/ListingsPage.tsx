@@ -2951,6 +2951,7 @@ import {
   SCROLL_POSITION_KEY,
 } from "@/components/ScrollToTop";
 import {
+  clearListingHash,
   clearScrollToFirstListingRequest,
   hasScrollToFirstListingRequest,
   requestScrollToFirstListing,
@@ -4065,7 +4066,12 @@ export default function ListingsPage({
       else p.set("page", String(page));
     });
 
-    // Land on the first car of the new page once results paint.
+    // The pagination controls sit under the last card, so without this desktop
+    // readers stay parked at the bottom of the new page.
+    clearListingHash();
+    pendingRestoreRef.current = null;
+    if (!isMobileViewport()) scrollToTop();
+    // Refine to the first car of the new page once results paint.
     requestScrollToFirstListing();
   }, []);
 

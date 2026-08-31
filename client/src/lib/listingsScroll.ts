@@ -110,6 +110,28 @@ export function scrollToListingCardById(
   return false;
 }
 
+/** Scroll so a section (e.g. the results grid) sits below sticky chrome. */
+export function scrollSectionBelowChrome(
+  el: HTMLElement | null | undefined,
+  behavior?: ScrollBehavior,
+): boolean {
+  if (typeof window === "undefined" || !el) return false;
+  scrollElementBelowChrome(el, behavior);
+  return true;
+}
+
+/**
+ * Drop a leftover `#listing-…` hash. On desktop that hash alone makes the
+ * restore logic claim the next scroll, which would otherwise swallow the
+ * jump back to the top after paging.
+ */
+export function clearListingHash(): void {
+  if (typeof window === "undefined") return;
+  if (!window.location.hash.startsWith("#listing-")) return;
+  const { pathname, search } = window.location;
+  window.history.replaceState(window.history.state, "", `${pathname}${search}`);
+}
+
 /**
  * Scroll so the first *visible* listing card sits below sticky chrome.
  * Home page renders desktop + mobile grids; without a visibility check

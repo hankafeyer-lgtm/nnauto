@@ -2035,9 +2035,11 @@ import {
   saveScrollPosition,
 } from "@/components/ScrollToTop";
 import {
+  clearListingHash,
   clearScrollToFirstListingRequest,
   hasScrollToFirstListingRequest,
   requestScrollToFirstListing,
+  scrollSectionBelowChrome,
   scrollToFirstListingCard,
   scrollToListingCardById,
 } from "@/lib/listingsScroll";
@@ -2399,7 +2401,15 @@ export default function HomePage() {
     setCurrentPage(clamped);
     // Use pushState so browser Back returns to previous recommended page.
     setPageToUrl(clamped, "push");
-    // Scroll after the new page's cards load (see effect below).
+    // The pagination controls sit under the last card, so without this desktop
+    // readers stay parked at the bottom of the new page. Jump right away
+    // instead of waiting for the fetch — the section top never moves.
+    clearListingHash();
+    pendingRestoreRef.current = null;
+    if (!isMobileViewport()) {
+      scrollSectionBelowChrome(recommendedSectionRef.current);
+    }
+    // Refine to the first card once the new page's cards load (effect below).
     requestScrollToFirstListing();
   };
   const openListingOverlay = useCallback((id: string) => {
