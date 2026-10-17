@@ -3,75 +3,77 @@ import Footer from "@/components/Footer";
 import PricingCard from "@/components/PricingCard";
 import LoginModal from "@/components/LoginModal";
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
 import { SEO, generateFAQSchema } from "@/components/SEO";
+import { PRIVATE_LISTING_PRICE_LABEL } from "@shared/privateListingBilling";
 
 export default function PricingPage() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const { toast } = useToast();
 
   const faqs = [
     {
       question: "Jak dlouho je inzerát aktivní?",
-      answer: "Všechny inzeráty jsou aktivní po dobu 30 dní od jejich zveřejnění."
+      answer:
+        "Po jednorázové platbě zůstává inzerát aktivní natrvalo — dokud jej sami nesmažete. Nejde o měsíční předplatné.",
     },
     {
-      question: "Mohu kombinovat různé balíčky?",
-      answer: "Ano, můžete si kdykoli dokoupit další inzeráty nebo přejít na vyšší balíček podle aktuálních potřeb. Vaše stávající inzeráty zůstanou aktivní."
+      question: "Kolik stojí zveřejnění inzerátu pro soukromé prodejce?",
+      answer: `Soukromí prodejci platí jednorázově ${PRIVATE_LISTING_PRICE_LABEL} za každé ohlášení. Platba není měsíční.`,
     },
     {
       question: "Jaké platební metody přijímáte?",
-      answer: "Přijímáme platby kartou (Visa, Mastercard), bankovním převodem a pro balíček Pro také nabízíme fakturaci s prodlouženou splatností."
+      answer:
+        "Přijímáme platby kartou (Visa, Mastercard) přes Stripe. Pro autobazary nabízíme také balíčky inzerce.",
     },
     {
       question: "Nabízíte slevy pro větší objemy?",
-      answer: "Pro autosalony a autobazary s většími požadavky připravíme individuální cenovou nabídku. Kontaktujte nás pro diskusi o vašich potřebách."
-    }
+      answer:
+        "Pro autosalony a autobazary s většími požadavky připravíme individuální cenovou nabídku. Kontaktujte nás pro diskusi o vašich potřebách.",
+    },
   ];
 
   const faqSchema = generateFAQSchema(faqs);
 
   const plans = [
     {
-      title: "Basic",
+      title: "Soukromý prodejce",
       description: "Ideální pro prodej jednoho vozidla",
-      price: "60 Kč",
-      period: "za inzerát",
+      price: PRIVATE_LISTING_PRICE_LABEL,
+      period: "jednorázově za inzerát",
       features: [
-        "1 inzerát na 30 dní",
-        "Fotogalerie až 10 fotografií",
-        "Kompletní technické údaje",
+        "1 inzerát natrvalo (dokud sami nesmažete)",
+        "Fotogalerie a kompletní údaje",
+        "Bez měsíčního předplatného",
         "Email podpora",
       ],
-      buttonText: "ZDARMA do 15.08.2026",
+      buttonText: "Vystavit inzerát",
     },
     {
-      title: "Premium",
-      description: "Pro aktivní prodejce a sběratele",
-      price: "370 Kč",
-      period: "za balíček",
-      badge: "Nejoblíbenější",
+      title: "TOP inzerát",
+      description: "Zvýraznění ve výsledcích hledání",
+      price: "99 Kč",
+      period: "na 30 dní",
+      badge: "Volitelné",
       highlighted: true,
       features: [
-        "5 až 10 inzerátů na 30 dní",
-        "Zvýrazněné zobrazení",
-        "Neomezená fotogalerie",
-        "Prioritní podpora",
+        "Vyšší pozice ve výsledcích",
+        "Pro soukromé + zveřejnění 168,99 Kč",
+        "Lze dokoupit k běžnému inzerátu",
+        "Platí 30 dní",
       ],
-      buttonText: "ZDARMA do 15.08.2026",
+      buttonText: "Vystavit TOP inzerát",
     },
     {
-      title: "Pro",
+      title: "Autobazar / Dealer",
       description: "Pro autosalony a autobazary",
-      price: "850 Kč",
-      period: "za balíček",
+      price: "Balíčky",
+      period: "dle objemu",
       features: [
-        "15 až 25 inzerátů na 30 dní",
-        "VIP pozice ve výsledcích",
-        "Označení \"Certifikovaný autobazar\"",
-        "Flexibilní platební podmínky",
+        "Více vozidel v nabídce",
+        "Import a hromadná správa",
+        "Dealerský kabinet a statistiky",
+        "Individuální podmínky",
       ],
-      buttonText: "ZDARMA do 15.08.2026",
+      buttonText: "Kontaktovat / dealer",
     },
   ];
 
@@ -83,7 +85,7 @@ export default function PricingPage() {
     <div className="min-h-screen flex flex-col">
       <SEO 
         title="Ceník inzerátu - Ceny za inzerování vozidel"
-        description="Transparentní ceník inzerce vozidel na NNAuto.cz. Vyberte si z balíčků Basic od 60 Kč, Premium od 370 Kč nebo Pro od 850 Kč. Bez skrytých poplatků."
+        description={`Ceník inzerce na NNAuto.cz. Soukromí prodejci platí jednorázově ${PRIVATE_LISTING_PRICE_LABEL} za inzerát — bez měsíčního předplatného. TOP zvýraznění od 99 Kč.`}
         keywords="ceník inzerátu, cena inzerátu, autobazar ceník, prodej auta cena, NNAuto ceník, inzerce vozidel cena"
         url="https://nnauto.cz/pricing"
         structuredData={faqSchema}
@@ -95,7 +97,7 @@ export default function PricingPage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight mb-4 sm:mb-6">Ceník inzerátu</h1>
             <p className="text-base sm:text-lg lg:text-xl text-black dark:text-white max-w-3xl mx-auto leading-relaxed px-4">
-              Transparentní ceny bez skrytých poplatků. Platíte pouze za to, co skutečně využijete.
+              Transparentní ceny bez skrytých poplatků. Soukromí prodejci platí jednou — inzerát zůstane aktivní, dokud jej sami nesmažete.
             </p>
           </div>
         </section>
@@ -109,7 +111,6 @@ export default function PricingPage() {
                   {...plan} 
                   onSelect={handlePlanSelect}
                   featureTextColor="text-black dark:text-white text-sm"
-                  promoHighlight
                 />
               ))}
             </div>
@@ -117,30 +118,14 @@ export default function PricingPage() {
             <div className="mt-12 sm:mt-16 lg:mt-24 bg-card border rounded-xl sm:rounded-2xl p-6 sm:p-8 lg:p-12 max-w-4xl mx-auto shadow-xl">
               <h2 className="text-2xl sm:text-3xl font-semibold mb-6 sm:mb-8 text-center tracking-tight">Často kladené otázky</h2>
               <div className="space-y-6 sm:space-y-8">
-                <div>
-                  <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3">Jak dlouho je inzerát aktivní?</h3>
-                  <p className="text-sm sm:text-base text-black dark:text-white leading-relaxed">
-                    Všechny inzeráty jsou aktivní po dobu 30 dní od jejich zveřejnění. U balíčků Premium a Pro máte navíc možnost automatického obnovení.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3">Mohu kombinovat různé balíčky?</h3>
-                  <p className="text-sm sm:text-base text-black dark:text-white leading-relaxed">
-                    Ano, můžete si kdykoli dokoupit další inzeráty nebo přejít na vyšší balíček podle aktuálních potřeb. Vaše stávající inzeráty zůstanou aktivní.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3">Jaké platební metody přijímáte?</h3>
-                  <p className="text-sm sm:text-base text-black dark:text-white leading-relaxed">
-                    Přijímáme platby kartou (Visa, Mastercard), bankovním převodem a pro balíček Pro také nabízíme fakturaci s prodlouženou splatností.
-                  </p>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3">Nabízíte slevy pro větší objemy?</h3>
-                  <p className="text-sm sm:text-base text-black dark:text-white leading-relaxed">
-                    Pro autosalony a autobazary s většími požadavky připravíme individuální cenovou nabídku. Kontaktujte nás pro diskusi o vašich potřebách.
-                  </p>
-                </div>
+                {faqs.map((faq) => (
+                  <div key={faq.question}>
+                    <h3 className="font-semibold text-base sm:text-lg mb-2 sm:mb-3">{faq.question}</h3>
+                    <p className="text-sm sm:text-base text-black dark:text-white leading-relaxed">
+                      {faq.answer}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

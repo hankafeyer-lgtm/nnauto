@@ -80,7 +80,7 @@ export function ModelLegacySeoBlock({
       <p>
         Pokud naopak chcete {brandName} {modelName} prodat,{" "}
         <a href="/add-listing" className="underline">
-          vložte inzerát zdarma na NNAuto
+          vložte inzerát na NNAuto
         </a>
         . Doporučujeme nahrát alespoň 8–12 fotografií ve dne, popsat výbavu,
         servisní historii i případné drobné vady. Inzerát s kvalitními

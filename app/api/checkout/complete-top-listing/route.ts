@@ -2,17 +2,15 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { storage } from "@lib/storage";
-import Stripe from "stripe";
+import { PRIVATE_LISTING_PRICE_CENTS } from "@shared/privateListingBilling";
 import { pendingTopListings } from "@lib/pending-top-listings";
+import { getStripe } from "@lib/stripeCheckout";
+import { eq } from "drizzle-orm";
+import { db } from "@lib/db";
+import { payments } from "@shared/schema";
 
 const TOP_LISTING_PRICE = 9900;
 const TOP_LISTING_DURATION_DAYS = 30;
-
-function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("Stripe not configured");
-  return new Stripe(key);
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +19,18 @@ export async function POST(req: NextRequest) {
 
     if (!stripeSessionId || typeof stripeSessionId !== "string") {
       return error("Invalid session ID", 400);
+    }
+
+    const [existingPayment] = await db
+      .select()
+      .from(payments)
+      .where(eq(payments.stripeSessionId, stripeSessionId))
+      .limit(1);
+    if (existingPayment?.listingId) {
+      const existingListing = await storage.getListing(existingPayment.listingId);
+      if (existingListing && existingListing.userId === user.id) {
+        return json(existingListing);
+      }
     }
 
     const pendingData = pendingTopListings.get(stripeSessionId);
@@ -35,14 +45,14 @@ export async function POST(req: NextRequest) {
       return error("This session belongs to a different user", 403);
     }
 
-    let stripe: Stripe;
+    let stripe;
     try {
       stripe = getStripe();
     } catch {
       return error("Payment system not configured", 503);
     }
 
-    let session: Stripe.Checkout.Session;
+    let session;
     try {
       session = await stripe.checkout.sessions.retrieve(stripeSessionId);
       if (session.payment_status !== "paid") {
@@ -53,6 +63,20 @@ export async function POST(req: NextRequest) {
       }
       if (session.metadata?.userId !== user.id) {
         return error("Session user mismatch", 403);
+      }
+      if (session.metadata?.type !== "new_top_listing") {
+        return error("Invalid session type", 400);
+      }
+
+      const includesPublishFee = session.metadata?.includesPublishFee === "1";
+      const expectedTotal = includesPublishFee
+        ? TOP_LISTING_PRICE + PRIVATE_LISTING_PRICE_CENTS
+        : TOP_LISTING_PRICE;
+      if (session.amount_total !== expectedTotal) {
+        console.error(
+          `TOP listing amount mismatch: expected ${expectedTotal}, got ${session.amount_total}`,
+        );
+        return error("Invalid payment amount", 400);
       }
     } catch (err) {
       console.error("Error verifying Stripe session:", err);
@@ -78,7 +102,7 @@ export async function POST(req: NextRequest) {
     await storage.createPayment({
       userId: user.id,
       listingId: listing.id,
-      amount: TOP_LISTING_PRICE.toString(),
+      amount: String(session.amount_total ?? TOP_LISTING_PRICE),
       currency: "czk",
       status: "completed",
       stripeSessionId: stripeSessionId,

@@ -223,7 +223,7 @@ export function ListingsSeoFooter() {
           <p>
             Prodáváte vůz? Vložte{" "}
             <a href="/add-listing" className="underline">
-              vlastní inzerát zdarma
+              vlastní inzerát
             </a>
             . Pro rychlejší prodej využijte{" "}
             <a href="/pricing" className="underline">

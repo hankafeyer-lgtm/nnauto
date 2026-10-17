@@ -2,30 +2,14 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { insertListingSchema } from "@shared/schema";
-import Stripe from "stripe";
+import {
+  PRIVATE_LISTING_PRICE_CENTS,
+  PRIVATE_LISTING_PRICE_LABEL,
+} from "@shared/privateListingBilling";
+import { pendingTopListings } from "@lib/pending-top-listings";
+import { getCheckoutBaseUrl, getStripe } from "@lib/stripeCheckout";
 
 const TOP_LISTING_PRICE = 9900; // 99 CZK in haléře
-
-function getStripe() {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) throw new Error("Stripe not configured");
-  return new Stripe(key);
-}
-
-function getBaseUrl(req: NextRequest): string {
-  if (process.env.APP_BASE_URL) return process.env.APP_BASE_URL;
-  const origin = req.headers.get("origin");
-  if (origin) return origin;
-  const host = req.headers.get("host");
-  if (host) {
-    const proto =
-      req.headers.get("x-forwarded-proto") === "https" ? "https" : "http";
-    return `${proto}://${host}`;
-  }
-  return "http://localhost:3000";
-}
-
-import { pendingTopListings } from "@lib/pending-top-listings";
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,36 +25,63 @@ export async function POST(req: NextRequest) {
       return error("Invalid listing data", 400);
     }
 
-    let stripe: Stripe;
+    let stripe;
     try {
       stripe = getStripe();
     } catch {
       return error("Payment system not configured", 503);
     }
 
-    const baseUrl = getBaseUrl(req);
+    const baseUrl = getCheckoutBaseUrl(req);
+    const brand = validationResult.data.brand;
+    const model = validationResult.data.model;
+    const requiresPublishFee = !user.isDealer && !user.isAdmin;
+
+    const lineItems: Array<{
+      price_data: {
+        currency: string;
+        product_data: { name: string; description: string };
+        unit_amount: number;
+      };
+      quantity: number;
+    }> = [];
+
+    if (requiresPublishFee) {
+      lineItems.push({
+        price_data: {
+          currency: "czk",
+          product_data: {
+            name: "Zveřejnění inzerátu",
+            description: `Jednorázová platba ${PRIVATE_LISTING_PRICE_LABEL} za inzerát ${brand} ${model}. Platí natrvalo.`,
+          },
+          unit_amount: PRIVATE_LISTING_PRICE_CENTS,
+        },
+        quantity: 1,
+      });
+    }
+
+    lineItems.push({
+      price_data: {
+        currency: "czk",
+        product_data: {
+          name: "TOP Inzerát",
+          description: `Zvýraznění inzerátu: ${brand} ${model}`,
+        },
+        unit_amount: TOP_LISTING_PRICE,
+      },
+      quantity: 1,
+    });
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "czk",
-            product_data: {
-              name: "TOP Inzerát",
-              description: `Zvýraznění inzerátu: ${validationResult.data.brand} ${validationResult.data.model}`,
-            },
-            unit_amount: TOP_LISTING_PRICE,
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
       mode: "payment",
-      success_url: `${baseUrl}/add-listing?payment=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${baseUrl}/add-listing?payment=success&type=top&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/add-listing?payment=cancelled`,
       metadata: {
         userId: user.id,
         type: "new_top_listing",
+        includesPublishFee: requiresPublishFee ? "1" : "0",
       },
     });
 

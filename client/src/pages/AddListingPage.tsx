@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertListingSchema, type InsertListing } from "@shared/schema";
 import { carBrands, carModels } from "@shared/carDatabase";
 import { DEALER_BILLING_FREE_MODE } from "@shared/dealerBilling";
+import { PRIVATE_LISTING_PRICE_LABEL } from "@shared/privateListingBilling";
 import { useTranslation, useLocalizedOptions, vehicleTypeBrands, getModelsForVehicleType } from "@/lib/translations";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -470,6 +471,7 @@ export default function AddListingPage() {
   
   const [showPaymentSuccessDialog, setShowPaymentSuccessDialog] = useState(false);
   const [stripeSessionId, setStripeSessionId] = useState<string | null>(null);
+  const [paymentCheckoutType, setPaymentCheckoutType] = useState<"private" | "top">("top");
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [isPhotosUploading, setIsPhotosUploading] = useState(false);
   const [isVideoUploading, setIsVideoUploading] = useState(false);
@@ -553,9 +555,11 @@ export default function AddListingPage() {
     const params = new URLSearchParams(searchString);
     const payment = params.get('payment');
     const sessionId = params.get('session_id');
+    const typeParam = params.get('type');
     
     if (payment === 'success' && sessionId) {
       setStripeSessionId(sessionId);
+      setPaymentCheckoutType(typeParam === 'private' ? 'private' : 'top');
       setShowPaymentSuccessDialog(true);
       window.history.replaceState({}, '', '/add-listing');
     } else if (payment === 'cancelled') {
@@ -1097,12 +1101,44 @@ export default function AddListingPage() {
     },
   });
 
+  const completePrivateListingMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const res = await apiRequest("POST", "/api/checkout/complete-private-listing", {
+        stripeSessionId: sessionId,
+      });
+      return await res.json();
+    },
+    onSuccess: (newListing) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      toast({
+        title: t("listing.success") || "Inzerát úspěšně vytvořen",
+        description:
+          t("listing.successDescription") ||
+          "Váš inzerát byl úspěšně publikován a zůstane aktivní, dokud jej sami nesmažete.",
+      });
+      setShowPaymentSuccessDialog(false);
+      setStripeSessionId(null);
+      navigateToListingWithState(newListing);
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: t("listing.error") || "Chyba",
+        description: error.message || "Nepodařilo se vytvořit inzerát.",
+      });
+    },
+  });
+
+  const isCompletingPaidListing =
+    completeTopListingMutation.isPending ||
+    completePrivateListingMutation.isPending;
+
   useEffect(() => {
     const shouldWarn =
       isMediaUploading ||
       isProcessingCheckout ||
       createListingMutation.isPending ||
-      completeTopListingMutation.isPending;
+      isCompletingPaidListing;
     if (!shouldWarn) return;
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
@@ -1116,7 +1152,7 @@ export default function AddListingPage() {
     isMediaUploading,
     isProcessingCheckout,
     createListingMutation.isPending,
-    completeTopListingMutation.isPending,
+    isCompletingPaidListing,
   ]);
 
   const requiredFieldLabels: Record<string, { cs: string; uk: string; en: string }> = {
@@ -1304,15 +1340,19 @@ export default function AddListingPage() {
       return;
     }
     
+    const payload = {
+      ...data,
+      userId: user.id,
+      photos: photos.length > 0 ? photos : undefined,
+      video: video || undefined,
+    };
+
+    const requiresPrivatePublishFee = !user.isDealer && !user.isAdmin;
+
     if (data.isTopListing) {
       setIsProcessingCheckout(true);
       try {
-        const res = await apiRequest("POST", "/api/checkout/new-top-listing", {
-          ...data,
-          userId: user.id,
-          photos: photos.length > 0 ? photos : undefined,
-          video: video || undefined,
-        });
+        const res = await apiRequest("POST", "/api/checkout/new-top-listing", payload);
         const result = await res.json();
         
         if (result.url) {
@@ -1329,17 +1369,35 @@ export default function AddListingPage() {
           description: error.message || "Nepodařilo se vytvořit platební relaci.",
         });
       }
-    } else {
+      return;
+    }
+
+    if (requiresPrivatePublishFee) {
+      setIsProcessingCheckout(true);
       try {
-        await createListingMutation.mutateAsync({
-          ...data,
-          userId: user.id,
-          photos: photos.length > 0 ? photos : undefined,
-          video: video || undefined,
-        });
-      } finally {
+        const res = await apiRequest("POST", "/api/checkout/new-private-listing", payload);
+        const result = await res.json();
+        if (result.url) {
+          window.location.href = result.url;
+        } else {
+          throw new Error("Failed to create checkout session");
+        }
+      } catch (error: any) {
+        setIsProcessingCheckout(false);
         submitLockRef.current = false;
+        toast({
+          variant: "destructive",
+          title: t("payment.error") || "Chyba platby",
+          description: error.message || "Nepodařilo se vytvořit platební relaci.",
+        });
       }
+      return;
+    }
+
+    try {
+      await createListingMutation.mutateAsync(payload);
+    } finally {
+      submitLockRef.current = false;
     }
   };
 
@@ -1372,10 +1430,15 @@ export default function AddListingPage() {
   };
 
   const handlePostListing = () => {
-    if (stripeSessionId) {
-      completeTopListingMutation.mutate(stripeSessionId);
+    if (!stripeSessionId) return;
+    if (paymentCheckoutType === "private") {
+      completePrivateListingMutation.mutate(stripeSessionId);
+      return;
     }
+    completeTopListingMutation.mutate(stripeSessionId);
   };
+
+  const requiresPrivatePublishFee = !!user && !user.isDealer && !user.isAdmin;
 
   if (isLoading) {
     return (
@@ -3714,6 +3777,13 @@ export default function AddListingPage() {
                                       : language === "en"
                                         ? "Higher position in results for 30 days."
                                         : "Vyšší pozice ve výsledcích po dobu 30 dnů."}
+                                  {requiresPrivatePublishFee
+                                    ? language === "uk"
+                                      ? ` До оплати також входить публікація (${PRIVATE_LISTING_PRICE_LABEL}).`
+                                      : language === "en"
+                                        ? ` Publish fee (${PRIVATE_LISTING_PRICE_LABEL}) is included in checkout.`
+                                        : ` V platbě je i zveřejnění inzerátu (${PRIVATE_LISTING_PRICE_LABEL}).`
+                                    : null}
                                 </p>
                               </div>
                               <div
@@ -3747,7 +3817,7 @@ export default function AddListingPage() {
                       disabled={
                         createListingMutation.isPending ||
                         isProcessingCheckout ||
-                        completeTopListingMutation.isPending ||
+                        isCompletingPaidListing ||
                         isMediaUploading
                       }
                       className="w-full sm:flex-1 h-14 rounded-xl text-base font-bold text-white border-0 bg-gradient-to-r from-[#B8860B] to-[#D4AF37] shadow-[0_10px_30px_rgba(184,134,11,0.35)] transition-all hover:from-[#a3760a] hover:to-[#c9a431] hover:shadow-[0_14px_36px_rgba(184,134,11,0.45)] hover:-translate-y-0.5 disabled:opacity-60 disabled:hover:translate-y-0"
@@ -3761,10 +3831,16 @@ export default function AddListingPage() {
                             : "Uploading media..."
                         : createListingMutation.isPending ||
                             isProcessingCheckout ||
-                            completeTopListingMutation.isPending
+                            isCompletingPaidListing
                           ? t("listing.submitting") || "Odesílání..."
-                        : isTopListing
-                        ? t("listing.submitWithPayment")
+                        : isTopListing || requiresPrivatePublishFee
+                        ? `${t("listing.submitWithPayment")} · ${
+                            isTopListing && requiresPrivatePublishFee
+                              ? "168,99 Kč"
+                              : isTopListing
+                                ? "99 Kč"
+                                : PRIVATE_LISTING_PRICE_LABEL
+                          }`
                         : t("listing.submit")}
                     </Button>
                   </div>
@@ -3778,13 +3854,16 @@ export default function AddListingPage() {
                     disabled={
                       createListingMutation.isPending ||
                       isProcessingCheckout ||
-                      completeTopListingMutation.isPending ||
+                      isCompletingPaidListing ||
                       isMediaUploading
                     }
                     className="h-12 w-full rounded-xl bg-gradient-to-r from-[#B8860B] to-[#D4AF37] font-bold text-white shadow-[0_8px_20px_rgba(184,134,11,0.3)]"
                     data-testid="button-sticky-submit"
                   >
-                    {completionPercent}% vyplněno · {t("listing.submit")}
+                    {completionPercent}% vyplněno ·{" "}
+                    {requiresPrivatePublishFee || isTopListing
+                      ? t("listing.submitWithPayment")
+                      : t("listing.submit")}
                   </Button>
                 </div>
               )}
@@ -3804,6 +3883,9 @@ export default function AddListingPage() {
             </DialogTitle>
             <DialogDescription>
               Rychlá kontrola před publikací. Pokud je vše v pořádku, potvrďte zveřejnění.
+              {requiresPrivatePublishFee
+                ? ` Jednorázová platba ${PRIVATE_LISTING_PRICE_LABEL} — inzerát zůstane aktivní, dokud jej sami nesmažete.`
+                : null}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 rounded-2xl border bg-muted/20 p-3">
@@ -3854,12 +3936,20 @@ export default function AddListingPage() {
               disabled={
                 createListingMutation.isPending ||
                 isProcessingCheckout ||
-                completeTopListingMutation.isPending ||
+                isCompletingPaidListing ||
                 isMediaUploading
               }
               data-testid="button-confirm-publish"
             >
-              Potvrdit a publikovat
+              {requiresPrivatePublishFee || isTopListing
+                ? `Pokračovat k platbě · ${
+                    isTopListing && requiresPrivatePublishFee
+                      ? "168,99 Kč"
+                      : isTopListing
+                        ? "99 Kč"
+                        : PRIVATE_LISTING_PRICE_LABEL
+                  }`
+                : "Potvrdit a publikovat"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3873,36 +3963,45 @@ export default function AddListingPage() {
               {t("payment.successTitle") || "Platba úspěšná!"}
             </DialogTitle>
             <DialogDescription className="text-base pt-2">
-              {t("payment.successDescription") || `Zakoupili jste ${topsPurchased} TOP inzerát${topsPurchased > 1 ? 'y' : ''}.`}
+              {paymentCheckoutType === "private"
+                ? `Zaplatili jste ${PRIVATE_LISTING_PRICE_LABEL} za zveřejnění inzerátu. Zůstane aktivní, dokud jej sami nesmažete.`
+                : t("payment.successDescription") ||
+                  `Zakoupili jste ${topsPurchased} TOP inzerát${topsPurchased > 1 ? "y" : ""}.`}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 pt-4">
             <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 text-center">
               <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
-                {topsPurchased}x TOP
+                {paymentCheckoutType === "private"
+                  ? PRIVATE_LISTING_PRICE_LABEL
+                  : `${topsPurchased}x TOP`}
               </div>
               <div className="text-sm text-muted-foreground mt-1">
-                {t("payment.topsOwned") || "zakoupeno"}
+                {paymentCheckoutType === "private"
+                  ? "jednorázově · natrvalo"
+                  : t("payment.topsOwned") || "zakoupeno"}
               </div>
             </div>
           </div>
           <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
-            <Button
-              variant="outline"
-              onClick={handleBuyMoreTops}
-              disabled={isProcessingCheckout}
-              className="w-full sm:w-auto"
-              data-testid="button-buy-more-tops"
-            >
-              {t("payment.buyMore") || "Koupit další TOP"}
-            </Button>
+            {paymentCheckoutType === "top" ? (
+              <Button
+                variant="outline"
+                onClick={handleBuyMoreTops}
+                disabled={isProcessingCheckout}
+                className="w-full sm:w-auto"
+                data-testid="button-buy-more-tops"
+              >
+                {t("payment.buyMore") || "Koupit další TOP"}
+              </Button>
+            ) : null}
             <Button
               onClick={handlePostListing}
-              disabled={completeTopListingMutation.isPending}
+              disabled={isCompletingPaidListing}
               className="w-full sm:w-auto"
               data-testid="button-post-listing"
             >
-              {completeTopListingMutation.isPending
+              {isCompletingPaidListing
                 ? t("listing.submitting") || "Odesílání..."
                 : t("payment.postListing") || "Vystavit inzerát"}
             </Button>

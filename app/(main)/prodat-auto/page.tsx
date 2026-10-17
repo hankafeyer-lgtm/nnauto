@@ -96,7 +96,7 @@ const FAQ: { question: string; answer: string }[] = [
   {
     question: "Kolik stojí vložení inzerátu na NNAuto?",
     answer:
-      "Základní inzerát pro soukromé prodejce vložíte zdarma. Pro autobazary a prodejce s více vozy nabízíme výhodné balíčky inzerce – detaily najdete v ceníku.",
+      "Soukromí prodejci platí jednorázově 69,99 Kč za inzerát. Platba není měsíční — inzerát zůstane aktivní, dokud jej sami nesmažete. Pro autobazary nabízíme balíčky inzerce – detaily najdete v ceníku.",
   },
   {
     question: "Jak rychle prodám auto přes NNAuto?",
@@ -201,7 +201,7 @@ export default async function ProdatAutoPage() {
             href="/add-listing"
             className="rounded-md bg-[#B8860B] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#9c7308]"
           >
-            Přidat inzerát zdarma
+            Přidat inzerát
           </a>
           <a
             href="/pricing"
@@ -341,7 +341,7 @@ export default async function ProdatAutoPage() {
             href="/add-listing"
             className="inline-block rounded-md bg-[#B8860B] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#9c7308]"
           >
-            Přidat inzerát zdarma
+            Přidat inzerát
           </a>
         </div>
       </main>

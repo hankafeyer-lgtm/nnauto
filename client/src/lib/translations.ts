@@ -155,9 +155,9 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     "favorites.removedDescription": "Inzerát byl odebrán z oblíbených",
 
     // Hero
-    "hero.title": "Přidejte inzerát zdarma během 1 minuty",
+    "hero.title": "Přidejte inzerát během 1 minuty",
     "hero.subtitle":
-      "Žádné poplatky, žádné provize. Oslovte tisíce potenciálních kupujících.",
+      "Jednorázově 69,99 Kč za inzerát, žádné provize. Oslovte tisíce potenciálních kupujících.",
     "hero.search": "Vyhledat",
     "hero.cebiaTitle": "Cebia Autotracer",
     "hero.cebiaVinPrompt": "Prověřte historii vozidla podle VIN",

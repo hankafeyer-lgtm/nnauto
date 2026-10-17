@@ -143,6 +143,15 @@ export async function POST(req: NextRequest) {
         return error("Cannot create listing for another user", 403);
       }
 
+      // Private sellers must pay the one-time publish fee via Stripe checkout.
+      // Dealers (and admins) keep their existing publish path unchanged.
+      if (!user.isDealer && !user.isAdmin) {
+        return error(
+          "Pro soukromé prodejce je zveřejnění inzerátu zpoplatněno jednorázově (69,99 Kč). Dokončete platbu a inzerát zůstane aktivní, dokud jej sami nesmažete.",
+          402,
+        );
+      }
+
       if (user.isDealer && user.dealerId) {
         await assertDealerCanCreateListings({
           dealerId: user.dealerId,
