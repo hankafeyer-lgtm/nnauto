@@ -157,7 +157,7 @@ const baseTranslations: Record<Exclude<Language, "de">, Record<string, string>> 
     // Hero
     "hero.title": "Přidejte inzerát během 1 minuty",
     "hero.subtitle":
-      "Jednorázově 69,99 Kč za inzerát, žádné provize. Oslovte tisíce potenciálních kupujících.",
+      "Jednorázově 69 Kč za inzerát, žádné provize. Oslovte tisíce potenciálních kupujících.",
     "hero.search": "Vyhledat",
     "hero.cebiaTitle": "Cebia Autotracer",
     "hero.cebiaVinPrompt": "Prověřte historii vozidla podle VIN",

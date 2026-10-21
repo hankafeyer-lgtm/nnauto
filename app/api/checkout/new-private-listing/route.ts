@@ -4,17 +4,21 @@ import { requireAuth } from "@lib/auth";
 import { insertListingSchema } from "@shared/schema";
 import {
   PRIVATE_LISTING_PAYMENT_TYPE,
-  PRIVATE_LISTING_PRICE_CENTS,
   PRIVATE_LISTING_PRICE_LABEL,
+  getPrivateListingPriceId,
+  requiresPrivateListingPayment,
 } from "@shared/privateListingBilling";
 import { pendingPrivateListings } from "@lib/pending-private-listings";
-import { getCheckoutBaseUrl, getStripe } from "@lib/stripeCheckout";
+import {
+  getCheckoutBaseUrl,
+  getPrivateListingStripe,
+} from "@lib/stripeCheckout";
 
 export async function POST(req: NextRequest) {
   try {
     const user = await requireAuth();
 
-    if (user.isDealer) {
+    if (!requiresPrivateListingPayment(user)) {
       return error(
         "Dealers publish via dealer packages, not the private listing fee.",
         400,
@@ -33,9 +37,12 @@ export async function POST(req: NextRequest) {
     }
 
     let stripe;
+    let priceId: string;
     try {
-      stripe = getStripe();
-    } catch {
+      stripe = getPrivateListingStripe();
+      priceId = getPrivateListingPriceId();
+    } catch (e: any) {
+      console.error("Private listing Stripe config error:", e?.message || e);
       return error("Payment system not configured", 503);
     }
 
@@ -47,14 +54,7 @@ export async function POST(req: NextRequest) {
       payment_method_types: ["card"],
       line_items: [
         {
-          price_data: {
-            currency: "czk",
-            product_data: {
-              name: "Zveřejnění inzerátu",
-              description: `Jednorázová platba ${PRIVATE_LISTING_PRICE_LABEL} za inzerát ${brand} ${model}. Platí natrvalo, dokud inzerát sami nesmažete.`,
-            },
-            unit_amount: PRIVATE_LISTING_PRICE_CENTS,
-          },
+          price: priceId,
           quantity: 1,
         },
       ],
@@ -64,6 +64,9 @@ export async function POST(req: NextRequest) {
       metadata: {
         userId: user.id,
         type: PRIVATE_LISTING_PAYMENT_TYPE,
+        brand,
+        model,
+        priceLabel: PRIVATE_LISTING_PRICE_LABEL,
       },
     });
 

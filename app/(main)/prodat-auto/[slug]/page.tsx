@@ -71,7 +71,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       : "";
   const title = `Prodat ${bm} zdarma | Inzerce ${bm} | NNAuto`;
   const description =
-    `Chcete prodat ${bm}? Vložte inzerát na NNAuto.cz za jednorázových 69,99 Kč a oslovte kupující z celé ČR. Bez provize, přímý kontakt se zájemci${fromPart}.`;
+    `Chcete prodat ${bm}? Vložte inzerát na NNAuto.cz za jednorázových 69 Kč a oslovte kupující z celé ČR. Bez provize, přímý kontakt se zájemci${fromPart}.`;
 
   return {
     title,
@@ -239,7 +239,7 @@ export default async function ProdatModelPage({ params }: Props) {
           <h2 className="mb-4 text-2xl font-bold">Časté dotazy</h2>
           <div className="space-y-4">
             {[
-              ["Kolik stojí vložení inzerátu?", "Soukromí prodejci platí jednorázově 69,99 Kč za inzerát. Platba není měsíční — inzerát zůstane aktivní, dokud jej sami nesmažete. Pro autobazary jsou připravené balíčky."],
+              ["Kolik stojí vložení inzerátu?", "Soukromí prodejci platí jednorázově 69 Kč za inzerát. Platba není měsíční — inzerát zůstane aktivní, dokud jej sami nesmažete. Pro autobazary jsou připravené balíčky."],
               [`Jak dlouho trvá prodej ${bm}?`, "Záleží na ceně, stavu vozu, kvalitě fotek a popisu. Reálná cena a kompletní informace obvykle výrazně zrychlí prodej."],
               ["Platím provizi z prodeje?", "Ne. Kupující kontaktuje přímo vás a obchod dokončujete bez provize pro NNAuto."],
             ].map(([q, a]) => (

@@ -11,6 +11,7 @@ import {
   isDealerPackageLimitReachedError,
   isDealerPackageRequiredError,
 } from "@lib/dealerPackages";
+import { requiresPrivateListingPayment } from "@shared/privateListingBilling";
 
 /** Kept for compatibility: listings are no longer cached in RAM on this route. */
 export function invalidateListingsCache() {}
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
 
       // Private sellers must pay the one-time publish fee via Stripe checkout.
       // Dealers (and admins) keep their existing publish path unchanged.
-      if (!user.isDealer && !user.isAdmin) {
+      if (requiresPrivateListingPayment(user)) {
         return error(
           "Pro soukromé prodejce je zveřejnění inzerátu zpoplatněno jednorázově (69,99 Kč). Dokončete platbu a inzerát zůstane aktivní, dokud jej sami nesmažete.",
           402,

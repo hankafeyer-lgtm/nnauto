@@ -4,7 +4,7 @@ import { requireAuth } from "@lib/auth";
 import { storage } from "@lib/storage";
 import { PRIVATE_LISTING_PRICE_CENTS } from "@shared/privateListingBilling";
 import { pendingTopListings } from "@lib/pending-top-listings";
-import { getStripe } from "@lib/stripeCheckout";
+import { getPrivateListingStripe, getStripe } from "@lib/stripeCheckout";
 import { eq } from "drizzle-orm";
 import { db } from "@lib/db";
 import { payments } from "@shared/schema";
@@ -45,16 +45,21 @@ export async function POST(req: NextRequest) {
       return error("This session belongs to a different user", 403);
     }
 
-    let stripe;
-    try {
-      stripe = getStripe();
-    } catch {
-      return error("Payment system not configured", 503);
-    }
-
+    // Peek metadata on primary first; private publish+TOP lives on secondary account.
+    let stripe = getStripe();
     let session;
     try {
       session = await stripe.checkout.sessions.retrieve(stripeSessionId);
+    } catch {
+      try {
+        stripe = getPrivateListingStripe();
+        session = await stripe.checkout.sessions.retrieve(stripeSessionId);
+      } catch {
+        return error("Payment system not configured", 503);
+      }
+    }
+
+    try {
       if (session.payment_status !== "paid") {
         return error(
           "Payment not completed. Please complete payment first.",
@@ -69,12 +74,15 @@ export async function POST(req: NextRequest) {
       }
 
       const includesPublishFee = session.metadata?.includesPublishFee === "1";
-      const expectedTotal = includesPublishFee
-        ? TOP_LISTING_PRICE + PRIVATE_LISTING_PRICE_CENTS
-        : TOP_LISTING_PRICE;
-      if (session.amount_total !== expectedTotal) {
+      const expectedTotals = includesPublishFee
+        ? [
+            TOP_LISTING_PRICE + PRIVATE_LISTING_PRICE_CENTS, // 69 + 99
+            TOP_LISTING_PRICE + 6999, // legacy 69,99 + 99
+          ]
+        : [TOP_LISTING_PRICE];
+      if (!expectedTotals.includes(session.amount_total ?? -1)) {
         console.error(
-          `TOP listing amount mismatch: expected ${expectedTotal}, got ${session.amount_total}`,
+          `TOP listing amount mismatch: expected one of ${expectedTotals.join("/")}, got ${session.amount_total}`,
         );
         return error("Invalid payment amount", 400);
       }

@@ -3,11 +3,16 @@ import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { insertListingSchema } from "@shared/schema";
 import {
-  PRIVATE_LISTING_PRICE_CENTS,
-  PRIVATE_LISTING_PRICE_LABEL,
+  getPrivateListingPriceId,
+  requiresPrivateListingPayment,
 } from "@shared/privateListingBilling";
 import { pendingTopListings } from "@lib/pending-top-listings";
-import { getCheckoutBaseUrl, getStripe } from "@lib/stripeCheckout";
+import {
+  getCheckoutBaseUrl,
+  getPrivateListingStripe,
+  getStripe,
+} from "@lib/stripeCheckout";
+import type Stripe from "stripe";
 
 const TOP_LISTING_PRICE = 9900; // 99 CZK in haléře
 
@@ -25,39 +30,29 @@ export async function POST(req: NextRequest) {
       return error("Invalid listing data", 400);
     }
 
-    let stripe;
-    try {
-      stripe = getStripe();
-    } catch {
-      return error("Payment system not configured", 503);
-    }
-
     const baseUrl = getCheckoutBaseUrl(req);
     const brand = validationResult.data.brand;
     const model = validationResult.data.model;
-    const requiresPublishFee = !user.isDealer && !user.isAdmin;
+    const requiresPublishFee = requiresPrivateListingPayment(user);
 
-    const lineItems: Array<{
-      price_data: {
-        currency: string;
-        product_data: { name: string; description: string };
-        unit_amount: number;
-      };
-      quantity: number;
-    }> = [];
+    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
 
-    if (requiresPublishFee) {
-      lineItems.push({
-        price_data: {
-          currency: "czk",
-          product_data: {
-            name: "Zveřejnění inzerátu",
-            description: `Jednorázová platba ${PRIVATE_LISTING_PRICE_LABEL} za inzerát ${brand} ${model}. Platí natrvalo.`,
-          },
-          unit_amount: PRIVATE_LISTING_PRICE_CENTS,
-        },
-        quantity: 1,
-      });
+    // Private sellers: publish fee + TOP on the dedicated Stripe account.
+    // Dealers/admins: TOP only on the primary Stripe account (unchanged).
+    let stripe: Stripe;
+    try {
+      if (requiresPublishFee) {
+        stripe = getPrivateListingStripe();
+        lineItems.push({
+          price: getPrivateListingPriceId(),
+          quantity: 1,
+        });
+      } else {
+        stripe = getStripe();
+      }
+    } catch (e: any) {
+      console.error("TOP listing Stripe config error:", e?.message || e);
+      return error("Payment system not configured", 503);
     }
 
     lineItems.push({
@@ -82,6 +77,7 @@ export async function POST(req: NextRequest) {
         userId: user.id,
         type: "new_top_listing",
         includesPublishFee: requiresPublishFee ? "1" : "0",
+        stripeAccount: requiresPublishFee ? "private_listing" : "primary",
       },
     });
 

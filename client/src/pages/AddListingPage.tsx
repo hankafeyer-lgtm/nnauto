@@ -4,7 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertListingSchema, type InsertListing } from "@shared/schema";
 import { carBrands, carModels } from "@shared/carDatabase";
 import { DEALER_BILLING_FREE_MODE } from "@shared/dealerBilling";
-import { PRIVATE_LISTING_PRICE_LABEL } from "@shared/privateListingBilling";
+import {
+  PRIVATE_LISTING_PRICE_LABEL,
+  requiresPrivateListingPayment,
+} from "@shared/privateListingBilling";
 import { useTranslation, useLocalizedOptions, vehicleTypeBrands, getModelsForVehicleType } from "@/lib/translations";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -1347,7 +1350,7 @@ export default function AddListingPage() {
       video: video || undefined,
     };
 
-    const requiresPrivatePublishFee = !user.isDealer && !user.isAdmin;
+    const requiresPrivatePublishFee = requiresPrivateListingPayment(user);
 
     if (data.isTopListing) {
       setIsProcessingCheckout(true);
@@ -1438,7 +1441,7 @@ export default function AddListingPage() {
     completeTopListingMutation.mutate(stripeSessionId);
   };
 
-  const requiresPrivatePublishFee = !!user && !user.isDealer && !user.isAdmin;
+  const requiresPrivatePublishFee = requiresPrivateListingPayment(user);
 
   if (isLoading) {
     return (
@@ -3734,6 +3737,40 @@ export default function AddListingPage() {
                     </AccordionItem>
                   </Accordion>
 
+                  {requiresPrivatePublishFee ? (
+                    <div
+                      className="rounded-2xl border-2 border-[#B8860B]/50 bg-gradient-to-br from-[#B8860B]/10 to-[#D4AF37]/5 p-4 sm:p-5"
+                      data-testid="private-listing-fee-notice"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#B8860B] to-[#D4AF37] text-white shadow">
+                          <CreditCard className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-base font-bold text-foreground">
+                              {language === "uk"
+                                ? "Публікація оголошення"
+                                : language === "en"
+                                  ? "Listing publish fee"
+                                  : "Zveřejnění inzerátu"}
+                            </span>
+                            <span className="rounded-full bg-gradient-to-r from-[#B8860B] to-[#D4AF37] px-3 py-0.5 text-sm font-bold text-white shadow-sm">
+                              {PRIVATE_LISTING_PRICE_LABEL}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            {language === "uk"
+                              ? "Одноразова оплата. Оголошення залишається активним, поки ви самі його не знімете — без щомісячної підписки."
+                              : language === "en"
+                                ? "One-time payment. Your listing stays active until you remove it — no monthly subscription."
+                                : "Jednorázová platba. Inzerát zůstane aktivní, dokud jej sami nesmažete — bez měsíčního předplatného."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
                   <FormField
                     control={form.control}
                     name="isTopListing"
@@ -3836,7 +3873,7 @@ export default function AddListingPage() {
                         : isTopListing || requiresPrivatePublishFee
                         ? `${t("listing.submitWithPayment")} · ${
                             isTopListing && requiresPrivatePublishFee
-                              ? "168,99 Kč"
+                              ? "168 Kč"
                               : isTopListing
                                 ? "99 Kč"
                                 : PRIVATE_LISTING_PRICE_LABEL
@@ -3862,7 +3899,13 @@ export default function AddListingPage() {
                   >
                     {completionPercent}% vyplněno ·{" "}
                     {requiresPrivatePublishFee || isTopListing
-                      ? t("listing.submitWithPayment")
+                      ? `${t("listing.submitWithPayment")} · ${
+                          isTopListing && requiresPrivatePublishFee
+                            ? "168 Kč"
+                            : isTopListing
+                              ? "99 Kč"
+                              : PRIVATE_LISTING_PRICE_LABEL
+                        }`
                       : t("listing.submit")}
                   </Button>
                 </div>
@@ -3944,7 +3987,7 @@ export default function AddListingPage() {
               {requiresPrivatePublishFee || isTopListing
                 ? `Pokračovat k platbě · ${
                     isTopListing && requiresPrivatePublishFee
-                      ? "168,99 Kč"
+                      ? "168 Kč"
                       : isTopListing
                         ? "99 Kč"
                         : PRIVATE_LISTING_PRICE_LABEL

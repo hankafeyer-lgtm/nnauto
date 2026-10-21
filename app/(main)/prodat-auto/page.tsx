@@ -96,7 +96,7 @@ const FAQ: { question: string; answer: string }[] = [
   {
     question: "Kolik stojí vložení inzerátu na NNAuto?",
     answer:
-      "Soukromí prodejci platí jednorázově 69,99 Kč za inzerát. Platba není měsíční — inzerát zůstane aktivní, dokud jej sami nesmažete. Pro autobazary nabízíme balíčky inzerce – detaily najdete v ceníku.",
+      "Soukromí prodejci platí jednorázově 69 Kč za inzerát. Platba není měsíční — inzerát zůstane aktivní, dokud jej sami nesmažete. Pro autobazary nabízíme balíčky inzerce – detaily najdete v ceníku.",
   },
   {
     question: "Jak rychle prodám auto přes NNAuto?",

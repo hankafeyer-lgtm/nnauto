@@ -56,7 +56,7 @@ export default function PricingPage() {
       highlighted: true,
       features: [
         "Vyšší pozice ve výsledcích",
-        "Pro soukromé + zveřejnění 168,99 Kč",
+        "Pro soukromé + zveřejnění 168 Kč",
         "Lze dokoupit k běžnému inzerátu",
         "Platí 30 dní",
       ],

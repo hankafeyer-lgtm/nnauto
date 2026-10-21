@@ -5,9 +5,10 @@ import { storage } from "@lib/storage";
 import {
   PRIVATE_LISTING_PAYMENT_TYPE,
   PRIVATE_LISTING_PRICE_CENTS,
+  requiresPrivateListingPayment,
 } from "@shared/privateListingBilling";
 import { pendingPrivateListings } from "@lib/pending-private-listings";
-import { getStripe } from "@lib/stripeCheckout";
+import { getPrivateListingStripe } from "@lib/stripeCheckout";
 import { eq } from "drizzle-orm";
 import { db } from "@lib/db";
 import { payments } from "@shared/schema";
@@ -21,7 +22,7 @@ export async function POST(req: NextRequest) {
       return error("Invalid session ID", 400);
     }
 
-    if (user.isDealer) {
+    if (!requiresPrivateListingPayment(user)) {
       return error("Dealers do not use private listing checkout", 400);
     }
 
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     let stripe;
     try {
-      stripe = getStripe();
+      stripe = getPrivateListingStripe();
     } catch {
       return error("Payment system not configured", 503);
     }
@@ -72,9 +73,12 @@ export async function POST(req: NextRequest) {
       if (session.metadata?.type !== PRIVATE_LISTING_PAYMENT_TYPE) {
         return error("Invalid session type", 400);
       }
-      if (session.amount_total !== PRIVATE_LISTING_PRICE_CENTS) {
+      // Accept the configured Stripe Price amount (69 Kč) with a small tolerance
+      // for legacy 69,99 Kč test sessions.
+      const amount = session.amount_total ?? 0;
+      if (amount !== PRIVATE_LISTING_PRICE_CENTS && amount !== 6999) {
         console.error(
-          `Private listing amount mismatch: expected ${PRIVATE_LISTING_PRICE_CENTS}, got ${session.amount_total}`,
+          `Private listing amount mismatch: expected ${PRIVATE_LISTING_PRICE_CENTS}, got ${amount}`,
         );
         return error("Invalid payment amount", 400);
       }
@@ -96,7 +100,7 @@ export async function POST(req: NextRequest) {
     await storage.createPayment({
       userId: user.id,
       listingId: listing.id,
-      amount: PRIVATE_LISTING_PRICE_CENTS.toString(),
+      amount: String(session.amount_total ?? PRIVATE_LISTING_PRICE_CENTS),
       currency: "czk",
       status: "completed",
       stripeSessionId,

@@ -7,7 +7,7 @@ import { useTranslation } from "@/lib/translations";
 
 const tipsFaqSchema = generateFAQSchema([
   { question: "Jak rychle prodat auto?", answer: "Nastavte konkurenceschopnou cenu, přidejte kvalitní fotky ze všech úhlů, napište podrobný popis s kompletní historií servisu a odpovídejte na dotazy co nejrychleji." },
-  { question: "Kolik stojí inzerát na NNAuto?", answer: "Soukromí prodejci platí jednorázově 69,99 Kč za inzerát — zůstane aktivní, dokud jej sami nesmažete. Volitelné TOP zvýraznění stojí 99 Kč na 30 dní." },
+  { question: "Kolik stojí inzerát na NNAuto?", answer: "Soukromí prodejci platí jednorázově 69 Kč za inzerát — zůstane aktivní, dokud jej sami nesmažete. Volitelné TOP zvýraznění stojí 99 Kč na 30 dní." },
   { question: "Jak nafotit auto pro inzerát?", answer: "Foťte za denního světla, čisté auto, ze všech stran včetně interiéru. Použijte minimálně 10 fotek. Zahrňte detail motoru, tachometr a případné poškození." },
   { question: "Jakou cenu nastavit při prodeji auta?", answer: "Porovnejte ceny podobných aut na trhu. Zohledněte rok, najeto km, stav a výbavu. Nechte si prostor pro vyjednávání - nastavte cenu o 5-10% výš." },
   { question: "Je důležitý popis inzerátu?", answer: "Ano, detailní popis zvyšuje důvěru kupujících. Uveďte historii servisu, výbavu, stav, důvod prodeje a vše relevantní. Čím víc informací, tím víc zájemců." },
