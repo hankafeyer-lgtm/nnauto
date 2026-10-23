@@ -39,9 +39,9 @@ export default function Pricing() {
         <h2>TOP inzeráty, Cebia prověření a online prodej auta</h2>
         <p>
           NNAuto nabízí transparentní ceník pro prodejce i kupce ojetých a
-          nových vozů. Základní vložení inzerátu je zdarma. Pro rychlejší
-          prodej můžete využít zvýraznění TOP, které posune inzerát nahoru
-          ve výpisu a označí ho viditelným štítkem.
+          nových vozů. Soukromí prodejci platí jednorázově 69 Kč za zveřejnění
+          inzerátu — bez měsíčního předplatného. Pro rychlejší prodej můžete
+          využít zvýraznění TOP, které posune inzerát nahoru ve výpisu.
         </p>
         <p>
           Doplňkovou službou je online prověření vozu Cebia z VIN kódu –

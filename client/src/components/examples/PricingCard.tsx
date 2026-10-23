@@ -18,6 +18,7 @@ export default function PricingCardExample() {
           "Automatické obnovení",
         ]}
         buttonText="Vybrat plán"
+        onSelect={() => {}}
       />
     </div>
   );
