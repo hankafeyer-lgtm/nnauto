@@ -27,7 +27,16 @@ export async function POST(req: NextRequest) {
     });
 
     if (!validationResult.success) {
-      return error("Invalid listing data", 400);
+      const details = validationResult.error.issues
+        .slice(0, 5)
+        .map((issue) => issue.message)
+        .join("; ");
+      return error(
+        details
+          ? `Neplatná data inzerátu: ${details}`
+          : "Neplatná data inzerátu",
+        400,
+      );
     }
 
     const baseUrl = getCheckoutBaseUrl(req);

@@ -11,7 +11,7 @@ import {
 import { useTranslation, useLocalizedOptions, vehicleTypeBrands, getModelsForVehicleType } from "@/lib/translations";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, parseApiError, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation, useSearch } from "@/lib/navigation";
 import { buildListingPath } from "@/lib/listingUrl";
@@ -484,6 +484,8 @@ export default function AddListingPage() {
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const submitLockRef = useRef(false);
   const submitLockToastTsRef = useRef(0);
+  /** When true, beforeunload must not block Stripe / payment redirects. */
+  const allowUnloadForCheckoutRef = useRef(false);
   const { language } = useLanguage();
   const isMediaUploading = isPhotosUploading || isVideoUploading;
   
@@ -1145,6 +1147,8 @@ export default function AddListingPage() {
     if (!shouldWarn) return;
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // Do not interrupt intentional redirect to Stripe Checkout.
+      if (allowUnloadForCheckoutRef.current) return;
       event.preventDefault();
       event.returnValue = "";
     };
@@ -1157,6 +1161,52 @@ export default function AddListingPage() {
     createListingMutation.isPending,
     isCompletingPaidListing,
   ]);
+
+  const checkoutErrorMessage = (error: unknown) => {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return language === "uk"
+        ? "Час очікування вичерпано. Спробуйте ще раз."
+        : language === "cs"
+          ? "Vypršel časový limit. Zkuste to prosím znovu."
+          : "Request timed out. Please try again.";
+    }
+    return (
+      parseApiError(error).message ||
+      (language === "uk"
+        ? "Не вдалося створити платіжну сесію."
+        : "Nepodařilo se vytvořit platební relaci.")
+    );
+  };
+
+  const redirectToStripeCheckout = (url: string) => {
+    allowUnloadForCheckoutRef.current = true;
+    window.location.assign(url);
+  };
+
+  const createCheckoutSession = async (
+    endpoint: string,
+    payload: Record<string, unknown>,
+  ) => {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 45_000);
+    try {
+      const res = await apiRequest("POST", endpoint, payload, {
+        signal: controller.signal,
+      });
+      const result = await res.json();
+      if (!result?.url || typeof result.url !== "string") {
+        throw new Error(
+          language === "uk"
+            ? "Платіжна сесія не повернула посилання."
+            : "Platební relace nevrátila odkaz.",
+        );
+      }
+      redirectToStripeCheckout(result.url);
+      return true;
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
+  };
 
   const requiredFieldLabels: Record<string, { cs: string; uk: string; en: string }> = {
     title: { cs: "Název inzerátu", uk: "Назва оголошення", en: "Listing title" },
@@ -1355,21 +1405,15 @@ export default function AddListingPage() {
     if (data.isTopListing) {
       setIsProcessingCheckout(true);
       try {
-        const res = await apiRequest("POST", "/api/checkout/new-top-listing", payload);
-        const result = await res.json();
-        
-        if (result.url) {
-          window.location.href = result.url;
-        } else {
-          throw new Error("Failed to create checkout session");
-        }
-      } catch (error: any) {
+        await createCheckoutSession("/api/checkout/new-top-listing", payload);
+      } catch (error: unknown) {
+        allowUnloadForCheckoutRef.current = false;
         setIsProcessingCheckout(false);
         submitLockRef.current = false;
         toast({
           variant: "destructive",
           title: t("payment.error") || "Chyba platby",
-          description: error.message || "Nepodařilo se vytvořit platební relaci.",
+          description: checkoutErrorMessage(error),
         });
       }
       return;
@@ -1378,20 +1422,18 @@ export default function AddListingPage() {
     if (requiresPrivatePublishFee) {
       setIsProcessingCheckout(true);
       try {
-        const res = await apiRequest("POST", "/api/checkout/new-private-listing", payload);
-        const result = await res.json();
-        if (result.url) {
-          window.location.href = result.url;
-        } else {
-          throw new Error("Failed to create checkout session");
-        }
-      } catch (error: any) {
+        await createCheckoutSession(
+          "/api/checkout/new-private-listing",
+          payload,
+        );
+      } catch (error: unknown) {
+        allowUnloadForCheckoutRef.current = false;
         setIsProcessingCheckout(false);
         submitLockRef.current = false;
         toast({
           variant: "destructive",
           title: t("payment.error") || "Chyba platby",
-          description: error.message || "Nepodařilo se vytvořit platební relaci.",
+          description: checkoutErrorMessage(error),
         });
       }
       return;
@@ -1408,28 +1450,54 @@ export default function AddListingPage() {
     setIsProcessingCheckout(true);
     try {
       const formData = form.getValues();
-      const res = await apiRequest("POST", "/api/checkout/new-top-listing", {
+      setTopsPurchased((prev) => prev + 1);
+      await createCheckoutSession("/api/checkout/new-top-listing", {
         ...formData,
         userId: user?.id,
         photos: photos.length > 0 ? photos : undefined,
         video: video || undefined,
       });
-      const result = await res.json();
-      
-      if (result.url) {
-        setTopsPurchased(prev => prev + 1);
-        window.location.href = result.url;
-      } else {
-        throw new Error("Failed to create checkout session");
-      }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      allowUnloadForCheckoutRef.current = false;
       setIsProcessingCheckout(false);
       toast({
         variant: "destructive",
         title: t("payment.error") || "Chyba platby",
-        description: error.message || "Nepodařilo se vytvořit platební relaci.",
+        description: checkoutErrorMessage(error),
       });
     }
+  };
+
+  const handleConfirmPublishFromReview = () => {
+    form.handleSubmit(
+      (data) => {
+        setReviewDialogOpen(false);
+        void onSubmit(data);
+      },
+      (errors) => {
+        const labels = Object.keys(errors)
+          .map((key) => getFieldLabel(key))
+          .filter(Boolean);
+        toast({
+          variant: "destructive",
+          title:
+            language === "uk"
+              ? "Заповніть обов'язкові поля"
+              : language === "cs"
+                ? "Vyplňte povinná pole"
+                : "Fill required fields",
+          description:
+            labels.length > 0
+              ? labels.join(", ")
+              : language === "uk"
+                ? "Перевірте форму та спробуйте знову."
+                : "Zkontrolujte formulář a zkuste to znovu.",
+        });
+        setReviewDialogOpen(false);
+        const firstKey = Object.keys(errors)[0];
+        if (firstKey) scrollToFirstMissingField([firstKey]);
+      },
+    )();
   };
 
   const handlePostListing = () => {
@@ -3897,16 +3965,27 @@ export default function AddListingPage() {
                     className="h-12 w-full rounded-xl bg-gradient-to-r from-[#B8860B] to-[#D4AF37] font-bold text-white shadow-[0_8px_20px_rgba(184,134,11,0.3)]"
                     data-testid="button-sticky-submit"
                   >
-                    {completionPercent}% vyplněno ·{" "}
-                    {requiresPrivatePublishFee || isTopListing
-                      ? `${t("listing.submitWithPayment")} · ${
-                          isTopListing && requiresPrivatePublishFee
-                            ? "168 Kč"
-                            : isTopListing
-                              ? "99 Kč"
-                              : PRIVATE_LISTING_PRICE_LABEL
-                        }`
-                      : t("listing.submit")}
+                    {isMediaUploading
+                      ? language === "uk"
+                        ? "Завантаження медіа..."
+                        : language === "cs"
+                          ? "Nahrávání médií..."
+                          : "Uploading media..."
+                      : createListingMutation.isPending ||
+                          isProcessingCheckout ||
+                          isCompletingPaidListing
+                        ? t("listing.submitting") || "Odesílání..."
+                        : `${completionPercent}% vyplněno · ${
+                            requiresPrivatePublishFee || isTopListing
+                              ? `${t("listing.submitWithPayment")} · ${
+                                  isTopListing && requiresPrivatePublishFee
+                                    ? "168 Kč"
+                                    : isTopListing
+                                      ? "99 Kč"
+                                      : PRIVATE_LISTING_PRICE_LABEL
+                                }`
+                              : t("listing.submit")
+                          }`}
                   </Button>
                 </div>
               )}
@@ -3972,10 +4051,7 @@ export default function AddListingPage() {
             <Button
               type="button"
               className="h-12 rounded-xl bg-gradient-to-r from-[#B8860B] to-[#D4AF37] font-bold text-white hover:from-[#a3760a] hover:to-[#c9a431]"
-              onClick={() => {
-                setReviewDialogOpen(false);
-                form.handleSubmit(onSubmit)();
-              }}
+              onClick={handleConfirmPublishFromReview}
               disabled={
                 createListingMutation.isPending ||
                 isProcessingCheckout ||
@@ -3984,15 +4060,17 @@ export default function AddListingPage() {
               }
               data-testid="button-confirm-publish"
             >
-              {requiresPrivatePublishFee || isTopListing
-                ? `Pokračovat k platbě · ${
-                    isTopListing && requiresPrivatePublishFee
-                      ? "168 Kč"
-                      : isTopListing
-                        ? "99 Kč"
-                        : PRIVATE_LISTING_PRICE_LABEL
-                  }`
-                : "Potvrdit a publikovat"}
+              {isProcessingCheckout || isCompletingPaidListing
+                ? t("listing.submitting") || "Odesílání..."
+                : requiresPrivatePublishFee || isTopListing
+                  ? `Pokračovat k platbě · ${
+                      isTopListing && requiresPrivatePublishFee
+                        ? "168 Kč"
+                        : isTopListing
+                          ? "99 Kč"
+                          : PRIVATE_LISTING_PRICE_LABEL
+                    }`
+                  : "Potvrdit a publikovat"}
             </Button>
           </DialogFooter>
         </DialogContent>
