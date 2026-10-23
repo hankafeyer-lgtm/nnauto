@@ -6,6 +6,7 @@ import { db } from "@lib/db";
 import { sql } from "drizzle-orm";
 import { invalidateListingsCache } from "../route";
 import { dispatchVehicleWebhook } from "@lib/webhooks";
+import { withActiveTopListingStatus } from "@shared/topListing";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -23,7 +24,7 @@ export async function GET(
     if (!listing) {
       return error("Listing not found", 404);
     }
-    return json(listing);
+    return json(withActiveTopListingStatus(listing));
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Server error";
     return error(message, 500);

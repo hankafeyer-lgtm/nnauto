@@ -3,10 +3,12 @@ import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { storage } from "@lib/storage";
 import { buildPaymentSnapshots } from "@lib/paymentReceipt";
+import {
+  TOP_LISTING_PRICE_CENTS,
+  computeTopListingExpiresAt,
+  isActiveTopListing,
+} from "@shared/topListing";
 import Stripe from "stripe";
-
-const TOP_LISTING_PRICE = 9900;
-const TOP_LISTING_DURATION_DAYS = 30;
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -52,9 +54,9 @@ export async function POST(req: NextRequest) {
         return error("Invalid session type", 400);
       }
 
-      if (session.amount_total !== TOP_LISTING_PRICE) {
+      if (session.amount_total !== TOP_LISTING_PRICE_CENTS) {
         console.error(
-          `Amount mismatch: expected ${TOP_LISTING_PRICE}, got ${session.amount_total}`,
+          `Amount mismatch: expected ${TOP_LISTING_PRICE_CENTS}, got ${session.amount_total}`,
         );
         return error("Invalid payment amount", 400);
       }
@@ -82,20 +84,12 @@ export async function POST(req: NextRequest) {
       return error("Cannot promote another user's listing", 403);
     }
 
-    const activeTopExpiresAt = listing.topListingExpiresAt
-      ? new Date(listing.topListingExpiresAt)
-      : null;
-    if (
-      listing.isTopListing &&
-      activeTopExpiresAt &&
-      activeTopExpiresAt.getTime() > Date.now()
-    ) {
+    if (isActiveTopListing(listing)) {
       console.log(`Listing ${listingId} already TOP - returning success`);
       return json(listing);
     }
 
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + TOP_LISTING_DURATION_DAYS);
+    const expiresAt = computeTopListingExpiresAt();
 
     const updatedListing = await storage.updateListing(listingId, {
       isTopListing: true,
@@ -105,7 +99,7 @@ export async function POST(req: NextRequest) {
     await storage.createPayment({
       userId: user.id,
       listingId: listingId,
-      amount: (session.amount_total || TOP_LISTING_PRICE).toString(),
+      amount: (session.amount_total || TOP_LISTING_PRICE_CENTS).toString(),
       currency: session.currency || "czk",
       status: "completed",
       stripeSessionId: stripeSessionId,

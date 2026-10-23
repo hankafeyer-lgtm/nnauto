@@ -2,9 +2,12 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { storage } from "@lib/storage";
+import {
+  TOP_LISTING_PRICE_CENTS,
+  TOP_LISTING_PRICE_LABEL,
+  isActiveTopListing,
+} from "@shared/topListing";
 import Stripe from "stripe";
-
-const TOP_LISTING_PRICE = 9900; // 99 CZK in haléře
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -47,14 +50,7 @@ export async function POST(
       return error("Cannot promote another user's listing", 403);
     }
 
-    const activeTopExpiresAt = listing.topListingExpiresAt
-      ? new Date(listing.topListingExpiresAt)
-      : null;
-    if (
-      listing.isTopListing &&
-      activeTopExpiresAt &&
-      activeTopExpiresAt.getTime() > Date.now()
-    ) {
+    if (isActiveTopListing(listing)) {
       return error("Listing is already a TOP listing", 400);
     }
 
@@ -68,9 +64,9 @@ export async function POST(
             currency: "czk",
             product_data: {
               name: "TOP Inzerát",
-              description: `Zvýraznění inzerátu: ${listing.brand} ${listing.model}`,
+              description: `Zvýraznění inzerátu na 30 dní (${TOP_LISTING_PRICE_LABEL}): ${listing.brand} ${listing.model}`,
             },
-            unit_amount: TOP_LISTING_PRICE,
+            unit_amount: TOP_LISTING_PRICE_CENTS,
           },
           quantity: 1,
         },
@@ -85,7 +81,13 @@ export async function POST(
       },
     });
 
-    return json({ url: session.url, sessionId: session.id });
+    return json({
+      url: session.url,
+      sessionId: session.id,
+      amountKc: TOP_LISTING_PRICE_CENTS / 100,
+      priceLabel: TOP_LISTING_PRICE_LABEL,
+      durationDays: 30,
+    });
   } catch (e: any) {
     if (e.message === "Unauthorized") return error("Unauthorized", 401);
     console.error("Stripe checkout error:", e);

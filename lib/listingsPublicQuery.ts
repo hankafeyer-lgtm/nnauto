@@ -3,6 +3,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { db } from "./db";
 import * as H from "./listingsQueryHelpers";
 import { listings, type Listing } from "@shared/schema";
+import { withActiveTopListingStatus } from "@shared/topListing";
 import { ensureSearchExtensions } from "./ensureSearchExtensions";
 
 /**
@@ -303,20 +304,8 @@ function buildWhereParts(
   return parts;
 }
 
-/** Legacy TOP (null expiry) stays active; only past expiry drops the badge. */
-function isActiveTopListing(listing: Listing): boolean {
-  if (!listing.isTopListing) return false;
-  if (!listing.topListingExpiresAt) return true;
-  return new Date(listing.topListingExpiresAt).getTime() > Date.now();
-}
-
 function normalizeTopListingStatus(rows: Listing[]): Listing[] {
-  return rows.map((listing) => {
-    const activeTop = isActiveTopListing(listing);
-    return activeTop === listing.isTopListing
-      ? listing
-      : { ...listing, isTopListing: activeTop };
-  });
+  return rows.map(withActiveTopListingStatus);
 }
 
 /**

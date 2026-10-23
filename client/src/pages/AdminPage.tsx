@@ -790,12 +790,14 @@ export default function AdminPage() {
       );
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (updated: { isTopListing?: boolean }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/listings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       toast({
         title: t("admin.topStatusUpdated"),
-        description: t("admin.topStatusUpdatedDescription"),
+        description: updated?.isTopListing
+          ? "Inzerát je TOP na 30 dní."
+          : t("admin.topStatusUpdatedDescription"),
       });
     },
     onError: (error: any) => {

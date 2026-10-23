@@ -3697,8 +3697,20 @@ export default function ListingsPage({
   });
 
   const handlePromote = useCallback(
-    (listingId: string) => promoteToTopMutation.mutate(listingId),
-    [promoteToTopMutation],
+    (listingId: string) => {
+      const ok = window.confirm(
+        language === "uk"
+          ? "Протопувати оголошення на 30 днів за 99 Kč?\nПісля оплати авто знову буде в TOP."
+          : language === "en"
+            ? "Promote this listing to TOP for 30 days for 99 Kč?\nAfter payment it will appear in TOP again."
+            : language === "de"
+              ? "Inserat für 30 Tage für 99 Kč als TOP hervorheben?\nNach der Zahlung erscheint es wieder als TOP."
+              : "Zvýraznit inzerát jako TOP na 30 dní za 99 Kč?\nPo platbě se opět zobrazí v TOP.",
+      );
+      if (!ok) return;
+      promoteToTopMutation.mutate(listingId);
+    },
+    [promoteToTopMutation, language],
   );
 
   const handleDelete = (listingId: string) => {
