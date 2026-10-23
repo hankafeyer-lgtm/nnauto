@@ -9,6 +9,7 @@ import {
 } from "@shared/privateListingBilling";
 import { pendingPrivateListings } from "@lib/pending-private-listings";
 import { getPrivateListingStripe } from "@lib/stripeCheckout";
+import { buildPaymentSnapshots } from "@lib/paymentReceipt";
 import { eq } from "drizzle-orm";
 import { db } from "@lib/db";
 import { payments } from "@shared/schema";
@@ -105,6 +106,13 @@ export async function POST(req: NextRequest) {
       status: "completed",
       stripeSessionId,
       stripePaymentIntentId: (session.payment_intent as string) || null,
+      ...buildPaymentSnapshots({
+        user,
+        listing,
+        paymentType: "new_private_listing",
+        includesPublishFee: true,
+        includesTop: false,
+      }),
     });
 
     console.log(

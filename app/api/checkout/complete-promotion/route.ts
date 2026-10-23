@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAuth } from "@lib/auth";
 import { storage } from "@lib/storage";
+import { buildPaymentSnapshots } from "@lib/paymentReceipt";
 import Stripe from "stripe";
 
 const TOP_LISTING_PRICE = 9900;
@@ -109,6 +110,13 @@ export async function POST(req: NextRequest) {
       status: "completed",
       stripeSessionId: stripeSessionId,
       stripePaymentIntentId: (session.payment_intent as string) || null,
+      ...buildPaymentSnapshots({
+        user,
+        listing: updatedListing ?? listing,
+        paymentType: "promote_listing",
+        includesPublishFee: false,
+        includesTop: true,
+      }),
     });
 
     console.log(

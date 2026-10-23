@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { db } from "@lib/db";
 import { assertDealerIsActive } from "@lib/dealerPackages";
 import { ensureDealerInvoiceForTopListingCheckout } from "@lib/dealerInvoice";
+import { buildPaymentSnapshots } from "@lib/paymentReceipt";
 import { storage } from "@lib/storage";
 import { payments } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
@@ -80,6 +81,8 @@ export async function processDealerTopListingCheckoutSession(
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + Number(duration));
 
+  const payer = await storage.getUser(userId);
+
   const updated = [];
   for (const id of listingIds) {
     const listing = await storage.getListing(id);
@@ -95,6 +98,7 @@ export async function processDealerTopListingCheckoutSession(
     if (updatedListing) updated.push(updatedListing);
 
     try {
+      const snapshotListing = updatedListing ?? listing;
       await storage.createPayment({
         userId,
         listingId: id,
@@ -103,6 +107,19 @@ export async function processDealerTopListingCheckoutSession(
         status: "completed",
         stripeSessionId: session.id,
         stripePaymentIntentId: paymentIntentId,
+        ...(payer
+          ? buildPaymentSnapshots({
+              user: payer,
+              listing: snapshotListing,
+              paymentType: "dealer_top_listing",
+              includesPublishFee: false,
+              includesTop: true,
+            })
+          : {
+              paymentType: "dealer_top_listing",
+              includesPublishFee: false,
+              includesTop: true,
+            }),
       });
     } catch (e) {
       const code = (e as { code?: string }).code;

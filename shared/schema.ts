@@ -666,6 +666,14 @@ export type Brand = typeof brands.$inferSelect;
 export type Model = typeof models.$inferSelect;
 export type ModelGeneration = typeof modelGenerations.$inferSelect;
 
+export const paymentTypeValues = [
+  "new_private_listing",
+  "new_top_listing",
+  "promote_listing",
+  "dealer_top_listing",
+] as const;
+export type PaymentType = (typeof paymentTypeValues)[number];
+
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
@@ -675,6 +683,22 @@ export const payments = pgTable("payments", {
   status: varchar("status", { length: 20 }).default("pending").notNull(),
   stripeSessionId: text("stripe_session_id"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
+  /** What was purchased: private publish, TOP, promote, dealer TOP */
+  paymentType: varchar("payment_type", { length: 40 }),
+  includesPublishFee: boolean("includes_publish_fee").default(false).notNull(),
+  includesTop: boolean("includes_top").default(false).notNull(),
+  /** Snapshots at payment time (survive user/listing edits) */
+  buyerEmailSnapshot: text("buyer_email_snapshot"),
+  buyerNameSnapshot: text("buyer_name_snapshot"),
+  buyerPhoneSnapshot: text("buyer_phone_snapshot"),
+  buyerUsernameSnapshot: text("buyer_username_snapshot"),
+  listingTitleSnapshot: text("listing_title_snapshot"),
+  listingBrandSnapshot: text("listing_brand_snapshot"),
+  listingModelSnapshot: text("listing_model_snapshot"),
+  listingYearSnapshot: integer("listing_year_snapshot"),
+  listingVinSnapshot: varchar("listing_vin_snapshot", { length: 17 }),
+  listingPriceSnapshot: text("listing_price_snapshot"),
+  serviceDescription: text("service_description"),
   createdAt: timestamp("created_at").default(sql`now()`).notNull(),
   updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
 });
@@ -696,10 +720,19 @@ export type EnrichedPayment = Payment & {
   buyerEmail?: string;
   buyerFirstName?: string;
   buyerLastName?: string;
+  buyerPhone?: string;
+  buyerFullName?: string;
   listingTitle?: string;
   listingBrand?: string;
   listingModel?: string;
+  listingYear?: number | null;
+  listingVin?: string | null;
   listingPrice?: string;
+  listingIsTop?: boolean;
+  paymentTypeResolved?: PaymentType | null;
+  paymentTypeLabel?: string;
+  amountKc?: number;
+  pdfUrl?: string;
 };
 
 export const cebiaReports = pgTable(

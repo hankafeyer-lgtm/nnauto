@@ -5,6 +5,7 @@ import { storage } from "@lib/storage";
 import { PRIVATE_LISTING_PRICE_CENTS } from "@shared/privateListingBilling";
 import { pendingTopListings } from "@lib/pending-top-listings";
 import { getPrivateListingStripe, getStripe } from "@lib/stripeCheckout";
+import { buildPaymentSnapshots } from "@lib/paymentReceipt";
 import { eq } from "drizzle-orm";
 import { db } from "@lib/db";
 import { payments } from "@shared/schema";
@@ -96,6 +97,8 @@ export async function POST(req: NextRequest) {
 
     pendingTopListings.delete(stripeSessionId);
 
+    const includesPublishFee = session.metadata?.includesPublishFee === "1";
+
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + TOP_LISTING_DURATION_DAYS);
 
@@ -115,6 +118,13 @@ export async function POST(req: NextRequest) {
       status: "completed",
       stripeSessionId: stripeSessionId,
       stripePaymentIntentId: (session.payment_intent as string) || null,
+      ...buildPaymentSnapshots({
+        user,
+        listing: updatedListing ?? listing,
+        paymentType: "new_top_listing",
+        includesPublishFee,
+        includesTop: true,
+      }),
     });
 
     console.log(

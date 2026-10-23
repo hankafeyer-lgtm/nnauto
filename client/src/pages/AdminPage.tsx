@@ -442,6 +442,7 @@ import AdminNav from "@/components/admin/AdminNav";
 import AdminDashboardTab from "@/components/admin/AdminDashboardTab";
 import AdminDealerManagement from "@/components/admin/AdminDealerManagement";
 import AdminDeletedMessages from "@/components/admin/AdminDeletedMessages";
+import AdminPaymentsTab from "@/components/admin/AdminPaymentsTab";
 import type { User, Listing, EnrichedPayment, Dealer } from "@shared/schema";
 
 type AdminCebiaReport = {
@@ -530,27 +531,24 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const superAdmin = isSuperAdmin(user);
-  const [activeTab, setActiveTab] = useState<string>(() =>
-    isSuperAdmin(user) ? "dashboard" : "users",
-  );
+  const [activeTab, setActiveTab] = useState<string>("payments");
   const [navCollapsed, setNavCollapsed] = useState(false);
-  const adminRealtimeQueryOptions = {
-    enabled: isAuthenticated && user?.isAdmin,
-    refetchInterval: 15000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
-    staleTime: 0,
+  const canLoadAdminData = Boolean(
+    !authLoading && isAuthenticated && user?.isAdmin,
+  );
+  const adminBaseQueryOptions = {
+    enabled: canLoadAdminData,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: false,
+    staleTime: 30_000,
   } as const;
 
-  if (!authLoading && !isAuthenticated) {
-    navigate("/");
-    return null;
-  }
-
-  if (!authLoading && !user?.isAdmin) {
-    navigate("/");
-    return null;
-  }
+  const tabQuery = (tabId: string) =>
+    ({
+      ...adminBaseQueryOptions,
+      enabled: canLoadAdminData && activeTab === tabId,
+    }) as const;
 
   const {
     data: usersData,
@@ -558,7 +556,7 @@ export default function AdminPage() {
     error: usersError,
   } = useQuery<Omit<User, "password">[]>({
     queryKey: ["/api/admin/users"],
-    ...adminRealtimeQueryOptions,
+    ...tabQuery("users"),
   });
 
   const {
@@ -567,7 +565,7 @@ export default function AdminPage() {
     error: listingsError,
   } = useQuery<Listing[]>({
     queryKey: ["/api/admin/listings"],
-    ...adminRealtimeQueryOptions,
+    ...tabQuery("listings"),
   });
 
   const {
@@ -576,7 +574,7 @@ export default function AdminPage() {
     error: paymentsError,
   } = useQuery<EnrichedPayment[]>({
     queryKey: ["/api/admin/payments"],
-    ...adminRealtimeQueryOptions,
+    ...tabQuery("payments"),
   });
 
   const {
@@ -585,7 +583,7 @@ export default function AdminPage() {
     error: cebiaReportsError,
   } = useQuery<AdminCebiaReportsResponse>({
     queryKey: ["/api/admin/cebia/reports"],
-    ...adminRealtimeQueryOptions,
+    ...tabQuery("cebia"),
   });
 
   const {
@@ -598,12 +596,12 @@ export default function AdminPage() {
       const res = await apiRequest("GET", "/api/admin/dealers");
       return res.json();
     },
-    ...adminRealtimeQueryOptions,
+    ...tabQuery("dealers"),
   });
 
   const { data: listingAnalyticsData } = useQuery<AdminListingAnalyticsResponse>({
     queryKey: ["/api/admin/listings/analytics"],
-    ...adminRealtimeQueryOptions,
+    ...tabQuery("listings"),
   });
 
   const {
@@ -611,7 +609,7 @@ export default function AdminPage() {
     isLoading: deletedListingsLoading,
   } = useQuery<{ items: DeletedListingItem[] }>({
     queryKey: ["/api/admin/deleted-listings"],
-    ...adminRealtimeQueryOptions,
+    ...tabQuery("deleted"),
   });
 
   const {
@@ -620,7 +618,7 @@ export default function AdminPage() {
     error: dealerInvoicesError,
   } = useQuery<{ invoices: AdminDealerInvoice[] }>({
     queryKey: ["/api/admin/dealer-invoices"],
-    ...adminRealtimeQueryOptions,
+    ...tabQuery("dealer-invoices"),
   });
 
   const byCreatedAtDesc = <
@@ -842,9 +840,28 @@ export default function AdminPage() {
         <Header />
         <main className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-center h-[50vh]">
-            <p className="text-lg text-muted-foreground">
-              {t("admin.loading")}
+            <p className="text-lg text-muted-foreground">{t("admin.loading")}</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user?.isAdmin) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8">
+          <div className="mx-auto flex max-w-lg flex-col items-center justify-center gap-4 py-20 text-center">
+            <Shield className="h-10 w-10 text-primary" />
+            <h1 className="text-2xl font-semibold">Administrace</h1>
+            <p className="text-muted-foreground">
+              Pro přístup se přihlaste jako admin (menu vpravo nahoře → Přihlásit).
             </p>
+            <Button type="button" onClick={() => navigate("/")}>
+              Zpět na hlavní stránku
+            </Button>
           </div>
         </main>
         <Footer />
@@ -1189,102 +1206,10 @@ export default function AdminPage() {
           </TabsContent>
 
           <TabsContent value="payments" className="mt-0">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("admin.paymentsManagement")}</CardTitle>
-                <CardDescription>
-                  {t("admin.paymentsManagementDescription")}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {paymentsLoading ? (
-                  <p className="text-center py-8 text-muted-foreground">
-                    {t("admin.loading")}
-                  </p>
-                ) : payments && payments.length > 0 ? (
-                  <div className="rounded-md border">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t("admin.buyer")}</TableHead>
-                          <TableHead>{t("admin.listing")}</TableHead>
-                          <TableHead>{t("admin.amount")}</TableHead>
-                          <TableHead>{t("admin.paymentStatus")}</TableHead>
-                          <TableHead>{t("admin.paymentDate")}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {payments.map((payment) => (
-                          <TableRow
-                            key={payment.id}
-                            data-testid={`row-payment-${payment.id}`}
-                          >
-                            <TableCell data-testid={`text-buyer-${payment.id}`}>
-                              <div>
-                                <p className="font-medium">
-                                  {payment.buyerUsername || "-"}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                  {payment.buyerEmail || "-"}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell
-                              className="font-medium"
-                              data-testid={`text-listing-${payment.id}`}
-                            >
-                              {payment.listingTitle || "-"}
-                            </TableCell>
-                            <TableCell
-                              data-testid={`text-amount-${payment.id}`}
-                            >
-                              {new Intl.NumberFormat("cs-CZ").format(
-                                Number(payment.amount) / 100,
-                              )}{" "}
-                              {payment.currency?.toUpperCase()}
-                            </TableCell>
-                            <TableCell>
-                              {payment.status === "completed" ? (
-                                <Badge
-                                  variant="default"
-                                  data-testid={`badge-completed-${payment.id}`}
-                                >
-                                  {t("admin.completed")}
-                                </Badge>
-                              ) : payment.status === "pending" ? (
-                                <Badge
-                                  variant="secondary"
-                                  data-testid={`badge-pending-${payment.id}`}
-                                >
-                                  {t("admin.pending")}
-                                </Badge>
-                              ) : (
-                                <Badge
-                                  variant="destructive"
-                                  data-testid={`badge-failed-${payment.id}`}
-                                >
-                                  {t("admin.failed")}
-                                </Badge>
-                              )}
-                            </TableCell>
-                            <TableCell data-testid={`text-date-${payment.id}`}>
-                              {format(
-                                new Date(payment.createdAt),
-                                "dd.MM.yyyy HH:mm",
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                ) : (
-                  <p className="text-center py-8 text-muted-foreground">
-                    {t("admin.noPayments")}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <AdminPaymentsTab
+              payments={payments}
+              isLoading={paymentsLoading}
+            />
           </TabsContent>
 
           <TabsContent value="dealer-invoices" className="mt-0">
@@ -1520,6 +1445,28 @@ export default function AdminPage() {
                   </p>
                 )}
               </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="reklama" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Reklama</CardTitle>
+                <CardDescription>
+                  Modul reklamy je zatím ve vývoji a není načtený v této sestavě.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="reklamodavatele" className="mt-0">
+            <Card>
+              <CardHeader>
+                <CardTitle>Reklamodavatelé</CardTitle>
+                <CardDescription>
+                  Modul reklamodavatelů je zatím ve vývoji a není načtený v této sestavě.
+                </CardDescription>
+              </CardHeader>
             </Card>
           </TabsContent>
 

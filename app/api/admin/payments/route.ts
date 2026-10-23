@@ -1,30 +1,32 @@
 import { NextRequest } from "next/server";
 import { json, error } from "@lib/api-helpers";
 import { requireAdmin } from "@lib/auth";
-import { storage } from "@lib/storage";
+import { db } from "@lib/db";
+import { enrichPaymentForAdmin } from "@lib/paymentReceipt";
+import { listings, payments, users, type Listing, type User } from "@shared/schema";
+import { desc, eq } from "drizzle-orm";
 
 export async function GET(_req: NextRequest) {
   try {
-    const _admin = await requireAdmin();
-    const payments = await storage.getAllPayments();
+    await requireAdmin();
 
-    const enriched = await Promise.all(
-      payments.map(async (payment) => {
-        const buyer = await storage.getUser(payment.userId);
-        const listing = await storage.getListing(payment.listingId);
+    const rows = await db
+      .select({
+        payment: payments,
+        buyer: users,
+        listing: listings,
+      })
+      .from(payments)
+      .leftJoin(users, eq(payments.userId, users.id))
+      .leftJoin(listings, eq(payments.listingId, listings.id))
+      .orderBy(desc(payments.createdAt));
 
-        return {
-          ...payment,
-          buyerUsername: buyer?.username,
-          buyerEmail: buyer?.email,
-          buyerFirstName: buyer?.firstName,
-          buyerLastName: buyer?.lastName,
-          listingTitle: listing?.title,
-          listingBrand: listing?.brand,
-          listingModel: listing?.model,
-          listingPrice: listing?.price,
-        };
-      }),
+    const enriched = rows.map((row) =>
+      enrichPaymentForAdmin(
+        row.payment,
+        (row.buyer as User | null) ?? null,
+        (row.listing as Listing | null) ?? null,
+      ),
     );
 
     return json(enriched);
