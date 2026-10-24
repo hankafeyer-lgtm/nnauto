@@ -732,6 +732,8 @@ export type EnrichedPayment = Payment & {
   paymentTypeResolved?: PaymentType | null;
   paymentTypeLabel?: string;
   amountKc?: number;
+  /** True only for payments created with receipt snapshots (no legacy backfill). */
+  hasInvoice?: boolean;
   pdfUrl?: string;
 };
 

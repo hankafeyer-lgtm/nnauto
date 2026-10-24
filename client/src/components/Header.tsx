@@ -32,6 +32,7 @@ import {
   Shield,
   Building2,
   MessageCircle,
+  CreditCard,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useRef, lazy, Suspense, type MouseEvent } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -857,6 +858,14 @@ function HeaderContent({
                     >
                       <Car className="mr-3 h-5 w-5" />
                       <span>{t("header.menu.myListings")}</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => navigate("/platby")}
+                      className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border"
+                      data-testid="menu-item-payments"
+                    >
+                      <CreditCard className="mr-3 h-5 w-5" />
+                      <span>{t("header.menu.payments")}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => navigate("/cebia-reports")}

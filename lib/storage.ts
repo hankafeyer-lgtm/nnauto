@@ -154,6 +154,14 @@ export const storage = {
     return payment || undefined;
   },
 
+  async getPaymentsByUserId(userId: string) {
+    return await db
+      .select()
+      .from(payments)
+      .where(eq(payments.userId, userId))
+      .orderBy(desc(payments.createdAt));
+  },
+
   async updateUserPassword(
     id: string,
     hashedPassword: string,

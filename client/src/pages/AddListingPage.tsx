@@ -4103,8 +4103,23 @@ export default function AddListingPage() {
                   : t("payment.topsOwned") || "zakoupeno"}
               </div>
             </div>
+            <p className="text-sm text-muted-foreground text-center">
+              {t("payment.invoiceAvailable") ||
+                "Fakturu si stáhnete v sekci Platby a faktury."}
+            </p>
           </div>
           <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPaymentSuccessDialog(false);
+                setLocation("/platby", { scroll: true });
+              }}
+              className="w-full sm:w-auto"
+              data-testid="button-open-payments"
+            >
+              {t("payment.openInvoices") || "Platby a faktury"}
+            </Button>
             {paymentCheckoutType === "top" ? (
               <Button
                 variant="outline"
