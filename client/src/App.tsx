@@ -21,6 +21,7 @@ const AdminPage = lazy(() => import("@/pages/AdminPage"));
 const DealerPage = lazy(() => import("@/pages/DealerPage"));
 const PricingPage = lazy(() => import("@/pages/PricingPage"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("@/pages/TermsPage"));
 const AboutPage = lazy(() => import("@/pages/AboutPage"));
 const TipsPage = lazy(() => import("@/pages/TipsPage"));
 const CebiaReturnPage = lazy(() => import("@/pages/CebiaReturnPage"));
@@ -88,6 +89,12 @@ const SuspensePrivacy = memo(() => (
   </Suspense>
 ));
 
+const SuspenseTerms = memo(() => (
+  <Suspense fallback={<PageLoader />}>
+    <TermsPage />
+  </Suspense>
+));
+
 const SuspenseAbout = memo(() => (
   <Suspense fallback={<PageLoader />}>
     <AboutPage />
@@ -133,6 +140,7 @@ function Router() {
         <Route path="/dealer" component={SuspenseDealer} />
         <Route path="/pricing" component={SuspensePricing} />
         <Route path="/privacy" component={SuspensePrivacy} />
+        <Route path="/obchodni-podminky" component={SuspenseTerms} />
         <Route path="/about" component={SuspenseAbout} />
         <Route path="/tips" component={SuspenseTips} />
         <Route path="/cebia/return" component={SuspenseCebiaReturn} />

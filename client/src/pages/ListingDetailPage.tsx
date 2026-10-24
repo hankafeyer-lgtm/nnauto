@@ -3141,6 +3141,7 @@ import { extractShortIdFromSlug } from "@lib/seo/listing-url";
 import { normalizeSlug } from "@lib/seo/slug";
 import Header from "@/components/Header";
 import MobileFilters from "@/components/MobileFilters";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { MediaLightbox } from "@/components/MediaLightbox";
 import {
   LISTING_STATE_KEY,
@@ -6437,6 +6438,7 @@ export default function ListingDetailPage({
                 </CardContent>
               </Card>
 
+              <AdSlot placement="vehicle_detail_sidebar" />
             </div>
           </div>
 

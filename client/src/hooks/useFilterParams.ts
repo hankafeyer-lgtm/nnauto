@@ -707,7 +707,13 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
   }, []);
 
   const parseFiltersFromURL = useCallback((): FilterParams => {
-    const params = new URLSearchParams(window.location.search);
+    const rawSearch =
+      typeof window !== "undefined"
+        ? window.location.search
+        : nextSearch || "";
+    const params = new URLSearchParams(
+      rawSearch.startsWith("?") ? rawSearch.slice(1) : rawSearch,
+    );
 
     return mergeWithDefaultFilters({
       search: params.get("search") || undefined,
@@ -804,7 +810,7 @@ export function useFilterParams(options?: { autoNavigate?: boolean }) {
       hasServiceBook:
         params.get("hasServiceBook") === "true" ? true : undefined,
     });
-  }, []);
+  }, [nextSearch]);
 
   const initialFilters = parseFiltersFromURL();
   const [filters, setFiltersState] = useState<FilterParams>(() => initialFilters);

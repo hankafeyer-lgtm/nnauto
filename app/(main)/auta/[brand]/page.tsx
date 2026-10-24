@@ -37,6 +37,7 @@ import {
   queryFacetStats,
   queryBrandCollectionStats,
 } from "@lib/seo/facet-queries";
+import { AdSlotMount } from "@/components/ads/AdSlotMount";
 import {
   FacetCollectionPage,
   buildFacetPageMetadata,
@@ -427,6 +428,8 @@ export default async function BrandLandingPage({ params }: Props) {
           </>
         )}
       </p>
+
+      <AdSlotMount placement="category_brand" wrapperClassName="mb-6" />
 
       <div className="mb-6 flex flex-wrap gap-2">
         <a

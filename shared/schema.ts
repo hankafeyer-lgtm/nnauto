@@ -7,9 +7,11 @@ import {
   decimal,
   boolean,
   timestamp,
+  date,
   jsonb,
   index,
   uniqueIndex,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -981,3 +983,78 @@ export type DealerOutboundMessageRequest = z.infer<typeof dealerOutboundMessageS
 export type UpdateConversationStatusRequest = z.infer<typeof updateConversationStatusSchema>;
 export type InsertQuickReplyRequest = z.infer<typeof insertQuickReplySchema>;
 export type UpdateQuickReplyRequest = z.infer<typeof updateQuickReplySchema>;
+
+/** Paid site advertising campaigns (banner / native). */
+export const adCampaigns = pgTable(
+  "ad_campaigns",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull(),
+    advertiserName: text("advertiser_name"),
+    name: text("name").notNull(),
+    status: varchar("status", { length: 32 }).default("draft").notNull(),
+    placement: varchar("placement", { length: 64 }).notNull(),
+    headline: text("headline").default("").notNull(),
+    description: text("description").default("").notNull(),
+    imageUrl: text("image_url"),
+    videoUrl: text("video_url"),
+    ctaText: text("cta_text").default("Zjistit více").notNull(),
+    targetUrl: text("target_url").default("").notNull(),
+    durationDays: integer("duration_days").default(7).notNull(),
+    priceKc: integer("price_kc").default(0).notNull(),
+    currency: varchar("currency", { length: 3 }).default("CZK").notNull(),
+    // DB columns are Postgres `date` (see migrations/20261024_ad_campaigns.sql)
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }).notNull(),
+    brandFilter: varchar("brand_filter", { length: 80 }),
+    categoryFilter: varchar("category_filter", { length: 80 }),
+    impressions: integer("impressions").default(0).notNull(),
+    clicks: integer("clicks").default(0).notNull(),
+    spendKc: integer("spend_kc").default(0).notNull(),
+    rejectionReason: text("rejection_reason"),
+    stripeSessionId: text("stripe_session_id"),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    paidAt: timestamp("paid_at"),
+    approvedAt: timestamp("approved_at"),
+    approvedBy: varchar("approved_by"),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+  },
+  (table) => [
+    index("ad_campaigns_user_idx").on(table.userId),
+    index("ad_campaigns_status_placement_idx").on(table.status, table.placement),
+  ],
+);
+
+export const adEvents = pgTable(
+  "ad_events",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    campaignId: varchar("campaign_id").notNull(),
+    eventType: varchar("event_type", { length: 16 }).notNull(),
+    placement: varchar("placement", { length: 64 }).notNull(),
+    device: varchar("device", { length: 16 }),
+    sessionKey: varchar("session_key", { length: 64 }),
+    createdAt: timestamp("created_at").default(sql`now()`).notNull(),
+  },
+  (table) => [index("ad_events_campaign_idx").on(table.campaignId, table.createdAt)],
+);
+
+export const adPlacementPrices = pgTable(
+  "ad_placement_prices",
+  {
+    placement: varchar("placement", { length: 64 }).notNull(),
+    durationDays: integer("duration_days").notNull(),
+    priceKc: integer("price_kc").notNull(),
+    enabled: boolean("enabled").default(true).notNull(),
+    updatedAt: timestamp("updated_at").default(sql`now()`).notNull(),
+    updatedBy: varchar("updated_by"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.placement, table.durationDays] }),
+  ],
+);
+
+export type AdCampaignRow = typeof adCampaigns.$inferSelect;
+export type AdEventRow = typeof adEvents.$inferSelect;
+export type AdPlacementPriceRow = typeof adPlacementPrices.$inferSelect;

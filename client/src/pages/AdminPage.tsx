@@ -443,6 +443,8 @@ import AdminDashboardTab from "@/components/admin/AdminDashboardTab";
 import AdminDealerManagement from "@/components/admin/AdminDealerManagement";
 import AdminDeletedMessages from "@/components/admin/AdminDeletedMessages";
 import AdminPaymentsTab from "@/components/admin/AdminPaymentsTab";
+import AdminAdsTab from "@/components/admin/AdminAdsTab";
+import AdminAdvertisersTab from "@/components/admin/AdminAdvertisersTab";
 import type { User, Listing, EnrichedPayment, Dealer } from "@shared/schema";
 
 type AdminCebiaReport = {
@@ -873,14 +875,16 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-      <main className="flex-1 container mx-auto px-3 py-4 sm:px-4 sm:py-6">
-        <div className="mb-4">
+      <Header compactMobile showMobileSearch={false} />
+      <main className="flex-1 container mx-auto px-3 py-3 sm:px-4 sm:py-6">
+        <div className="mb-3 sm:mb-4">
           <div className="flex items-center gap-2">
-            <Shield className="h-6 w-6 text-primary sm:h-7 sm:w-7" />
-            <h1 className="text-xl font-bold sm:text-2xl">{t("admin.title")}</h1>
+            <Shield className="h-5 w-5 text-primary sm:h-7 sm:w-7" />
+            <h1 className="text-lg font-bold sm:text-2xl">{t("admin.title")}</h1>
           </div>
-          <p className="text-sm text-muted-foreground">{t("admin.subtitle")}</p>
+          <p className="hidden text-sm text-muted-foreground sm:block">
+            {t("admin.subtitle")}
+          </p>
         </div>
 
         {hasAnyAdminDataError ? (
@@ -1451,25 +1455,11 @@ export default function AdminPage() {
           </TabsContent>
 
           <TabsContent value="reklama" className="mt-0">
-            <Card>
-              <CardHeader>
-                <CardTitle>Reklama</CardTitle>
-                <CardDescription>
-                  Modul reklamy je zatím ve vývoji a není načtený v této sestavě.
-                </CardDescription>
-              </CardHeader>
-            </Card>
+            <AdminAdsTab />
           </TabsContent>
 
           <TabsContent value="reklamodavatele" className="mt-0">
-            <Card>
-              <CardHeader>
-                <CardTitle>Reklamodavatelé</CardTitle>
-                <CardDescription>
-                  Modul reklamodavatelů je zatím ve vývoji a není načtený v této sestavě.
-                </CardDescription>
-              </CardHeader>
-            </Card>
+            <AdminAdvertisersTab />
           </TabsContent>
 
           <TabsContent value="dealers" className="mt-0">

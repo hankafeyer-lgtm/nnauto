@@ -3000,6 +3000,7 @@ import {
 } from "@/components/ui/pagination";
 
 import { SearchX, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { useSearch } from "@/lib/navigation";
 
 import {
@@ -4577,6 +4578,11 @@ export default function ListingsPage({
         </div>
       </div>
 
+      <AdSlot
+        placement="listing_top"
+        wrapperClassName="container mx-auto px-4 pt-4"
+      />
+
       <div className="flex-1 container mx-auto px-4 py-6">
         <div className="flex gap-6">
           {/* Sidebar — hidden in cabinet (userId in URL) */}
@@ -4663,7 +4669,7 @@ export default function ListingsPage({
                       : "flex flex-col gap-8"
                   }
                 >
-                  {cars.map((car, index) => {
+                  {cars.flatMap((car, index) => {
                     const listing = listingsById.get(car.id);
                     const isOwner = Boolean(
                       user && listing && listing.userId === user.id,
@@ -4672,7 +4678,7 @@ export default function ListingsPage({
                     const isPromoting = promotingListingId === car.id;
 
                     const canSeeStats = isOwner || Boolean(user?.isAdmin);
-                    return (
+                    const card = (
                       <CarCard
                         key={car.id}
                         {...car}
@@ -4714,6 +4720,17 @@ export default function ListingsPage({
                         }
                       />
                     );
+                    if (index === 1) {
+                      return [
+                        card,
+                        <AdSlot
+                          key="ad-listing-inline"
+                          placement="listing_inline"
+                          className="h-full"
+                        />,
+                      ];
+                    }
+                    return [card];
                   })}
                 </div>
 
@@ -4850,7 +4867,7 @@ export default function ListingsPage({
                       : "flex flex-col gap-8"
                   }
                 >
-                  {cars.map((car, index) => {
+                  {cars.flatMap((car, index) => {
                     const listing = listingsById.get(car.id);
                     const isOwner = Boolean(
                       user && listing && listing.userId === user.id,
@@ -4862,7 +4879,7 @@ export default function ListingsPage({
                       toggleSoldMutation.variables?.listingId === car.id;
 
                     const canSeeStats = isOwner || Boolean(user?.isAdmin);
-                    return (
+                    const card = (
                       <CarCard
                         key={car.id}
                         {...car}
@@ -4906,6 +4923,17 @@ export default function ListingsPage({
                         }
                       />
                     );
+                    if (index === 1) {
+                      return [
+                        card,
+                        <AdSlot
+                          key="ad-listing-inline-desktop"
+                          placement="listing_inline"
+                          className="h-full"
+                        />,
+                      ];
+                    }
+                    return [card];
                   })}
                 </div>
 

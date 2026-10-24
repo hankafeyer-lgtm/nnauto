@@ -262,6 +262,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "yearly",
       priority: 0.3,
     },
+    {
+      url: `${SITE_ORIGIN}/obchodni-podminky`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
   ];
 
   const listingPages: MetadataRoute.Sitemap = allListings.map((l) => {

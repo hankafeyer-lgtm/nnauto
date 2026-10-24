@@ -21,6 +21,7 @@ import {
   Menu,
   ChevronRight,
   ChevronLeft,
+  Megaphone,
 } from "lucide-react";
 
 type Item = {
@@ -37,6 +38,8 @@ const ITEMS: Item[] = [
   { id: "dealers", label: "Dealeři", Icon: Building2 },
   { id: "dealer-invoices", label: "Faktury dealerů", Icon: FileText },
   { id: "payments", label: "Platby", Icon: CreditCard },
+  { id: "reklama", label: "Reklama", Icon: Megaphone },
+  { id: "reklamodavatele", label: "Reklamodavatelé", Icon: Building2 },
   { id: "integrace", label: "Integrace", Icon: Link2, superOnly: true },
   { id: "statistiky", label: "Statistiky", Icon: BarChart3, superOnly: true },
   { id: "deleted-messages", label: "Smazané zprávy", Icon: MessageSquare, superOnly: true },

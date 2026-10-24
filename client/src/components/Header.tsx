@@ -33,6 +33,7 @@ import {
   Building2,
   MessageCircle,
   CreditCard,
+  Megaphone,
 } from "lucide-react";
 import { useState, useEffect, useMemo, useRef, lazy, Suspense, type MouseEvent } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -875,6 +876,19 @@ function HeaderContent({
                       <History className="mr-3 h-5 w-5" />
                       <span>{t("header.menu.cebiaReports")}</span>
                     </DropdownMenuItem>
+                    {user?.isAdmin ? (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href="/admin"
+                          scroll
+                          className="px-3 py-3 text-base rounded-lg border border-transparent hover:border-border cursor-pointer flex items-center"
+                          data-testid="menu-item-business-ads-admin"
+                        >
+                          <Megaphone className="mr-3 h-5 w-5" />
+                          <span>Reklama (admin)</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    ) : null}
                     {(user?.isDealer || user?.isAdmin) && (
                       <>
                         <DropdownMenuSeparator className="my-2" />

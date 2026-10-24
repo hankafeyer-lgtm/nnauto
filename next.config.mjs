@@ -23,6 +23,8 @@ const csp = [
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Allow both localhost and 127.0.0.1 in dev (otherwise chunks are blocked → blank page)
+  allowedDevOrigins: ["127.0.0.1", "localhost"],
   experimental: {
     proxyClientMaxBodySize: "200mb",
   },

@@ -11,7 +11,7 @@ function Footer() {
   return (
     <footer className="border-t bg-muted/30 mt-12 sm:mt-16 lg:mt-24 pb-20 sm:pb-0">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-10 lg:gap-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 sm:gap-10 lg:gap-12">
           <div className="sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-3 sm:gap-4 mb-4 sm:mb-6">
               <img
@@ -32,6 +32,31 @@ function Footer() {
               Váš spolehlivý partner pro nákup a prodej automobilů v České
               republice.
             </p>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-base sm:text-lg mb-4 sm:mb-6">
+              Pro firmy
+            </h3>
+            <ul className="space-y-2 sm:space-y-3 text-sm">
+              <li>
+                <Link
+                  href="/dealer/register"
+                  className="text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                  data-testid="link-dealer-register"
+                >
+                  Registrace dealera
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/pricing"
+                  className="text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                >
+                  Ceník služeb
+                </Link>
+              </li>
+            </ul>
           </div>
 
           <div>
@@ -170,6 +195,15 @@ function Footer() {
                   data-testid="link-privacy"
                 >
                   IČ: 23974559
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/obchodni-podminky"
+                  className="text-black dark:text-white hover:text-black/70 dark:hover:text-white/70 transition-colors"
+                  data-testid="link-terms"
+                >
+                  Obchodní podmínky
                 </Link>
               </li>
               <li>

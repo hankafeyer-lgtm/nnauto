@@ -2045,6 +2045,7 @@ import {
 } from "@/lib/listingsScroll";
 
 import { SEO } from "@/components/SEO";
+import { AdSlot } from "@/components/ads/AdSlot";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -3396,6 +3397,10 @@ export default function HomePage() {
         </div>
       </div>
       <Hero />
+      <AdSlot
+        placement="homepage_top"
+        wrapperClassName="container mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6"
+      />
       <main className="flex-1">
         <section
           ref={recommendedSectionRef}
@@ -3419,6 +3424,8 @@ export default function HomePage() {
               </Button>
             </div>
           </div>
+
+          <AdSlot placement="featured_top" />
 
           {/* Desktop sidebar toggle between filters and cards */}
           <div className="hidden lg:flex gap-6">

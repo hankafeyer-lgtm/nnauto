@@ -9,14 +9,15 @@ import {
   buildFaqPageJsonLd,
 } from "@lib/seo/structured-data";
 import { inzeratWord } from "@lib/seo/czech-format";
+import { AdSlotMount } from "@/components/ads/AdSlotMount";
 
 /**
  * Seller-intent SEO landing page: /prodat-auto
  *
  * Targets Czech search queries the site was NOT serving before, e.g.
- * "prodat auto", "prodám auto zdarma", "inzerce aut zdarma", "jak prodat
- * auto", "prodej ojetého auta". These queries have real impressions in
- * Search Console but had no dedicated indexable page.
+ * "prodat auto", "prodám auto", "jak prodat auto", "prodej ojetého auta".
+ * These queries have real impressions in Search Console but had no
+ * dedicated indexable page.
  *
  * The page is fully server-rendered (crawlable without JS), self-canonical,
  * and links into /add-listing (the actual listing flow) plus the buyer-side
@@ -40,9 +41,9 @@ async function countActiveListings(): Promise<number> {
 }
 
 export function generateMetadata(): Metadata {
-  const title = "Prodat auto zdarma a rychle | Inzerce aut | NNAuto";
+  const title = "Prodat auto rychle | Inzerce aut | NNAuto";
   const description =
-    "Chcete prodat auto? Vložte inzerát na NNAuto.cz rychle a jednoduše. Oslovte tisíce kupujících z celé ČR, prodávejte bez provize a komunikujte s zájemci přímo. Prodej ojetého i nového vozu.";
+    "Chcete prodat auto? Vložte inzerát na NNAuto.cz za 69 Kč. Oslovte tisíce kupujících z celé ČR, prodávejte bez provize a komunikujte se zájemci přímo.";
   return {
     title,
     description,
@@ -61,8 +62,7 @@ export function generateMetadata(): Metadata {
     keywords: [
       "prodat auto",
       "prodám auto",
-      "prodat auto zdarma",
-      "inzerce aut zdarma",
+      "inzerce aut",
       "jak prodat auto",
       "prodej ojetého auta",
       "vložit inzerát auto",
@@ -75,12 +75,12 @@ export function generateMetadata(): Metadata {
 
 const STEPS: { title: string; text: string }[] = [
   {
-    title: "Vytvořte si účet zdarma",
+    title: "Vytvořte si účet",
     text: "Registrace na NNAuto trvá pár vteřin. Můžete se přihlásit jako soukromý prodejce nebo autobazar.",
   },
   {
     title: "Vložte inzerát a fotky",
-    text: "Přidejte značku, model, rok, nájezd, cenu a kvalitní fotografie. Čím podrobnější popis, tím rychlejší prodej.",
+    text: "Za 69 Kč přidejte značku, model, rok, nájezd, cenu a kvalitní fotografie. Čím podrobnější popis, tím rychlejší prodej.",
   },
   {
     title: "Oslovte kupující z celé ČR",
@@ -88,7 +88,7 @@ const STEPS: { title: string; text: string }[] = [
   },
   {
     title: "Domluvte prodej bez provize",
-    text: "Prodáváte přímo kupujícímu, bez mezičlánků a skrytých poplatků. Cenu i podmínky určujete vy.",
+    text: "Prodáváte přímo kupujícímu, bez mezičlánků. Cenu i podmínky určujete vy — z prodeje neplatíte provizi.",
   },
 ];
 
@@ -152,7 +152,7 @@ export default async function ProdatAutoPage() {
     "@type": "HowTo",
     name: "Jak prodat auto na NNAuto",
     description:
-      "Návod, jak rychle a zdarma prodat auto přes online autobazar NNAuto.cz.",
+      "Návod, jak rychle prodat auto přes online autobazar NNAuto.cz.",
     step: STEPS.map((s, i) => ({
       "@type": "HowToStep",
       position: i + 1,
@@ -183,14 +183,14 @@ export default async function ProdatAutoPage() {
         </nav>
 
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl mb-4">
-          Prodat auto zdarma a rychle
+          Prodat auto rychle a jednoduše
         </h1>
 
         <p className="text-lg text-muted-foreground mb-6 max-w-3xl">
-          Chcete <strong>prodat auto</strong>? Vložte inzerát na NNAuto.cz a
-          oslovte tisíce kupujících z celé České republiky. Prodávejte{" "}
-          <strong>bez provize</strong>, komunikujte se zájemci přímo a cenu i
-          podmínky určujete vy.
+          Chcete <strong>prodat auto</strong>? Vložte inzerát na NNAuto.cz za{" "}
+          <strong>69 Kč</strong> a oslovte tisíce kupujících z celé České
+          republiky. Prodávejte <strong>bez provize</strong>, komunikujte se
+          zájemci přímo a cenu i podmínky určujete vy.
           {activeCount > 0
             ? ` Aktuálně je na NNAuto ${activeCount} aktivních ${inzeratWord(activeCount)}.`
             : ""}
@@ -207,9 +207,14 @@ export default async function ProdatAutoPage() {
             href="/pricing"
             className="rounded-md border px-6 py-3 font-medium transition-colors hover:bg-accent"
           >
-            Ceník inzerce pro autobazary
+            Ceník inzerce
           </a>
         </div>
+
+        <AdSlotMount
+          placement="sell_car"
+          wrapperClassName="mb-10"
+        />
 
         {/* How it works */}
         <section aria-labelledby="jak-prodat" className="mb-10">
@@ -239,8 +244,8 @@ export default async function ProdatAutoPage() {
           <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {[
               {
-                t: "Zdarma pro soukromé prodejce",
-                d: "Základní inzerát vložíte bez poplatku a bez provize z prodeje.",
+                t: "Jednorázově 69 Kč",
+                d: "Soukromý inzerát zaplatíte jednou — zůstane aktivní, dokud jej sami nesmažete. Z prodeje neplatíte provizi.",
               },
               {
                 t: "Tisíce kupujících denně",

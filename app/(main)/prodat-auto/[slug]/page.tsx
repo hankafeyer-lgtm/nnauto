@@ -69,7 +69,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     stats.minPrice && stats.minPrice > 0
       ? `, podobné vozy od ${formatCzk(stats.minPrice)}`
       : "";
-  const title = `Prodat ${bm} zdarma | Inzerce ${bm} | NNAuto`;
+  const title = `Prodat ${bm} | Inzerce ${bm} | NNAuto`;
   const description =
     `Chcete prodat ${bm}? Vložte inzerát na NNAuto.cz za jednorázových 69 Kč a oslovte kupující z celé ČR. Bez provize, přímý kontakt se zájemci${fromPart}.`;
 
@@ -96,9 +96,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       `prodám ${bm}`,
       `${bm} prodej`,
       `inzerce ${bm}`,
-      `prodat ${bm} zdarma`,
       `výkup ${bm}`,
-      "inzerce aut zdarma",
+      "inzerce aut",
       "NNAuto",
     ].join(", "),
   };
@@ -155,7 +154,7 @@ export default async function ProdatModelPage({ params }: Props) {
     {
       question: `Kolik stojí prodej ${bm} na NNAuto?`,
       answer:
-        "Základní inzerát pro soukromé prodejce můžete vložit zdarma. Autobazary a prodejci s více vozy mohou využít balíčky inzerce.",
+        "Soukromí prodejci platí jednorázově 69 Kč za inzerát. Autobazary a prodejci s více vozy mohou využít balíčky inzerce — detaily v ceníku.",
     },
     {
       question: `Jak nastavit cenu při prodeji ${bm}?`,
@@ -187,12 +186,13 @@ export default async function ProdatModelPage({ params }: Props) {
         </nav>
 
         <h1 className="mb-4 text-3xl font-bold tracking-tight sm:text-4xl">
-          Prodat {bm} zdarma
+          Prodat {bm}
         </h1>
 
         <p className="mb-6 max-w-3xl text-lg text-muted-foreground">
-          Chcete <strong>prodat {bm}</strong>? Vložte inzerát na NNAuto.cz,
-          oslovte kupující z celé České republiky a prodávejte bez provize.
+          Chcete <strong>prodat {bm}</strong>? Vložte inzerát na NNAuto.cz za{" "}
+          <strong>69 Kč</strong>, oslovte kupující z celé České republiky a
+          prodávejte bez provize.
           {stats.total > 0 ? (
             <>
               {" "}V katalogu aktuálně vidíme <strong>{stats.total}</strong>{" "}
